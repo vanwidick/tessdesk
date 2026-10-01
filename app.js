@@ -5,7 +5,7 @@
   var CFG = window.TD_CONFIG || {};
   var VARIANT = CFG.variant || 'main';
   var P = CFG.storagePrefix || 'td:';
-  var VERSION = 'v4.0';
+  var VERSION = 'v4.0.1';
   var VERSION_DATE = 'Oct 1, 2026';
   var TZ = 'America/Chicago';
   var DEFAULT_API = 'https://api.tessie.com';
@@ -246,8 +246,16 @@
   var ICON_REFRESH = '<svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>';
   var ICON_GEAR = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>';
 
-  function applyTheme() { document.body.classList.toggle('tessie', !!load('tessieLook', false)); 
-    var m = document.querySelector('meta[name=theme-color]'); if (m) m.setAttribute('content', load('tessieLook', false) ? '#081426' : '#0b0b0b'); }
+  // TESSIE LOOK (default ON) follows the charging state: green Tessie palette while charging,
+  // red-tinted version of the same look otherwise. The TessDesk theme is unchanged.
+  function isCharging() { var s = cache && cache.state; return !!(s && s.charge_state && s.charge_state.charging_state === 'Charging'); }
+  function applyTheme() {
+    var tessie = !!load('tessieLook', true), chg = isCharging();
+    document.body.classList.toggle('tessie', tessie);
+    document.body.classList.toggle('idle', tessie && !chg);
+    var m = document.querySelector('meta[name=theme-color]');
+    if (m) m.setAttribute('content', tessie ? (chg ? '#081426' : '#170a0d') : '#0b0b0b');
+  }
   function setSpin(on) { var b = document.getElementById('btnRefresh'); if (b) b.classList.toggle('spin', on); }
   var screen = 'main';
 
@@ -287,7 +295,7 @@
       '<div class="money ' + col + '">' + (hc ? money(hc.cost) : '$--.--') + '</div>' +
       '<div class="sub">' + (v.charging ? 'This charge' : 'Last charge') + (rate ? ' \u00b7 ' + rate : '') + '</div>' +
       '<div class="meta">' + meta + '</div></div>';
-    h += '<div class="toggle-row"><div class="toggle' + (load('tessieLook', false) ? ' on' : '') + '" id="tglTessie" role="switch" aria-checked="' + !!load('tessieLook', false) + '">TESSIE LOOK<span class="sw"></span></div></div>';
+    h += '<div class="toggle-row"><div class="toggle' + (load('tessieLook', true) ? ' on' : '') + '" id="tglTessie" role="switch" aria-checked="' + !!load('tessieLook', true) + '">TESSIE LOOK<span class="sw"></span></div></div>';
 
     // progress
     var a = v.socStart, b = v.limit, s = v.soc;
@@ -346,7 +354,7 @@
   function bind() {
     var r = document.getElementById('btnRefresh'); if (r) r.onclick = function () { refresh(true); };
     var s = document.getElementById('btnSettings'); if (s) s.onclick = function () { screen = 'settings'; render(); window.scrollTo(0, 0); };
-    var t = document.getElementById('tglTessie'); if (t) t.onclick = function () { save('tessieLook', !load('tessieLook', false)); render(); };
+    var t = document.getElementById('tglTessie'); if (t) t.onclick = function () { save('tessieLook', !load('tessieLook', true)); render(); };
     if (busy) setSpin(true);
   }
 
@@ -380,7 +388,7 @@
       '<label class="check"><input type="checkbox" id="fPkM"' + (pk.summerOnly !== false ? ' checked' : '') + '> June\u2013October only</label></div></div>' +
       '<div class="field"><label for="fEff">Charging efficiency %</label><input type="number" id="fEff" min="50" max="100" step="1" value="' + Math.round((cfg.eff || 0.9) * 100) + '"><div class="help">Wall kWh = kWh added \u00f7 efficiency. Default 90%.</div></div>' +
       '<div class="sect">Display</div>' +
-      '<label class="check"><input type="checkbox" id="fLook"' + (load('tessieLook', false) ? ' checked' : '') + '> Tessie look</label>' +
+      '<label class="check"><input type="checkbox" id="fLook"' + (load('tessieLook', true) ? ' checked' : '') + '> Tessie look</label>' +
       (VARIANT === 'test' ? '<label class="check"><input type="checkbox" id="fReset"' + (isTestReset ? ' checked' : '') + '> Reset data on every launch</label>' : '') +
       '<details style="margin:10px 0;color:var(--muted);font-size:13px"><summary>Advanced</summary><div class="field"><label>API address</label><input type="url" id="fApi" value="' + esc(cfg.apiBase || DEFAULT_API) + '"><div class="help">Leave as https://api.tessie.com unless you set up a proxy.</div></div></details>' +
       '<div class="msg" id="mSave"></div><button class="btn" id="bSave">' + (first ? 'Start TessDesk' : 'Save') + '</button>' +

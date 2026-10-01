@@ -17,6 +17,14 @@ body.tessie {
   --hero-font: -apple-system, "SF Pro Display", "Segoe UI Variable Display", "Inter", system-ui, Roboto, sans-serif;
 }
 
+/* TESSIE LOOK while NOT charging: same look, red accents, subtle red-tinted dark background */
+body.tessie.idle {
+  --bg: #170a0d; --card: #26111a; --card2: #321620; --line: #401d27;
+  --muted: #b9a3a7; --red: #ff5a5f; --accent: #E82127; --amber: #ffb547;
+  --track: #401d27; --chip: #26111a; --switch: #E82127;
+}
+body.tessie.idle .row.hl .l { color: #ffb3b5 !important; }
+
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font); }
 body { min-height: 100vh; overscroll-behavior-y: contain; transition: background .25s; }
