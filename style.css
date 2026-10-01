@@ -1,4 +1,4 @@
-/* TessDesk mobile: v4.2 */
+/* TessDesk mobile: v4.2.1 */
 @font-face { font-family: "Bebas Neue"; src: url("fonts/BebasNeue-Regular.ttf") format("truetype"); font-display: swap; }
 
 :root {
@@ -28,7 +28,10 @@ body.tessie.idle .row.hl .l { color: #ffb3b5 !important; }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font); }
 body { min-height: 100vh; overscroll-behavior-y: contain; transition: background .25s; }
-.wrap { max-width: 480px; margin: 0 auto; padding: calc(env(safe-area-inset-top) + 10px) 16px calc(env(safe-area-inset-bottom) + 18px); }
+/* v4.2.1: the app is ~10 mm (38 CSS px) narrower than v4.2 and stays centered: was full screen width (max 480px) with 16px padding,
+   now screen width minus 38px (19px extra side margin each side), max 442px. COMPACT applies the same 38px in fitCompact() in app.js. */
+:root { --trim: 38px; --app-max: 442px; }
+.wrap { width: min(calc(100% - var(--trim)), var(--app-max)); margin: 0 auto; padding: calc(env(safe-area-inset-top) + 10px) 16px calc(env(safe-area-inset-bottom) + 18px); }
 button { font: inherit; color: inherit; }
 
 /* header */
@@ -318,3 +321,39 @@ body.compact .ctl-msg { margin-top: 5px; padding: 5px 8px; min-height: 0; font-s
 body.compact .cbtn.remind { min-height: 36px; margin-top: 4px; } body.compact .linkbtn { padding: 2px; margin-top: 2px; font-size: 11.5px; }
 body.compact .foot { margin: 8px 0 2px; } body.compact .dbv { font-size: 22px; }
 body.compact .toolbar { margin: 2px 0; }
+
+/* ---------- v4.2.1: narrower app (see .wrap) ---------- */
+/* Controls card: when the card is narrow (the new width on phones), VENT + CLOSE share a row and the temperature control gets its own
+   full-width row, so nothing spills past the card (v4.2 already overflowed by ~6 px on 360 px phones). */
+.card.ctl { container: ctl / inline-size; }
+@container ctl (max-width: 312px) {
+  .ctl-row3 { grid-template-columns: 1fr 1fr; }
+  .ctl-row3 .temp { grid-column: 1 / -1; grid-template-columns: 54px 1fr 54px; }
+}
+/* COMPACT, a little tighter so it still fits short screens (375x667) without scrolling */
+body.compact .card { margin: 4px 0; }
+body.compact .hero .money { font-size: 44px; }
+body.compact .batt-top, body.compact .batt-drag { height: 36px; }
+body.compact .bar, body.compact .bar.amps { height: 34px; } body.compact .bar .track, body.compact .bar .fill, body.compact .bar.amps .track, body.compact .bar.amps .fill { top: 12px; }
+body.compact .bar .thumb, body.compact .bar.amps .thumb { height: 34px; } body.compact .bar .tick { top: 5px; } body.compact .bar .ball { top: 3px; }
+body.compact .cbtn, body.compact .cbtn.sq { min-height: 36px; } body.compact .cbtn.big { min-height: 42px; }
+body.compact .tires svg { max-height: 112px; } body.compact .seats svg { max-height: 116px; }
+body.compact .cbtn.remind { min-height: 32px; }
+body.compact .foot { margin: 5px 0 0; } body.compact .dbv { font-size: 20px; } body.compact .dbv-bar { margin: 4px auto; }
+body.compact .card { padding: 7px 10px; }
+body.compact .hero .badge { padding: 2px 8px; font-size: 10px; } body.compact .hero .money { margin: 0; }
+body.compact .bar { margin-top: 3px; } body.compact .fl-labels { margin-top: 2px; }
+body.compact .amps-hd { margin-top: 5px; padding-top: 4px; }
+body.compact .chip { padding: 3px 4px; }
+body.compact .tires svg { max-height: 100px; } body.compact .seats svg { max-height: 104px; }
+/* v4.2.1: grid cells may shrink below their text width; long sub-labels wrap instead of spilling out of the button */
+.ctl-row2 { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.ctl-row3b { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.chg-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.cbtn { min-width: 0; } .cbtn b { max-width: 100%; }
+.cbtn small { white-space: normal; text-align: center; line-height: 1.2; }
+.cbtn.big small { text-align: left; }
+/* v4.2.1: header on narrow phones: slightly smaller brand so "Logged in as <name>" isn't cut off */
+.hdr { container: hdr / inline-size; } .brand { flex: 0 0 auto; } .who { min-width: 0; }
+@container hdr (max-width: 335px) { .brand { font-size: 17px; letter-spacing: .12em; } .who { font-size: 12.5px; } .laychip { margin-right: 6px; } }
+.rows.compact .row .r small, .temp .tv small { white-space: nowrap; } .rows.compact .row .l { min-width: 0; }

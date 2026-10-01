@@ -1,11 +1,11 @@
-/* TessDesk mobile v4.2 (PWA). Design by Van.
+/* TessDesk mobile v4.2.1 (PWA). Design by Van.
    Everything (name, Tessie token, vehicle, rates) is stored in localStorage on this device only. */
 (function () {
   'use strict';
   var CFG = window.TD_CONFIG || {};
   var VARIANT = CFG.variant || 'main';
   var P = CFG.storagePrefix || 'td:';
-  var VERSION = 'v4.2';
+  var VERSION = 'v4.2.1';
   var VERSION_DATE = 'Oct 1, 2026';
   var TZ = 'America/Chicago';
   var DEFAULT_API = 'https://api.tessie.com';
@@ -851,18 +851,33 @@
   }
 
   // ---------- v4.2: FULL / COMPACT ----------
-  // Compact: same sections and controls, smaller type, tighter padding, smaller drawings, then zoomed (down to 55%) to fit the screen height.
+  // Compact: same sections and controls, smaller type, tighter padding, smaller drawings, then zoomed (down to 45%, only on very short screens) to fit the screen height.
   var curZoom = 1;
   function layoutMode() { return load('layout', 'full') === 'compact' ? 'compact' : 'full'; }
   function setLayout(m) { save('layout', m); render(); }
   function layoutChip() { var c = layoutMode() === 'compact'; return '<button class="laychip' + (c ? ' on' : '') + '" id="btnLayout" title="Full: normal size, scrolls. Compact: fits the screen.">' + (c ? 'COMPACT' : 'FULL') + '</button>'; }
+  // v4.2.1: COMPACT is ~38 CSS px (~10 mm) narrower on screen too. v4.2's compact was min(screen, 480 * zoom) wide (276 px on a
+  // 390x844 phone). Now: min(480 * zoom - 38, 238 px), never below a 360 px layout (so nothing
+  // inside gets cramped) and never wider than screen - 38.
+  // The zoom shrinks everything inside .wrap, so the width is set in layout px (visual / zoom). A narrower layout can wrap a
+  // little taller, so the zoom is refined a few times until the page fits the screen height.
+  var TRIM = 38, ZMIN = 0.45, CMAX = 238, CLAYOUT_MIN = 360;
   function fitCompact() {
     var w = document.querySelector('.wrap'); if (!w) return;
     document.body.classList.toggle('compact', layoutMode() === 'compact');
-    w.style.zoom = ''; curZoom = 1;
+    w.style.zoom = ''; w.style.width = ''; curZoom = 1;
     if (layoutMode() !== 'compact' || screen !== 'main') return;
-    var vh = window.innerHeight, need = w.scrollHeight;
-    if (need > vh) { curZoom = Math.max(0.55, Math.floor(vh / need * 1000) / 1000); w.style.zoom = curZoom; }
+    var vw = document.documentElement.clientWidth || window.innerWidth, vh = window.innerHeight, z = 1;
+    function apply(zz) { w.style.zoom = zz === 1 ? '' : zz; w.style.width = Math.min(vw - TRIM, Math.max(CLAYOUT_MIN * zz, Math.min(480 * zz - TRIM, CMAX))) / zz + 'px'; }
+    for (var i = 0; i < 6; i++) {
+      apply(z);
+      var need = w.getBoundingClientRect().height / z;            // layout height at this width
+      var nz = Math.max(ZMIN, Math.min(1, Math.floor(vh / need * 1000) / 1000));
+      if (nz >= z && w.getBoundingClientRect().height <= vh) break; // fits
+      z = nz < z ? nz : Math.max(ZMIN, z - 0.005);
+      if (z === ZMIN) { apply(z); break; }
+    }
+    curZoom = z;
   }
   window.addEventListener('resize', function () { if (layoutMode() === 'compact') fitCompact(); });
   function monDay(t) { return new Date(t * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/Chicago' }); }
