@@ -8,7 +8,7 @@
   function loadApp() {
     var v = Date.now();                                   // bypass HTTP cache for code
     var css = document.createElement('link'); css.rel = 'stylesheet'; css.href = '../style.css?v=' + v; document.head.appendChild(css);
-    try { var tl = localStorage.getItem(P + 'tessieLook'); if (tl === null || JSON.parse(tl) !== false) document.body.className = 'tessie idle'; } catch (e) {}
+    document.body.className = 'tessie idle';   // v4.1: Tessie look is always on
     document.getElementById('app').innerHTML = '';
     var s = document.createElement('script'); s.src = '../app.js?v=' + v; document.body.appendChild(s);
     // A pass-through SW keeps the TEST app installable; it never caches anything.

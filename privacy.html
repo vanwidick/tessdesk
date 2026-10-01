@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TessDesk · About, privacy &amp; disclosures</title>
+<meta name="description" content="TessDesk privacy, disclosures and permissions. Unofficial; not affiliated with Tesla or Tessie.">
+<meta name="theme-color" content="#081426">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="stylesheet" href="style.css">
+<style>
+  .cl h1 { font-size: 26px; margin: 10px 0 2px; letter-spacing: .02em; }
+  .cl p.lead { color: var(--muted); margin: 0 0 8px; font-size: 14px; }
+  .rel { background: var(--card); border-radius: var(--radius); padding: 14px 16px 10px; margin: 12px 0; border-left: 4px solid var(--line); }
+  .rel.new { border-left-color: var(--green); }
+  .rel h2 { margin: 0; display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+            font-family: "Bebas Neue", Impact, "Arial Narrow", sans-serif; font-weight: 400; font-size: 30px; letter-spacing: .08em; }
+  .rel h2 small { font-family: var(--font); font-size: 13px; letter-spacing: .02em; color: var(--muted); font-weight: 600; }
+  .rel .tag { display: inline-block; font-size: 10.5px; font-weight: 800; letter-spacing: .12em; color: var(--green); margin: 2px 0 4px; }
+  .rel ul { margin: 6px 0 4px; padding-left: 18px; } .rel li { margin: 5px 0; font-size: 14.5px; line-height: 1.4; }
+  .rel li b { color: var(--text); }
+  .back { display: inline-block; margin: 8px 0 0; color: var(--muted); font-size: 13px; text-decoration: none; }
+  .back:hover { color: var(--text); }
+  .rel h3 { margin: 4px 0 2px; font-size: 15px; letter-spacing: .04em; }
+  .rel p { font-size: 14.5px; line-height: 1.45; margin: 6px 0; }
+  .rel a { color: var(--green); }
+  .hl { display: flex; align-items: center; gap: 10px; margin: 8px 0; }
+  .hbtn { flex: 0 0 auto; min-width: 150px; text-align: center; background: var(--card2); border: 1px solid var(--line); border-radius: 8px; padding: 7px 8px; color: var(--text) !important; text-decoration: none; font-weight: 700; font-size: 12.5px; }
+  .hl span { color: var(--muted); font-size: 13px; line-height: 1.3; }
+</style>
+</head>
+<body class="tessie">
+<div class="wrap cl">
+  <div class="hdr"><div class="brand">TESSDESK</div><div class="who">About &amp; privacy</div></div>
+  <a class="back" href="./" id="back">← Back to TessDesk</a>
+  <h1>About, privacy &amp; disclosures</h1>
+  <p class="lead">TessDesk v4.1 · desktop widget and phone app · Design by Van</p>
+
+  <section class="rel new">
+    <h2>Unofficial <small>not affiliated</small></h2>
+    <p>TessDesk is an <b>unofficial</b> app. It is <b>not made by, affiliated with, or endorsed by Tesla, Inc. or Tessie</b>.</p>
+  </section>
+  <section class="rel">
+    <h2>What it reads &amp; does</h2>
+    <ul>
+      <li>It uses <b>your Tessie API token</b> to <b>read vehicle data</b>: location, battery and range, charging, tire pressures and warnings, lock state, windows, and climate.</li>
+      <li>It <b>sends commands only when you press a control</b>: lock/unlock, vent/close windows, climate on/off, cabin temperature, charge limit. Unlock, vent, and charge-limit changes ask you to confirm.</li>
+      <li>Regular updates use Tessie's cached state and don't wake the car. <b>Commands can wake the car and use a little battery.</b></li>
+      <li>Use the controls only when it's safe and legal (not while driving).</li>
+    </ul>
+  </section>
+  <section class="rel">
+    <h2>Where your data lives</h2>
+    <ul>
+      <li><b>Phone:</b> your token and settings stay in this browser's local storage, on this phone only.</li>
+      <li><b>Desktop:</b> stored only on your PC in the TessDesk folder. The token and email App Password are encrypted with Windows DPAPI (readable only by your Windows account).</li>
+      <li>The token is sent <b>only to api.tessie.com</b>. There's no TessDesk server, no analytics, and no tracking. Nothing is sent to the TessDesk author.</li>
+    </ul>
+  </section>
+  <section class="rel">
+    <h2>Reminders</h2>
+    <ul>
+      <li><b>Desktop:</b> "Remind me to get air" schedules a one-time Windows Task Scheduler task that sends through <b>your own email account</b> (SMTP), as email and/or a text through your carrier's email-to-SMS gateway. It works while you're signed in to Windows.</li>
+      <li>Carriers are shutting these gateways down. AT&amp;T stopped in June 2025, T-Mobile is unreliable, and Verizon ends by Mar 31, 2027. <b>Email is the reliable choice.</b></li>
+      <li><b>Phone:</b> a calendar event with an alert (.ics or Google Calendar) or an email draft you send yourself. The web app can't send anything in the background.</li>
+    </ul>
+  </section>
+  <section class="rel">
+    <h2>Costs, warranty, terms</h2>
+    <ul>
+      <li>Charging costs are <b>estimates</b> based on the rates and efficiency you enter, not your utility bill.</li>
+      <li>Provided as is, with <b>no warranty</b>. You use TessDesk at your own risk.</li>
+      <li><b>Tessie's Terms of Service</b> apply to your Tessie account and API token.</li>
+    </ul>
+  </section>
+  <section class="rel">
+    <h2>Permissions</h2>
+    <ul>
+      <li><b>Read vehicle data from Tessie</b> (required)</li>
+      <li><b>Send vehicle commands</b> (optional; off = the controls and charge-limit slider are disabled)</li>
+      <li><b>Reminders by email/text</b> (optional)</li>
+    </ul>
+    <p>Your choice is saved with a timestamp (desktop: config.json; phone: this browser). Change it in Settings → Permissions (phone) or About / Privacy (desktop).</p>
+  </section>
+  <section class="rel">
+    <h2>Revoke or uninstall</h2>
+    <ul>
+      <li><b>Revoke access:</b> delete the API token in the Tessie app (Settings → API) or at <a href="https://dash.tessie.com/settings/api">dash.tessie.com/settings/api</a>.</li>
+      <li><b>Desktop:</b> double-click "Uninstall TessDesk.cmd" in the TessDesk folder (%LOCALAPPDATA%\TessDesk). It also removes reminder tasks, shortcuts, the token, and the App Password.</li>
+      <li><b>Phone:</b> Settings → Log out and erase data, then remove the home-screen icon.</li>
+    </ul>
+  </section>
+  <section class="rel" id="start">
+    <h2>Getting started <small>don't have these yet?</small></h2>
+    <div class="hl"><a class="hbtn" href="https://www.tessie.com" target="_blank" rel="noopener">Sign up for Tessie</a><span>Tessie is a paid service that connects to your Tesla.</span></div>
+    <div class="hl"><a class="hbtn" href="https://dash.tessie.com/settings/api" target="_blank" rel="noopener">Get your API token</a><span>After signing up: Tessie app → Settings → API.</span></div>
+    <div class="hl"><a class="hbtn" href="https://accounts.google.com/signup" target="_blank" rel="noopener">Create a Gmail account</a><span>Free. Used only to send your own reminders.</span></div>
+    <div class="hl"><a class="hbtn" href="https://myaccount.google.com/signinoptions/two-step-verification" target="_blank" rel="noopener">2-Step Verification</a><span>Google needs it before you can make an App Password.</span></div>
+    <div class="hl"><a class="hbtn" href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener">Gmail App Password</a><span>A 16-letter password just for TessDesk desktop reminders.</span></div>
+    <div class="hl"><a class="hbtn" href="https://support.google.com/accounts/answer/185833" target="_blank" rel="noopener">How App Passwords work</a><span>Google help article.</span></div>
+  </section>
+  <p class="lead" style="text-align:center;margin-top:18px">Also in the download as PRIVACY.md · <a href="changelog.html" style="color:var(--muted)">What's new</a></p>
+</div>
+<script>try { if (document.referrer.indexOf('/test/') >= 0) document.getElementById('back').href = 'test/'; } catch (e) {}</script>
+</body>
+</html>

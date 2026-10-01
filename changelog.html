@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TessDesk · What's new</title>
+<meta name="description" content="TessDesk changelog: every version, its date and what changed. Design by Van.">
+<meta name="theme-color" content="#081426">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="stylesheet" href="style.css">
+<style>
+  .cl h1 { font-size: 26px; margin: 10px 0 2px; letter-spacing: .02em; }
+  .cl p.lead { color: var(--muted); margin: 0 0 8px; font-size: 14px; }
+  .rel { background: var(--card); border-radius: var(--radius); padding: 14px 16px 10px; margin: 12px 0; border-left: 4px solid var(--line); }
+  .rel.new { border-left-color: var(--green); }
+  .rel h2 { margin: 0; display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+            font-family: "Bebas Neue", Impact, "Arial Narrow", sans-serif; font-weight: 400; font-size: 30px; letter-spacing: .08em; }
+  .rel h2 small { font-family: var(--font); font-size: 13px; letter-spacing: .02em; color: var(--muted); font-weight: 600; }
+  .rel .tag { display: inline-block; font-size: 10.5px; font-weight: 800; letter-spacing: .12em; color: var(--green); margin: 2px 0 4px; }
+  .rel ul { margin: 6px 0 4px; padding-left: 18px; } .rel li { margin: 5px 0; font-size: 14.5px; line-height: 1.4; }
+  .rel li b { color: var(--text); }
+  .back { display: inline-block; margin: 8px 0 0; color: var(--muted); font-size: 13px; text-decoration: none; }
+  .back:hover { color: var(--text); }
+</style>
+</head>
+<body class="tessie">
+<div class="wrap cl">
+  <div class="hdr"><div class="brand">TESSDESK</div><div class="who">What's new</div></div>
+  <a class="back" href="./" id="back">← Back to TessDesk</a>
+  <h1>Changelog</h1>
+  <p class="lead">Every TessDesk version (desktop widget and phone app), newest first.</p>
+
+  <!-- Add each new version at the top: <section class="rel new"> ... -->
+  <section class="rel new" id="v4.1">
+    <h2>v4.1 <small>Oct 1, 2026</small></h2>
+    <span class="tag">LATEST</span>
+    <ul>
+      <li><b>Tesla controls</b>, a new card under Tires: Lock/Unlock (shows the current state), Vent / Close windows, Climate (A/C) on/off, and set temperature with − / + buttons (°F or °C, whichever your car uses). Shows a spinner while sending, then OK or the error.</li>
+      <li><b>Safety prompts:</b> Unlock, Vent windows and charge-limit changes ask "Are you sure?" first.</li>
+      <li><b>Charge-limit slider:</b> drag the white LIMIT handle on the battery bar. The new % shows large while you drag. Let go, confirm ("Set charge limit to 85%?"), and it's sent to the car. The car's allowed range (usually 50–100%) is enforced.</li>
+      <li><b>Battery card redesign:</b> current % in large type with range in miles (rated or ideal, matching the car's display), a 0–100% bar with the moving ball, and larger <b>FROM</b> / <b>LIMIT</b> labels with miles above the %.</li>
+      <li><b>Power tile</b> reads "CHARGING AT 4 kW" with volts and amps under it, or "Not charging" plus the charge state.</li>
+      <li><b>Tire colors:</b> <b>green</b> = good, <b>yellow</b> + LOW/HIGH = a little out (the car's soft TPMS warning, or 5–10% from the recommended pressure), <b>red</b> + LOW/HIGH = really out (the car's hard TPMS warning, or more than 10% off). Red tires <b>flash</b>. Thresholds are in config.json on the desktop. The header shows the recommended PSI.</li>
+      <li><b>Remind me to get air</b>, a new button under the tires: pick 1, 2, 4, or 8 hours (or your own number) and get a reminder listing the low tire(s) and their PSI. <b>Desktop:</b> Windows Task Scheduler sends it by email and/or text through your own email account (Gmail + App Password by default), even if TessDesk is closed. The password is stored with Windows DPAPI. Setup has a "Send test reminder" button. <b>Phone:</b> add a calendar event with an alert (.ics or Google Calendar), or open an email draft.</li>
+      <li><b>Text reminders</b> use carrier email-to-text gateways, and Setup says honestly which still work: AT&amp;T stopped in June 2025, T-Mobile is unreliable, Verizon works until Mar 2027. Email is the reliable choice.</li>
+      <li><b>Always the Tessie look:</b> the TESSIE LOOK switch is gone. Green while charging, red-tinted when not.</li>
+      <li><b>Notice &amp; permissions:</b> Setup (and the phone's first-run screen) now explains what TessDesk does with your token and asks for <b>I agree</b>, plus separate permissions: read vehicle data (required), send commands (optional; off = controls disabled), and reminders (optional). Your choice is saved with a timestamp. Existing installs see the notice once and connect to Tessie only after you agree.</li>
+      <li><b>About / Privacy</b> link in the footer, a new <a href="privacy.html" style="color:var(--green)">privacy &amp; disclosures page</a>, and PRIVACY.md in the download.</li>
+      <li><b>Getting started / Don't have these yet?</b> panel with links to sign up for Tessie, get your API token, create a Gmail account, and make a Gmail App Password (in Setup's token step, About / Privacy, and the phone's setup).</li>
+      <li>The desktop token is now stored encrypted with Windows DPAPI (tessie.token.dpapi) when you run Setup.</li>
+      <li>Desktop window is taller (364 wide, same spot) so nothing gets clipped. It grows automatically if it ever needs more room.</li>
+      <li>The version in the footer opens this page.</li>
+    </ul>
+  </section>
+
+  <section class="rel" id="v4.0.1">
+    <h2>v4.0.1 <small>Oct 1, 2026</small></h2>
+    <ul>
+      <li><b>TESSIE LOOK</b> is now the default.</li>
+      <li>The Tessie look follows the car: <b>green</b> accents while charging, a <b>red-tinted</b> version when not charging.</li>
+    </ul>
+  </section>
+
+  <section class="rel" id="v4.0">
+    <h2>v4.0 <small>Oct 1, 2026</small></h2>
+    <ul>
+      <li>Renamed to <b>TessDesk</b>, with a new icon (red gauge ring + white bolt) and Desktop/Startup shortcuts.</li>
+      <li>Settings moved to <b>config.json</b> (name, VIN, rates, efficiency, placement).</li>
+      <li>Last 7 days / Last 30 days now computed live from Tessie's charge history every 15 minutes.</li>
+      <li>New <b>tire pressure</b> card with a top-down car drawing.</li>
+      <li>Charge progress bar with a moving ball (start → limit).</li>
+      <li><b>TESSIE LOOK</b> switch: a Tessie-app style theme.</li>
+      <li>"Tonight / Last night" totals for the 11 PM – 11 AM overnight window.</li>
+      <li><b>Installer</b> (TessDesk-Setup) with a simple form, so anyone with a Tessie token can install it.</li>
+      <li><b>Phone app</b> (this site): install it from Safari or Chrome. A <b>TEST</b> build always loads the newest version.</li>
+      <li>Snapshots of the widget on request (snapshot.request).</li>
+    </ul>
+  </section>
+
+  <section class="rel" id="v3.1">
+    <h2>v3.1 <small>Sep 29, 2026</small></h2>
+    <ul>
+      <li>Placed in your left-screen widget row next to Paycheck Live (1539, 42).</li>
+      <li>Footer: <b>DESIGN BY VAN</b> with version and date.</li>
+      <li>A layout check makes sure nothing is clipped (written to widget-status.json).</li>
+    </ul>
+  </section>
+
+  <section class="rel" id="v3.0">
+    <h2>v3.0 <small>Sep 29, 2026</small></h2>
+    <ul>
+      <li><b>LIVE mode:</b> reads your car through the Tessie API every 60 seconds without waking it.</li>
+      <li>The cost is <b>green</b> while charging (running total for this charge) and <b>red</b> otherwise (cost of the last charge).</li>
+      <li>All-in pricing: PSO time-of-use energy rate + fuel adjustment, per minute, at 90% charging efficiency.</li>
+      <li>Sessions saved in state.json, so a restart mid-charge keeps the total.</li>
+      <li>"VAN TESLA CHARGING COST" layout, 364×720: kWh added, SOC → limit, kW, time to full, Since 11 PM, Last charge, 7- and 30-day totals.</li>
+    </ul>
+  </section>
+
+  <section class="rel" id="early">
+    <h2>Early builds <small>Sep 29, 2026</small></h2>
+    <ul>
+      <li>"Tesla Charging Cost": overnight charging cost from a daily file, before live Tessie data.</li>
+    </ul>
+  </section>
+
+  <div class="foot"><div class="dbv">DESIGN BY <span>VAN</span></div><div class="dbv-bar"></div><div class="ver" style="border:0">TessDesk changelog</div></div>
+</div>
+<script>
+  // From the TEST app, "Back" returns to the TEST build.
+  try { if (document.referrer.indexOf('/test/') >= 0) document.getElementById('back').href = 'test/'; } catch (e) {}
+</script>
+</body>
+</html>

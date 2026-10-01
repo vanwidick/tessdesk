@@ -17,7 +17,7 @@
 <link rel="preload" href="fonts/BebasNeue-Regular.ttf" as="font" type="font/ttf" crossorigin>
 <link rel="stylesheet" href="style.css">
 <script>window.TD_CONFIG = { variant: 'main', storagePrefix: 'td:' };
-try { var tl = localStorage.getItem('td:tessieLook'), on = tl === null ? true : JSON.parse(tl) !== false, cc = JSON.parse(localStorage.getItem('td:cache') || 'null'),
+try { var on = true, cc = JSON.parse(localStorage.getItem('td:cache') || 'null'),
   chg = !!(cc && cc.state && cc.state.charge_state && cc.state.charge_state.charging_state === 'Charging');
   if (on) { document.documentElement.className = chg ? 'pre-tessie' : 'pre-tessie-idle';
     document.querySelector('meta[name=theme-color]').setAttribute('content', chg ? '#081426' : '#170a0d'); } } catch (e) {}</script>
