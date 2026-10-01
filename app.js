@@ -1,11 +1,11 @@
-/* TessDesk mobile v4.1 (PWA). Design by Van.
+/* TessDesk mobile v4.2 (PWA). Design by Van.
    Everything (name, Tessie token, vehicle, rates) is stored in localStorage on this device only. */
 (function () {
   'use strict';
   var CFG = window.TD_CONFIG || {};
   var VARIANT = CFG.variant || 'main';
   var P = CFG.storagePrefix || 'td:';
-  var VERSION = 'v4.1';
+  var VERSION = 'v4.2';
   var VERSION_DATE = 'Oct 1, 2026';
   var TZ = 'America/Chicago';
   var DEFAULT_API = 'https://api.tessie.com';
@@ -26,9 +26,10 @@
   ];
   var NOTICE = [
     'TessDesk is an <b>unofficial</b> app. It is not made by, affiliated with, or endorsed by Tesla or Tessie.',
-    'It uses your Tessie API token to <b>read vehicle data</b> (location, battery, charging, tires, lock and climate state) and, only when you press a control, to <b>send commands</b> (lock/unlock, windows, climate, charge limit).',
+    'It uses your Tessie API token to <b>read vehicle data</b> (location, battery, charging, tires, lock and climate state) and, only when you press a control, to <b>send commands</b> (lock/unlock, windows, climate, heat, defrost, seat heat, charging, charge limit and amps).',
     'Your token and settings are stored <b>only on this phone</b> (browser local storage) and the token is sent <b>only to api.tessie.com</b>.',
     'Reminders use your own calendar or email app (and, on the desktop, your own email account or carrier gateway). Nothing goes to the TessDesk author.',
+    'Alexa announcements (optional, Settings \u2192 Connected apps): if you set up Voice Monkey and agree, the <b>text of each announcement</b> is sent to Voice Monkey and Amazon so your Echo can speak it.',
     'Costs shown are <b>estimates</b> based on the rates you enter.',
     'Commands can <b>wake the car</b> and use a little battery. Use the controls only when it is safe and legal.',
     'No warranty. You use TessDesk at your own risk. Tessie\u2019s Terms of Service apply.',
@@ -224,7 +225,7 @@
         .then(function (r) { cache.charges = (r && r.results) || []; cache.chargesAt = t; });
     }).then(function () {
       lastErr = null; trackLive(cfg, cache.state); save('cache', cache);
-    }).catch(function (e) { lastErr = e; }).then(function () { busy = false; setSpin(false); render(); });
+    }).catch(function (e) { lastErr = e; }).then(function () { busy = false; setSpin(false); try { render(); } catch (e) { console.error(e); } if (getCfg() && consentOk()) scheduleNext(nextDelay() * 1000); });
   }
 
   // ---------- compute view model ----------
@@ -286,13 +287,20 @@
       climateOn: cl.is_climate_on, tempC: cl.driver_temp_setting, insideC: cl.inside_temp,
       minC: cl.min_avail_temp != null ? cl.min_avail_temp : 15, maxC: cl.max_avail_temp != null ? cl.max_avail_temp : 28,
       units: gs.gui_temperature_units === 'C' ? 'C' : 'F',
-      limitMin: cs.charge_limit_soc_min != null ? cs.charge_limit_soc_min : 50, limitMax: cs.charge_limit_soc_max != null ? cs.charge_limit_soc_max : 100 };
+      limitMin: cs.charge_limit_soc_min != null ? cs.charge_limit_soc_min : 50, limitMax: cs.charge_limit_soc_max != null ? cs.charge_limit_soc_max : 100,
+      chargingState: cs.charging_state || '', ampsReq: cs.charge_current_request, ampsMax: cs.charge_current_request_max, ampsNow: cs.charger_actual_current,
+      seats: { fl: cl.seat_heater_left, fr: cl.seat_heater_right, rl: cl.seat_heater_rear_left, rc: cl.seat_heater_rear_center, rr: cl.seat_heater_rear_right },
+      rearSeats: (st.vehicle_config || {}).rear_seat_heaters,
+      wheelOn: cl.steering_wheel_heater != null ? (!!cl.steering_wheel_heater || cl.steering_wheel_heat_level > 0) : null,
+      defrostOn: (cl.defrost_mode != null || cl.is_front_defroster_on != null) ? (cl.defrost_mode > 0 || !!cl.is_front_defroster_on) : null,
+      cop: cl.cabin_overheat_protection || null, copFanOnly: !!cl.supports_fan_only_cabin_overheat_protection, copAllowed: cl.allow_cabin_overheat_protection,
+      windows: { fd: vs.fd_window, fp: vs.fp_window, rd: vs.rd_window, rp: vs.rp_window } };
     return {
       charging: charging, state: st, cs: cs, hero: hero, heroCost: hc,
       kw: charging ? chargerKw(cs) : null, toFull: charging ? fmtMins(cs.minutes_to_full_charge) : null,
       night: night, nightLabel: label, nightStart: w0, d7: d7, d30: d30,
       soc: soc, limit: limit, socStart: socStart, range: range, rangeKind: rangeKind, car: car,
-      tires: { fl: tire('fl', recF), fr: tire('fr', recF), rl: tire('rl', recR), rr: tire('rr', recR), recF: recF, recR: recR },
+      tires: { fl: tire('fl', recF), fr: tire('fr', recF), rl: tire('rl', recR), rr: tire('rr', recR), recF: recF, recR: recR, asOf: vs.timestamp ? Math.floor(vs.timestamp / 1000) : (cs.timestamp ? Math.floor(cs.timestamp / 1000) : null) },
       updated: cs.timestamp ? Math.floor(cs.timestamp / 1000) : cache.stateAt, asleep: st.state && st.state !== 'online', carState: st.state
     };
   }
@@ -350,12 +358,12 @@
     var v = compute(cfg);
     var note = '';
     if (lastErr) note = '<span class="note err">' + esc(lastErr.auth ? 'Token rejected, check Settings' : lastErr.message + ', retrying') + (v ? ' \u00b7 showing ' + clock(cache.stateAt) : '') + '</span>';
-    else if (v) note = '<span class="note">' + (v.charging ? 'LIVE \u00b7 ' : '') + 'updated ' + clock(v.updated) + (v.asleep ? ' \u00b7 car ' + esc(v.carState) : '') + '</span>';
+    else if (v) note = '<span class="note upd" id="updAge" data-t="' + v.updated + '">' + updText(v.updated) + '</span>';
     else note = '<span class="note">Loading\u2026</span>';
 
     var h = '<div class="wrap">' + testBanner() +
-      '<div class="hdr"><div class="brand">TESSDESK</div><div class="who">Logged in as <b>' + esc(cfg.name) + '</b></div></div>' +
-      '<div class="toolbar">' + note + '<div class="tools"><button class="icon-btn" id="btnRefresh" aria-label="Refresh">' + ICON_REFRESH +
+      '<div class="hdr"><div class="brand">TESSDESK</div><div class="who">' + layoutChip() + 'Logged in as <b>' + esc(cfg.name) + '</b></div></div>' +
+      '<div class="toolbar">' + note + '<div class="tools">' + alexaChip() + '<button class="icon-btn" id="btnRefresh" aria-label="Refresh">' + ICON_REFRESH +
       '</button><button class="icon-btn" id="btnSettings" aria-label="Settings">' + ICON_GEAR + '</button></div></div>';
 
     if (!v) { h += '<div class="hero"><div class="money red">$--.--</div><div class="sub">Waiting for Tessie\u2026</div></div>' + footer() + '</div>'; $app.innerHTML = h; bind(); return; }
@@ -372,7 +380,10 @@
       '<div class="money ' + col + '">' + (hc ? money(hc.cost) : '$--.--') + '</div>' +
       '<div class="sub">' + (v.charging ? 'This charge' : 'Last charge') + (rate ? ' \u00b7 ' + rate : '') + '</div>' +
       '<div class="meta">' + meta + '</div></div>';
-    h += '<div class="gap"></div>';
+    // v4.2: money rows right under the hero, compact
+    var nightSub = v.nightLabel === 'Tonight' ? 'since ' + clock(v.nightStart) : dayLabel(v.nightStart) + ', 11 PM \u2013 11 AM';
+    h += '<div class="card rows compact">' +
+      row(v.nightLabel, nightSub, v.night, true) + row('Last 7 days', null, v.d7) + row('Last 30 days', null, v.d30) + '</div>';
 
     // battery: big % + range, 0-100% bar (ball = now, tick = where this charge started), draggable LIMIT handle
     var a = v.socStart, b = ctlVal('limit', v.limit), s = v.soc;
@@ -391,7 +402,8 @@
       '<div class="ball ' + col + '-bg' + (v.charging ? ' pulse' : '') + '" style="left:' + (s || 0) + '%">' + (s != null ? s : '') + '</div>' +
       '<div class="thumb" id="limThumb" role="slider" aria-label="Charge limit" aria-valuemin="' + v.car.limitMin + '" aria-valuemax="' + v.car.limitMax + '" aria-valuenow="' + b + '" style="left:' + b + '%"><i></i><i></i></div></div>' +
       '<div class="fl-labels"><div><small>FROM</small><span class="mi">' + miles(perPct, a) + '</span><b>' + (a != null ? a + '%' : '--') + '</b></div>' +
-      '<div class="r"><small>LIMIT</small><span class="mi" id="limMi">' + miles(perPct, b) + '</span><b id="limPct">' + (b != null ? b + '%' : '--') + '</b></div></div></div>';
+      '<div class="r"><small>LIMIT</small><span class="mi" id="limMi">' + miles(perPct, b) + '</span><b id="limPct">' + (b != null ? b + '%' : '--') + '</b></div></div>' +
+      ampsAndCharge(v.car, col) + '</div>';
 
     // chips
     var started = hero ? clock(hero.start) : '--';
@@ -411,20 +423,19 @@
     }
 
     // tires
-    var rec = v.tires.recF != null ? ' \u00b7 rec ' + Math.round(v.tires.recF) + (v.tires.recR != null && Math.abs(v.tires.recR - v.tires.recF) >= 0.5 ? '/' + Math.round(v.tires.recR) : '') + ' PSI' : '';
-    var remOk = !!(cfg.consent && cfg.consent.reminders);
-    h += '<div class="card tires"><h3>Tire pressure' + rec + '</h3>' + tireSvg(v.tires) +
-      '<button class="cbtn remind" id="bRemind"' + (remOk ? '' : ' disabled') + '><b>REMIND ME TO GET AIR</b><small>' + (remOk ? 'calendar alert or email draft' : 'reminders are off (Settings)') + '</small></button></div>';
-
-    // TESLA CONTROLS (under tires)
+    var rec = v.tires.recF == null ? '' : (v.tires.recR != null && Math.abs(v.tires.recR - v.tires.recF) >= 0.5 ? 'Recommended ' + Math.round(v.tires.recF) + ' PSI front \u00b7 ' + Math.round(v.tires.recR) + ' PSI rear' : 'Recommended ' + Math.round(v.tires.recF) + ' PSI (all four)');
     h += controlsCard(v.car);
+    var remOk = !!(cfg.consent && cfg.consent.reminders);
+    h += '<div class="card tires"><div class="sec-hd"><h3>Tires</h3>' + (v.tires.asOf ? '<span class="pill">Updated ' + clock(v.tires.asOf) + ' \u00b7 ' + monDay(v.tires.asOf) + '</span>' : '') + '</div>' +
+      (rec ? '<div class="recline">' + rec + '</div>' : '') + tireSvg(v.tires) +
+      '<button class="cbtn remind" id="bRemind"' + (remOk ? '' : ' disabled') + '><b>REMIND ME TO GET AIR</b><small>' + (remOk ? 'calendar alert, text, email or Alexa' : 'reminders are off (Settings)') + '</small></button>' +
+      '<button class="linkbtn" id="bRemSetup" type="button">Setup: how reminders reach you</button></div>';
 
-    // rows
-    var nightSub = v.nightLabel === 'Tonight' ? 'Since ' + clock(v.nightStart) : dayLabel(v.nightStart) + ', 11 PM \u2013 11 AM';
-    h += '<div class="card rows">' +
-      row(v.nightLabel, nightSub, v.night, true) + row('Last 7 days', null, v.d7) + row('Last 30 days', null, v.d30) + '</div>';
+    // v4.2 HEATED SEATS (drawn like the tires)
+    h += seatsCard(v.car);
+
     h += footer() + '</div>';
-    $app.innerHTML = h; bind();
+    $app.innerHTML = h; bind(); fitCompact();
   }
   function chip(k, val, sub, cls) { return '<div class="chip"><div class="k">' + k + '</div><div class="v' + (cls ? ' ' + cls : '') + '">' + esc(val) + '</div><div class="s">' + esc(sub || '\u00a0') + '</div></div>'; }
   function friendlyState(s) { return ({ Complete: 'Charge complete', Stopped: 'Charging stopped', Disconnected: 'Unplugged', NoPower: 'No power', Starting: 'Starting\u2026' })[s] || s || 'Idle'; }
@@ -454,10 +465,11 @@
     var r = '<div class="card ctl' + (cmdOk ? '' : ' off') + '"><div class="ctl-hd"><h3>Tesla controls</h3>' + (!cmdOk ? '<span class="dry">OFF</span>' : (dry ? '<span class="dry">DRY RUN</span>' : '')) + '</div>' +
       '<div class="ctl-row2">' +
       '<button class="cbtn big' + lockCls + '" id="cLock"' + dis + '>' + (locked === false ? ICON_UNLOCK : ICON_LOCK) + '<span><b>' + lockTxt + '</b><small>' + lockSub + '</small></span></button>' +
-      '<button class="cbtn big' + (clim ? ' on' : '') + '" id="cClim"' + dis + '>' + ICON_SNOW + '<span><b>' + (clim ? 'A/C ON' : 'A/C OFF') + '</b><small>' + ins + (clim ? 'tap off' : 'tap on') + '</small></span></button></div>' +
+      '<button class="cbtn big' + (clim ? ' on' : '') + '" id="cClim"' + dis + '>' + ICON_SNOW + '<span><b>' + (clim ? (heatOn(car) ? 'CLIMATE ON' : 'A/C ON') : 'A/C OFF') + '</b><small>' + ins + (clim ? 'tap off' : 'tap on') + '</small></span></button></div>' +
+      climateRow(car, dis) +
       '<div class="ctl-row3">' +
-      '<button class="cbtn' + (win ? ' warn' : '') + '" id="cVent"' + dis + '><b>VENT</b><small>' + (win ? 'OPEN NOW' : 'WINDOWS') + '</small></button>' +
-      '<button class="cbtn" id="cClose"' + dis + '><b>CLOSE</b><small>' + (win === false ? 'ALL CLOSED' : 'WINDOWS') + '</small></button>' +
+      '<button class="cbtn' + (win ? ' state' : '') + '" id="cVent"' + dis + '><b>VENT</b><small>' + (win ? 'VENTED / OPEN' : 'WINDOWS') + '</small></button>' +
+      '<button class="cbtn' + (win === false ? ' state' : '') + '" id="cClose"' + dis + '><b>CLOSE</b><small>' + (win === false ? 'ALL CLOSED' : 'WINDOWS') + '</small></button>' +
       '<div class="temp"><button class="cbtn sq" id="cTdn" aria-label="Cooler"' + dis + '>\u2212</button>' +
       '<div class="tv"><b>' + fmtTemp(tC, car.units) + '</b><small>' + (pendTemp != null ? 'NEW SET TEMP' : 'SET TEMP') + '</small></div>' +
       '<button class="cbtn sq" id="cTup" aria-label="Warmer"' + dis + '>+</button></div></div>' +
@@ -474,20 +486,28 @@
       d.onclick = function (e) { if (e.target === d) done(false); };
     });
   }
-  function runCmd(name, query, busyTxt, okTxt, onOk) {
+  // ann: what Alexa says after success (announced only after the result is known); next: follow-up step (Heat).
+  function runCmd(name, query, busyTxt, okTxt, onOk, ann, next) {
     if (ctlBusy || !cmdAllowed()) return;
     ctlBusy = true; ctlMsg = { kind: 'busy', text: busyTxt + (load('dryRun', false) ? ' (dry run)' : '') }; render();
+    var okd = false, why = '';
     command(name, query).then(function (j) {
-      if (onOk) onOk();
+      okd = true; if (onOk) onOk();
       ctlMsg = { kind: 'ok', text: '\u2713 ' + okTxt + ' \u00b7 ' + clock(nowSec()) + (j && j.dryRun ? ' (dry run, not sent)' : '') };
       if (!(j && j.dryRun)) setTimeout(function () { refresh(true); }, 6000);
-    }, function (e) { ctlMsg = { kind: 'err', text: '\u2715 ' + name + ' failed: ' + String(e.message || e).slice(0, 90) }; })
-      .then(function () { ctlBusy = false; if (name === 'set_temperatures') pendTemp = null; render(); });
+    }, function (e) { why = String(e.message || e); ctlMsg = { kind: 'err', text: '\u2715 ' + name + ' failed: ' + why.slice(0, 90) }; })
+      .then(function () {
+        ctlBusy = false; if (name === 'set_temperatures') pendTemp = null;
+        if (okd) liveInfo.lastCmd = nowSec();
+        if (okd && next) { render(); next(); return; }
+        if (alexaOn()) announce(okd ? (ann || defaultSpeech(name, query, okTxt)) : failSpeech(name, why), okd ? 'action' : 'action-failed');
+        render();
+      });
   }
   function onLock() {
     var c = curCar(); if (!c) return; var locked = ctlVal('locked', c.locked);
-    if (locked) confirmBox('Unlock your Tesla?', 'Unlock').then(function (ok) { if (ok) runCmd('unlock', {}, 'Unlocking\u2026', 'Unlocked', function () { setOv('locked', false); }); else { ctlMsg = { kind: 'idle', text: 'Unlock cancelled' }; render(); } });
-    else runCmd('lock', {}, 'Locking\u2026', 'Locked', function () { setOv('locked', true); });
+    if (locked) confirmBox('Unlock your Tesla?', 'Unlock').then(function (ok) { if (ok) runCmd('unlock', {}, 'Unlocking\u2026', 'Unlocked', function () { setOv('locked', false); }, 'Your Tesla is now unlocked.'); else { ctlMsg = { kind: 'idle', text: 'Unlock cancelled' }; render(); } });
+    else runCmd('lock', {}, 'Locking\u2026', 'Locked', function () { setOv('locked', true); }, 'Your Tesla is now locked.');
   }
   function onVent() { confirmBox('Vent the windows on your Tesla?', 'Vent').then(function (ok) { if (ok) runCmd('vent_windows', {}, 'Venting windows\u2026', 'Windows vented', function () { setOv('windowsOpen', true); }); else { ctlMsg = { kind: 'idle', text: 'Vent cancelled' }; render(); } }); }
   function onClose() { runCmd('close_windows', {}, 'Closing windows\u2026', 'Windows closed', function () { setOv('windowsOpen', false); }); }
@@ -540,7 +560,7 @@
   }
   function row(l, sub, t, hl) {
     return '<div class="row' + (hl ? ' hl' : '') + '"><div class="l">' + esc(l) + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</div>' +
-      '<div class="r"><b>' + money(t.cost) + '</b><small>' + kwh(t.kwh) + '</small></div></div>';
+      '<div class="r"><small>' + kwh(t.kwh) + '</small><b>' + money(t.cost) + '</b></div></div>';
   }
   function tireSvg(T) {
     function parts(t) { var f = t.flag || 'none', lv = f.split('-')[0], dir = f.split('-')[1] || ''; return { lv: lv, dir: dir, cls: lv === 'red' ? ' r pulse' : (lv === 'yellow' ? ' y' : (lv === 'green' ? ' g' : '')) }; }
@@ -566,14 +586,333 @@
       lab(80, 64, T.fl, 'end') + lab(240, 64, T.fr, 'start') + lab(80, 178, T.rl, 'end') + lab(240, 178, T.rr, 'start') + '</svg>';
   }
 
+  // ---------- v4.2: charging start/stop + amps slider ----------
+  function ampsBounds(car) { var hi = car && car.ampsMax > 0 ? +car.ampsMax : 48, lo = 5; if (hi < lo) lo = 1; return [lo, hi]; }
+  function chgState(car) { return ctlVal('chargingState', car ? car.chargingState : null) || ''; }
+  var lastAmps = null, draggingAmps = false;
+  function ampsAndCharge(car, col) {
+    var b = ampsBounds(car), a = ctlVal('amps', car.ampsReq), cs = chgState(car), chg = cs === 'Charging', plugged = !!cs && cs !== 'Disconnected';
+    var cmdOk = cmdAllowed(), dis = (ctlBusy || !cmdOk) ? ' disabled' : '';
+    lastAmps = { min: b[0], max: b[1], cur: a };
+    var f = a != null && b[1] > b[0] ? Math.max(0, Math.min(1, (a - b[0]) / (b[1] - b[0]))) * 100 : 0;
+    var note = chg && car.ampsNow != null ? 'drawing ' + Math.round(car.ampsNow) + ' A now' : (car.ampsMax ? 'charger allows up to ' + car.ampsMax + ' A' : '');
+    var stopSub = ({ Charging: 'TAP TO STOP', Complete: 'COMPLETE', Stopped: 'STOPPED', NoPower: 'NO POWER', Starting: 'STARTING\u2026', Disconnected: 'NOT PLUGGED IN' })[cs] || (cs ? cs.toUpperCase() : 'STATE UNKNOWN');
+    return '<div class="amps-hd"><h4>Charging amps</h4><span>' + esc(note) + '</span></div>' +
+      '<div class="batt-drag hidden" id="ampsDrag"><small>SET AMPS</small><span id="ampsDragVal"></span></div>' +
+      '<div class="bar amps" id="ampsBar"><div class="track"></div><div class="fill ' + col + '-bg" id="ampsFill" style="left:0;width:' + f + '%"></div>' +
+      (a != null ? '<div class="thumb" id="ampsThumb" role="slider" aria-label="Charging amps" aria-valuemin="' + b[0] + '" aria-valuemax="' + b[1] + '" aria-valuenow="' + a + '" style="left:' + f + '%"><i></i><i></i></div>' : '') + '</div>' +
+      '<div class="amps-lb"><small>' + b[0] + ' A</small><b id="ampsVal">' + (a != null ? a + ' A' : '-- A') + '</b><small>' + b[1] + ' A max</small></div>' +
+      '<div class="chg-row"><button class="cbtn' + (chg ? ' state' : '') + '" id="cChgStart"' + ((dis || chg || !plugged) ? ' disabled' : '') + '><b>START CHARGING</b><small>' + (chg ? 'CHARGING NOW' : (plugged ? 'TAP TO START' : 'NOT PLUGGED IN')) + '</small></button>' +
+      '<button class="cbtn' + (plugged && !chg ? ' soft' : '') + '" id="cChgStop"' + ((dis || !chg) ? ' disabled' : '') + '><b>STOP CHARGING</b><small>' + esc(stopSub) + '</small></button></div>';
+  }
+  function onChgStart() { var c = curCar(); if (!c || chgState(c) === 'Charging') return; runCmd('start_charging', {}, 'Starting charging\u2026', 'Charging started', function () { setOv('chargingState', 'Charging'); }, 'Your Tesla is now charging.'); }
+  function onChgStop() {
+    var c = curCar(); if (!c || chgState(c) !== 'Charging') return;
+    confirmBox('Stop charging now?', 'Stop').then(function (ok) { if (ok) runCmd('stop_charging', {}, 'Stopping charging\u2026', 'Charging stopped', function () { setOv('chargingState', 'Stopped'); }, 'Charging stopped.'); else { ctlMsg = { kind: 'idle', text: 'Still charging' }; render(); } });
+  }
+  function requestAmps(a) {
+    if (!lastAmps) return;
+    a = Math.max(lastAmps.min, Math.min(lastAmps.max, Math.round(a)));
+    if (a === lastAmps.cur) { ctlMsg = { kind: 'idle', text: 'Charging amps stay ' + a + ' A' }; render(); return; }
+    confirmBox('Set charging current to ' + a + ' A?', 'Set ' + a + ' A').then(function (ok) {
+      if (!ok) { ctlMsg = { kind: 'idle', text: 'Charging amps unchanged' }; render(); return; }
+      runCmd('set_charging_amps', { amps: a }, 'Setting charging current ' + a + ' A\u2026', 'Charging current ' + a + ' A', function () { setOv('amps', a); }, 'Charging current set to ' + a + ' amps.');
+    });
+  }
+  function bindAmps() {
+    var bar = document.getElementById('ampsBar'), th = document.getElementById('ampsThumb'); if (!bar || !th || !lastAmps) return;
+    var cur = null;
+    function ampsAt(x) { var r = bar.getBoundingClientRect(); var f = (x - r.left) / r.width; return Math.max(lastAmps.min, Math.min(lastAmps.max, Math.round(lastAmps.min + f * (lastAmps.max - lastAmps.min)))); }
+    function show(a) {
+      cur = a; var f = lastAmps.max > lastAmps.min ? (a - lastAmps.min) / (lastAmps.max - lastAmps.min) * 100 : 0;
+      th.style.left = f + '%'; document.getElementById('ampsFill').style.width = f + '%'; th.setAttribute('aria-valuenow', a);
+      document.getElementById('ampsDragVal').textContent = a + ' A'; document.getElementById('ampsVal').textContent = a + ' A';
+      document.getElementById('battTop').classList.add('hidden'); document.getElementById('ampsDrag').classList.remove('hidden');
+    }
+    bar.addEventListener('pointerdown', function (e) { if (ctlBusy || !cmdAllowed()) return; dragging = true; draggingAmps = true; th.classList.add('drag'); try { bar.setPointerCapture(e.pointerId); } catch (x) {} show(ampsAt(e.clientX)); e.preventDefault(); });
+    bar.addEventListener('pointermove', function (e) { if (draggingAmps) show(ampsAt(e.clientX)); });
+    function end(commit) { if (!draggingAmps) return; draggingAmps = false; dragging = false; th.classList.remove('drag'); if (commit && cur != null) requestAmps(cur); else render(); }
+    bar.addEventListener('pointerup', function () { end(true); }); bar.addEventListener('pointercancel', function () { end(false); });
+  }
+
+  // ---------- v4.2: heat, defrost, cabin overheat protection ----------
+  // Heat: Tesla has no separate heater command, so HEAT = climate on with a warm set temperature (82 F, or cfg.heatTempF).
+  function heatC(car) { var cfg = getCfg() || {}, f = cfg.heatTempF || 82, c = Math.round((f - 32) * 5 / 9 * 10) / 10; return Math.min(car && car.maxC != null ? car.maxC : 28, c); }
+  function heatOn(car) { var on = ctlVal('climateOn', car.climateOn), t = pendTemp != null ? pendTemp : ctlVal('tempC', car.tempC); return !!on && t != null && t >= heatC(car) - 0.3; }
+  function climateRow(car, dis) {
+    var h = heatOn(car), d = ctlVal('defrost', car.defrostOn), m = ctlVal('cop', car.cop);
+    var copSub = ({ On: 'PROTECT: ON', FanOnly: 'PROTECT: FAN ONLY', Off: 'PROTECT: OFF' })[m] || 'state unknown';
+    var copDis = dis || (car.copAllowed === false ? ' disabled' : '');
+    return '<div class="ctl-row3b">' +
+      '<button class="cbtn' + (h ? ' heat' : '') + '" id="cHeat"' + dis + '><b>\u2668 ' + (h ? 'HEAT ON' : 'HEAT') + '</b><small>' + (h ? 'climate on \u00b7 ' + fmtTemp(ctlVal('tempC', car.tempC), car.units) : 'climate on at ' + fmtTemp(heatC(car), car.units)) + '</small></button>' +
+      '<button class="cbtn' + (d ? ' state' : '') + '" id="cDefrost"' + dis + '><b>DEFROST</b><small>' + (d == null ? 'state unknown' : (d ? 'MAX \u00b7 ON' : 'MAX \u00b7 OFF')) + '</small></button>' +
+      '<button class="cbtn' + (m === 'On' || m === 'FanOnly' ? ' state' : '') + '" id="cCop"' + copDis + '><b>OVERHEAT</b><small>' + (car.copAllowed === false ? 'not available' : copSub) + '</small></button></div>';
+  }
+  function onHeat() {
+    var c = curCar(); if (!c) return;
+    if (heatOn(c)) { runCmd('stop_climate', {}, 'Turning heat (climate) off\u2026', 'Heat off (climate off)', function () { setOv('climateOn', false); }, 'Heat is off. Climate is now off.'); return; }
+    var hc = heatC(c), txt = fmtTemp(hc, c.units);
+    runCmd('set_temperatures', { temperature: hc.toFixed(1) }, 'Heat: setting ' + txt + '\u2026', 'Set ' + txt, function () { setOv('tempC', hc); }, null, function () {
+      runCmd('start_climate', {}, 'Heat: turning climate on\u2026', 'Heat on: climate on at ' + txt, function () { setOv('climateOn', true); }, 'Heat is on. Climate set to ' + spokenTemp(hc, c.units) + '.');
+    });
+  }
+  function onDefrost() {
+    var c = curCar(); if (!c) return;
+    if (ctlVal('defrost', c.defrostOn)) runCmd('stop_max_defrost', {}, 'Turning defrost off\u2026', 'Defrost off', function () { setOv('defrost', false); }, 'Defrost is now off.');
+    else runCmd('start_max_defrost', {}, 'Turning max defrost on\u2026', 'Max defrost on', function () { setOv('defrost', true); setOv('climateOn', true); }, 'Max defrost is now on.');
+  }
+  function onCop() {
+    var c = curCar(); if (!c) return; var m = ctlVal('cop', c.cop);
+    var next = m === 'On' ? (c.copFanOnly ? 'FanOnly' : 'Off') : (m === 'FanOnly' ? 'Off' : 'On');
+    var lbl = next === 'On' ? 'on' : (next === 'FanOnly' ? 'fan only' : 'off');
+    runCmd('set_cabin_overheat_protection', { on: next !== 'Off', fan_only: next === 'FanOnly' }, 'Cabin overheat protection \u2192 ' + lbl + '\u2026', 'Cabin overheat protection ' + lbl,
+      function () { setOv('cop', next); }, 'Cabin overheat protection is now ' + (next === 'FanOnly' ? 'set to fan only' : lbl) + '.');
+  }
+
+  // ---------- v4.2: HEATED SEATS (top-down, like the tires). Tap cycles off -> 1 -> 2 -> 3, sent 1.2 s after the last tap ----------
+  var SEAT_API = { fl: 'front_left', fr: 'front_right', rl: 'rear_left', rc: 'rear_center', rr: 'rear_right' };
+  var SEAT_NAME = { fl: 'Driver seat', fr: 'Passenger seat', rl: 'Rear left seat', rc: 'Rear center seat', rr: 'Rear right seat' };
+  var seatPend = {}, seatTimer = null;
+  function seatLevel(car, k) { if (seatPend[k] != null) return seatPend[k]; return ctlVal('seat_' + k, car.seats[k]); }
+  function seatsCard(car) {
+    var cmdOk = cmdAllowed(), dis = ctlBusy || !cmdOk;
+    var rear = (car.seats.rl != null || car.seats.rr != null) && car.rearSeats !== 0;
+    function seat(k, x, y, w, hgt, big) {
+      var l = seatLevel(car, k); if (l == null || (k.charAt(0) === 'r' && !rear)) return '';
+      var bars = '', bw = big ? 8 : 6, hs = big ? [8, 13, 18] : [6, 9, 12], gap = big ? 4 : 3, tot = bw * 3 + gap * 2, x0 = x + (w - tot) / 2, yb = y + hgt - 7;
+      for (var i = 0; i < 3; i++) bars += '<rect class="hb' + (i < l ? ' l' + l : '') + '" x="' + (x0 + i * (bw + gap)) + '" y="' + (yb - hs[i]) + '" width="' + bw + '" height="' + hs[i] + '" rx="1.5"/>';
+      return '<g class="seat' + (l > 0 ? ' l' + l : '') + (seatPend[k] != null ? ' pend' : '') + (dis ? ' dis' : '') + '" data-seat="' + k + '" role="button" aria-label="' + SEAT_NAME[k] + ' heat ' + l + '">' +
+        '<rect class="sb" x="' + x + '" y="' + y + '" width="' + w + '" height="' + hgt + '" rx="9"/>' +
+        '<text class="sn" x="' + (x + w / 2) + '" y="' + (y + (big ? 21 : 17)) + '" text-anchor="middle">' + (l > 0 ? l : 'OFF') + '</text>' + bars + '</g>';
+    }
+    function side(k, x, y, anchor, cap) {
+      var l = seatLevel(car, k); if (l == null || (k.charAt(0) === 'r' && !rear)) return '';
+      return '<text class="slv' + (l > 0 ? ' l' + l : '') + '" x="' + x + '" y="' + y + '" text-anchor="' + anchor + '">' + (l > 0 ? 'HEAT ' + l : 'OFF') + (seatPend[k] != null ? ' \u2026' : '') + '</text>' +
+        '<text class="unit" x="' + x + '" y="' + (y + 15) + '" text-anchor="' + anchor + '">' + cap + '</text>';
+    }
+    var w = ctlVal('wheel', car.wheelOn);
+    var wheel = w == null ? '' : '<g class="seat wheel' + (w ? ' l3' : '') + (dis ? ' dis' : '') + '" id="sWheel" role="button" aria-label="Steering wheel heat">' +
+      '<circle class="sb" cx="134" cy="52" r="14"/><circle class="wr" cx="134" cy="52" r="7"/></g>' +
+      '<text class="slv' + (w ? ' l3' : '') + '" x="96" y="50" text-anchor="end">' + (w ? 'HEAT ON' : 'OFF') + '</text><text class="unit" x="96" y="64" text-anchor="end">WHEEL</text>';
+    return '<div class="card seats"><div class="sec-hd"><h3>Heated seats</h3><span class="asof sm">' + (cmdOk ? 'tap a seat: off \u2192 1 \u2192 2 \u2192 3' : 'commands are off') + '</span></div>' +
+      '<svg viewBox="0 0 320 210" role="img" aria-label="Heated seats">' +
+      '<path class="body" d="M160 6 C 200 6 212 20 212 48 L 214 110 L 212 180 C 212 200 196 206 160 206 C 124 206 108 200 108 180 L 106 110 L 108 48 C 108 20 120 6 160 6 Z"/>' +
+      '<path class="glass" d="M124 30 C 140 22 180 22 196 30 L 192 38 C 176 34 144 34 128 38 Z"/>' +
+      wheel + seat('fl', 118, 74, 38, 50, true) + seat('fr', 164, 74, 38, 50, true) +
+      seat('rl', 118, 142, 26, 42, false) + seat('rc', 147, 142, 26, 42, false) + seat('rr', 176, 142, 26, 42, false) +
+      side('fl', 96, 98, 'end', 'DRIVER') + side('fr', 224, 98, 'start', 'PASSENGER') + side('rl', 96, 164, 'end', 'REAR LEFT') + side('rr', 224, 164, 'start', 'REAR RIGHT') + '</svg></div>';
+  }
+  function onSeat(k) {
+    var c = curCar(); if (!c || ctlBusy || !cmdAllowed()) return;
+    var l = seatLevel(c, k); if (l == null) return;
+    var n = (+l + 1) % 4; seatPend[k] = n;
+    ctlMsg = { kind: 'idle', text: SEAT_NAME[k] + ' \u2192 ' + (n ? 'level ' + n : 'off') + ' \u00b7 sending in a moment\u2026' }; render();
+    clearTimeout(seatTimer); seatTimer = setTimeout(sendSeats, 1200);
+  }
+  function sendSeats() {
+    seatTimer = null;
+    var ks = Object.keys(seatPend); if (!ks.length) return;
+    if (ctlBusy) { seatTimer = setTimeout(sendSeats, 400); return; }
+    var k = ks[0], n = seatPend[k]; delete seatPend[k];
+    var c = curCar(), live = c ? ctlVal('seat_' + k, c.seats[k]) : null;
+    var more = function () { if (Object.keys(seatPend).length) seatTimer = setTimeout(sendSeats, 300); };
+    if (live != null && +live === n) { ctlMsg = { kind: 'idle', text: SEAT_NAME[k] + ' heat unchanged' }; render(); more(); return; }
+    var lv = n ? 'level ' + n : 'off';
+    runCmd('set_seat_heat', { seat: SEAT_API[k], level: n }, SEAT_NAME[k] + ' heat ' + lv + '\u2026', SEAT_NAME[k] + ' heat ' + lv, function () { setOv('seat_' + k, n); },
+      n ? SEAT_NAME[k] + ' heat set to level ' + n + '.' : SEAT_NAME[k] + ' heat is now off.', Object.keys(seatPend).length ? sendSeats : null);
+  }
+  function onWheel() {
+    var c = curCar(); if (!c) return;
+    if (ctlVal('wheel', c.wheelOn)) runCmd('stop_steering_wheel_heater', {}, 'Turning wheel heat off\u2026', 'Steering wheel heat off', function () { setOv('wheel', false); }, 'Steering wheel heat is now off.');
+    else runCmd('start_steering_wheel_heater', {}, 'Turning wheel heat on\u2026', 'Steering wheel heat on', function () { setOv('wheel', true); }, 'Steering wheel heat is now on.');
+  }
+
+  // ---------- v4.2: Alexa announcements via Voice Monkey (POST https://api-v3.voicemonkey.io/announce {token, device, speech}) ----------
+  var VM_API = 'https://api-v3.voicemonkey.io', annLog = [];
+  function annCfg() { var c = getCfg() || {}; return c.announce || {}; }
+  function annConsent() { var c = getCfg() || {}; return !!(c.consent && c.consent.announcements); }
+  function annReady() { var a = annCfg(); return annConsent() && !!a.token && !!a.device; }
+  function alexaOn() { return !!load('alexa', false); }
+  function setAlexa(on) { save('alexa', !!on); if (on && !annReady()) ctlMsg = { kind: 'idle', text: 'Alexa is on, but Voice Monkey is not set up yet: Settings \u2192 Connected apps.' }; render(); }
+  function alexaChip() {
+    return '<button class="alexa' + (alexaOn() ? ' on' : '') + '" id="btnAlexa" aria-pressed="' + alexaOn() + '" title="Announce control results on Alexa (Voice Monkey)"><span>ALEXA</span><i></i></button>' +
+      '<button class="icon-btn" id="btnSched" aria-label="Alexa schedule and Connected apps"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></button>';
+  }
+  function spokenTemp(c, units) { return c == null ? 'unknown' : (units === 'C' ? (Math.round(c * 2) / 2) + ' degrees' : Math.round(c * 9 / 5 + 32) + ' degrees'); }
+  var CMD_SPOKEN = { lock: 'lock your Tesla', unlock: 'unlock your Tesla', vent_windows: 'vent the windows', close_windows: 'close the windows', start_climate: 'turn on climate', stop_climate: 'turn off climate',
+    set_temperatures: 'set the cabin temperature', start_max_defrost: 'turn on defrost', stop_max_defrost: 'turn off defrost', set_cabin_overheat_protection: 'change cabin overheat protection',
+    set_seat_heat: 'change the seat heat', start_steering_wheel_heater: 'turn on the steering wheel heat', stop_steering_wheel_heater: 'turn off the steering wheel heat',
+    start_charging: 'start charging', stop_charging: 'stop charging', set_charge_limit: 'set the charge limit', set_charging_amps: 'set the charging current' };
+  function defaultSpeech(name, q, okTxt) {
+    var c = curCar() || {};
+    switch (name) {
+      case 'vent_windows': return 'Your Tesla windows are now vented.';
+      case 'close_windows': return 'Your Tesla windows are now closed.';
+      case 'start_climate': return 'Climate is now on.';
+      case 'stop_climate': return 'Climate is now off.';
+      case 'set_temperatures': return 'Climate set to ' + spokenTemp(+q.temperature, c.units) + '.';
+      case 'set_charge_limit': return 'Charge limit set to ' + q.percent + ' percent.';
+      default: return 'Done: ' + okTxt + '.';
+    }
+  }
+  function failSpeech(name, why) { return 'TessDesk could not ' + (CMD_SPOKEN[name] || name.replace(/_/g, ' ')) + '. The command failed' + (/token/.test(why) ? ' because the Tessie token was rejected' : (/no response|timeout|offline/.test(why) ? ' because the car did not respond' : '')) + '.'; }
+  function announce(text, why, force) {
+    var a = annCfg(), rec = { at: new Date().toISOString(), why: why || 'action', text: text, device: a.device || '', dryRun: !!load('dryRun', false), sent: false, result: '' };
+    if (!force && !alexaOn()) rec.result = 'skipped: Alexa toggle off';
+    else if (!annConsent()) rec.result = 'skipped: announcement disclosure not accepted';
+    else if (!a.token || !a.device) rec.result = 'skipped: Voice Monkey not set up';
+    else if (rec.dryRun) rec.result = 'DRY RUN: not sent to Voice Monkey';
+    else {
+      rec.sent = true; rec.result = 'sending';
+      fetch(VM_API + '/announce', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: a.token, device: a.device, speech: text }) })
+        .then(function (r) { rec.result = r.ok ? 'announced' : 'failed: HTTP ' + r.status; }, function () { rec.result = 'failed: network'; });
+    }
+    annLog.push(rec); if (annLog.length > 40) annLog.shift();
+    return rec;
+  }
+
+  // ---------- v4.2: Settings > Connected apps (Tessie, Voice Monkey, Alexa) + scheduled announcements ----------
+  var ANN_TYPES = [['cost', 'Charging cost', 'last night\u2019s or tonight\u2019s cost and kWh'], ['tires', 'Tire pressure', 'all four, flags low or high'], ['status', 'Vehicle status', 'battery, range, charging, locks, windows, climate']];
+  var DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  function timeRow(t) {
+    t = t || { time: '07:30', days: DAYS }; var hh = +t.time.split(':')[0], mm = +t.time.split(':')[1];
+    var ho = ''; for (var i = 1; i <= 12; i++) ho += '<option' + (((hh % 12) || 12) === i ? ' selected' : '') + '>' + i + '</option>';
+    var mo = ''; for (var j = 0; j < 60; j += 5) mo += '<option' + (j === Math.round(mm / 5) * 5 % 60 ? ' selected' : '') + '>' + ('0' + j).slice(-2) + '</option>';
+    return '<div class="trow"><select class="th">' + ho + '</select><select class="tm">' + mo + '</select><select class="ta"><option' + (hh < 12 ? ' selected' : '') + '>AM</option><option' + (hh >= 12 ? ' selected' : '') + '>PM</option></select>' +
+      '<div class="days">' + DAYS.map(function (d) { return '<label><input type="checkbox" value="' + d + '"' + ((t.days || []).indexOf(d) >= 0 ? ' checked' : '') + '>' + d.slice(0, 2) + '</label>'; }).join('') + '</div><button type="button" class="btn ghost rm">Remove</button></div>';
+  }
+  function connectedApps(cfg) {
+    var a = cfg.announce || {}, sch = a.schedules || {};
+    var tok = cfg.token ? 'token saved on this phone' : 'no token yet';
+    return '<div class="sect" id="apps">Connected apps</div>' +
+      '<div class="appc"><div class="apph"><b>Tessie</b><span>' + tok + (cfg.vin ? ' \u00b7 VIN \u2026' + esc(cfg.vin.slice(-6)) : '') + '</span></div>' +
+      '<button class="btn ghost" id="aTessie" type="button">Check</button><div class="msg" id="mTessie"></div></div>' +
+      '<div class="appc"><div class="apph"><b>Voice Monkey</b><span>Alexa announcements</span></div>' +
+      '<div class="field"><label for="aTok">API token</label><input type="password" id="aTok" autocomplete="off" autocapitalize="off" spellcheck="false" value="' + esc(a.token || '') + '" placeholder="From app.voicemonkey.io/tokens"><div class="help">Stored only in this browser on this phone, sent only to api-v3.voicemonkey.io.</div></div>' +
+      '<div class="field"><label for="aDev">Speaker device ID</label><input type="text" id="aDev" autocapitalize="off" spellcheck="false" value="' + esc(a.device || '') + '" placeholder="e.g. echo-living-room-xxxxx"></div>' +
+      '<label class="check"><input type="checkbox" id="aDisc"' + (cfg.consent && cfg.consent.announcements ? ' checked' : '') + '> I understand: the text of each announcement (for example charging cost, tire pressures, battery, lock and window state) is sent to Voice Monkey and Amazon (Alexa) so my Echo can speak it.</label>' +
+      '<div class="inline"><button class="btn ghost" id="aCheck" type="button">Check</button><button class="btn ghost" id="aTest" type="button">Send test announcement</button></div><div class="msg" id="mVm"></div></div>' +
+      '<div class="appc"><div class="apph"><b>Alexa</b><span>setup</span></div><div class="help">Voice Monkey speaks through your Echo. In the Alexa app enable the <b>Voice Monkey</b> skill and link your Amazon account, then create a <b>Speaker</b> device and an API token in the Voice Monkey dashboard.</div>' +
+      '<div class="hl"><a class="hbtn" href="https://voicemonkey.io" target="_blank" rel="noopener">Sign up for Voice Monkey</a></div>' +
+      '<div class="hl"><a class="hbtn" href="https://www.amazon.com/dp/B08C6Z4C3R" target="_blank" rel="noopener">Enable the Alexa skill</a></div>' +
+      '<div class="hl"><a class="hbtn" href="https://app.voicemonkey.io" target="_blank" rel="noopener">Voice Monkey dashboard</a></div>' +
+      '<div class="hl"><a class="hbtn" href="https://app.voicemonkey.io/tokens" target="_blank" rel="noopener">API tokens</a></div></div>' +
+      '<div class="sect">Scheduled announcements</div>' +
+      '<div class="pcnote"><b>These run from the PC app.</b> A web app can\u2019t run on a schedule, so the phone never announces on its own. Set the same schedule in the TessDesk desktop widget (clock button next to ALEXA); the PC uses Windows scheduled tasks. The phone still announces your control actions while the ALEXA switch is on.</div>' +
+      ANN_TYPES.map(function (t) {
+        var s = sch[t[0]] || {}, times = (s.times && s.times.length) ? s.times : [{ time: t[0] === 'cost' ? '07:00' : (t[0] === 'tires' ? '07:30' : '18:00'), days: DAYS }];
+        return '<div class="sched" data-type="' + t[0] + '"><label class="check"><input type="checkbox" class="son"' + (s.enabled ? ' checked' : '') + '> <span><b>' + t[1] + '</b> \u00b7 ' + t[2] + '</span></label>' +
+          '<div class="times">' + times.map(timeRow).join('') + '</div><button type="button" class="btn ghost add">+ Add time</button></div>';
+      }).join('');
+  }
+  function bindConnectedApps() {
+    var el = function (id) { return document.getElementById(id); }; if (!el('aTok')) return;
+    Array.prototype.forEach.call(document.querySelectorAll('.sched'), function (sc) {
+      sc.querySelector('.add').onclick = function () { sc.querySelector('.times').insertAdjacentHTML('beforeend', timeRow()); bindRm(); };
+    });
+    function bindRm() { Array.prototype.forEach.call(document.querySelectorAll('.trow .rm'), function (b) { b.onclick = function () { b.parentNode.remove(); }; }); }
+    bindRm();
+    el('aTessie').onclick = function () {
+      var c = getCfg() || {}, m = el('mTessie'); if (!c.token || !c.vin) { m.className = 'msg err'; m.textContent = 'Save your token and vehicle first.'; return; }
+      m.className = 'msg'; m.textContent = 'Checking (cached data, car not woken)\u2026';
+      api('/' + c.vin + '/state?use_cache=true').then(function (s) { m.className = 'msg ok'; m.textContent = 'OK: ' + (s.display_name || 'Tesla') + ' \u00b7 ' + ((s.charge_state || {}).battery_level) + '%'; },
+        function (e) { m.className = 'msg err'; m.textContent = e.auth ? 'Token rejected' : 'Could not reach Tessie: ' + e.message; });
+    };
+    el('aCheck').onclick = function () {
+      var tok = el('aTok').value.trim(), dev = el('aDev').value.trim(), m = el('mVm');
+      if (!tok) { m.className = 'msg err'; m.textContent = 'Paste your Voice Monkey API token first.'; return; }
+      if (load('dryRun', false)) { m.className = 'msg ok'; m.textContent = 'Dry run: check skipped (nothing sent).'; return; }
+      m.className = 'msg'; m.textContent = 'Checking\u2026';
+      fetch(VM_API + '/devices', { headers: { Authorization: 'Bearer ' + tok } }).then(function (r) { if (!r.ok) throw new Error(r.status === 401 ? 'token not valid (401)' : 'HTTP ' + r.status); return r.json(); }).then(function (j) {
+        var sp = (j.data || []).filter(function (d) { return d.capability === 'speakers'; }), hit = sp.filter(function (d) { return d.id === dev || d.name === dev; })[0];
+        m.className = 'msg ' + (hit ? 'ok' : 'err'); m.textContent = hit ? 'OK: speaker \u201c' + hit.name + '\u201d found' : 'Token valid. Speakers: ' + sp.map(function (d) { return d.id; }).join(', ') + (dev ? ' (\u201c' + dev + '\u201d not found)' : '');
+      }).catch(function (e) { m.className = 'msg err'; m.textContent = 'Check failed: ' + e.message; });
+    };
+    el('aTest').onclick = function () {
+      var m = el('mVm'); if (!el('aDisc').checked) { m.className = 'msg err'; m.textContent = 'Tick the disclosure box first.'; return; }
+      var tok = el('aTok').value.trim(), dev = el('aDev').value.trim(); if (!tok || !dev) { m.className = 'msg err'; m.textContent = 'Enter the token and the speaker device first.'; return; }
+      var txt = 'This is a TessDesk test announcement. Alexa announcements are working.';
+      if (load('dryRun', false)) { annLog.push({ at: new Date().toISOString(), why: 'test', text: txt, device: dev, dryRun: true, sent: false, result: 'DRY RUN: not sent' }); m.className = 'msg ok'; m.textContent = 'Dry run: would announce \u201c' + txt + '\u201d on ' + dev; return; }
+      m.className = 'msg'; m.textContent = 'Sending\u2026';
+      fetch(VM_API + '/announce', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: tok, device: dev, speech: txt }) })
+        .then(function (r) { m.className = 'msg ' + (r.ok ? 'ok' : 'err'); m.textContent = r.ok ? 'Sent. You should hear it on ' + dev + ' now.' : 'Failed: HTTP ' + r.status; }, function () { m.className = 'msg err'; m.textContent = 'Failed: network'; });
+    };
+  }
+  function readAnnounceForm(prev) {
+    var el = function (id) { return document.getElementById(id); }; if (!el('aTok')) return prev || {};
+    var sch = {};
+    Array.prototype.forEach.call(document.querySelectorAll('.sched'), function (sc) {
+      sch[sc.getAttribute('data-type')] = { enabled: sc.querySelector('.son').checked, times: Array.prototype.map.call(sc.querySelectorAll('.trow'), function (r) {
+        var h = (+r.querySelector('.th').value) % 12 + (r.querySelector('.ta').value === 'PM' ? 12 : 0);
+        return { time: ('0' + h).slice(-2) + ':' + r.querySelector('.tm').value, days: Array.prototype.filter.call(r.querySelectorAll('.days input'), function (x) { return x.checked; }).map(function (x) { return x.value; }) };
+      }) };
+    });
+    return { token: el('aTok').value.trim(), device: el('aDev').value.trim(), schedules: sch, schedulesRunOn: 'pc' };
+  }
+
+  // ---------- v4.2: FULL / COMPACT ----------
+  // Compact: same sections and controls, smaller type, tighter padding, smaller drawings, then zoomed (down to 55%) to fit the screen height.
+  var curZoom = 1;
+  function layoutMode() { return load('layout', 'full') === 'compact' ? 'compact' : 'full'; }
+  function setLayout(m) { save('layout', m); render(); }
+  function layoutChip() { var c = layoutMode() === 'compact'; return '<button class="laychip' + (c ? ' on' : '') + '" id="btnLayout" title="Full: normal size, scrolls. Compact: fits the screen.">' + (c ? 'COMPACT' : 'FULL') + '</button>'; }
+  function fitCompact() {
+    var w = document.querySelector('.wrap'); if (!w) return;
+    document.body.classList.toggle('compact', layoutMode() === 'compact');
+    w.style.zoom = ''; curZoom = 1;
+    if (layoutMode() !== 'compact' || screen !== 'main') return;
+    var vh = window.innerHeight, need = w.scrollHeight;
+    if (need > vh) { curZoom = Math.max(0.55, Math.floor(vh / need * 1000) / 1000); w.style.zoom = curZoom; }
+  }
+  window.addEventListener('resize', function () { if (layoutMode() === 'compact') fitCompact(); });
+  function monDay(t) { return new Date(t * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/Chicago' }); }
+
+  // ---------- v4.2: reminder setup (how reminders reach you) ----------
+  var REM_CH = [
+    ['calendar', 'Phone calendar alert', 'Works here. Adds a calendar event with an alert at the time you pick (.ics for Apple / any calendar, or Google Calendar). Your phone gives the notification.', true],
+    ['text', 'Text message', 'On the phone: opens a text to your number, ready to send now (a web app can\u2019t send texts later). Scheduled texts come from the PC app through your carrier\u2019s email-to-text gateway. Honest note: AT&T shut its gateway down in June 2025, T-Mobile\u2019s is unreliable, Verizon\u2019s works until March 2027.', true],
+    ['email', 'Email', 'On the phone: opens an email draft (sent when you tap Send). Scheduled email comes from the PC app through your own email account.', true],
+    ['alexa', 'Alexa announcement', 'Your Echo speaks it through Voice Monkey (Settings \u2192 Connected apps). The phone can announce right now; scheduled announcements come from the PC app.', true],
+    ['toast', 'Windows notification', 'PC app only: pops up on your Windows PC at the time you pick (set it in the desktop widget).', false]
+  ];
+  function remCh(c) { return (remCfg().channels || []).indexOf(c) >= 0; }
+  function remCfg() { var c = getCfg() || {}; return c.remind || { channels: ['calendar'], phone: '' }; }
+  function openRemSetup() {
+    var rc = remCfg(), d = document.createElement('div'); d.className = 'modal';
+    function close() { d.remove(); }
+    d.innerHTML = '<div class="mbox rem" role="dialog" aria-modal="true"><div class="mq">How reminders reach you</div>' +
+      REM_CH.map(function (c) {
+        var ok = c[3] && (c[0] !== 'alexa' || annReady());
+        return '<label class="check remch"><input type="checkbox" data-ch="' + c[0] + '"' + ((rc.channels || []).indexOf(c[0]) >= 0 && ok ? ' checked' : '') + (ok ? '' : ' disabled') + '><span><b>' + c[1] + '</b>' +
+          (c[0] === 'alexa' && !annReady() ? ' <em>not set up</em>' : '') + '<small>' + c[2] + '</small></span></label>';
+      }).join('') +
+      '<div class="field"><label for="rPhone">Your mobile number (for the text option)</label><input type="text" id="rPhone" inputmode="tel" value="' + esc(rc.phone || '') + '" placeholder="555-555-0100"></div>' +
+      '<div class="rn"><b>Tessie app / car screen:</b> not possible. Tessie\u2019s API can\u2019t send a notification to the Tessie app or a message to the car\u2019s screen (its \u201cshare\u201d command only sends an address or video link to the car\u2019s navigation). For Tessie\u2019s own alerts: Tessie app \u2192 Notifications (the bell, top right) \u2192 turn on <b>Low tire pressure</b>.</div>' +
+      '<div class="mbtns"><button class="btn ghost" id="rsNo">Cancel</button><button class="btn" id="rsSave">Save</button></div></div>';
+    d.querySelector('#rsNo').onclick = close;
+    d.querySelector('#rsSave').onclick = function () {
+      var c = getCfg(); c.remind = { channels: Array.prototype.filter.call(d.querySelectorAll('[data-ch]'), function (x) { return x.checked; }).map(function (x) { return x.getAttribute('data-ch'); }), phone: d.querySelector('#rPhone').value.trim() };
+      save('cfg', c); close(); render();
+    };
+    d.onclick = function (e) { if (e.target === d) close(); };
+    document.body.appendChild(d);
+  }
+  function smsUrl(rep) {
+    var ph = (remCfg().phone || '').replace(/[^\d+]/g, ''), ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
+    return 'sms:' + ph + (ios ? '&' : '?') + 'body=' + encodeURIComponent('TessDesk: get air. ' + rep.lines.join(', ') + (rep.rec ? ' ' + rep.rec : ''));
+  }
+
   function bind() {
     var r = document.getElementById('btnRefresh'); if (r) r.onclick = function () { refresh(true); };
     var s = document.getElementById('btnSettings'); if (s) s.onclick = function () { screen = 'settings'; render(); window.scrollTo(0, 0); };
     var on = function (id, f) { var el = document.getElementById(id); if (el) el.onclick = f; };
     on('cLock', onLock); on('cVent', onVent); on('cClose', onClose); on('cClim', onClim);
     on('cTdn', function () { onTemp(-1); }); on('cTup', function () { onTemp(1); });
-    on('bRemind', openReminder);
-    bindSlider();
+    on('bRemind', openReminder); on('bRemSetup', openRemSetup); on('btnLayout', function () { setLayout(layoutMode() === 'compact' ? 'full' : 'compact'); });
+    on('cChgStart', onChgStart); on('cChgStop', onChgStop); on('cHeat', onHeat); on('cDefrost', onDefrost); on('cCop', onCop); on('sWheel', onWheel);
+    on('btnAlexa', function () { setAlexa(!alexaOn()); }); on('btnSched', function () { screen = 'settings'; render(); var e = document.getElementById('apps'); if (e) e.scrollIntoView(); });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-seat]'), function (g) { g.onclick = function () { if (!g.classList.contains('dis')) onSeat(g.getAttribute('data-seat')); }; });
+    bindSlider(); bindAmps();
     if (busy) setSpin(true);
   }
 
@@ -597,13 +936,13 @@
   function readConsent(prev) {
     var el = function (id) { return document.getElementById(id); };
     return { version: CONSENT_VERSION, agreed: true, agreedAt: (prev && prev.agreedAt) || new Date().toISOString(), updatedAt: new Date().toISOString(),
-      readVehicleData: true, sendCommands: !!el('pCmd').checked, reminders: !!el('pRem').checked, via: 'phone' };
+      readVehicleData: true, sendCommands: !!el('pCmd').checked, reminders: !!el('pRem').checked, announcements: !!(prev && prev.announcements), via: 'phone' };
   }
   // existing users (set up before v4.1): notice first, no Tessie calls until they agree
   function renderConsent() {
     var cfg = getCfg();
     $app.innerHTML = '<div class="wrap form">' + testBanner() + '<div class="hdr"><div class="brand">TESSDESK</div></div>' +
-      '<h1>Before we connect</h1><p class="lead">TessDesk v4.1 asks for your OK before it reads your car again.</p>' + noticeHtml() +
+      '<h1>Before we connect</h1><p class="lead">TessDesk asks for your OK before it reads your car again.</p>' + noticeHtml() +
       permBoxes(cfg.consent, true) + helpPanel(false) + '<div class="msg" id="mC"></div><button class="btn" id="bAgree" disabled>Continue</button>' + footer() + '</div>';
     var a = document.getElementById('pAgree'), b = document.getElementById('bAgree');
     a.onchange = function () { b.disabled = !a.checked; };
@@ -666,11 +1005,14 @@
         '<div class="rn">Adds a 15-minute calendar event at ' + esc(when) + ' with an alert at that time. Your phone\u2019s Calendar app gives the notification, even while you drive. ' + (ios ? 'iPhone: tap \u201cAdd to Calendar\u201d on the next screen.' : 'Android: open the downloaded file with your calendar app.') + '</div>' +
         '<a class="btn ghost" id="rG" href="' + gcalUrl(due, rep) + '" target="_blank" rel="noopener">Google Calendar</a>' +
         '<div class="rn">Opens Google Calendar with the event filled in. Tap Save. The alert uses your Google Calendar\u2019s default notification (you can change it on the event).</div>' +
+        (remCh('text') ? '<a class="btn ghost" id="rS" href="' + smsUrl(rep) + '">Text message (send now)</a><div class="rn">Opens Messages with the text ready' + (remCfg().phone ? ' to ' + esc(remCfg().phone) : '') + '. It goes out when you tap Send; it is <b>not</b> scheduled.</div>' : '') +
+        (remCh('alexa') && annReady() ? '<button class="btn ghost" id="rA">Announce on Alexa now</button><div class="rn" id="rAm">Your Echo (' + esc(annCfg().device) + ') says it now. Scheduled announcements come from the PC app.</div>' : '') +
         '<a class="btn ghost" id="rM" href="' + mailtoUrl(rep) + '">Email draft</a>' +
         '<div class="rn">Opens your mail app with a draft' + ((getCfg() || {}).remindEmail ? ' to ' + esc(getCfg().remindEmail) : '') + '. It goes out when you tap Send (now). It is <b>not</b> scheduled.</div>' +
-        '<div class="rn muted">The TessDesk web app can\u2019t send anything by itself in the background. These options hand the reminder to your calendar or mail app. The desktop widget can email or text you at the time you pick.</div>' +
+        '<div class="rn muted">The TessDesk web app can\u2019t send anything by itself in the background. These options hand the reminder to your calendar, messages or mail app. The desktop widget can email, text, announce on Alexa or show a Windows notification at the time you pick.</div>' +
         '<div class="mbtns"><button class="btn ghost" id="rBack">Back</button><button class="btn ghost" id="rDone">Done</button></div></div>';
       d.querySelector('#rBack').onclick = step1; d.querySelector('#rDone').onclick = close;
+      var ra = d.querySelector('#rA'); if (ra) ra.onclick = function () { var r = announce('Reminder: get air in your tires. ' + rep.lines.join(', ') + '.', 'reminder', true); d.querySelector('#rAm').textContent = r.result === 'sending' ? 'Sent to Voice Monkey.' : r.result; };
       window.TessDesk.lastReminder = { hours: hrs, due: due.toISOString(), ics: ics, gcal: gcalUrl(due, rep), mailto: mailtoUrl(rep) };
     }
     d.onclick = function (e) { if (e.target === d) close(); };
@@ -707,6 +1049,7 @@
       '<label class="check"><input type="checkbox" id="fPkW"' + (pk.weekdaysOnly !== false ? ' checked' : '') + '> Weekdays only</label>' +
       '<label class="check"><input type="checkbox" id="fPkM"' + (pk.summerOnly !== false ? ' checked' : '') + '> June\u2013October only</label></div></div>' +
       '<div class="field"><label for="fEff">Charging efficiency %</label><input type="number" id="fEff" min="50" max="100" step="1" value="' + Math.round((cfg.eff || 0.9) * 100) + '"><div class="help">Wall kWh = kWh added \u00f7 efficiency. Default 90%.</div></div>' +
+      connectedApps(cfg) +
       '<div class="sect">Reminders</div>' +
       '<div class="field"><label for="fRemEmail">Email for reminder drafts (optional)</label><input type="email" id="fRemEmail" autocomplete="email" value="' + esc(cfg.remindEmail || '') + '" placeholder="you@gmail.com"><div class="help">Used as the To: address in the \u201cEmail draft\u201d option. Calendar alerts need nothing here.</div></div>' +
       (first ? '' : '<div class="sect">Permissions</div>' + permBoxes(cfg.consent, false) +
@@ -759,11 +1102,13 @@
       var changedCar = vin !== cfg.vin || tok !== cfg.token;
       save('cfg', { name: name, token: tok, vin: vin, carName: (opt && opt.getAttribute('data-name')) || cfg.carName || '', rates: rates, eff: eff,
                     apiBase: (el('fApi').value.trim() || DEFAULT_API), remindEmail: el('fRemEmail').value.trim(), consent: readConsent(cfg.consent) });
+      var nc = getCfg(); nc.announce = readAnnounceForm(cfg.announce); if (nc.consent) nc.consent.announcements = !!el('aDisc').checked; save('cfg', nc);
       save('dryRun', el('fDry').checked);
       if (VARIANT === 'test') save('resetOnLaunch', el('fReset').checked);
       if (changedCar) { cache = { state: null, charges: null, stateAt: 0, chargesAt: 0 }; live = null; save('cache', cache); save('live', null); }
       screen = 'main'; render(); refresh(true); startTimer();
     };
+    bindConnectedApps();
     if (!first) {
       el('bCancel').onclick = function () { screen = 'main'; render(); };
       el('bLogout').onclick = function () {
@@ -774,9 +1119,32 @@
   }
 
   // ---------- refresh loop + pull to refresh ----------
-  function startTimer() { stopTimer(); timer = setInterval(function () { if (document.visibilityState === 'visible') refresh(false); }, REFRESH_MS); }
-  function stopTimer() { if (timer) clearInterval(timer); timer = null; }
-  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible' && getCfg() && screen === 'main' && nowSec() - cache.stateAt > 30) refresh(false); });
+  // v4.2 adaptive refresh, cached data only (never wakes the car), and only while the app is visible:
+  // 10 s car active (charging / driving / climate / a control used in the last 3 min), 15 s car awake,
+  // 60 s -> 120 s -> 300 s car asleep / offline, errors back off 30 s -> 300 s.
+  var liveInfo = { interval: 15, reason: 'start', errors: 0, asleepRuns: 0, lastCmd: 0, polls: 0 };
+  function nextDelay() {
+    var st = cache.state, L = liveInfo;
+    if (lastErr) { L.errors++; L.interval = lastErr.auth ? 600 : Math.min(300, 30 * Math.pow(2, L.errors - 1)); L.reason = lastErr.auth ? 'token rejected' : 'error backoff'; return L.interval; }
+    L.errors = 0;
+    if (!st) { L.interval = 15; L.reason = 'no data yet'; return 15; }
+    var cs = st.charge_state || {}, ds = st.drive_state || {}, cl = st.climate_state || {};
+    var active = cs.charging_state === 'Charging' || cs.charging_state === 'Starting' || ['D', 'R', 'N'].indexOf(ds.shift_state) >= 0 || !!cl.is_climate_on || (nowSec() - L.lastCmd) < 180;
+    if (active) { L.asleepRuns = 0; L.interval = 10; L.reason = cs.charging_state === 'Charging' ? 'charging' : 'car active'; }
+    else if (st.state && st.state !== 'online') { L.asleepRuns++; L.interval = L.asleepRuns > 6 ? 300 : (L.asleepRuns > 3 ? 120 : 60); L.reason = 'car ' + st.state; }
+    else { L.asleepRuns = 0; L.interval = 15; L.reason = 'car awake'; }
+    return L.interval;
+  }
+  function scheduleNext(ms) { if (timer) clearTimeout(timer); timer = setTimeout(function () { timer = null; if (document.visibilityState === 'visible' && getCfg() && consentOk()) { liveInfo.polls++; refresh(false); } else scheduleNext(15000); }, ms); }
+  function startTimer() { stopTimer(); scheduleNext(nextDelay() * 1000); }
+  function stopTimer() { if (timer) clearTimeout(timer); timer = null; }
+  function updText(t) {
+    var a = Math.max(0, nowSec() - t), st = cache.state || {};
+    var age = a < 60 ? a + 's ago' : (a < 3600 ? Math.floor(a / 60) + 'm ago' : Math.floor(a / 3600) + 'h ago');
+    return (st.state && st.state !== 'online' ? 'Car ' + esc(st.state) + ' \u00b7 ' : '<i class="dot' + (a <= 30 ? ' on' : '') + '"></i>') + 'Updated ' + age;
+  }
+  setInterval(function () { var e = document.getElementById('updAge'); if (e) e.innerHTML = updText(+e.getAttribute('data-t')); }, 1000);
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible' && getCfg() && screen === 'main' && nowSec() - cache.stateAt > 10) refresh(false); });
   (function ptr() {
     var y0 = null, ind = document.createElement('div'); ind.className = 'ptr'; ind.textContent = 'Pull to refresh'; document.body.appendChild(ind);
     window.addEventListener('touchstart', function (e) { y0 = (window.scrollY <= 0 && screen === 'main' && getCfg()) ? e.touches[0].clientY : null; }, { passive: true });
@@ -791,7 +1159,7 @@
   })();
 
   // test hooks for headless checks (no secrets)
-  window.TessDesk = { cmdLog: cmdLog, tireFlag: tireFlag, buildIcs: buildIcs, priceSpan: function (t0, t1, wall) { var c = getCfg(); return priceSpan(c ? c.rates : PRESETS.pso, t0, t1, wall); }, PRESETS: PRESETS, ctEpoch: ctEpoch, refresh: refresh };
+  window.TessDesk = { cmdLog: cmdLog, annLog: function () { return annLog; }, lastError: function () { return lastErr ? String(lastErr.message || lastErr) : null; }, live: function () { return liveInfo; }, layout: function () { return { mode: layoutMode(), zoom: curZoom }; }, seatPend: function () { return seatPend; }, tireFlag: tireFlag, buildIcs: buildIcs, priceSpan: function (t0, t1, wall) { var c = getCfg(); return priceSpan(c ? c.rates : PRESETS.pso, t0, t1, wall); }, PRESETS: PRESETS, ctEpoch: ctEpoch, refresh: refresh };
 
   render();
   if (getCfg()) { refresh(false); startTimer(); }

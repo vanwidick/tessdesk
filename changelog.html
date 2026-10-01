@@ -31,9 +31,29 @@
   <p class="lead">Every TessDesk version (desktop widget and phone app), newest first.</p>
 
   <!-- Add each new version at the top: <section class="rel new"> ... -->
-  <section class="rel new" id="v4.1">
-    <h2>v4.1 <small>Oct 1, 2026</small></h2>
+  <section class="rel new" id="v4.2">
+    <h2>v4.2 <small>Oct 1, 2026</small></h2>
     <span class="tag">LATEST</span>
+    <ul>
+      <li><b>Charging:</b> Start / Stop charging buttons that show the current state (green = charging; Stop asks first), and a <b>CHARGING AMPS</b> slider under the limit slider. Drag, let go, confirm. It is clamped to what your charger allows (min 5 A).</li>
+      <li><b>Climate:</b> new <b>HEAT</b> (climate on at a warm 82&nbsp;°F), max <b>DEFROST</b>, and <b>Cabin Overheat Protection</b> (Off → On → Fan only, if your car supports it). Each shows its state.</li>
+      <li><b>Heated seats</b>, a new card drawn like the tires: tap a seat to cycle Off → 1 → 2 → 3 (sent a moment after your last tap), plus steering-wheel heat.</li>
+      <li><b>Windows:</b> the button that matches the car turns green (Vent when any window is open, Close when they're all closed).</li>
+      <li><b>Money rows</b> (tonight / 7 / 30 days) moved up under the big number and made compact. Bigger, bolder section titles and a larger tires "as of" time.</li>
+      <li><b>Alexa announcements</b> (optional) through Voice Monkey: an ALEXA switch in the header announces each control result on your Echo after it finishes, including failures. <b>Settings → Connected apps</b> holds Tessie, Voice Monkey (token, speaker, Check, Send test) and Alexa setup links, with a disclosure you must accept.</li>
+      <li><b>Scheduled announcements</b> of charging cost, tire pressure and vehicle status, each with its own on/off, several times and chosen days. The desktop runs them with Windows scheduled tasks (cached data, the car isn't woken). The phone shows the same settings but can't run on a schedule.</li>
+      <li>Desktop: the window stays 364 wide at the same spot. The lower sections scroll inside the widget so it fits your screen.</li>
+      <li><b>Faster live updates:</b> TessDesk now refreshes about every 10 seconds while the car is charging, driving or has climate on, every 15 seconds while the app is open (desktop: focused) and the car is awake, 60 seconds when the desktop widget is in the background, and backs off to 2–5 minutes while the car sleeps. It only reads Tessie's cached data, so it <b>never wakes the car</b>. A small "● Updated 6s ago" shows how fresh the data is.</li>
+      <li><b>FULL / COMPACT</b> switch in the header: Compact keeps every section and control but uses smaller type, tighter spacing and smaller drawings so everything fits the screen with no scrolling. Your choice is remembered.</li>
+      <li><b>Tesla controls</b> moved above Tires.</li>
+      <li>Tires: "REC" is now plain words ("Recommended 42 PSI"), and the time is a clear "Updated 2:10 AM · Oct 1" pill.</li>
+      <li><b>Setup: how reminders reach you</b>, a new link under "Remind me to get air". Desktop: email, text (with honest carrier notes), Alexa announcement, Windows notification and a phone calendar alert, in any combination, plus a Send test button. Phone: calendar alert, text or email (ready to send), or announce on Alexa now. Tessie's API can't notify the Tessie app or show a message on the car's screen, so for Tessie's own alerts turn on Tessie app → Notifications → Low tire pressure.</li>
+    </ul>
+  </section>
+
+  <section class="rel" id="v4.1">
+    <h2>v4.1 <small>Oct 1, 2026</small></h2>
+    
     <ul>
       <li><b>Tesla controls</b>, a new card under Tires: Lock/Unlock (shows the current state), Vent / Close windows, Climate (A/C) on/off, and set temperature with − / + buttons (°F or °C, whichever your car uses). Shows a spinner while sending, then OK or the error.</li>
       <li><b>Safety prompts:</b> Unlock, Vent windows and charge-limit changes ask "Are you sure?" first.</li>
