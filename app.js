@@ -1213,7 +1213,7 @@
         '<div class="pk-tip"><b>Tip:</b> in the car set <b>Charging \u2192 Scheduled Charging</b> to start at <b>' + rs.start + '</b>, so it waits for off-peak by itself.</div></div></div>';
     }
     if (rs.mode === 'charging-offpeak')
-      return '<div class="rate-pill green" id="rateStatus"><span class="rp-ic">\u2713</span><b>OFF-PEAK \u00b7 ' + c1(rs.off) + ' \u00b7 cheapest rate until ' + rs.end + '</b><small>' + (Math.round(rs.offAllIn * 1000) / 10).toFixed(1) + '\u00a2/kWh all-in with the fuel adjustment</small></div>';
+      return '<div class="rate-pill green" id="rateStatus"><span class="rp-ic">\u2713</span><b>OFF-PEAK \u00b7 ' + c1(rs.off) + ' \u00b7 <span class="nw">cheapest rate until ' + String(rs.end).replace(' ', '\u00a0') + '</span></b><small>' + (Math.round(rs.offAllIn * 1000) / 10).toFixed(1) + '\u00a2/kWh all-in with the fuel adjustment</small></div>';
     var t = rs.kind === 'offpeak' ? 'Off-peak now \u00b7 ' + c1(rs.rate) + ' \u00b7 ends ' + rs.end + (rs.next ? ' (in ' + leftTxt((rs.next.at - rs.now) / 60) + ')' : '')
                                   : rs.label + ' now \u00b7 ' + c1(rs.rate) + ' \u00b7 off-peak in ' + (rs.untilOff != null ? leftTxt(rs.untilOff) : '?');
     if (rs.reason === 'DC fast charging' || rs.reason === 'away from home') t += ' \u00b7 ' + rs.reason;
