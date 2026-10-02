@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TessDesk · Download for Windows</title>
+<meta name="description" content="Download TessDesk v4.3 for Windows: a live Tesla charging-cost desktop widget. Design by Van.">
+<meta name="theme-color" content="#081426">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="stylesheet" href="style.css">
+<style>
+  .dl h1 { font-size: 26px; margin: 10px 0 2px; letter-spacing: .02em; }
+  .dl p.lead { color: var(--muted); margin: 0 0 8px; font-size: 14px; }
+  .card2 { background: var(--card); border-radius: var(--radius); padding: 14px 16px 12px; margin: 12px 0; border-left: 4px solid var(--green); }
+  .card2 h2 { margin: 0 0 6px; font-family: "Bebas Neue", Impact, "Arial Narrow", sans-serif; font-weight: 400; font-size: 28px; letter-spacing: .08em; }
+  .card2 ol, .card2 ul { margin: 6px 0 4px; padding-left: 20px; } .card2 li { margin: 5px 0; font-size: 14.5px; line-height: 1.4; }
+  .btn-dl { display: block; text-align: center; background: var(--green); color: #fff; font-weight: 800; letter-spacing: .06em;
+            text-decoration: none; padding: 14px 16px; border-radius: var(--radius); margin: 14px 0 6px; font-size: 16px; }
+  .meta { color: var(--muted); font-size: 12px; word-break: break-all; margin: 4px 0 0; }
+  .back { display: inline-block; margin: 8px 0 0; color: var(--muted); font-size: 13px; text-decoration: none; }
+  .back:hover { color: var(--text); }
+  .card2 a { color: var(--text); }
+</style>
+</head>
+<body class="tessie">
+<div class="wrap dl">
+  <div class="hdr"><div class="brand">TESSDESK</div><div class="who">Download</div></div>
+  <a class="back" href="./">← Phone app</a>
+  <h1>TessDesk for Windows</h1>
+  <p class="lead">A small always-on-top desktop widget that shows what your Tesla's charging is costing you, live, plus battery, tires, rate status and Tesla controls. Data comes from your own <a href="https://tessie.com" style="color:inherit">Tessie</a> account.</p>
+
+  <a class="btn-dl" href="download/TessDesk-Setup-v4.3.zip" download>DOWNLOAD TESSDESK v4.3 (ZIP, 161 KB)</a>
+  <p class="meta">TessDesk-Setup-v4.3.zip · 164444 bytes · SHA-256 f98248868b3219d278010a3673d575f37aa40199b87060b3af48e203090eb28f</p>
+
+  <section class="card2">
+    <h2>Install</h2>
+    <ol>
+      <li>Unzip <b>TessDesk-Setup-v4.3.zip</b> to a folder (running it from inside the zip won't work).</li>
+      <li>Double-click <b>TessDesk-Setup.cmd</b>. If SmartScreen says "Windows protected your PC", click <b>More info → Run anyway</b>. It's a plain PowerShell script you can read in Notepad.</li>
+      <li>Read the notice, tick <b>I agree</b>, enter your name and Tessie API token, click <b>Check token</b>, pick your car and your rates, then <b>Install TessDesk</b>.</li>
+    </ol>
+  </section>
+
+  <section class="card2">
+    <h2>What you need</h2>
+    <ul>
+      <li>Windows 10 or 11 (PowerShell 5.1 is built in).</li>
+      <li>A <a href="https://www.tessie.com">Tessie</a> account with your car linked, and its API token (<a href="https://dash.tessie.com/settings/api">Settings → API</a>).</li>
+      <li>Your electricity rates (or start from the PSO RSEV example preset).</li>
+    </ul>
+  </section>
+
+  <section class="card2">
+    <h2>Privacy</h2>
+    <ul>
+      <li>The download contains <b>no personal data</b>: no token, no settings, no car.</li>
+      <li>Your token stays on your PC (encrypted with Windows DPAPI) and is sent only to api.tessie.com.</li>
+      <li>Unofficial; not affiliated with Tesla or Tessie. See <a href="privacy.html">Privacy</a> and <a href="changelog.html">What's new</a>.</li>
+    </ul>
+  </section>
+
+  <div class="foot"><div class="dbv">DESIGN BY <span>VAN</span></div><div class="dbv-bar"></div><div class="ver" style="border:0">v4.3 · Oct 1, 2026</div></div>
+</div>
+</body>
+</html>
