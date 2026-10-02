@@ -31,9 +31,19 @@
   <p class="lead">Every TessDesk version (desktop widget and phone app), newest first.</p>
 
   <!-- Add each new version at the top: <section class="rel new"> ... -->
-  <section class="rel new" id="v4.3">
-    <h2>v4.3 <small>Oct 1, 2026</small></h2>
+  <section class="rel new" id="v4.3.1">
+    <h2>v4.3.1 <small>Oct 2, 2026</small></h2>
     <span class="tag">LATEST</span>
+    <ul>
+      <li><b>Pick your Echos from a list.</b> Announce Setup &rarr; <b>Speakers (Echos)</b> now has a dropdown with every speaker on your Voice Monkey account. Tick a speaker to include it in announcements, or keep <b>All Echos</b> on. Each speaker has a <b>&#9654; Test</b> button that plays one short line on that Echo only, and only when you click it.</li>
+      <li><b>+ Add speaker.</b> Type a name (for example Kitchen Echo) and tap <b>Open Voice Monkey &middot; Add New Speaker</b>. It opens app.voicemonkey.io/speakers and copies the name. Short steps on screen cover the one step in the Alexa app (a Routine: <i>When this happens &rarr; Smart Home &rarr; Alexa Voice Monkey v3 &rarr; VM Speakers &rarr; your speaker</i>, action <i>Voice Monkey</i>, <i>From</i> your Echo). Then <b>Refresh list</b> picks up the new speaker, marked NEW and already ticked. Voice Monkey&rsquo;s API can list speakers but can&rsquo;t create them, so the speaker itself is made on the Voice Monkey page.</li>
+      <li><b>Fixed:</b> the Announce button read &ldquo;ALL 1 ECHO&rdquo;. It now reads <b>ALL ECHOS (1)</b>.</li>
+      <li>Desktop and phone. Version v4.3.1, new offline cache (tessdesk-v4.3.1). Windows download: TessDesk Setup 4.4.1 (installs widget v4.3.1).</li>
+    </ul>
+  </section>
+
+  <section class="rel" id="v4.3">
+    <h2>v4.3 <small>Oct 1, 2026</small></h2>
     <ul>
       <li><b>Rate status, always visible.</b> Uses your PSO RSEV rates (editable in Settings &rarr; Rates). <b>Charging at a high rate:</b> a red (2&ndash;7&nbsp;PM summer weekday peak) or amber (other daytime) pill: <b>"PEAK RATE &middot; charging costs more &middot; off-peak starts 11 PM (in 1h 12m)"</b>, with the price now per kWh and the estimated extra cost for this session vs off-peak, a one-tap <b>Stop charging</b> (still asks to confirm) and the <b>Scheduled Charging</b> tip. <b>Charging off-peak:</b> a green pill <b>"OFF-PEAK &middot; 3.0&cent;/kWh &middot; cheapest rate until 6 AM"</b>. <b>Not charging:</b> a small line like "Peak now &middot; off-peak in 1h 12m" or "Off-peak now &middot; ends 6 AM". Superchargers / DC fast charging are skipped. The desktop also shows one Windows notification per high-rate session. Looks the same in Full and COMPACT.</li>
       <li><b>Charging-started announcement</b> (desktop): when the car goes from not charging to charging, Alexa says so once per session after one refresh (real kW and amps), including "at the off-peak rate" or "at the peak rate, which costs more". On/off switch in Setup; only after the Alexa disclosure is accepted; only one of your PCs announces it.</li>

@@ -439,3 +439,23 @@ body.compact .ann-row { margin-top: 5px; gap: 5px; grid-template-columns: minmax
 .pk-t small.pk-extra { font-weight: 700; opacity: 1; }
 body.compact .rate-pill { margin: 4px 0; padding: 3px 10px; } body.compact .rate-pill b { font-size: 12px; } body.compact .rate-pill small { font-size: 9.5px; }
 body.compact .rate-line { margin: 3px 2px; font-size: 10.5px; }
+
+/* v4.3.1 Announce Setup: speakers dropdown, Test, Add speaker */
+.spk-dd { background: var(--card2); border: 1px solid var(--line); border-radius: 12px; margin: 6px 0 4px; }
+.spk-dd summary { list-style: none; cursor: pointer; padding: 11px 36px 11px 12px; font-weight: 700; font-size: 14px; position: relative; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.spk-dd summary::-webkit-details-marker { display: none; }
+.spk-dd summary::after { content: "\25BE"; position: absolute; right: 12px; top: 9px; font-size: 16px; color: var(--muted); }
+.spk-dd[open] summary::after { content: "\25B4"; }
+.spk-dd[open] summary { border-bottom: 1px solid var(--line); }
+.spk-dd .spk-list, .spk-dd > .rn { padding: 4px 12px; } .spk-dd > .rn { padding-bottom: 10px; }
+.spk-row { display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--line); padding: 2px 0; } .spk-row:last-child { border-bottom: 0; }
+.spk-row .check { flex: 1; margin: 6px 0; } .spk-row .check small.muted { display: block; }
+.spk-row .spk-test { width: auto; flex: 0 0 auto; margin: 0; padding: 8px 12px; font-size: 12.5px; }
+.spk-new { font-style: normal; font-size: 10px; font-weight: 800; letter-spacing: .1em; color: var(--green); margin-left: 6px; }
+.inline2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 8px 0 4px; } .inline2 .btn { margin: 0; padding: 10px 4px; font-size: 13px; }
+.spk-add { border: 1.5px solid var(--green); border-radius: 12px; padding: 10px 12px; margin: 8px 0; background: var(--card); }
+.spk-add .lbl { display: block; font-size: 12px; color: var(--muted); margin: 8px 0 3px; }
+.spk-add input { width: 100%; box-sizing: border-box; padding: 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 15px; }
+.spk-add a.btn { margin: 10px 0 4px; }
+.spk-steps { margin: 6px 0 2px; padding-left: 20px; font-size: 12.5px; line-height: 1.45; } .spk-steps li { margin: 5px 0; }
+.spk-add .inline3 a.btn { margin: 0; padding: 10px 4px; font-size: 13px; text-align: center; text-decoration: none; }

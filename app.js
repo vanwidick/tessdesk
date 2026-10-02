@@ -5,8 +5,8 @@
   var CFG = window.TD_CONFIG || {};
   var VARIANT = CFG.variant || 'main';
   var P = CFG.storagePrefix || 'td:';
-  var VERSION = 'v4.3';
-  var VERSION_DATE = 'Oct 1, 2026';
+  var VERSION = 'v4.3.1';
+  var VERSION_DATE = 'Oct 2, 2026';
   var TZ = 'America/Chicago';
   var DEFAULT_API = 'https://api.tessie.com';
   var REFRESH_MS = 60000, CHARGES_EVERY_S = 15 * 60, HTTP_TIMEOUT_MS = 15000, CMD_TIMEOUT_MS = 90000;
@@ -774,11 +774,27 @@
     if (!t.length && a.device) t = [a.device];
     return t;
   }
-  function targetsLabel(t) { var sc = spkCfg(); return sc.all !== false && vmSpeakers().length ? 'all ' + t.length + ' Echo' + (t.length > 1 ? 's' : '') : t.join(', '); }
+  function targetsLabel(t) { var sc = spkCfg(), sp = vmSpeakers(); return sc.all !== false && sp.length ? 'All Echos (' + t.length + ')' : t.map(function (id) { var h = sp.filter(function (x) { return x.id === id; })[0]; return h ? h.name : id; }).join(', '); }
   function refreshSpeakers() {
     var tok = annCfg().token; if (!tok) return Promise.reject(new Error('no Voice Monkey token'));
     return fetch(VM_API + '/devices', { headers: { Authorization: 'Bearer ' + tok } }).then(function (r) { if (!r.ok) throw new Error(r.status === 401 ? 'token not valid (401)' : 'HTTP ' + r.status); return r.json(); })
       .then(function (j) { var sp = (j.data || []).filter(function (d) { return d.capability === 'speakers'; }).map(function (d) { return { id: String(d.id), name: String(d.name || d.id) }; }); save('vmSpeakers', sp); return sp; });
+  }
+  // v4.3.1: Voice Monkey API v3 lists speakers (GET /devices) but cannot create them, so Add speaker opens the Voice Monkey Speakers page.
+  var VM_SPEAKERS_URL = 'https://app.voicemonkey.io/speakers', VM_ADD_DOC = 'https://voicemonkey.io/docs/getting-started/add-device.html';
+  function testSpeaker(id, m) {
+    // Test this speaker: one short line on ONE speaker, only when tapped. Dry run = log only.
+    var sp = vmSpeakers().filter(function (x) { return x.id === id; })[0], name = sp ? sp.name : id, a = annCfg();
+    var txt = 'This is a TessDesk test on ' + name + '. Tesla announcements will play here.';
+    var rec = { at: new Date().toISOString(), why: 'speaker-test', text: txt, device: id, dryRun: !!load('dryRun', false), sent: false, result: '' };
+    annLog.push(rec); if (annLog.length > 40) annLog.shift();
+    if (rec.dryRun) { rec.result = 'DRY RUN: test not sent'; m.textContent = 'Dry run: would say \u201c' + txt + '\u201d on ' + name + ' only. Nothing was sent.'; return rec; }
+    if (!annConsent()) { rec.result = 'skipped: disclosure'; m.textContent = 'Accept the Alexa disclosure in Settings \u203a Connected apps first.'; return rec; }
+    if (!a.token) { rec.result = 'skipped: no token'; m.textContent = 'Save your Voice Monkey token in Settings \u203a Connected apps first.'; return rec; }
+    rec.sent = true; rec.result = 'sending'; m.textContent = 'Testing ' + name + '\u2026';
+    vmPost(id, txt).then(function (r) { rec.result = r.ok ? 'test sent' : 'test failed: HTTP ' + r.status; m.textContent = r.ok ? '\u2713 Test sent to ' + name + '. Quiet? Check its Alexa Routine (Add speaker, step 2).' : '\u2715 Test failed: HTTP ' + r.status; },
+      function () { rec.result = 'test failed: network'; m.textContent = '\u2715 Test failed: network'; });
+    return rec;
   }
   function vmPost(dev, text) { var a = annCfg(); return fetch(VM_API + '/announce', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: a.token, device: dev, speech: text }) }); }
   function announce(text, why, force) {
@@ -1380,19 +1396,52 @@
       '<div class="ann-items">' + RUN_ITEMS.map(function (x) { return '<label class="check"><input type="checkbox" data-it="' + x[0] + '"' + (cur[x[0]] ? ' checked' : '') + '> ' + esc(x[1]) + '</label>'; }).join('') + '</div>' +
       '<div class="inline3"><button class="btn ghost" id="asAll">All on</button><button class="btn ghost" id="asNone">All off</button><button class="btn ghost" id="asPrev">Preview</button></div>' +
       '<div class="ann-prev" id="asOut">Preview shows the exact spoken text. Nothing is announced.</div>' +
-      '<div class="sect">Speakers</div><label class="check"><input type="checkbox" id="asEcAll"' + (spkCfg().all !== false ? ' checked' : '') + '> <span><b>All Echos</b> (every Voice Monkey speaker)</span></label>' +
-      '<div class="spk-list" id="asSpk"></div><button class="btn ghost" id="asSpkRef" type="button">Refresh devices</button><div class="rn" id="asSpkMsg"></div>' +
+      '<div class="sect">Speakers (Echos)</div><label class="check"><input type="checkbox" id="asEcAll"' + (spkCfg().all !== false ? ' checked' : '') + '> <span><b id="asAllLbl">All Echos</b> <small class="muted">every Voice Monkey speaker</small></span></label>' +
+      '<details class="spk-dd" id="asDd"><summary><span id="asDdTxt"></span></summary><div class="spk-list" id="asSpk"></div><div class="rn">Tick = this Echo announces. Test plays one short line on that Echo only, and only when you tap it.</div></details>' +
+      '<div class="inline2"><button class="btn" id="asAdd" type="button">+ Add speaker</button><button class="btn ghost" id="asSpkRef" type="button">\u27f3 Refresh list</button></div><div class="rn" id="asSpkMsg"></div>' +
+      '<div class="spk-add" id="asAddBox" hidden><b>Add a speaker (another Echo)</b><div class="rn">Voice Monkey lets apps list speakers but not create them, so the new speaker is made on the Voice Monkey page and linked to the Echo with one Alexa Routine.</div>' +
+      '<label class="lbl" for="asAddName">Name</label><input id="asAddName" maxlength="40" placeholder="e.g. Kitchen Echo" autocomplete="off">' +
+      '<a class="btn" id="asOpen" href="' + VM_SPEAKERS_URL + '" target="_blank" rel="noopener">Open Voice Monkey \u00b7 Add New Speaker</a>' +
+      '<ol class="spk-steps" id="asSteps"></ol>' +
+      '<div class="inline3"><button class="btn" id="asRef2" type="button">\u27f3 Refresh list</button><a class="btn ghost" href="' + VM_ADD_DOC + '" target="_blank" rel="noopener">Guide</a><button class="btn ghost" id="asAddX" type="button">Close</button></div><div class="rn" id="asAddMsg"></div></div>' +
       '<div class="mbtns"><button class="btn ghost" id="asNo">Cancel</button><button class="btn" id="asSave">Save</button></div></div>';
     document.body.appendChild(d);
+    var sel = {}, newIds = [], sc0 = spkCfg(); (sc0.ids || []).forEach(function (id) { sel[id] = true; });
+    function q(x) { return d.querySelector(x); }
+    function allOn() { return q('#asEcAll').checked; }
     function spkHtml() {
-      var sc = spkCfg(), all = d.querySelector('#asEcAll').checked, sp = vmSpeakers();
-      if (!sp.length) return '<div class="rn">No speaker list yet. Tap Refresh devices (reads your Voice Monkey device list, announces nothing). Until then: ' + esc(annCfg().device || 'no device') + '.</div>';
-      return sp.map(function (x) { return '<label class="check"><input type="checkbox" data-spk="' + esc(x.id) + '"' + (all || (sc.ids || []).indexOf(x.id) >= 0 ? ' checked' : '') + (all ? ' disabled' : '') + '> <span>' + esc(x.name) + ' <small class="muted">' + esc(x.id) + '</small></span></label>'; }).join('');
+      var all = allOn(), sp = vmSpeakers();
+      if (!sp.length) return '<div class="rn">No speaker list yet. Tap Refresh list (reads your Voice Monkey speakers, announces nothing). Until then: ' + esc(annCfg().device || 'no device') + '.</div>';
+      return sp.map(function (x) { var nw = newIds.indexOf(x.id) >= 0; return '<div class="spk-row"><label class="check"><input type="checkbox" data-spk="' + esc(x.id) + '"' + (all || sel[x.id] ? ' checked' : '') + (all ? ' disabled' : '') + '> <span>' + esc(x.name) + (nw ? ' <em class="spk-new">NEW</em>' : '') + '<small class="muted">' + esc(x.id) + '</small></span></label><button class="btn ghost spk-test" type="button" data-test="' + esc(x.id) + '">\u25b6 Test</button></div>'; }).join('');
     }
-    function drawSpk() { d.querySelector('#asSpk').innerHTML = spkHtml(); }
-    drawSpk(); d.querySelector('#asEcAll').onchange = drawSpk;
-    d.querySelector('#asSpkRef').onclick = function () { var m = d.querySelector('#asSpkMsg'); m.textContent = 'Reading devices\u2026';
-      refreshSpeakers().then(function (sp) { m.textContent = sp.length + ' speaker' + (sp.length === 1 ? '' : 's') + ' found.'; drawSpk(); }, function (e) { m.textContent = 'Could not list devices: ' + e.message; }); };
+    function summary() {
+      var sp = vmSpeakers(), all = allOn(); if (!sp.length) return 'No speakers listed yet';
+      var on = sp.filter(function (x) { return all || sel[x.id]; }); if (!on.length) return 'No speaker ticked (0 of ' + sp.length + ')';
+      return on.map(function (x) { return x.name; }).join(', ') + ' (' + on.length + ' of ' + sp.length + ')';
+    }
+    function head() { q('#asAllLbl').textContent = 'All Echos (' + vmSpeakers().length + ')'; q('#asDdTxt').textContent = summary(); }
+    function drawSpk() { q('#asSpk').innerHTML = spkHtml(); head(); }
+    function steps() { var n = q('#asAddName').value.trim(), nm = n ? '\u201c' + esc(n) + '\u201d' : 'your new speaker';
+      q('#asSteps').innerHTML = '<li><b>Voice Monkey:</b> Add New Speaker, paste ' + nm + ', then Create Speaker (sign in if asked).</li>' +
+        '<li><b>Alexa app</b> (the one step only you can do): More \u203a Routines \u203a + \u203a When this happens \u203a Smart Home \u203a Alexa Voice Monkey v3 \u203a VM Speakers \u203a ' + nm + '. Add action \u203a Skills \u203a Voice Monkey (or Custom: \u201copen Voice Monkey\u201d). From: pick that Echo. Save.</li>' +
+        '<li><b>Back here:</b> Refresh list. The new speaker shows up ticked. Tap its Test, then Save.</li>'; }
+    drawSpk(); steps();
+    q('#asEcAll').onchange = drawSpk;
+    q('#asSpk').onchange = function (e) { var t = e.target; if (t && t.hasAttribute('data-spk')) { sel[t.getAttribute('data-spk')] = t.checked; head(); } };
+    q('#asSpk').onclick = function (e) { var t = e.target.closest ? e.target.closest('[data-test]') : null; if (t) { e.preventDefault(); testSpeaker(t.getAttribute('data-test'), q('#asSpkMsg')); } };
+    q('#asAdd').onclick = function () { var b = q('#asAddBox'); b.hidden = !b.hidden; if (!b.hidden) { q('#asAddName').focus(); b.scrollIntoView({ block: 'nearest' }); } };
+    q('#asAddX').onclick = function () { q('#asAddBox').hidden = true; };
+    q('#asAddName').oninput = function () { var v = this.value.replace(/[^A-Za-z0-9 ]/g, ''); if (v !== this.value) this.value = v; steps(); };
+    q('#asOpen').onclick = function () { var n = q('#asAddName').value.trim(), m = q('#asAddMsg'); window.TessDesk && (window.TessDesk.lastOpen = { url: VM_SPEAKERS_URL, name: n });
+      if (n && navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(n).then(function () { m.textContent = '\u201c' + n + '\u201d copied: paste it into the Voice Monkey name box.'; }, function () {});
+      m.textContent = 'Opening Voice Monkey Speakers\u2026' + (n ? ' Name: ' + n : ''); };
+    function doRefresh(fromAdd) { var m = q('#asSpkMsg'), m2 = q('#asAddMsg'), old = vmSpeakers().map(function (x) { return x.id; }); m.textContent = 'Reading your Voice Monkey speakers\u2026';
+      refreshSpeakers().then(function (sp) {
+        var nw = sp.filter(function (x) { return old.indexOf(x.id) < 0; }); nw.forEach(function (x) { sel[x.id] = true; if (newIds.indexOf(x.id) < 0) newIds.push(x.id); });
+        var t = sp.length + ' speaker' + (sp.length === 1 ? '' : 's') + ' found' + (nw.length ? ' \u00b7 NEW: ' + nw.map(function (x) { return x.name; }).join(', ') + ' (ticked). Tap Test, then Save.' : (fromAdd ? ' \u00b7 nothing new yet. Finish Create Speaker in Voice Monkey, then Refresh list again.' : '.'));
+        m.textContent = t; m2.textContent = t; drawSpk(); if (nw.length) q('#asDd').open = true;
+      }, function (e) { m.textContent = 'Could not list speakers: ' + e.message; m2.textContent = m.textContent; }); }
+    q('#asSpkRef').onclick = function () { doRefresh(false); }; q('#asRef2').onclick = function () { doRefresh(true); };
     function pick() { var o = {}; Array.prototype.forEach.call(d.querySelectorAll('[data-it]'), function (x) { o[x.getAttribute('data-it')] = x.checked; }); return o; }
     function all(v) { Array.prototype.forEach.call(d.querySelectorAll('[data-it]'), function (x) { x.checked = v; }); }
     d.querySelector('#asAll').onclick = function () { all(true); }; d.querySelector('#asNone').onclick = function () { all(false); };
@@ -1404,8 +1453,8 @@
     };
     d.querySelector('#asNo').onclick = function () { d.remove(); };
     d.querySelector('#asSave').onclick = function () { save('annItems', pick());
-      var c = getCfg(), a = c.announce || {}; a.speakers = { all: d.querySelector('#asEcAll').checked, ids: Array.prototype.filter.call(d.querySelectorAll('[data-spk]'), function (x) { return x.checked; }).map(function (x) { return x.getAttribute('data-spk'); }) };
-      c.announce = a; save('cfg', c); d.remove(); tdToast('\u2713 Announcement items saved'); };
+      var c = getCfg(), a = c.announce || {}; a.speakers = { all: d.querySelector('#asEcAll').checked, ids: vmSpeakers().filter(function (x) { return sel[x.id]; }).map(function (x) { return x.id; }) };
+      c.announce = a; save('cfg', c); d.remove(); try { if (cache.state) render(); } catch (e) {} tdToast('\u2713 Announce Setup saved \u00b7 ' + targetsLabel(annTargets('action'))); };
     d.onclick = function (e) { if (e.target === d) d.remove(); };
   }
 
