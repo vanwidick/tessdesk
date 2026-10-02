@@ -31,9 +31,21 @@
   <p class="lead">Every TessDesk version (desktop widget and phone app), newest first.</p>
 
   <!-- Add each new version at the top: <section class="rel new"> ... -->
-  <section class="rel new" id="v4.2.1">
-    <h2>v4.2.1 <small>Oct 1, 2026</small></h2>
+  <section class="rel new" id="v4.3">
+    <h2>v4.3 <small>Oct 1, 2026</small></h2>
     <span class="tag">LATEST</span>
+    <ul>
+      <li><b>Rate status, always visible.</b> Uses your PSO RSEV rates (editable in Settings &rarr; Rates). <b>Charging at a high rate:</b> a red (2&ndash;7&nbsp;PM summer weekday peak) or amber (other daytime) pill: <b>"PEAK RATE &middot; charging costs more &middot; off-peak starts 11 PM (in 1h 12m)"</b>, with the price now per kWh and the estimated extra cost for this session vs off-peak, a one-tap <b>Stop charging</b> (still asks to confirm) and the <b>Scheduled Charging</b> tip. <b>Charging off-peak:</b> a green pill <b>"OFF-PEAK &middot; 3.0&cent;/kWh &middot; cheapest rate until 6 AM"</b>. <b>Not charging:</b> a small line like "Peak now &middot; off-peak in 1h 12m" or "Off-peak now &middot; ends 6 AM". Superchargers / DC fast charging are skipped. The desktop also shows one Windows notification per high-rate session. Looks the same in Full and COMPACT.</li>
+      <li><b>Charging-started announcement</b> (desktop): when the car goes from not charging to charging, Alexa says so once per session after one refresh (real kW and amps), including "at the off-peak rate" or "at the peak rate, which costs more". On/off switch in Setup; only after the Alexa disclosure is accepted; only one of your PCs announces it.</li>
+      <li><b>All Echos:</b> announcements go to every Voice Monkey speaker by default. Setup has a speaker section (All Echos, or pick speakers) and <b>Refresh devices</b>. The nightly reminder still goes to the Living Room Echo.</li>
+      <li><b>Vertical charge-limit slider</b> next to the battery: drag up and down (or use the mouse wheel / arrow keys on the desktop). The big thumb shows the limit % and the estimated miles, live while you drag. 50&ndash;100&nbsp;%, a green <b>80&nbsp;% DAILY</b> mark and an amber 90&nbsp;% mark. After you let go it asks <b>"Set to X%?"</b> (Confirm / Cancel). It replaces the old horizontal limit handle; the battery bar still shows the limit as a marker. Fits COMPACT too.</li>
+      <li><b>Announce on Alexa</b>: one push speaks a full status rundown on your Echo (battery and range, limit, charging and kW / amps, time to full, tonight&rsquo;s and last charge cost, climate and seats, locks, windows, all four tires vs recommended, warnings, the current rate period, and when the data was updated). Under ~45&nbsp;s, split into two announcements when needed. Asks "Announce full status?" first, then shows a notice. <b>Setup</b> (gear next to it): turn each item on or off, All on / All off, and <b>Preview</b> the exact words without announcing. If the Alexa disclosure isn&rsquo;t accepted yet, it opens Connected apps instead.</li>
+      <li>Version v4.3, new offline cache (tessdesk-v4.3). The narrower v4.2.1 phone layout is unchanged.</li>
+    </ul>
+  </section>
+
+  <section class="rel" id="v4.2.1">
+    <h2>v4.2.1 <small>Oct 1, 2026</small></h2>
     <ul>
       <li><b>Phone app about 10&nbsp;mm narrower</b> so it sits better on a phone: the app is now 38&nbsp;px narrower than the screen (19&nbsp;px more margin on each side) and stays centered. On a 390&nbsp;px-wide phone the cards went from 358 to 320&nbsp;px wide (max width 480 → 442&nbsp;px on big screens).</li>
       <li><b>COMPACT</b> is narrower too (276 → 238&nbsp;px on a 390×844 phone), slightly tighter spacing and drawings, and it now fits small phones like 375×667 without scrolling. On 390×844 the compact text is a little bigger than before.</li>

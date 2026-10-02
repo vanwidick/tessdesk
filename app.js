@@ -1,11 +1,11 @@
-/* TessDesk mobile v4.2.1 (PWA). Design by Van.
+/* TessDesk mobile v4.3 (PWA). Design by Van.
    Everything (name, Tessie token, vehicle, rates) is stored in localStorage on this device only. */
 (function () {
   'use strict';
   var CFG = window.TD_CONFIG || {};
   var VARIANT = CFG.variant || 'main';
   var P = CFG.storagePrefix || 'td:';
-  var VERSION = 'v4.2.1';
+  var VERSION = 'v4.3';
   var VERSION_DATE = 'Oct 1, 2026';
   var TZ = 'America/Chicago';
   var DEFAULT_API = 'https://api.tessie.com';
@@ -380,6 +380,8 @@
       '<div class="money ' + col + '">' + (hc ? money(hc.cost) : '$--.--') + '</div>' +
       '<div class="sub">' + (v.charging ? 'This charge' : 'Last charge') + (rate ? ' \u00b7 ' + rate : '') + '</div>' +
       '<div class="meta">' + meta + '</div></div>';
+    // v4.3: RATE STATUS (peak/day pill + Stop, off-peak pill, or a neutral line)
+    h += peakBanner(rateStatus(v, cfg));
     // v4.2: money rows right under the hero, compact
     var nightSub = v.nightLabel === 'Tonight' ? 'since ' + clock(v.nightStart) : dayLabel(v.nightStart) + ', 11 PM \u2013 11 AM';
     h += '<div class="card rows compact">' +
@@ -392,6 +394,7 @@
     lastBatt = { perPct: perPct, limit: b, min: v.car.limitMin, max: v.car.limitMax };
     var stTxt = v.charging ? 'CHARGING \u2192 ' + b + '%' : friendlyState(v.cs.charging_state).toUpperCase();
     h += '<div class="card batt"><div class="batt-hd"><h3>Battery</h3><span class="bstate' + (v.charging ? ' on' : '') + '">' + esc(stTxt) + '</span></div>' +
+      '<div class="batt-main"><div class="batt-left">' +
       '<div class="batt-top" id="battTop"><span class="pct">' + (s != null ? s + '%' : '--') + '</span>' +
       (v.range > 0 ? '<span class="rng"><b>' + Math.round(v.range) + ' mi</b><small>' + esc(v.rangeKind) + '</small></span>' : '') + '</div>' +
       '<div class="batt-drag hidden" id="battDrag"><small>SET LIMIT</small><span id="dragVal"></span></div>' +
@@ -400,9 +403,10 @@
       '<div class="fill add ' + col + '-bg" style="left:' + (a || 0) + '%;width:' + Math.max(0, (s || 0) - (a || 0)) + '%"></div>' +
       '<div class="tick" style="left:' + (a || 0) + '%"></div>' +
       '<div class="ball ' + col + '-bg' + (v.charging ? ' pulse' : '') + '" style="left:' + (s || 0) + '%">' + (s != null ? s : '') + '</div>' +
-      '<div class="thumb" id="limThumb" role="slider" aria-label="Charge limit" aria-valuemin="' + v.car.limitMin + '" aria-valuemax="' + v.car.limitMax + '" aria-valuenow="' + b + '" style="left:' + b + '%"><i></i><i></i></div></div>' +
+      (b != null ? '<div class="limmark" style="left:' + b + '%"></div>' : '') + '</div>' +
       '<div class="fl-labels"><div><small>FROM</small><span class="mi">' + miles(perPct, a) + '</span><b>' + (a != null ? a + '%' : '--') + '</b></div>' +
       '<div class="r"><small>LIMIT</small><span class="mi" id="limMi">' + miles(perPct, b) + '</span><b id="limPct">' + (b != null ? b + '%' : '--') + '</b></div></div>' +
+      '</div>' + vSlider(b, col, v.car, perPct) + '</div>' +
       ampsAndCharge(v.car, col) + '</div>';
 
     // chips
@@ -473,13 +477,15 @@
       '<div class="temp"><button class="cbtn sq" id="cTdn" aria-label="Cooler"' + dis + '>\u2212</button>' +
       '<div class="tv"><b>' + fmtTemp(tC, car.units) + '</b><small>' + (pendTemp != null ? 'NEW SET TEMP' : 'SET TEMP') + '</small></div>' +
       '<button class="cbtn sq" id="cTup" aria-label="Warmer"' + dis + '>+</button></div></div>' +
+      '<div class="ann-row"><button class="cbtn ann" id="cAnnounce"><b>🔊 ANNOUNCE ON ALEXA</b><small>' + (annReady() ? 'full status rundown · ' + esc(targetsLabel(annTargets('rundown'))) : 'set up Alexa (Connected apps)') + '</small></button>' +
+      '<button class="cbtn gear" id="cAnnSetup" aria-label="Announce on Alexa setup" title="Setup: what the rundown includes">' + ICON_GEAR + '<small>SETUP</small></button></div>' +
       '<div class="ctl-msg ' + ctlMsg.kind + '">' + (ctlMsg.kind === 'busy' ? '<span class="spin"></span>' : '') + '<span>' + esc(!cmdOk ? 'Commands are off: you did not allow TessDesk to send vehicle commands (Settings \u2192 Permissions).' : (ctlMsg.text || (dry ? 'Dry run: buttons are simulated, nothing is sent' : 'Ready'))) + '</span></div></div>';
     return r;
   }
-  function confirmBox(msg, yes) {
+  function confirmBox(msg, yes, sub) {
     return new Promise(function (res) {
       var d = document.createElement('div'); d.className = 'modal';
-      d.innerHTML = '<div class="mbox" role="dialog" aria-modal="true"><div class="mq">' + esc(msg) + '</div><div class="mbtns"><button class="btn ghost" id="mNo">Cancel</button><button class="btn" id="mYes">' + esc(yes || 'Yes') + '</button></div></div>';
+      d.innerHTML = '<div class="mbox" role="dialog" aria-modal="true"><div class="mq">' + esc(msg) + '</div>' + (sub ? '<div class="msub">' + esc(sub) + '</div>' : '') + '<div class="mbtns"><button class="btn ghost" id="mNo">Cancel</button><button class="btn" id="mYes">' + esc(yes || 'Yes') + '</button></div></div>';
       document.body.appendChild(d);
       function done(v) { d.remove(); res(v); }
       d.querySelector('#mNo').onclick = function () { done(false); }; d.querySelector('#mYes').onclick = function () { done(true); };
@@ -531,8 +537,9 @@
     if (!lastBatt) return;
     p = Math.max(lastBatt.min, Math.min(lastBatt.max, Math.round(p)));
     if (p === lastBatt.limit) { ctlMsg = { kind: 'idle', text: 'Charge limit stays ' + limitLabel(p) }; render(); return; }
-    var lbl = limitLabel(p);
-    confirmBox('Set charge limit to ' + p + '%?', 'Set ' + p + '%').then(function (ok) {
+    var lbl = limitLabel(p); pendLimit = p; render();
+    confirmBox('Set to ' + p + '%?', 'Confirm', 'Charge limit ' + lbl + (p > 90 ? ' · above 90%: best only before a long trip' : (p === 80 ? ' · Daily' : ''))).then(function (ok) {
+      pendLimit = null;
       if (!ok) { ctlMsg = { kind: 'idle', text: 'Charge limit unchanged' }; render(); return; }
       runCmd('set_charge_limit', { percent: p }, 'Setting charge limit ' + lbl + '\u2026', 'Charge limit ' + lbl, function () { setOv('limit', p); });
     });
@@ -756,16 +763,35 @@
     }
   }
   function failSpeech(name, why) { return 'TessDesk could not ' + (CMD_SPOKEN[name] || name.replace(/_/g, ' ')) + '. The command failed' + (/token/.test(why) ? ' because the Tessie token was rejected' : (/no response|timeout|offline/.test(why) ? ' because the car did not respond' : '')) + '.'; }
+  // v4.3 ALL ECHOS: announcements go to every Voice Monkey speaker by default (Voice Monkey has no groups: one /announce per speaker).
+  // Reminders keep using the one saved device (announce.device).
+  function vmSpeakers() { return load('vmSpeakers', []) || []; }
+  function spkCfg() { var a = annCfg(); return a.speakers || { all: true, ids: [] }; }
+  function annTargets(why) {
+    var a = annCfg(); if (why === 'reminder') return a.device ? [a.device] : [];
+    var sc = spkCfg(), list = vmSpeakers().map(function (d) { return d.id; });
+    var t = sc.all !== false ? list : (sc.ids || []).filter(function (id) { return !list.length || list.indexOf(id) >= 0; });
+    if (!t.length && a.device) t = [a.device];
+    return t;
+  }
+  function targetsLabel(t) { var sc = spkCfg(); return sc.all !== false && vmSpeakers().length ? 'all ' + t.length + ' Echo' + (t.length > 1 ? 's' : '') : t.join(', '); }
+  function refreshSpeakers() {
+    var tok = annCfg().token; if (!tok) return Promise.reject(new Error('no Voice Monkey token'));
+    return fetch(VM_API + '/devices', { headers: { Authorization: 'Bearer ' + tok } }).then(function (r) { if (!r.ok) throw new Error(r.status === 401 ? 'token not valid (401)' : 'HTTP ' + r.status); return r.json(); })
+      .then(function (j) { var sp = (j.data || []).filter(function (d) { return d.capability === 'speakers'; }).map(function (d) { return { id: String(d.id), name: String(d.name || d.id) }; }); save('vmSpeakers', sp); return sp; });
+  }
+  function vmPost(dev, text) { var a = annCfg(); return fetch(VM_API + '/announce', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: a.token, device: dev, speech: text }) }); }
   function announce(text, why, force) {
-    var a = annCfg(), rec = { at: new Date().toISOString(), why: why || 'action', text: text, device: a.device || '', dryRun: !!load('dryRun', false), sent: false, result: '' };
+    var a = annCfg(), tg = annTargets(why), rec = { at: new Date().toISOString(), why: why || 'action', text: text, device: tg.join(','), dryRun: !!load('dryRun', false), sent: false, result: '' };
     if (!force && !alexaOn()) rec.result = 'skipped: Alexa toggle off';
     else if (!annConsent()) rec.result = 'skipped: announcement disclosure not accepted';
     else if (!a.token || !a.device) rec.result = 'skipped: Voice Monkey not set up';
     else if (rec.dryRun) rec.result = 'DRY RUN: not sent to Voice Monkey';
     else {
       rec.sent = true; rec.result = 'sending';
-      fetch(VM_API + '/announce', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: a.token, device: a.device, speech: text }) })
-        .then(function (r) { rec.result = r.ok ? 'announced' : 'failed: HTTP ' + r.status; }, function () { rec.result = 'failed: network'; });
+      var okN = 0, chain = Promise.resolve();
+      tg.forEach(function (dev) { chain = chain.then(function () { return vmPost(dev, text).then(function (r) { if (r.ok) okN++; }, function () {}); }); });
+      chain.then(function () { rec.result = okN === tg.length ? 'announced' : (okN ? 'announced on ' + okN + ' of ' + tg.length : 'failed'); });
     }
     annLog.push(rec); if (annLog.length > 40) annLog.shift();
     return rec;
@@ -789,7 +815,7 @@
       '<button class="btn ghost" id="aTessie" type="button">Check</button><div class="msg" id="mTessie"></div></div>' +
       '<div class="appc"><div class="apph"><b>Voice Monkey</b><span>Alexa announcements</span></div>' +
       '<div class="field"><label for="aTok">API token</label><input type="password" id="aTok" autocomplete="off" autocapitalize="off" spellcheck="false" value="' + esc(a.token || '') + '" placeholder="From app.voicemonkey.io/tokens"><div class="help">Stored only in this browser on this phone, sent only to api-v3.voicemonkey.io.</div></div>' +
-      '<div class="field"><label for="aDev">Speaker device ID</label><input type="text" id="aDev" autocapitalize="off" spellcheck="false" value="' + esc(a.device || '') + '" placeholder="e.g. echo-living-room-xxxxx"></div>' +
+      '<div class="field"><label for="aDev">Default speaker device ID (reminders; rundowns use Announce Setup \u2192 Speakers)</label><input type="text" id="aDev" autocapitalize="off" spellcheck="false" value="' + esc(a.device || '') + '" placeholder="e.g. echo-living-room-xxxxx"></div>' +
       '<label class="check"><input type="checkbox" id="aDisc"' + (cfg.consent && cfg.consent.announcements ? ' checked' : '') + '> I understand: the text of each announcement (for example charging cost, tire pressures, battery, lock and window state) is sent to Voice Monkey and Amazon (Alexa) so my Echo can speak it.</label>' +
       '<div class="inline"><button class="btn ghost" id="aCheck" type="button">Check</button><button class="btn ghost" id="aTest" type="button">Send test announcement</button></div><div class="msg" id="mVm"></div></div>' +
       '<div class="appc"><div class="apph"><b>Alexa</b><span>setup</span></div><div class="help">Voice Monkey speaks through your Echo. In the Alexa app enable the <b>Voice Monkey</b> skill and link your Amazon account, then create a <b>Speaker</b> device and an API token in the Voice Monkey dashboard.</div>' +
@@ -824,7 +850,7 @@
       if (load('dryRun', false)) { m.className = 'msg ok'; m.textContent = 'Dry run: check skipped (nothing sent).'; return; }
       m.className = 'msg'; m.textContent = 'Checking\u2026';
       fetch(VM_API + '/devices', { headers: { Authorization: 'Bearer ' + tok } }).then(function (r) { if (!r.ok) throw new Error(r.status === 401 ? 'token not valid (401)' : 'HTTP ' + r.status); return r.json(); }).then(function (j) {
-        var sp = (j.data || []).filter(function (d) { return d.capability === 'speakers'; }), hit = sp.filter(function (d) { return d.id === dev || d.name === dev; })[0];
+        var sp = (j.data || []).filter(function (d) { return d.capability === 'speakers'; }); save('vmSpeakers', sp.map(function (d) { return { id: String(d.id), name: String(d.name || d.id) }; })); var hit = sp.filter(function (d) { return d.id === dev || d.name === dev; })[0];
         m.className = 'msg ' + (hit ? 'ok' : 'err'); m.textContent = hit ? 'OK: speaker \u201c' + hit.name + '\u201d found' : 'Token valid. Speakers: ' + sp.map(function (d) { return d.id; }).join(', ') + (dev ? ' (\u201c' + dev + '\u201d not found)' : '');
       }).catch(function (e) { m.className = 'msg err'; m.textContent = 'Check failed: ' + e.message; });
     };
@@ -847,7 +873,7 @@
         return { time: ('0' + h).slice(-2) + ':' + r.querySelector('.tm').value, days: Array.prototype.filter.call(r.querySelectorAll('.days input'), function (x) { return x.checked; }).map(function (x) { return x.value; }) };
       }) };
     });
-    return { token: el('aTok').value.trim(), device: el('aDev').value.trim(), schedules: sch, schedulesRunOn: 'pc' };
+    return { token: el('aTok').value.trim(), device: el('aDev').value.trim(), schedules: sch, schedulesRunOn: 'pc', speakers: (prev && prev.speakers) || { all: true, ids: [] } };
   }
 
   // ---------- v4.2: FULL / COMPACT ----------
@@ -927,7 +953,9 @@
     on('cChgStart', onChgStart); on('cChgStop', onChgStop); on('cHeat', onHeat); on('cDefrost', onDefrost); on('cCop', onCop); on('sWheel', onWheel);
     on('btnAlexa', function () { setAlexa(!alexaOn()); }); on('btnSched', function () { screen = 'settings'; render(); var e = document.getElementById('apps'); if (e) e.scrollIntoView(); });
     Array.prototype.forEach.call(document.querySelectorAll('[data-seat]'), function (g) { g.onclick = function () { if (!g.classList.contains('dis')) onSeat(g.getAttribute('data-seat')); }; });
-    bindSlider(); bindAmps();
+    bindVSlider(); bindAmps();
+    on('cAnnounce', onAnnounce); on('cAnnSetup', openAnnSetup); on('pkStop', onChgStop);
+    on('pkHide', function () { var p = peakState(compute(getCfg()), getCfg()); if (p) save('peakHide', p.key); render(); }); on('pkShow', function () { save('peakHide', ''); render(); });
     if (busy) setSpin(true);
   }
 
@@ -1021,7 +1049,7 @@
         '<a class="btn ghost" id="rG" href="' + gcalUrl(due, rep) + '" target="_blank" rel="noopener">Google Calendar</a>' +
         '<div class="rn">Opens Google Calendar with the event filled in. Tap Save. The alert uses your Google Calendar\u2019s default notification (you can change it on the event).</div>' +
         (remCh('text') ? '<a class="btn ghost" id="rS" href="' + smsUrl(rep) + '">Text message (send now)</a><div class="rn">Opens Messages with the text ready' + (remCfg().phone ? ' to ' + esc(remCfg().phone) : '') + '. It goes out when you tap Send; it is <b>not</b> scheduled.</div>' : '') +
-        (remCh('alexa') && annReady() ? '<button class="btn ghost" id="rA">Announce on Alexa now</button><div class="rn" id="rAm">Your Echo (' + esc(annCfg().device) + ') says it now. Scheduled announcements come from the PC app.</div>' : '') +
+        (remCh('alexa') && annReady() ? '<button class="btn ghost" id="rA">Announce on Alexa</button><div class="rn" id="rAm">Your Echo (' + esc(annCfg().device) + ') says it now. Scheduled announcements come from the PC app.</div>' : '') +
         '<a class="btn ghost" id="rM" href="' + mailtoUrl(rep) + '">Email draft</a>' +
         '<div class="rn">Opens your mail app with a draft' + ((getCfg() || {}).remindEmail ? ' to ' + esc(getCfg().remindEmail) : '') + '. It goes out when you tap Send (now). It is <b>not</b> scheduled.</div>' +
         '<div class="rn muted">The TessDesk web app can\u2019t send anything by itself in the background. These options hand the reminder to your calendar, messages or mail app. The desktop widget can email, text, announce on Alexa or show a Windows notification at the time you pick.</div>' +
@@ -1133,6 +1161,254 @@
     }
   }
 
+  // ---------- v4.3: OFF-PEAK CHARGING WARNING ----------
+  // PSO RSEV is cheap only 11 PM - 6 AM CT. Charging (or starting) outside that window, at home (when a home location is set in
+  // cfg.home {lat, lon, radiusM}) or otherwise on any AC charger (Superchargers / DC fast are skipped) -> banner + one-tap Stop.
+  function hourLabel(h) { h = ((h % 24) + 24) % 24; return (h % 12 || 12) + ' ' + (h < 12 ? 'AM' : 'PM'); }
+  function distM(a, b, c, d) { var R = 6371000, r = Math.PI / 180, x = (d - b) * r * Math.cos((a + c) / 2 * r), y = (c - a) * r; return Math.sqrt(x * x + y * y) * R; }
+  // v4.3 RATE STATUS (PSO RSEV from Settings > Electricity rates): off-peak onStart-onEnd, summer weekday peak, day rate otherwise.
+  function tdNow() { return window.__tdNow || nowSec(); }
+  function rateKind(r, c) { var on0 = r.onStart != null ? r.onStart : 23, on1 = r.onEnd != null ? r.onEnd : 6, pk = r.peak || {}; if (inHours(c.h, on0, on1)) return 'offpeak'; var e = energyRate(r, c); return (pk.enabled && Math.abs(e - pk.rate) < 1e-9) ? 'peak' : 'day'; }
+  function nextKind(r, t, want) { var k0 = rateKind(r, ct(t)), c0 = ct(t), x = t - c0.mi * 60 + 3600; for (var i = 0; i < 96; i++, x += 3600) { var k = rateKind(r, ct(x)); if ((want && k === want) || (!want && k !== k0)) return { at: x, kind: k }; } return null; }
+  function c1(x) { return (Math.round(x * 1000) / 10).toFixed(1) + '\u00a2/kWh'; }
+  function leftTxt(m) { m = Math.max(0, Math.round(m)); return m >= 60 ? Math.floor(m / 60) + 'h ' + ('0' + (m % 60)).slice(-2) + 'm' : m + 'm'; }
+  function rateStatus(v, cfg) {
+    if (!cfg) return null;
+    var r = cfg.rates || PRESETS.pso, t = tdNow(), c = ct(t), k = rateKind(r, c), e = energyRate(r, c), fca = r.fca || 0, pk = r.peak || {};
+    var on0 = r.onStart != null ? r.onStart : 23, on1 = r.onEnd != null ? r.onEnd : 6;
+    var o = { mode: 'idle', kind: k, label: k === 'offpeak' ? 'Off-peak' : k === 'peak' ? 'Peak' : 'Day rate', red: k === 'peak', rate: e, allIn: e + fca, off: r.overnight, offAllIn: r.overnight + fca,
+      start: hourLabel(on0), end: hourLabel(on1), untilOff: null, next: nextKind(r, t, ''), extra: null, reason: 'not charging', key: '', now: t };
+    if (k !== 'offpeak') { var no = nextKind(r, t, 'offpeak'); if (no) o.untilOff = (no.at - t) / 60; }
+    if (!v) return o;
+    var cs = v.cs || {}, st = chgState(v.car);
+    if (st !== 'Charging' && st !== 'Starting') return o;
+    var ft = String(cs.fast_charger_type || '');
+    if (cs.fast_charger_present || /supercharg|ccs|chademo|\bdc\b|combo/i.test(ft)) { o.reason = 'DC fast charging'; return o; }
+    var home = cfg.home, ds = (v.state && v.state.drive_state) || {};
+    if (home && home.lat != null && home.lon != null && ds.latitude != null && ds.longitude != null) {
+      o.atHome = distM(+home.lat, +home.lon, +ds.latitude, +ds.longitude) <= (home.radiusM || 250);
+      if (!o.atHome) { o.reason = 'away from home'; return o; }
+    }
+    o.key = (live && !live.done && live.start) ? 's' + live.start : 'd' + c.y + '-' + c.mo + '-' + c.d + '-' + (cs.charge_energy_added > 0 ? 'x' : c.h);
+    if (k === 'offpeak') { o.mode = 'charging-offpeak'; o.reason = 'charging off-peak'; return o; }
+    o.mode = 'charging-high'; o.reason = k === 'peak' ? 'summer weekday peak' : 'day rate';
+    var add = +cs.charge_energy_added || 0, rem = (cs.charger_power > 0 && cs.minutes_to_full_charge > 0) ? cs.charger_power * cs.minutes_to_full_charge / 60 : 0;
+    if (add + rem > 0) o.extra = (add + rem) / (cfg.eff || 0.9) * (o.allIn - o.offAllIn);
+    return o;
+  }
+  // old name kept for the rundown / hooks: non-null only while charging at the day or peak rate
+  function peakState(v, cfg) { var o = rateStatus(v, cfg); return o && o.mode === 'charging-high' ? o : null; }
+  function peakBanner(rs) {
+    if (!rs) return '';
+    var cmdOk = cmdAllowed();
+    if (rs.mode === 'charging-high') {
+      var col = rs.red ? 'red' : 'amber', hidden = load('peakHide', '') === rs.key;
+      var txt = (rs.red ? 'PEAK RATE' : 'DAY RATE') + ' \u00b7 charging costs more \u00b7 off-peak starts ' + rs.start + (rs.untilOff != null ? ' (in ' + leftTxt(rs.untilOff) + ')' : '');
+      if (hidden) return '<button class="peak-mini ' + col + '" id="pkShow">\u26a0 ' + esc(txt) + '</button>';
+      return '<div class="peak ' + col + '" id="peakBanner" role="alert"><div class="pk-top"><span class="pk-ic">\u26a0</span><div class="pk-t"><b>' + esc(txt) + '</b>' +
+        '<small>Now ' + c1(rs.rate) + ' (' + (Math.round(rs.allIn * 1000) / 10).toFixed(1) + '\u00a2 all-in) vs ' + c1(rs.off) + ' off-peak' + (rs.atHome ? ' \u00b7 at home' : '') + '</small>' +
+        (rs.extra != null ? '<small class="pk-extra">\u2248 +' + money(rs.extra) + ' extra this session vs charging off-peak</small>' : '') + '</div>' +
+        '<button class="pk-x" id="pkHide" aria-label="Fold to one line for this charge">\u00d7</button></div>' +
+        '<div class="pk-row"><button class="pk-stop" id="pkStop"' + (cmdOk && !ctlBusy ? '' : ' disabled') + '>\u25a0 Stop charging</button>' +
+        '<div class="pk-tip"><b>Tip:</b> in the car set <b>Charging \u2192 Scheduled Charging</b> to start at <b>' + rs.start + '</b>, so it waits for off-peak by itself.</div></div></div>';
+    }
+    if (rs.mode === 'charging-offpeak')
+      return '<div class="rate-pill green" id="rateStatus"><span class="rp-ic">\u2713</span><b>OFF-PEAK \u00b7 ' + c1(rs.off) + ' \u00b7 cheapest rate until ' + rs.end + '</b><small>' + (Math.round(rs.offAllIn * 1000) / 10).toFixed(1) + '\u00a2/kWh all-in with the fuel adjustment</small></div>';
+    var t = rs.kind === 'offpeak' ? 'Off-peak now \u00b7 ' + c1(rs.rate) + ' \u00b7 ends ' + rs.end + (rs.next ? ' (in ' + leftTxt((rs.next.at - rs.now) / 60) + ')' : '')
+                                  : rs.label + ' now \u00b7 ' + c1(rs.rate) + ' \u00b7 off-peak in ' + (rs.untilOff != null ? leftTxt(rs.untilOff) : '?');
+    if (rs.reason === 'DC fast charging' || rs.reason === 'away from home') t += ' \u00b7 ' + rs.reason;
+    return '<div class="rate-line" id="rateStatus">\u23f1 ' + esc(t) + '</div>';
+  }
+  function sayCents(x) { return (Math.round(x * 1000) / 10).toString() + ' cents a kilowatt hour'; }
+  function sayRate(rs) {
+    if (!rs) return '';
+    if (rs.kind === 'offpeak') return 'Rate: off-peak, ' + sayCents(rs.rate) + ', the cheapest, until ' + rs.end + '.';
+    var x = 'Rate: ' + (rs.kind === 'peak' ? 'peak' : 'day') + ', ' + sayCents(rs.rate) + ', off-peak at ' + rs.start + (rs.untilOff != null ? ', in ' + sayDur(rs.untilOff) : '');
+    if (rs.mode === 'charging-high' && rs.extra != null) x += '. About ' + sayMoney(rs.extra) + ' extra versus off-peak';
+    return x + '.';
+  }
+  function sayDur(m) { m = Math.round(m); var h = Math.floor(m / 60), mm = m % 60; return m < 60 ? m + ' minute' + (m === 1 ? '' : 's') : h + ' hour' + (h === 1 ? '' : 's') + (mm ? ' ' + mm + ' minute' + (mm === 1 ? '' : 's') : ''); }
+
+  // ---------- v4.3: VERTICAL CHARGE-LIMIT SLIDER (50-100 %, Daily 80 % tick, 90 % tick; % on the thumb) ----------
+  var pendLimit = null;
+  function vsF(p, lo, hi) { return hi > lo ? Math.max(0, Math.min(100, (p - lo) / (hi - lo) * 100)) : 0; }
+  function vSlider(b, col, car, perPct) {
+    var lo = car.limitMin != null ? car.limitMin : 50, hi = car.limitMax != null ? car.limitMax : 100, dis = (ctlBusy || !cmdAllowed());
+    var shown = pendLimit != null ? pendLimit : b, f = shown != null ? vsF(shown, lo, hi) : 0;
+    function tick(p, cls, lbl) { if (p < lo || p > hi) return ''; return '<div class="vs-tick ' + cls + '" style="bottom:' + vsF(p, lo, hi) + '%"><span>' + lbl + '</span></div>'; }
+    return '<div class="vs' + (dis ? ' dis' : '') + (pendLimit != null ? ' pend' : '') + '" id="vs" role="slider" tabindex="0" aria-orientation="vertical" aria-label="Charge limit" aria-valuemin="' + lo + '" aria-valuemax="' + hi + '" aria-valuenow="' + shown + '" title="Drag up / down (or mouse wheel) to set the charge limit">' +
+      '<div class="vs-rail" id="vsRail"><div class="vs-track"></div><div class="vs-fill ' + col + '-bg" id="vsFill" style="height:' + f + '%"></div>' +
+      tick(hi, 'end', hi) + tick(90, 'p90', '90') + tick(80, 'daily', '80<em>DAILY</em>') + tick(lo, 'end', lo) +
+      '<div class="vs-thumb" id="vsThumb" style="bottom:' + f + '%"><b id="vsPct">' + (shown != null ? shown + '%' : '--') + '</b><small id="vsMi">' + (perPct && shown != null ? Math.round(perPct * shown) + ' mi' : 'LIMIT') + '</small></div></div></div>';
+  }
+  function bindVSlider() {
+    var vs = document.getElementById('vs'), rail = document.getElementById('vsRail'); if (!vs || !rail || !lastBatt) return;
+    var lo = lastBatt.min != null ? lastBatt.min : 50, hi = lastBatt.max != null ? lastBatt.max : 100, cur = null, wheelT = null, mode = null;
+    function off() { return ctlBusy || !cmdAllowed(); }
+    function pctAt(y) { var r = rail.getBoundingClientRect(); var p = Math.round(hi - (y - r.top) / r.height * (hi - lo)); return Math.max(lo, Math.min(hi, p)); }
+    function show(p) {
+      cur = p; var f = vsF(p, lo, hi), mi = lastBatt.perPct ? Math.round(lastBatt.perPct * p) + ' mi' : '';
+      document.getElementById('vsThumb').style.bottom = f + '%'; document.getElementById('vsFill').style.height = f + '%';
+      document.getElementById('vsPct').textContent = p + '%'; document.getElementById('vsMi').textContent = mi || 'LIMIT'; vs.setAttribute('aria-valuenow', p);
+      var dv = document.getElementById('dragVal'); if (dv) dv.textContent = limitLabel(p);
+      var lp = document.getElementById('limPct'); if (lp) lp.textContent = p + '%';
+      var lm = document.getElementById('limMi'); if (lm) lm.textContent = mi || '\u00a0';
+      var bt = document.getElementById('battTop'), bd = document.getElementById('battDrag'); if (bt) bt.classList.add('hidden'); if (bd) bd.classList.remove('hidden');
+    }
+    function begin(m) { dragging = true; mode = m; vs.classList.add('drag'); if (cur == null) cur = lastBatt.limit != null ? lastBatt.limit : 80; }
+    function end(commit) { if (!dragging || !mode) return; dragging = false; mode = null; vs.classList.remove('drag'); if (commit && cur != null && cur !== lastBatt.limit) requestLimit(cur); else { cur = null; render(); } }
+    rail.addEventListener('pointerdown', function (e) { if (off()) return; begin('ptr'); try { rail.setPointerCapture(e.pointerId); } catch (x) {} show(pctAt(e.clientY)); e.preventDefault(); });
+    rail.addEventListener('pointermove', function (e) { if (mode === 'ptr') show(pctAt(e.clientY)); });
+    rail.addEventListener('pointerup', function () { if (mode === 'ptr') end(true); });
+    rail.addEventListener('pointercancel', function () { if (mode === 'ptr') end(false); });
+    function step(d) { if (off()) return; if (!mode) begin('step'); show(Math.max(lo, Math.min(hi, cur + d))); clearTimeout(wheelT); wheelT = setTimeout(function () { end(true); }, 900); }
+    vs.addEventListener('wheel', function (e) { if (off()) return; e.preventDefault(); step(e.deltaY < 0 ? 1 : -1); }, { passive: false });
+    vs.addEventListener('keydown', function (e) {
+      var k = e.key, d = k === 'ArrowUp' || k === 'ArrowRight' ? 1 : (k === 'ArrowDown' || k === 'ArrowLeft' ? -1 : (k === 'PageUp' ? 5 : (k === 'PageDown' ? -5 : 0)));
+      if (d) { e.preventDefault(); step(d); } else if (k === 'Enter' && mode === 'step') { clearTimeout(wheelT); end(true); }
+    });
+  }
+
+  // ---------- v4.3: ANNOUNCE ON ALEXA: one push, full status rundown (Voice Monkey, 1 or 2 announcements, < ~45 s) ----------
+  var RUN_ITEMS = [['battery', 'Battery and range'], ['limit', 'Charge limit'], ['rate', 'Charge rate (kW and amps)'], ['tofull', 'Time to full'],
+    ['cost', 'Tonight\u2019s cost (and last charge)'], ['climate', 'Climate and seats'], ['lock', 'Door lock'], ['windows', 'Windows'], ['tires', 'Tires (all four)'], ['warnings', 'Warnings']];
+  var WPS = 2.6;   // spoken words per second (Alexa announcement voice)
+  function runItems() { var s = load('annItems', null) || {}; var o = {}; RUN_ITEMS.forEach(function (it) { o[it[0]] = s[it[0]] !== false; }); return o; }
+  function sayMoney(v) { if (v == null || isNaN(v)) return 'unknown'; var c = Math.round(v * 100), d = Math.floor(c / 100), ce = c % 100;
+    return (d ? d + (d === 1 ? ' dollar' : ' dollars') : '') + (d && ce ? ' and ' : '') + (ce || !d ? ce + (ce === 1 ? ' cent' : ' cents') : ''); }
+  function sayMins(m) { m = Math.round(m); var h = Math.floor(m / 60), mm = m % 60; return (h ? h + (h === 1 ? ' hour' : ' hours') : '') + (h && mm ? ' ' : '') + (mm || !h ? mm + (mm === 1 ? ' minute' : ' minutes') : ''); }
+  function sayAge(t) { var a = Math.max(0, nowSec() - t); return a < 90 ? 'just now' : (a < 3600 ? Math.round(a / 60) + ' minutes ago' : (a < 7200 ? 'about an hour ago' : 'about ' + Math.round(a / 3600) + ' hours ago')); }
+  function buildRundown(only) {
+    var cfg = getCfg(); var v = cfg && compute(cfg); if (!v) return null;
+    var it = only || runItems(), car = v.car, cs = v.cs, out = [], st = chgState(car), chg = st === 'Charging';
+    var lim = ctlVal('limit', v.limit), per = (v.range > 0 && v.soc > 0) ? v.range / v.soc : null;
+    if (it.battery && v.soc != null) out.push('Your Tesla is at ' + v.soc + ' percent' + (v.range > 0 ? ', ' + Math.round(v.range) + ' miles of range' : '') + '.');
+    if (it.limit && lim != null) out.push('Charge limit ' + lim + ' percent' + (per ? ', about ' + Math.round(per * lim) + ' miles' : '') + '.');
+    if (it.rate) {
+      if (chg) { var kw = chargerKw(cs), am = car.ampsNow != null ? Math.round(car.ampsNow) : ctlVal('amps', car.ampsReq);
+        out.push('Charging at ' + (kw != null ? (Math.round(kw * 10) / 10) + ' kilowatts' : 'an unknown rate') + (am != null ? ', ' + am + ' amps' : '') + (cs.fast_charger_present ? ' on a fast charger' : '') + '.'); }
+      else out.push(({ Complete: 'Charging is complete.', Stopped: 'Plugged in, charging stopped.', Disconnected: 'Not plugged in.', NoPower: 'Plugged in, but there is no power.', Starting: 'Charging is starting.' })[st] || 'Not charging.');
+    }
+    if (it.tofull && chg && cs.minutes_to_full_charge > 0) out.push('Full in ' + sayMins(cs.minutes_to_full_charge) + ', around ' + clock(nowSec() + cs.minutes_to_full_charge * 60) + '.');
+    if (it.cost) {
+      var nl = v.nightLabel === 'Tonight' ? 'Tonight so far' : 'Last night';
+      out.push(nl + ', ' + sayMoney(v.night.cost) + '.' + (v.hero && v.heroCost ? (chg ? ' This charge, ' : ' Last charge, ') + sayMoney(v.heroCost.cost) + '.' : ''));
+      out.push(sayRate(rateStatus(v, cfg)));
+    }
+    if (it.climate) {
+      var clim = ctlVal('climateOn', car.climateOn), cl = (v.state && v.state.climate_state) || {}, bits = [];
+      var tIn = car.insideC != null ? spokenTemp(car.insideC, car.units) : null, tOut = cl.outside_temp != null ? spokenTemp(cl.outside_temp, car.units) : null;
+      var s = 'Climate ' + (clim ? (heatOn(car) ? 'on, heating' : 'on') : 'off') + (tIn ? ', inside ' + tIn : '') + (tOut ? ', outside ' + tOut : '') + '.';
+      if (ctlVal('defrost', car.defrostOn)) bits.push('defrost on');
+      var cop = ctlVal('cop', car.cop); if (cop) bits.push('overheat protection ' + (cop === 'FanOnly' ? 'fan only' : cop.toLowerCase()));
+      var seats = [], names = { fl: 'driver', fr: 'passenger', rl: 'rear left', rc: 'rear center', rr: 'rear right' };
+      Object.keys(names).forEach(function (k) { var l = seatLevel(car, k); if (l > 0) seats.push(names[k] + ' ' + l); });
+      bits.push(seats.length ? 'seat heat ' + seats.join(', ') : 'seat heat off');
+      if (ctlVal('wheel', car.wheelOn)) bits.push('wheel heat on');
+      out.push(s + ' ' + bits.join(', ').replace(/^./, function (x) { return x.toUpperCase(); }) + '.');
+    }
+    if (it.lock) { var lk = ctlVal('locked', car.locked); out.push(lk == null ? 'Lock state unknown.' : (lk ? 'Doors locked.' : 'Doors are unlocked.')); }
+    if (it.windows) {
+      var W = car.windows || {}, WN = { fd: 'driver front', fp: 'passenger front', rd: 'driver rear', rp: 'passenger rear' }, open = [];
+      var known = Object.keys(WN).filter(function (k) { return W[k] != null; });
+      known.forEach(function (k) { if (+W[k] !== 0) open.push(WN[k]); });
+      var ov = ctlVal('windowsOpen', car.windowsOpen);
+      if (!known.length) out.push(ov == null ? 'Window state unknown.' : (ov ? 'Windows vented.' : 'All windows up.'));
+      else if (ov === false || !open.length) out.push('All windows up.');
+      else if (open.length === 4) out.push('All four windows are down or vented.');
+      else out.push(open.join(' and ') + ' window' + (open.length > 1 ? 's' : '') + ' down or vented, the rest up.');
+    }
+    var T = v.tires, TN = { fl: 'front left', fr: 'front right', rl: 'rear left', rr: 'rear right' };
+    if (it.tires && T) {
+      var ps = ['fl', 'fr', 'rl', 'rr'].map(function (k) { return T[k].psi == null ? null : Math.round(T[k].psi); });
+      var rec = T.recF != null ? Math.round(T.recF) : 42, recR = T.recR != null ? Math.round(T.recR) : rec;
+      if (ps.every(function (p) { return p == null; })) out.push('Tire pressures unknown.');
+      else out.push('Tires: ' + ['fl', 'fr', 'rl', 'rr'].map(function (k, i) { return TN[k] + ' ' + (ps[i] == null ? 'unknown' : ps[i]); }).join(', ') + ' PSI, recommended ' + (recR !== rec ? rec + ' front and ' + recR + ' rear' : rec) + '.');
+    }
+    if (it.warnings) {
+      var w = [], pk = peakState(v, cfg);
+      if (pk && !it.cost) w.push('charging at the ' + (pk.red ? 'peak' : 'day') + ' rate, off-peak starts at ' + pk.start);
+      if (T) ['fl', 'fr', 'rl', 'rr'].forEach(function (k) { var f = T[k].flag || ''; if (/-(low|high)$/.test(f)) w.push(TN[k] + ' tire ' + (/high$/.test(f) ? 'high' : 'low')); });
+      if (lim != null && lim > 90) w.push('charge limit above 90 percent');
+      out.push(w.length ? 'Warning' + (w.length > 1 ? 's' : '') + ': ' + w.join('; ') + '.' : 'No warnings.');
+    }
+    if (v.updated) out.push('Updated ' + sayAge(v.updated) + '.');
+    if (out.length <= 1) return { parts: [], words: 0, seconds: 0, text: '' };
+    out[0] = 'TessDesk status. ' + out[0];
+    var words = out.join(' ').split(/\s+/).length, parts = [out.join(' ')];
+    if (words / WPS > 22) {   // two announcements, split near the middle at a sentence boundary
+      var acc = 0, half = words / 2, i = 0;
+      for (; i < out.length - 1; i++) { acc += out[i].split(/\s+/).length; if (acc >= half) break; }
+      parts = [out.slice(0, i + 1).join(' '), out.slice(i + 1).join(' ')];
+    }
+    return { parts: parts, words: words, seconds: Math.round(words / WPS), text: parts.join(' ') };
+  }
+  function tdToast(msg, kind) {
+    var t = document.getElementById('tdToast'); if (!t) { t = document.createElement('div'); t.id = 'tdToast'; document.body.appendChild(t); }
+    t.className = 'td-toast show ' + (kind || ''); t.textContent = msg; clearTimeout(tdToast.t); tdToast.t = setTimeout(function () { t.className = 'td-toast'; }, 4200);
+  }
+  function openConnectedApps() { screen = 'settings'; render(); setTimeout(function () { var e = document.getElementById('apps'); if (e) e.scrollIntoView(); }, 50); }
+  function onAnnounce() {
+    if (!annConsent() || !annCfg().token || !annCfg().device) { tdToast(!annConsent() ? 'Accept the Alexa disclosure first (Connected apps).' : 'Set up Voice Monkey first (Connected apps).', 'err'); openConnectedApps(); return; }
+    var r = buildRundown(); if (!r || !r.parts.length) { tdToast('Nothing to announce yet (no car data, or every item is off in Setup).', 'err'); return; }
+    confirmBox('Announce full status?', 'Announce', r.parts.length + ' announcement' + (r.parts.length > 1 ? 's' : '') + ' \u00b7 about ' + r.seconds + ' s on ' + targetsLabel(annTargets('rundown'))).then(function (ok) {
+      if (!ok) return; sendRundown(r);
+    });
+  }
+  function sendRundown(r) {
+    var a = annCfg(), dry = !!load('dryRun', false), results = [], tg = annTargets('rundown');
+    function one(i) {
+      if (i >= r.parts.length) return Promise.resolve();
+      var txt = r.parts[i], rec = { at: new Date().toISOString(), why: 'rundown ' + (i + 1) + '/' + r.parts.length, text: txt, device: tg.join(','), dryRun: dry, sent: false, result: '' };
+      annLog.push(rec); if (annLog.length > 40) annLog.shift();
+      if (dry) { rec.result = 'DRY RUN: not sent to Voice Monkey'; results.push(true); return one(i + 1); }
+      rec.sent = true; rec.result = 'sending'; var okN = 0, chain = Promise.resolve();
+      tg.forEach(function (dev) { chain = chain.then(function () { return vmPost(dev, txt).then(function (res) { if (res.ok) okN++; }, function () {}); }); });
+      return chain.then(function () { rec.result = okN === tg.length ? 'announced' : (okN ? 'announced on ' + okN + ' of ' + tg.length : 'failed'); results.push(okN > 0); })
+        .then(function () { if (i + 1 < r.parts.length && results[i]) return new Promise(function (ok) { setTimeout(ok, Math.round(txt.split(/\s+/).length / WPS * 1000) + 1500); }).then(function () { return one(i + 1); }); });
+    }
+    tdToast(dry ? 'Dry run: building the announcement\u2026' : 'Announcing on ' + targetsLabel(tg) + '\u2026');
+    one(0).then(function () {
+      var ok = results.length === r.parts.length && results.every(Boolean);
+      tdToast(dry ? '\u2713 Dry run: ' + r.parts.length + ' announcement' + (r.parts.length > 1 ? 's' : '') + ' logged, nothing sent' : (ok ? '\u2713 Announced on ' + targetsLabel(tg) : '\u2715 Announcement failed (' + (annLog[annLog.length - 1] || {}).result + ')'), ok ? 'ok' : 'err');
+    });
+  }
+  function openAnnSetup() {
+    var d = document.createElement('div'); d.className = 'modal'; var cur = runItems();
+    d.innerHTML = '<div class="mbox rem annset" role="dialog" aria-modal="true"><div class="mq">Announce on Alexa: Setup</div>' +
+      '<div class="rl">One push of <b>Announce on Alexa</b> speaks a full status rundown on your Echo. Pick what it includes:</div>' +
+      '<div class="ann-items">' + RUN_ITEMS.map(function (x) { return '<label class="check"><input type="checkbox" data-it="' + x[0] + '"' + (cur[x[0]] ? ' checked' : '') + '> ' + esc(x[1]) + '</label>'; }).join('') + '</div>' +
+      '<div class="inline3"><button class="btn ghost" id="asAll">All on</button><button class="btn ghost" id="asNone">All off</button><button class="btn ghost" id="asPrev">Preview</button></div>' +
+      '<div class="ann-prev" id="asOut">Preview shows the exact spoken text. Nothing is announced.</div>' +
+      '<div class="sect">Speakers</div><label class="check"><input type="checkbox" id="asEcAll"' + (spkCfg().all !== false ? ' checked' : '') + '> <span><b>All Echos</b> (every Voice Monkey speaker)</span></label>' +
+      '<div class="spk-list" id="asSpk"></div><button class="btn ghost" id="asSpkRef" type="button">Refresh devices</button><div class="rn" id="asSpkMsg"></div>' +
+      '<div class="mbtns"><button class="btn ghost" id="asNo">Cancel</button><button class="btn" id="asSave">Save</button></div></div>';
+    document.body.appendChild(d);
+    function spkHtml() {
+      var sc = spkCfg(), all = d.querySelector('#asEcAll').checked, sp = vmSpeakers();
+      if (!sp.length) return '<div class="rn">No speaker list yet. Tap Refresh devices (reads your Voice Monkey device list, announces nothing). Until then: ' + esc(annCfg().device || 'no device') + '.</div>';
+      return sp.map(function (x) { return '<label class="check"><input type="checkbox" data-spk="' + esc(x.id) + '"' + (all || (sc.ids || []).indexOf(x.id) >= 0 ? ' checked' : '') + (all ? ' disabled' : '') + '> <span>' + esc(x.name) + ' <small class="muted">' + esc(x.id) + '</small></span></label>'; }).join('');
+    }
+    function drawSpk() { d.querySelector('#asSpk').innerHTML = spkHtml(); }
+    drawSpk(); d.querySelector('#asEcAll').onchange = drawSpk;
+    d.querySelector('#asSpkRef').onclick = function () { var m = d.querySelector('#asSpkMsg'); m.textContent = 'Reading devices\u2026';
+      refreshSpeakers().then(function (sp) { m.textContent = sp.length + ' speaker' + (sp.length === 1 ? '' : 's') + ' found.'; drawSpk(); }, function (e) { m.textContent = 'Could not list devices: ' + e.message; }); };
+    function pick() { var o = {}; Array.prototype.forEach.call(d.querySelectorAll('[data-it]'), function (x) { o[x.getAttribute('data-it')] = x.checked; }); return o; }
+    function all(v) { Array.prototype.forEach.call(d.querySelectorAll('[data-it]'), function (x) { x.checked = v; }); }
+    d.querySelector('#asAll').onclick = function () { all(true); }; d.querySelector('#asNone').onclick = function () { all(false); };
+    d.querySelector('#asPrev').onclick = function () {
+      var r = buildRundown(pick()), o = d.querySelector('#asOut');
+      if (!r || !r.parts.length) { o.textContent = 'Nothing to say (no car data, or every item is off).'; return; }
+      o.innerHTML = r.parts.map(function (p, i) { return (r.parts.length > 1 ? '<b>Announcement ' + (i + 1) + ' of ' + r.parts.length + '</b><br>' : '') + esc(p); }).join('<br><br>') +
+        '<div class="ann-meta">' + r.words + ' words \u00b7 about ' + r.seconds + ' s of speech</div>';
+    };
+    d.querySelector('#asNo').onclick = function () { d.remove(); };
+    d.querySelector('#asSave').onclick = function () { save('annItems', pick());
+      var c = getCfg(), a = c.announce || {}; a.speakers = { all: d.querySelector('#asEcAll').checked, ids: Array.prototype.filter.call(d.querySelectorAll('[data-spk]'), function (x) { return x.checked; }).map(function (x) { return x.getAttribute('data-spk'); }) };
+      c.announce = a; save('cfg', c); d.remove(); tdToast('\u2713 Announcement items saved'); };
+    d.onclick = function (e) { if (e.target === d) d.remove(); };
+  }
+
   // ---------- refresh loop + pull to refresh ----------
   // v4.2 adaptive refresh, cached data only (never wakes the car), and only while the app is visible:
   // 10 s car active (charging / driving / climate / a control used in the last 3 min), 15 s car awake,
@@ -1174,7 +1450,7 @@
   })();
 
   // test hooks for headless checks (no secrets)
-  window.TessDesk = { cmdLog: cmdLog, annLog: function () { return annLog; }, lastError: function () { return lastErr ? String(lastErr.message || lastErr) : null; }, live: function () { return liveInfo; }, layout: function () { return { mode: layoutMode(), zoom: curZoom }; }, seatPend: function () { return seatPend; }, tireFlag: tireFlag, buildIcs: buildIcs, priceSpan: function (t0, t1, wall) { var c = getCfg(); return priceSpan(c ? c.rates : PRESETS.pso, t0, t1, wall); }, PRESETS: PRESETS, ctEpoch: ctEpoch, refresh: refresh };
+  window.TessDesk = { cmdLog: cmdLog, annLog: function () { return annLog; }, lastError: function () { return lastErr ? String(lastErr.message || lastErr) : null; }, live: function () { return liveInfo; }, layout: function () { return { mode: layoutMode(), zoom: curZoom }; }, seatPend: function () { return seatPend; }, tireFlag: tireFlag, buildIcs: buildIcs, priceSpan: function (t0, t1, wall) { var c = getCfg(); return priceSpan(c ? c.rates : PRESETS.pso, t0, t1, wall); }, PRESETS: PRESETS, ctEpoch: ctEpoch, refresh: refresh, rundown: function (o) { return buildRundown(o); }, peak: function () { var c = getCfg(); return c ? peakState(compute(c), c) : null; }, rate: function () { var c = getCfg(); return c ? rateStatus(compute(c), c) : null; }, version: VERSION };
 
   render();
   if (getCfg()) { refresh(false); startTimer(); }
