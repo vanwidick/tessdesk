@@ -493,3 +493,24 @@ body.glow-pulse::after { animation: glowpulse 3.5s ease-in-out infinite; }
 .fl-go:disabled { opacity: .45; }
 body.compact .cbtn.flash { min-height: 0; }
 .ann-row .cbtn.ann { border-color: #49df93; }
+
+/* v4.3.3: OPEN TRUNK + SENTRY MODE row, DRIVES card (same green outline) */
+.ctl-row2.ts { margin-top: 8px; }
+.drives .dnote { font-size: 11px; color: var(--muted); margin: -4px 0 8px; }
+.drive { display: block; text-decoration: none; color: var(--text); background: color-mix(in srgb, #49df93 10%, var(--card2)); border: 1.5px solid #49df93; border-radius: 14px; padding: 8px 12px; margin-bottom: 8px; }
+.drive:active { transform: scale(.98); opacity: .85; }
+.drive .dtop { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.drive .dwhen { font-size: 12px; font-weight: 700; color: var(--muted); }
+.drive .dcost { font-size: 15px; color: var(--green); }
+.drive .droute { font-size: 14px; font-weight: 700; margin: 2px 0; line-height: 1.25; overflow-wrap: anywhere; }
+.drive .droute span { color: var(--muted); }
+.drive .dmeta { font-size: 11.5px; color: var(--muted); }
+.drive .dmeta u { color: var(--green); text-decoration: none; font-weight: 800; }
+.hist-hd { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; }
+.hist-hd h4 { margin: 0; font-size: 11px; font-weight: 800; letter-spacing: .14em; color: var(--muted); text-transform: uppercase; }
+.cbtn.mapbtn { min-height: 34px; padding: 4px 12px; text-decoration: none; }
+.cbtn.mapbtn b { font-size: 12px; }
+.hist { list-style: none; margin: 6px 0 0; padding: 0; }
+.hist li a, .hist li > span { display: flex; justify-content: space-between; gap: 8px; padding: 5px 2px; border-bottom: 1px solid var(--line); color: var(--text); text-decoration: none; font-size: 13px; }
+.hist li:last-child a, .hist li:last-child > span { border-bottom: 0; }
+.hist .hp { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .hist .ht { color: var(--muted); font-size: 12px; white-space: nowrap; }

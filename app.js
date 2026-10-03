@@ -5,7 +5,7 @@
   var CFG = window.TD_CONFIG || {};
   var VARIANT = CFG.variant || 'main';
   var P = CFG.storagePrefix || 'td:';
-  var VERSION = 'v4.3.2';
+  var VERSION = 'v4.3.3';
   var VERSION_DATE = 'Oct 3, 2026';
   var TZ = 'America/Chicago';
   var DEFAULT_API = 'https://api.tessie.com';
@@ -128,6 +128,9 @@
     return { cost: cost, kwh: k, wall: wall };
   }
   function overlaps(a, b) { return a.start < b.end + 300 && b.start < a.end + 300; }
+  // v4.3.3: a Tessie session that ended just before the live one is the SAME kWh only if the live counter carried it.
+  // When the counter reset (re-plugged / restarted), the earlier session is its own energy and is kept.
+  function dupOfLive(c, lv) { return overlaps(c, lv) && !(lv.ownOnly && c.end <= lv.start + 90); }
 
   // ---------- API ----------
   function api(path) {
@@ -170,7 +173,7 @@
   // ---------- state ----------
   var cache = load('cache', { state: null, charges: null, stateAt: 0, chargesAt: 0 });
   var live = load('live', null);        // {start, socStart, lastAdded, lastAt, segs, done}
-  var busy = false, lastErr = null, timer = null;
+  var busy = false, lastErr = null, timer = null, drivesErr = null;
 
   function trackLive(cfg, st) {
     var cs = st.charge_state || {}, t = nowSec();
@@ -178,15 +181,24 @@
     var added = cs.charge_energy_added != null ? +cs.charge_energy_added : 0;
     if (charging) {
       var cont = live && !live.done && added >= live.lastAdded - 0.05 && (t - live.lastAt) < 14 * 3600;
-      if (!cont && live && live.done && added >= live.lastAdded - 0.05 && added > 0 && (t - live.lastAt) < 30 * 60) cont = true; // short pause
+      // v4.3.3: the car's charge_energy_added keeps running across a pause on the same plug-in and resets on a new plug-in.
+      // Resumed with the counter still running = same session (only new kWh added), however long the pause (up to 12 h).
+      if (!cont && live && live.done && added >= live.lastAdded - 0.05 && added > 0 && (t - live.lastAt) < 12 * 3600) cont = true;
       if (!cont) {
         var pw = chargerKw(cs) || 0, est = t;
         if (pw > 0.3) est = t - Math.round(wallOf(cfg, added) / pw * 3600);
         var lastEnd = 0; (cache.charges || []).forEach(function (c) { if (c.ended_at && c.ended_at > lastEnd) lastEnd = c.ended_at; });
+        // v4.3.3: first seen mid-charge right after a Tessie-recorded part: did the counter carry that part (same plug-in) or reset?
+        var prevC = null; (cache.charges || []).forEach(function (c) { if (c.ended_at === lastEnd) prevC = c; });
+        var reset = true;
+        if (prevC && added > 0.3 && t - lastEnd < 3600) {
+          var pk = +prevC.energy_added || 0, since = Math.max(0, t - lastEnd) / 3600 * (pw || 0);
+          if (pk >= 0.1 && added >= pk - 0.15 && Math.abs(added - (pk + since)) < Math.abs(added - since)) reset = false;
+        } else if (prevC && added > 0.3 && pw > 0.3 && (+prevC.energy_added || 0) >= 0.3 && est < lastEnd - 600) reset = false; // counter older than the gap
         est = Math.max(est, lastEnd + 60, t - 20 * 3600); if (est > t - 60) est = t - 60;
         var pack = cs.energy_remaining && cs.battery_level ? cs.energy_remaining / (cs.battery_level / 100) : 75;
         live = { start: est, socStart: Math.max(0, Math.round(cs.battery_level - added / pack * 100)), lastAdded: added, lastAt: t,
-                 segs: added > 0 ? [[est, t, added]] : [], done: false };
+                 segs: added > 0 ? [[est, t, added]] : [], done: false, addedAtStart: added, ownOnly: reset, prevEnd: lastEnd || null };
       } else {
         var delta = added - live.lastAdded;
         if (delta > 0.001) live.segs.push([live.lastAt, t, delta]);
@@ -200,7 +212,7 @@
   }
   function liveSession() {
     if (!live || !live.segs) return null;
-    return { src: 'live', start: live.start, end: live.lastAt, added: live.lastAdded, segs: live.segs, socStart: live.socStart, done: live.done };
+    return { src: 'live', start: live.start, end: live.lastAt, added: live.lastAdded, segs: live.segs, socStart: live.socStart, done: live.done, ownOnly: live.ownOnly !== false, addedAtStart: live.addedAtStart };
   }
   function chargerKw(cs) {
     if (!cs) return null;
@@ -221,9 +233,12 @@
       var isCharging = st.charge_state && st.charge_state.charging_state === 'Charging';
       cache.state = st; cache.stateAt = t;
       var needCharges = force || !cache.charges || (t - cache.chargesAt) > CHARGES_EVERY_S || wasCharging !== isCharging;
-      if (!needCharges) return;
+      var needDrives = force || !cache.drives || (t - (cache.drivesAt || 0)) > CHARGES_EVERY_S;
+      var pd = !needDrives ? null : api('/' + cfg.vin + '/drives?from=' + (t - 30 * 86400) + '&to=' + t + '&distance_format=mi&format=json&limit=10')
+        .then(function (r) { cache.drives = (r && r.results) || []; cache.drivesAt = t; drivesErr = null; }, function (e) { drivesErr = String(e.message || e); cache.drivesAt = t - CHARGES_EVERY_S + 300; });
+      if (!needCharges) return pd;
       return api('/' + cfg.vin + '/charges?from=' + (t - 31 * 86400) + '&to=' + t + '&distance_format=mi&format=json')
-        .then(function (r) { cache.charges = (r && r.results) || []; cache.chargesAt = t; });
+        .then(function (r) { cache.charges = (r && r.results) || []; cache.chargesAt = t; return pd; });
     }).then(function () {
       lastErr = null; trackLive(cfg, cache.state); save('cache', cache);
     }).catch(function (e) { lastErr = e; }).then(function () { busy = false; setSpin(false); try { render(); } catch (e) { console.error(e); } if (getCfg() && consentOk()) scheduleNext(nextDelay() * 1000); });
@@ -268,9 +283,9 @@
     var lv = liveSession();
     var sessions = charges.slice();
     if (lv && lv.segs.length) {
-      var dup = charges.some(function (c) { return overlaps(c, lv); });
+      var dup = charges.some(function (c) { return dupOfLive(c, lv); });
       if (!dup || (charging && !lv.done)) {
-        sessions = charges.filter(function (c) { return !overlaps(c, lv); }); sessions.unshift(lv);
+        sessions = charges.filter(function (c) { return !dupOfLive(c, lv); }); sessions.unshift(lv);
       }
     }
     // hero
@@ -328,7 +343,8 @@
       wheelOn: cl.steering_wheel_heater != null ? (!!cl.steering_wheel_heater || cl.steering_wheel_heat_level > 0) : null,
       defrostOn: (cl.defrost_mode != null || cl.is_front_defroster_on != null) ? (cl.defrost_mode > 0 || !!cl.is_front_defroster_on) : null,
       cop: cl.cabin_overheat_protection || null, copFanOnly: !!cl.supports_fan_only_cabin_overheat_protection, copAllowed: cl.allow_cabin_overheat_protection,
-      windows: { fd: vs.fd_window, fp: vs.fp_window, rd: vs.rd_window, rp: vs.rp_window } };
+      windows: { fd: vs.fd_window, fp: vs.fp_window, rd: vs.rd_window, rp: vs.rp_window },
+      trunkOpen: vs.rt != null ? +vs.rt !== 0 : null, sentry: vs.sentry_mode != null ? !!vs.sentry_mode : null };
     return {
       charging: charging, state: st, cs: cs, hero: hero, heroCost: hc,
       kw: charging ? chargerKw(cs) : null, toFull: charging ? fmtMins(cs.minutes_to_full_charge) : null,
@@ -480,6 +496,8 @@
       (rec ? '<div class="recline">' + rec + '</div>' : '') + tireSvg(v.tires) +
       '<button class="cbtn remind" id="bRemind"' + (remOk ? '' : ' disabled') + '><b>REMIND ME TO GET AIR</b><small>' + (remOk ? 'calendar alert, text, email or Alexa' : 'reminders are off (Settings)') + '</small></button>' +
       '<button class="linkbtn" id="bRemSetup" type="button">Setup: how reminders reach you</button></div>';
+    // v4.3.3: DRIVES after the tires
+    h += drivesCard(cfg);
 
     h += footer() + '</div>';
     $app.innerHTML = h; bind(); fitCompact();
@@ -524,11 +542,78 @@
       '<div class="temp"><button class="cbtn sq" id="cTdn" aria-label="Cooler"' + dis + '>\u2212</button>' +
       '<div class="tv"><b>' + fmtTemp(tC, car.units) + '</b><small>' + (pendTemp != null ? 'NEW SET TEMP' : 'SET TEMP') + '</small></div>' +
       '<button class="cbtn sq" id="cTup" aria-label="Warmer"' + dis + '>+</button></div></div>' +
+      trunkSentryRow(car, dis) +
       '<div class="ann-row"><button class="cbtn ann" id="cAnnounce"><b>🔊 ANNOUNCE ON ALEXA</b><small>' + (annReady() ? 'full status rundown · ' + esc(targetsLabel(annTargets('rundown'))) : 'set up Alexa (Connected apps)') + '</small></button>' +
       '<button class="cbtn gear" id="cAnnSetup" aria-label="Announce on Alexa setup" title="Setup: what the rundown includes">' + ICON_GEAR + '<small>SETUP</small></button></div>' +
       '<div class="ctl-msg ' + ctlMsg.kind + '">' + (ctlMsg.kind === 'busy' ? '<span class="spin"></span>' : '') + '<span>' + esc(!cmdOk ? 'Commands are off: you did not allow TessDesk to send vehicle commands (Settings \u2192 Permissions).' : (ctlMsg.text || (dry ? 'Dry run: buttons are simulated, nothing is sent' : 'Ready'))) + '</span></div></div>';
     return r;
   }
+  // ---------- v4.3.3 OPEN TRUNK (rear only, no frunk) + SENTRY MODE ----------
+  function trunkSentryRow(car, dis) {
+    var tr = ctlVal('trunkOpen', car.trunkOpen), se = ctlVal('sentry', car.sentry);
+    return '<div class="ctl-row2 ts">' +
+      '<button class="cbtn' + (tr ? ' warn' : '') + '" id="cTrunk"' + dis + '><b>' + (tr ? 'TRUNK OPEN' : 'OPEN TRUNK') + '</b><small>' + (tr == null ? 'state unknown' : (tr ? 'tap to close' : 'rear · closed')) + '</small></button>' +
+      '<button class="cbtn' + (se ? ' state' : '') + '" id="cSentry"' + dis + '><b>SENTRY MODE</b><small>' + (se == null ? 'state unknown' : (se ? 'ON · tap to turn off' : 'OFF · tap to turn on')) + '</small></button></div>';
+  }
+  function onTrunk() {
+    var c = curCar(); if (!c) return; var open = !!ctlVal('trunkOpen', c.trunkOpen);
+    if (open) confirmBox('Are you sure?', 'Close trunk', 'Close the rear trunk? Make sure nothing and no one is in the way.').then(function (ok) { if (ok) runCmd('activate_rear_trunk', {}, 'Closing the trunk…', 'Trunk closing', function () { setOv('trunkOpen', false); }, 'Your Tesla trunk is closing.'); else { ctlMsg = { kind: 'idle', text: 'Trunk left open' }; render(); } });
+    else confirmBox('Are you sure?', 'Open trunk', 'Open the rear trunk?').then(function (ok) { if (ok) runCmd('activate_rear_trunk', {}, 'Opening the trunk…', 'Trunk open', function () { setOv('trunkOpen', true); }, 'Your Tesla trunk is open.'); else { ctlMsg = { kind: 'idle', text: 'Trunk not opened' }; render(); } });
+  }
+  function onSentry() {
+    var c = curCar(); if (!c) return; var on = !!ctlVal('sentry', c.sentry);
+    if (on) confirmBox('Turn Sentry Mode OFF?', 'Turn off', 'The car stops watching and recording its surroundings.').then(function (ok) { if (ok) runCmd('disable_sentry', {}, 'Turning Sentry Mode off…', 'Sentry Mode off', function () { setOv('sentry', false); }, 'Sentry Mode is now off.'); else { ctlMsg = { kind: 'idle', text: 'Sentry Mode stays on' }; render(); } });
+    else confirmBox('Turn Sentry Mode ON?', 'Turn on', 'The car watches and records its surroundings (uses some battery).').then(function (ok) { if (ok) runCmd('enable_sentry', {}, 'Turning Sentry Mode on…', 'Sentry Mode on', function () { setOv('sentry', true); }, 'Sentry Mode is now on.'); else { ctlMsg = { kind: 'idle', text: 'Sentry Mode stays off' }; render(); } });
+  }
+
+  // ---------- v4.3.3 DRIVES: recent drives + location history (Tessie /drives, read-only) ----------
+  function placeName(saved, addr) {
+    if (saved) return String(saved);
+    if (!addr) return 'Unknown place';
+    var p = String(addr).split(',').map(function (x) { return x.trim(); }).filter(Boolean);
+    return p.length >= 2 && /^\d+\s/.test(p[0]) ? p[0] + ', ' + p[1] : p[0];
+  }
+  function ll(a, b) { return (+a).toFixed(6) + ',' + (+b).toFixed(6); }
+  function drivesList(cfg) {
+    var off = (cfg.rates.overnight || 0) + (cfg.rates.fca || 0);
+    return (cache.drives || []).filter(function (d) { return d && d.started_at && +(d.odometer_distance || 0) >= 0.1; }).sort(function (a, b) { return b.started_at - a.started_at; }).slice(0, 10).map(function (d) {
+      var s = +d.started_at, e = +(d.ended_at || d.started_at), k = +(d.energy_used || 0);
+      return { start: s, end: e, mins: Math.round((e - s) / 60), from: placeName(d.starting_saved_location, d.starting_location), to: placeName(d.ending_saved_location, d.ending_location),
+        mi: +(d.odometer_distance || 0), kwh: k, cost: k / cfg.eff * off,
+        map: d.starting_latitude != null && d.ending_latitude != null ? 'https://www.google.com/maps/dir/?api=1&origin=' + ll(d.starting_latitude, d.starting_longitude) + '&destination=' + ll(d.ending_latitude, d.ending_longitude) + '&travelmode=driving' : null,
+        toLat: d.ending_latitude, toLon: d.ending_longitude, fromLat: d.starting_latitude, fromLon: d.starting_longitude };
+    });
+  }
+  function locHistory(ds) {
+    var out = [], prev = null;
+    ds.forEach(function (d) { if (d.to === prev) return; prev = d.to; out.push({ place: d.to, at: d.end, url: d.toLat != null ? 'https://www.google.com/maps/search/?api=1&query=' + ll(d.toLat, d.toLon) : null }); });
+    return out;
+  }
+  function historyMap(ds) {
+    var pts = [], r = ds.filter(function (d) { return d.toLat != null; }).slice().reverse();
+    if (!r.length) return null;
+    pts.push(ll(r[0].fromLat, r[0].fromLon));
+    r.forEach(function (d) { var p = ll(d.toLat, d.toLon); if (pts[pts.length - 1] !== p) pts.push(p); });
+    return 'https://www.google.com/maps/dir/' + pts.slice(-10).join('/');
+  }
+  function durTxt(m) { return m >= 60 ? Math.floor(m / 60) + ' h ' + (m % 60) + ' min' : m + ' min'; }
+  function drivesCard(cfg) {
+    var ds = drivesList(cfg), show = ds.slice(0, 5), hist = locHistory(ds).slice(0, 6), hm = historyMap(ds);
+    var h = '<div class="card drives"><div class="sec-hd"><h3>Drives</h3>' + (cache.drivesAt && ds.length ? '<span class="pill">Updated ' + clock(cache.drivesAt) + '</span>' : '') + '</div>';
+    if (!ds.length) return h + '<div class="dnote">' + (drivesErr ? 'Drives unavailable right now' : 'No drives in the last 30 days yet') + '</div></div>';
+    h += '<div class="dnote">Last ' + show.length + ' drives · cost = energy used at the home off-peak rate (estimate) · tap a drive for its map</div>';
+    show.forEach(function (d) {
+      var tag = d.map ? 'a' : 'div';
+      h += '<' + tag + ' class="drive"' + (d.map ? ' href="' + esc(d.map) + '" target="_blank" rel="noopener"' : '') + '>' +
+        '<div class="dtop"><span class="dwhen">' + esc(dayLabel(d.start)) + ' · ' + clock(d.start) + '</span><b class="dcost">' + money(d.cost) + ' est</b></div>' +
+        '<div class="droute">' + esc(d.from) + ' <span>→</span> ' + esc(d.to) + '</div>' +
+        '<div class="dmeta">' + d.mi.toFixed(1) + ' mi · ' + d.kwh.toFixed(1) + ' kWh · ' + durTxt(d.mins) + (d.map ? ' · <u>MAP ›</u>' : '') + '</div></' + tag + '>';
+    });
+    h += '<div class="hist-hd"><h4>Location history</h4>' + (hm ? '<a class="cbtn mapbtn" id="cHistMap" href="' + esc(hm) + '" target="_blank" rel="noopener"><b>OPEN MAP ›</b></a>' : '') + '</div><ul class="hist">';
+    hist.forEach(function (x) { h += '<li>' + (x.url ? '<a href="' + esc(x.url) + '" target="_blank" rel="noopener">' : '<span>') + '<span class="hp">• ' + esc(x.place) + '</span><span class="ht">' + esc(dayLabel(x.at)) + ' ' + clock(x.at) + '</span>' + (x.url ? '</a>' : '</span>') + '</li>'; });
+    return h + '</ul></div>';
+  }
+
   // ---------- v4.3.2 FLASH LIGHTS: 1-20 flashes ~2.5 s apart, asks first, Stop ends early ----------
   var flash = { n: 3, running: false, done: 0, total: 0, timer: null };
   function clampFlash(v) { v = parseInt(v, 10); if (!(v >= 1)) v = 1; if (v > 20) v = 20; return v; }
@@ -1039,6 +1124,7 @@
     var on = function (id, f) { var el = document.getElementById(id); if (el) el.onclick = f; };
     on('cFlash', onFlash);
     var fN = document.getElementById('cFlashN'); if (fN) { fN.oninput = function () { if (fN.value !== '') flash.n = clampFlash(fN.value); }; fN.onchange = function () { fN.value = flash.n = clampFlash(fN.value); }; }
+    on('cTrunk', onTrunk); on('cSentry', onSentry);
     on('cLock', onLock); on('cVent', onVent); on('cClose', onClose); on('cClim', onClim);
     on('cTdn', function () { onTemp(-1); }); on('cTup', function () { onTemp(1); });
     on('bRemind', openReminder); on('bRemSetup', openRemSetup); on('btnLayout', function () { setLayout(layoutMode() === 'compact' ? 'full' : 'compact'); });
@@ -1575,6 +1661,38 @@
   })();
 
   // test hooks for headless checks (no secrets)
+  // v4.3.3 test hooks (read-only; selfTest restores the live session it borrows)
+  window.TessDesk433 = { drives: function () { var c = getCfg(); return c ? drivesList(c) : []; }, live: function () { return live; },
+    selfTest: function () {
+      var cfg = getCfg(), keepLive = live, keepCh = cache.charges, t = nowSec(), res = [];
+      function cs(added, kw) { return { charge_state: { charging_state: 'Charging', charge_energy_added: added, charger_power: kw, battery_level: 70 } }; }
+      function chk(name, got, want) { res.push(name + ' -> ' + JSON.stringify(got) + ' (expect ' + JSON.stringify(want) + ') ' + (JSON.stringify(got) === JSON.stringify(want) ? 'PASS' : 'FAIL')); }
+      try {
+        cache.charges = [];
+        live = { start: t - 7200, socStart: 60, lastAdded: 3.0, lastAt: t - 2700, segs: [[t - 7200, t - 2700, 3.0]], done: true };
+        trackLive(cfg, cs(3.4, 7.2));
+        chk('counter kept running after a 45-min pause: same session, total kWh', [live.start === t - 7200, Math.round(live.segs.reduce(function (a, g) { return a + g[2]; }, 0) * 100) / 100], [true, 3.4]);
+        live = { start: t - 7200, socStart: 60, lastAdded: 3.0, lastAt: t - 120, segs: [[t - 7200, t - 120, 3.0]], done: true };
+        trackLive(cfg, cs(0.2, 7.2));
+        chk('counter reset (re-plugged): new session with its own kWh only', [live.start > t - 7200, live.lastAdded], [true, 0.2]);
+        var prev = { started_at: t - 2400, ended_at: t - 600, energy_added: 2.0 };
+        cache.charges = [prev]; live = null; trackLive(cfg, cs(3.2, 7.2));
+        var lv = liveSession(), c = fromCharge(prev);
+        chk('joined 10 min after a 2.0 kWh part, counter 3.2 (carried): earlier part dropped', [lv.ownOnly, dupOfLive(c, lv)], [false, true]);
+        cache.charges = [prev]; live = null; trackLive(cfg, cs(1.2, 7.2)); lv = liveSession();
+        chk('joined 10 min after a 2.0 kWh part, counter 1.2 (reset): earlier part kept', [lv.ownOnly, dupOfLive(c, lv)], [true, false]);
+        var p2 = { started_at: t - 9000, ended_at: t - 7200, energy_added: 2.0 };
+        cache.charges = [p2]; live = null; trackLive(cfg, cs(12.0, 4.0)); lv = liveSession();
+        chk('joined 2 h after a 2.0 kWh part, counter 12.0 at 4 kW (older than the gap = carried): earlier part dropped', [lv.ownOnly, dupOfLive(fromCharge(p2), lv)], [false, true]);
+        cache.charges = [p2]; live = null; trackLive(cfg, cs(6.0, 4.0)); lv = liveSession();
+        chk('joined 2 h after a 2.0 kWh part, counter 6.0 at 4 kW (fits the gap = reset): earlier part kept', [lv.ownOnly, dupOfLive(fromCharge(p2), lv)], [true, false]);
+        var tn = { started_at: t - 300 - 224, ended_at: t - 300, energy_added: 0.16 };
+        cache.charges = [tn]; live = null; trackLive(cfg, cs(0.2, 7.0)); lv = liveSession();
+        chk('tonight: 0.16 kWh part, restarted 9 s later, counter 0.2: earlier part kept (no double count, no loss)', [lv.ownOnly, dupOfLive(fromCharge(tn), lv)], [true, false]);
+      } catch (e) { res.push('ERROR ' + e.message); }
+      live = keepLive; cache.charges = keepCh; save('live', live); render();
+      return res;
+    } };
   window.TessDesk432 = { glow: glowState, flash: function () { return flash; }, setGlow: function (g) { window.__glowForce = g || null; render(); }, lastWindow: function () { var c = getCfg(); var v = c && compute(c); return v && v.hero && v.hero.src === 'window' ? { cost: v.heroCost, sessions: v.hero.sessions, start: v.hero.start, end: v.hero.end, added: v.hero.added, kwhAfter6: v.hero.kwhAfter6, costAfter6: v.hero.costAfter6, home: v.hero.home } : null; } };
   window.TessDesk = { cmdLog: cmdLog, annLog: function () { return annLog; }, lastError: function () { return lastErr ? String(lastErr.message || lastErr) : null; }, live: function () { return liveInfo; }, layout: function () { return { mode: layoutMode(), zoom: curZoom }; }, seatPend: function () { return seatPend; }, tireFlag: tireFlag, buildIcs: buildIcs, priceSpan: function (t0, t1, wall) { var c = getCfg(); return priceSpan(c ? c.rates : PRESETS.pso, t0, t1, wall); }, PRESETS: PRESETS, ctEpoch: ctEpoch, refresh: refresh, rundown: function (o) { return buildRundown(o); }, peak: function () { var c = getCfg(); return c ? peakState(compute(c), c) : null; }, rate: function () { var c = getCfg(); return c ? rateStatus(compute(c), c) : null; }, version: VERSION };
 

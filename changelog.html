@@ -31,10 +31,20 @@
   <p class="lead">Every TessDesk version (desktop widget and phone app), newest first.</p>
 
   <!-- Add each new version at the top: <section class="rel new"> ... -->
-  <section class="rel new" id="v4.3.2">
-    <h2>v4.3.2 <small>Oct 3, 2026</small></h2>
+  <section class="rel new" id="v4.3.3">
+    <h2>v4.3.3 <small>Oct 3, 2026</small></h2>
     <span class="tag">LATEST</span>
     <ul>
+      <li><b>OPEN TRUNK.</b> A new button opens the rear trunk after an &ldquo;Are you sure?&rdquo; pop-up. If the trunk is already open it reads <b>TRUNK OPEN</b> and asks before closing it. There is no frunk button.</li>
+      <li><b>SENTRY MODE on/off.</b> One button shows the car&rsquo;s current Sentry state (green outline and text when on) and asks to confirm before turning it on or off.</li>
+      <li><b>DRIVES.</b> A new card after Tires lists your recent drives: date and time, start &rarr; end place, miles, kWh used, how long it took and a cost estimate (the energy used priced at your home off-peak rate). Tap a drive to open its route in Google Maps. <b>Location history</b> lists where the car has been (each place opens on the map) and <b>OPEN MAP</b> shows the recent stops as one route. Read-only, refreshed about every 15 minutes.</li>
+      <li><b>Paused charging is never counted twice.</b> If charging pauses and resumes on the same plug-in (the car&rsquo;s energy counter keeps running), it stays one session and only the new kWh are added, however long the pause. If the counter restarted (re-plugged), the earlier part is kept as its own energy, so nothing is lost either.</li>
+      <li>Desktop and phone. Version v4.3.3, new offline cache (tessdesk-v4.3.3). Windows download: TessDesk Setup 4.4.3 (installs widget v4.3.3).</li>
+    </ul>
+  </section>
+  <section class="rel" id="v4.3.2">
+    <h2>v4.3.2 <small>Oct 3, 2026</small></h2>
+        <ul>
       <li><b>Last charge = the whole night.</b> Every home charging session from 11 PM to 11 AM the next morning now counts as ONE charge, even if you unplug for 30 minutes and plug back in. The amount, kWh and duration add up across the sessions, and any kWh after 6 AM are priced at the day rate.</li>
       <li><b>The whole window glows.</b> Solid red when the car is not plugged in, solid green when it is plugged in (charge complete or limit reached included), and a slow green pulse (about 3.5 s, dimming down and back up) while it is actively charging. The pulse stops the moment charging stops.</li>
       <li><b>Flash Lights.</b> New control between Locked and A/C: type how many flashes (1&ndash;20, default 3) and tap Flash. It asks first, flashes about 2.5 seconds apart, shows &ldquo;Flashing 2 of 5&rdquo; and has a Stop button.</li>
