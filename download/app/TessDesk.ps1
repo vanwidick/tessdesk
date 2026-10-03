@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-# TessDesk v4.3.7 - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
+# TessDesk v4.3.8 (checks for updates on open / wake; compact-when-OFF via cb_compact_addon.ps1) - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
 param(
     [string]$ConfigPath,
     [string]$Snapshot,    # optional: folder to write PNG snapshots of both themes
@@ -14,7 +14,7 @@ Add-Type -AssemblyName System.Xaml
 
 $ErrorActionPreference = 'Stop'
 $AppName    = 'TessDesk'
-$AppVersion = '4.3.7'
+$AppVersion = '4.3.8'
 $AppDate    = 'Oct 3, 2026'
 
 $scriptDir  = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -1009,8 +1009,9 @@ function Complete-UpdJob {
             if ($script:Upd.state -ne 'failed') { $script:Upd.state = $(if ($script:Upd.latest) { 'available' } else { 'current' }) }
             try { [ordered]@{ checkedEpoch = $script:Upd.checkedEpoch; latest = [string]$info.version; info = $info } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $updCheckPath -Encoding UTF8 } catch {}
             Write-WidgetLog ('update check: latest v' + [string]$info.version + ', this copy v' + $AppVersion)
+            try { Register-UpdCheckSuccess } catch {}
             if ($script:Upd.state -eq 'available') { $window.Dispatcher.BeginInvoke([Action]{ try { Show-UpdatePrompt } catch { Write-WidgetLog ('update prompt: ' + $_.Exception.Message) } }) | Out-Null }
-        } catch { $script:Upd.note = 'update check failed: ' + "$_"; Write-WidgetLog $script:Upd.note }
+        } catch { $script:Upd.note = 'update check failed: ' + "$_"; Write-WidgetLog $script:Upd.note; try { Register-UpdCheckFailure } catch {} }
     } else {
         try {
             if ($err) { throw $err }
@@ -5011,29 +5012,121 @@ function Invoke-Share {
 
 # ---------------- v4.3.7: UPDATE POP-UP (Update now / Later) ----------------
 # When version.json lists a newer version, TessDesk asks once: Update now (download, check SHA-256, back up, install, restart)
-# or Later (asks again in 24 h; the green UPDATE AVAILABLE button stays). Publishing a new version from Van's master copy
-# to the site is what every other copy picks up here.
-$script:UpdSnooze = $null; try { if ($null -ne $c.updSnooze -and $c.updSnooze.version) { $script:UpdSnooze = $c.updSnooze } } catch {}
+# or Later. Publishing a new version from Van's master copy to the site is what every other copy picks up here.
+# v4.3.8: Later = not asked again for that version until TessDesk is opened again (kept in memory only, never saved;
+# a still newer version asks again). The green UPDATE AVAILABLE button stays either way.
+$script:UpdLaterFor = $null
 $script:UpdPrompt = [ordered]@{ shown = $null; answer = $null; pending = $false }
+
+# ---------------- v4.3.8: CHECK FOR UPDATES WHEN TESSDESK OPENS / THE PC WAKES / THE WINDOW COMES BACK ----------------
+# launch  : right away every time TessDesk opens (including the auto-start at boot), no matter when it last checked
+# resume  : when the PC wakes from sleep (SystemEvents.PowerModeChanged Resume, plus a clock-gap check as a backup)
+# focus / restore : when the window regains focus or is restored from the taskbar
+# resume / focus / restore are throttled: at most one check every 5 minutes. The ~3 h periodic check stays.
+# launch / resume: if the network isn't up yet (just booted / just woke), retry silently 5 times over about 2 minutes.
+$UpdMinGapSec = 300
+$UpdRetryDelays = @(10, 20, 30, 30, 30)
+$script:UpdLastTry = 0; $script:UpdLaunched = $false; $script:UpdTriggers = @()
+$script:UpdRetry = [ordered]@{ active = $false; reason = $null; i = 0 }
+$script:UpdRetryTimer = New-Object System.Windows.Threading.DispatcherTimer
+$script:UpdRetryTimer.Add_Tick({
+    try {
+        $script:UpdRetryTimer.Stop()
+        if ($SelfTest -or -not $script:UpdRetry.active) { return }
+        if ($null -ne $script:UpdJob -or $script:Upd.state -eq 'updating') { $script:UpdRetryTimer.Interval = [TimeSpan]::FromSeconds(5); $script:UpdRetryTimer.Start(); return }
+        $script:UpdLastTry = Get-EpochNow
+        if (-not (Test-UpdNetwork)) { Register-UpdCheckFailure; return }
+        Start-UpdateCheck -Force
+    } catch { Write-WidgetLog ('update retry: ' + $_.Exception.Message) }
+})
+function Test-UpdNetwork { try { return [System.Net.NetworkInformation.NetworkInterface]::GetIsNetworkAvailable() } catch { return $true } }
+function Add-UpdTrigger { param($Rec) $script:UpdTriggers = @(@($script:UpdTriggers) + @([pscustomobject]$Rec) | Select-Object -Last 30) }
+function Request-UpdateCheck {
+    param([string]$Reason)
+    $now = Get-EpochNow
+    $rec = [ordered]@{ reason = $Reason; at = (Get-LocalNow).ToString('s'); action = $null }
+    if ($Reason -ne 'launch' -and -not $script:UpdLaunched) { $rec.action = 'ignored (the launch check has not run yet)'; Add-UpdTrigger $rec; return $rec.action }
+    if ($Reason -ne 'launch' -and ($now - [int64]$script:UpdLastTry) -lt $UpdMinGapSec) { $rec.action = 'skipped (last check ' + ($now - [int64]$script:UpdLastTry) + ' s ago, 5 min minimum)'; Add-UpdTrigger $rec; return $rec.action }
+    if ($null -ne $script:UpdJob -or $script:Upd.state -in @('updating', 'installed')) { $rec.action = 'skipped (busy)'; Add-UpdTrigger $rec; return $rec.action }
+    if ($Reason -eq 'launch') { $script:UpdLaunched = $true }
+    $script:UpdLastTry = $now
+    if ($Reason -in @('launch', 'resume')) { $script:UpdRetry.active = $true; $script:UpdRetry.reason = $Reason; $script:UpdRetry.i = 0; $script:UpdRetryTimer.Stop() }
+    else { $script:UpdRetry.active = $false; $script:UpdRetryTimer.Stop() }
+    if ($SelfTest) { $rec.action = 'would check now (self-test: no network)'; Add-UpdTrigger $rec; return $rec.action }
+    if (-not (Test-UpdNetwork)) { $rec.action = 'no network yet'; Add-UpdTrigger $rec; Write-WidgetLog ('update check (' + $Reason + '): no network yet'); Register-UpdCheckFailure; return $rec.action }
+    Start-UpdateCheck -Force
+    $rec.action = 'checking'; Add-UpdTrigger $rec
+    Write-WidgetLog ('update check (' + $Reason + ')')
+    return $rec.action
+}
+function Register-UpdCheckSuccess { $script:UpdRetry.active = $false; $script:UpdRetry.i = 0; try { $script:UpdRetryTimer.Stop() } catch {} }
+function Register-UpdCheckFailure {
+    $r = $script:UpdRetry
+    if (-not $r.active) { return }
+    if ($r.i -ge $UpdRetryDelays.Count) {
+        $r.active = $false
+        Write-WidgetLog ('update check (' + $r.reason + '): still no answer after ' + $UpdRetryDelays.Count + ' silent retries; next try on focus / restore / wake or the 3 h check')
+        if ($script:Upd.state -eq 'available' -and -not $SelfTest) { $window.Dispatcher.BeginInvoke([Action]{ try { Show-UpdatePrompt } catch {} }) | Out-Null }   # last known newer version (update-check.json)
+        return
+    }
+    $d = [int]$UpdRetryDelays[$r.i]; $r.i++
+    $script:UpdRetryTimer.Interval = [TimeSpan]::FromSeconds($d); $script:UpdRetryTimer.Start()
+    Write-WidgetLog ('update check (' + $r.reason + '): no answer, silent retry ' + $r.i + '/' + $UpdRetryDelays.Count + ' in ' + $d + ' s')
+}
+function Test-UpdPromptAllowed { return -not ($script:UpdLaterFor -and [string]$script:UpdLaterFor -eq [string]$script:Upd.latest) }
+function Set-UpdLater {
+    $script:UpdLaterFor = [string]$script:Upd.latest
+    Write-WidgetLog ('update v' + $script:Upd.latest + ': Later (not asked again for this version until TessDesk opens again; the UPDATE button stays)')
+}
+# wake from sleep: a tiny C# listener only counts Resume events (no PowerShell runs on the SystemEvents thread);
+# a 15 s timer picks the count up on the window's thread. The clock-gap check catches a wake even if the listener can't start.
+$script:PwWatch = [ordered]@{ listener = $false; seen = 0; lastTick = (Get-EpochNow); wakes = 0; error = $null }
+function Start-UpdResumeWatch {
+    try {
+        if (-not ('TdPowerWatch' -as [type])) {
+            Add-Type -TypeDefinition @'
+using System; using System.Threading; using Microsoft.Win32;
+public static class TdPowerWatch {
+    static long _n; static int _on;
+    public static long Resumes { get { return Interlocked.Read(ref _n); } }
+    public static void Start() { if (Interlocked.Exchange(ref _on, 1) == 1) return; SystemEvents.PowerModeChanged += OnPm; }
+    public static void Stop() { if (Interlocked.Exchange(ref _on, 0) == 0) return; try { SystemEvents.PowerModeChanged -= OnPm; } catch { } }
+    static void OnPm(object s, PowerModeChangedEventArgs e) { if (e.Mode == PowerModes.Resume) Interlocked.Increment(ref _n); }
+}
+'@
+        }
+        [TdPowerWatch]::Start(); $script:PwWatch.listener = $true; $script:PwWatch.seen = [TdPowerWatch]::Resumes
+    } catch { $script:PwWatch.error = $_.Exception.Message; Write-WidgetLog ('wake listener: ' + $_.Exception.Message + ' (clock-gap check still on)') }
+    $script:PwTimer = New-Object System.Windows.Threading.DispatcherTimer
+    $script:PwTimer.Interval = [TimeSpan]::FromSeconds(15)
+    $script:PwTimer.Add_Tick({ try { Test-UpdResume } catch {} })
+    $script:PwTimer.Start()
+}
+function Test-UpdResume {
+    $now = Get-EpochNow; $gap = $now - [int64]$script:PwWatch.lastTick; $script:PwWatch.lastTick = $now
+    $n = $script:PwWatch.seen; if ($script:PwWatch.listener) { try { $n = [TdPowerWatch]::Resumes } catch {} }
+    $woke = ($n -ne $script:PwWatch.seen) -or ($gap -gt 120)
+    $script:PwWatch.seen = $n
+    if (-not $woke) { return $false }
+    $script:PwWatch.wakes++
+    Write-WidgetLog ('PC woke up (' + $(if ($gap -gt 120) { 'clock gap ' + $gap + ' s' } else { 'power resume' }) + '): checking for updates')
+    [void](Request-UpdateCheck 'resume')
+    return $true
+}
 function Show-UpdatePrompt {
     param([switch]$NoWait)
     if (-not $script:Upd.latest -or $script:Upd.state -ne 'available' -or $null -ne $script:UpdJob) { return }
     if ($SelfTest -and -not $NoWait) { return }
-    $sn = $script:UpdSnooze
-    if (-not $NoWait -and $null -ne $sn -and [string]$sn.version -eq [string]$script:Upd.latest -and (Get-EpochNow) -lt [int64]$sn.until) { return }
+    if (-not $NoWait -and -not (Test-UpdPromptAllowed)) { return }   # v4.3.8: Later = quiet for this version until the next launch
     if ($ui.ConfirmOverlay.Visibility -eq 'Visible' -or $ui.ShareOverlay.Visibility -eq 'Visible') { $script:UpdPrompt.pending = $true; return }
     $script:UpdPrompt.pending = $false; $script:UpdPrompt.shown = [string]$script:Upd.latest
     $msg = 'Update to v' + $script:Upd.latest + '?'
-    $sub = 'TessDesk v' + $script:Upd.latest + ' is out (you have v' + $AppVersion + '). Update now downloads it, checks every file, backs up this copy and restarts TessDesk right here. Later asks again tomorrow.'
+    $sub = 'TessDesk v' + $script:Upd.latest + ' is out (you have v' + $AppVersion + '). Update now downloads it, checks every file, backs up this copy and restarts TessDesk right here. Later asks again the next time TessDesk opens.'
     if ($NoWait) { [void](Show-ConfirmOverlay $msg $sub 'Update now' 'Later' -NoWait); return }
     $a = Show-ConfirmOverlay $msg $sub 'Update now' 'Later'
     $script:UpdPrompt.answer = $(if ($a) { 'update now' } else { 'later' })
     if ($a) { Write-WidgetLog ('update v' + $script:Upd.latest + ': Update now'); Invoke-UpdateApply }
-    else {
-        $script:UpdSnooze = [pscustomobject]@{ version = [string]$script:Upd.latest; until = (Get-EpochNow) + 86400 }
-        try { Save-ConfigProp 'updSnooze' $script:UpdSnooze } catch {}
-        Write-WidgetLog ('update v' + $script:Upd.latest + ': Later (asks again in 24 h; the UPDATE button stays)')
-    }
+    else { Set-UpdLater }
 }
 
 $script:State = Load-WidgetState
@@ -5052,7 +5145,7 @@ $script:UpdTimer.Add_Tick({
         $j = $script:UpdJob
         if ($null -eq $j) { $script:UpdTimer.Stop(); return }
         if ($j.async.IsCompleted) { Complete-UpdJob; if ($null -eq $script:UpdJob) { $script:UpdTimer.Stop() } }
-        elseif (((Get-Date) - $j.started).TotalSeconds -gt 90) { try { $j.ps.Stop() } catch {}; $script:UpdJob = $null; $script:UpdTimer.Stop(); if ($j.kind -eq 'apply') { $script:Upd.state = 'failed' }; $script:Upd.note = 'update ' + $j.kind + ' timed out'; Render-Update }
+        elseif (((Get-Date) - $j.started).TotalSeconds -gt 90) { try { $j.ps.Stop() } catch {}; $script:UpdJob = $null; $script:UpdTimer.Stop(); if ($j.kind -eq 'apply') { $script:Upd.state = 'failed' }; $script:Upd.note = 'update ' + $j.kind + ' timed out'; Render-Update; if ($j.kind -eq 'check') { try { Register-UpdCheckFailure } catch {} } }
     } catch { Write-WidgetLog ('update timer: ' + $_.Exception.Message) }
 })
 # daily check: 90 s after start, then every hour asks "has it been ~a day?" (not during -SelfTest)
@@ -5244,27 +5337,27 @@ function Start-SelfTest {
     & $add 'v4.3.3 SENTRY: answer NO' @($false) { $n0 = @($script:CtlLog).Count; Invoke-SentryToggle; $script:SelfRec.v433.sentryNo = [ordered]@{ result = $script:CtlResultText; commands = @($script:CtlLog).Count - $n0 } }
     & $add 'v4.3.3 SENTRY: answer YES (DRY RUN)' @($true) { Invoke-SentryToggle }
     & $add 'v4.3.3 sentry result' @() { $script:SelfRec.v433.sentryYes = [ordered]@{ result = $script:CtlResultText; button = $ui.SentryTxt.Text + ' / ' + $ui.SentrySub.Text; cmds = @($script:CtlLog | Where-Object { $_.cmd -like '*_sentry' } | ForEach-Object { $_.cmd }) }; & $script:Shot433 'sentry-toggled'; $script:CtlOverride.Remove('sentry'); Render-Controls; $ui.CtlCard.BringIntoView(); $window.UpdateLayout(); & $script:Shot433 'controls-after' }
-    & $add 'v4.3.3 update: check a local test feed (v4.3.4)' @() {
+    & $add 'v4.3.3 update: check a local test feed (v9.9.8 = newer than this copy)' @() {
         $feed = Join-Path $script:SelfDir 'updfeed'; New-Item -ItemType Directory -Path $feed -Force | Out-Null
         $me = [System.IO.File]::ReadAllText((Join-Path $scriptDir 'TessDesk.ps1'))
-        $t4 = $me.Replace("`$AppVersion = '" + $AppVersion + "'", "`$AppVersion = '4.3.4'")
+        $t4 = $me.Replace("`$AppVersion = '" + $AppVersion + "'", "`$AppVersion = '9.9.8'")
         $enc = New-Object System.Text.UTF8Encoding($true); [System.IO.File]::WriteAllText((Join-Path $feed 'TessDesk.ps1'), $t4, $enc)
         $sha = (Get-FileHash -Algorithm SHA256 (Join-Path $feed 'TessDesk.ps1')).Hash.ToLowerInvariant()
         $uri = ([System.Uri](Join-Path $feed 'TessDesk.ps1')).AbsoluteUri
-        [ordered]@{ app = 'TessDesk'; version = '4.3.4'; date = 'test'; desktop = [ordered]@{ files = @([ordered]@{ name = 'TessDesk.ps1'; url = $uri; sha256 = $sha }) } } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $feed 'version.json') -Encoding UTF8
+        [ordered]@{ app = 'TessDesk'; version = '9.9.8'; date = 'test'; desktop = [ordered]@{ files = @([ordered]@{ name = 'TessDesk.ps1'; url = $uri; sha256 = $sha }) } } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $feed 'version.json') -Encoding UTF8
         $script:UpdUrlOverride = ([System.Uri](Join-Path $feed 'version.json')).AbsoluteUri
         $script:SelfRec.v433.updateBefore = [ordered]@{ state = $script:Upd.state; buttonVisible = ($ui.UpdateBtn.Visibility -eq 'Visible') }
         Start-UpdateCheck -Force }
     & $add 'v4.3.3 update: button shows UPDATE AVAILABLE · v4.3.4' @() { $window.UpdateLayout(); $script:SelfRec.v433.updateAvailable = [ordered]@{ state = $script:Upd.state; latest = $script:Upd.latest; button = $ui.UpdateTxt.Text; sub = $ui.UpdateSub.Text; visible = ($ui.UpdateBtn.Visibility -eq 'Visible') }; & $script:Shot433 'update-available' }
     & $add 'v4.3.3 update: bad checksum is refused (nothing changed)' @() { $script:UpdInfoGood = $script:UpdInfo; $bad = $script:UpdInfo | ConvertTo-Json -Depth 6 | ConvertFrom-Json; $bad.desktop.files[0].sha256 = ('0' * 64); $script:UpdInfo = $bad; Invoke-UpdateApply }
-    & $add 'v4.3.3 update: refused result' @() { $script:SelfRec.v433.updateBadSha = [ordered]@{ state = $script:Upd.state; note = $script:Upd.note; button = $ui.UpdateTxt.Text; fileStillCurrent = ([System.IO.File]::ReadAllText((Join-Path $scriptDir 'TessDesk.ps1')) -match "\`$AppVersion = '4.3.3'") }; & $script:Shot433 'update-refused'; $script:UpdInfo = $script:UpdInfoGood; $script:Upd.state = 'available'; Render-Update }
+    & $add 'v4.3.3 update: refused result' @() { $script:SelfRec.v433.updateBadSha = [ordered]@{ state = $script:Upd.state; note = $script:Upd.note; button = $ui.UpdateTxt.Text; fileStillCurrent = ([System.IO.File]::ReadAllText((Join-Path $scriptDir 'TessDesk.ps1')) -match ("\`$AppVersion = '" + $AppVersion + "'")) }; & $script:Shot433 'update-refused'; $script:UpdInfo = $script:UpdInfoGood; $script:Upd.state = 'available'; Render-Update }
     & $add 'v4.3.3 update: one click (download, back up, install; restart skipped in self-test)' @() { $ui.UpdateBtn.RaiseEvent((New-Object System.Windows.Input.MouseButtonEventArgs([System.Windows.Input.Mouse]::PrimaryDevice, 0, [System.Windows.Input.MouseButton]::Left) -Property @{ RoutedEvent = [System.Windows.UIElement]::MouseLeftButtonUpEvent })) }
     & $add 'v4.3.3 update: installed result' @() {
         $window.UpdateLayout()
         $now = [System.IO.File]::ReadAllText((Join-Path $scriptDir 'TessDesk.ps1'))
         $script:SelfRec.v433.updateInstalled = [ordered]@{ state = $script:Upd.state; note = $script:Upd.note; button = $ui.UpdateTxt.Text; restart = $script:Upd.restart; backup = $script:Upd.backup
-            backupFiles = @(Get-ChildItem -LiteralPath $script:Upd.backup | ForEach-Object { $_.Name }); installedIs434 = ($now -match "\`$AppVersion = '4.3.4'")
-            backupIs433 = ([System.IO.File]::ReadAllText((Join-Path $script:Upd.backup 'TessDesk.ps1')) -match "\`$AppVersion = '4.3.3'") }
+            backupFiles = @(Get-ChildItem -LiteralPath $script:Upd.backup | ForEach-Object { $_.Name }); installedIs434 = ($now -match "\`$AppVersion = '9.9.8'")
+            backupIs433 = ([System.IO.File]::ReadAllText((Join-Path $script:Upd.backup 'TessDesk.ps1')) -match ("\`$AppVersion = '" + $AppVersion + "'")) }
         & $script:Shot433 'update-installed' }
     & $add 'v4.3.5 flash pause: clamp 0.3 -> 1.0, 31 -> 30.0, 2.7 -> 2.5' @() { $script:SelfRec.v435 = [ordered]@{}; $ui.FlashPause.Text = '0.3'; $a = Get-FlashPause; $ui.FlashPause.Text = '31'; $b = Get-FlashPause; $ui.FlashPause.Text = '2.7'; $c2 = Get-FlashPause; $script:SelfRec.v435.clamp = @($a, $b, $c2) }
     & $add 'v4.3.5 flash x4, pause 1.0 s (fire and go, DRY RUN)' @($true) { $script:V435n0 = @($script:CtlLog).Count; $ui.FlashCount.Text = '4'; $ui.FlashPause.Text = '1.0'; Invoke-FlashLights; $script:FlashWaitFor = 99 }
@@ -5346,6 +5439,40 @@ function Start-SelfTest {
         $script:SelfRec.v437.updatePopup = [ordered]@{ msg = $ui.ConfirmMsg.Text; sub = $ui.ConfirmSub.Text; yes = $ui.ConfirmYesTxt.Text; no = $ui.ConfirmNoTxt.Text; visible = ($ui.ConfirmOverlay.Visibility -eq 'Visible') }
         Close-ConfirmOverlay $false
         $script:Upd.state = $u0.state; $script:Upd.latest = $u0.latest; Render-Update
+    }
+    & $add 'v4.3.8 update triggers: launch, 5 min throttle, wake, silent retries, Later until next launch' @() {
+        $r = [ordered]@{}
+        $s0 = [ordered]@{ last = $script:UpdLastTry; launched = $script:UpdLaunched; later = $script:UpdLaterFor; state = $script:Upd.state; latest = $script:Upd.latest }
+        $script:UpdTriggers = @(); $script:UpdLaunched = $false; $script:UpdLastTry = 0; $script:Upd.state = 'current'; $script:Upd.latest = $null
+        $r.focusBeforeLaunch = Request-UpdateCheck 'focus'
+        $r.launch = Request-UpdateCheck 'launch'
+        $r.launchArmsRetry = [bool]$script:UpdRetry.active
+        $r.launchAgain = Request-UpdateCheck 'launch'
+        $r.focusRightAfter = Request-UpdateCheck 'focus'
+        $script:UpdLastTry = (Get-EpochNow) - 240; $r.restoreAt4min = Request-UpdateCheck 'restore'
+        $script:UpdLastTry = (Get-EpochNow) - 301; $r.restoreAt5min = Request-UpdateCheck 'restore'
+        $r.focusAfterThat = Request-UpdateCheck 'focus'
+        $script:UpdLastTry = (Get-EpochNow) - 301; $r.resume = Request-UpdateCheck 'resume'
+        $script:UpdRetry.active = $true; $script:UpdRetry.i = 0; $script:UpdRetry.reason = 'launch'
+        $r.retries = @(); for ($k = 0; $k -lt 6; $k++) { Register-UpdCheckFailure; $r.retries += ('fail ' + ($k + 1) + ': retry=' + $script:UpdRetry.active + ' next=' + $(if ($script:UpdRetryTimer.IsEnabled) { [string]$script:UpdRetryTimer.Interval.TotalSeconds + ' s' } else { 'none' })) }
+        $script:UpdRetryTimer.Stop()
+        $r.retryWindowSec = ($UpdRetryDelays | Measure-Object -Sum).Sum
+        $script:UpdRetry.active = $true; Register-UpdCheckSuccess; $r.successStopsRetry = (-not $script:UpdRetry.active -and -not $script:UpdRetryTimer.IsEnabled)
+        $script:PwWatch.lastTick = (Get-EpochNow) - 600; $script:UpdLastTry = (Get-EpochNow) - 301
+        $r.wakeByClockGap = Test-UpdResume
+        $r.noWakeNextTick = (-not (Test-UpdResume))
+        try { Start-UpdResumeWatch; $script:PwTimer.Stop(); $r.wakeListener = [ordered]@{ started = $script:PwWatch.listener; error = $script:PwWatch.error; resumesSoFar = $(if ('TdPowerWatch' -as [type]) { [TdPowerWatch]::Resumes } else { $null }) } } catch { $r.wakeListener = 'failed: ' + $_.Exception.Message }
+        $script:Upd.state = 'available'; $script:Upd.latest = '9.9.9'
+        $r.promptAllowedBefore = Test-UpdPromptAllowed
+        Set-UpdLater
+        $r.promptAllowedAfterLater = Test-UpdPromptAllowed
+        $script:Upd.latest = '9.9.10'; $r.promptAllowedForNewerVersion = Test-UpdPromptAllowed
+        $r.laterSavedToConfig = ([System.IO.File]::ReadAllText($ConfigPath) -match 'updSnooze|UpdLaterFor')
+        $r.triggers = @($script:UpdTriggers | ForEach-Object { $_.reason + ': ' + $_.action })
+        $script:UpdLastTry = $s0.last; $script:UpdLaunched = $s0.launched; $script:UpdLaterFor = $s0.later; $script:Upd.state = $s0.state; $script:Upd.latest = $s0.latest; $script:UpdRetry.active = $false; Render-Update
+        $r.footer = $ui.FooterVersion.Text; $r.appVersion = $AppVersion
+        $window.UpdateLayout(); & $script:Shot433 'v438-window' -Full
+        $script:SelfRec.v438 = $r
     }
     if ($Quick433) { return (Start-SelfTimer) }
     # ---- v4.3.2 steps (forced/mock state, DRY RUN: nothing is sent to the car, nothing announced) ----
@@ -5640,6 +5767,10 @@ $window.Add_ContentRendered({
     try { if ($script:Layout -eq 'compact') { Set-LayoutMode 'compact' $false } else { $ui.LayoutBtn.Content = 'FULL' } } catch {}
     if ($SelfTest) { try { Start-SelfTest } catch { Write-WidgetLog ('selftest failed: ' + $_.Exception.Message); $window.Close() } }
     elseif ($Snapshot) { try { Save-Snapshots $Snapshot } catch { Write-WidgetLog ('snapshot failed: ' + $_.Exception.Message) } }
+    if (-not $SelfTest) {
+        # v4.3.8: check for updates right away every time TessDesk opens (auto-start at boot too), then watch for wake-ups
+        $window.Dispatcher.BeginInvoke([System.Windows.Threading.DispatcherPriority]::Background, [Action]{ try { [void](Request-UpdateCheck 'launch') } catch { Write-WidgetLog ('update launch check: ' + $_.Exception.Message) }; try { Start-UpdResumeWatch } catch {} }) | Out-Null
+    }
     if (-not $SelfTest -and -not [bool]$script:ReadAllowed) {
         # First run after the update: show the notice; nothing is fetched from Tessie until it is accepted.
         $window.Dispatcher.BeginInvoke([Action]{ try { Show-ConsentWindow $true } catch { Write-WidgetLog ('consent window failed: ' + $_.Exception.Message) } }) | Out-Null
@@ -5656,6 +5787,15 @@ $script:LiveTimer.Interval = [TimeSpan]::FromSeconds(1)
 $script:LiveTimer.Add_Tick({ try { Invoke-LiveTick } catch { Write-WidgetLog ('live tick failed: ' + $_.Exception.Message) } })
 $script:LiveTimer.Start()
 $window.Add_Activated({ try { $L = $script:Live; if ($L.interval -gt 15 -and $L.carState -eq 'online') { $L.nextDue = [math]::Min([int64]$L.nextDue, (Get-EpochNow) + 1) } } catch {} })
+# v4.3.8: focus / restore -> update check (at most every 5 min; ignored until the launch check ran; never during -SelfTest)
+$script:WasMinimized = $false
+$window.Add_Activated({ try { if (-not $SelfTest) { [void](Request-UpdateCheck 'focus') } } catch {} })
+$window.Add_StateChanged({
+    try {
+        if ($window.WindowState -eq [System.Windows.WindowState]::Minimized) { $script:WasMinimized = $true; return }
+        if ($script:WasMinimized) { $script:WasMinimized = $false; if (-not $SelfTest) { [void](Request-UpdateCheck 'restore') } }
+    } catch {}
+})
 
 # Snapshot requests: create snapshot.request (optionally containing a folder path) next to the script.
 $snapTimer = New-Object System.Windows.Threading.DispatcherTimer
@@ -5673,8 +5813,11 @@ $snapTimer.Add_Tick({
 $snapTimer.Start()
 
 $window.Add_Closed({
+    try { $script:UpdRetryTimer.Stop(); if ($script:PwTimer) { $script:PwTimer.Stop() }; if ('TdPowerWatch' -as [type]) { [TdPowerWatch]::Stop() } } catch {}
     try { $timer.Stop(); $script:LiveTimer.Stop(); $snapTimer.Stop(); $script:CtlTimer.Stop(); $script:TempTimer.Stop(); $script:SeatTimer.Stop(); $script:AnnTimer.Stop(); $script:WheelTimer.Stop(); $script:WToastTimer.Stop(); $script:FlashTimer.Stop() } catch {}
     try { $script:Mutex.ReleaseMutex() } catch {}
 })
 
+# 2026-10-03: compact-when-OFF (OFF button top-left on hover -> small card with a snapshot + ON / Restore + DESIGN BY VAN). Keep this line in new versions.
+try { . 'C:\Users\vanwi\cb_compact_addon.ps1'; Enable-CbCompactMode -Window $window -Name 'TESSDESK' -Version $AppVersion -OffMargin '8,40,0,0' } catch { }
 [void]$window.ShowDialog()
