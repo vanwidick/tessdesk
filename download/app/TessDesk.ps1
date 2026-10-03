@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-# TessDesk v4.3.4 - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
+# TessDesk v4.3.5 - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
 param(
     [string]$ConfigPath,
     [string]$Snapshot,    # optional: folder to write PNG snapshots of both themes
@@ -14,7 +14,7 @@ Add-Type -AssemblyName System.Xaml
 
 $ErrorActionPreference = 'Stop'
 $AppName    = 'TessDesk'
-$AppVersion = '4.3.4'
+$AppVersion = '4.3.5'
 $AppDate    = 'Oct 3, 2026'
 
 $scriptDir  = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -128,6 +128,11 @@ $DEFAULT_TESSIE = ([string](Get-Val $c.defaultTheme 'tessie')) -ne 'tessdesk'
 $CTL_ENABLED = $true; if ($null -ne $c.controls -and $null -ne $c.controls.enabled) { $CTL_ENABLED = [bool]$c.controls.enabled }
 $CTL_DRYRUN  = $false; if ($null -ne $c.controls -and $null -ne $c.controls.dryRun) { $CTL_DRYRUN = [bool]$c.controls.dryRun }
 if ($SelfTest) { $CTL_DRYRUN = $true }
+# v4.3.5: pause between flashes (config.json flashPauseSec, 1-30 s in 0.5 s steps, default 1) and count (flashCount 1-20, default 5)
+$FLASH_COUNT = 5; try { if ($null -ne $c.flashCount) { $FLASH_COUNT = [int]$c.flashCount } } catch {}
+$FLASH_COUNT = [math]::Min(20, [math]::Max(1, $FLASH_COUNT))
+$FLASH_PAUSE = 1.0; try { if ($null -ne $c.flashPauseSec) { $FLASH_PAUSE = [double]$c.flashPauseSec } } catch {}
+$FLASH_PAUSE = [math]::Min(30.0, [math]::Max(1.0, [math]::Round($FLASH_PAUSE * 2) / 2))
 # Tire thresholds (config.json "tires"): % away from the car's recommended cold pressure.
 $TIRE_YELLOW = 5.0; $TIRE_RED = 10.0; $TIRE_MAX_NOREC = 48.0; $TIRE_MIN_NOREC = 38.0
 if ($null -ne $c.tires) {
@@ -323,8 +328,8 @@ function Get-HttpErrorNote {
 # Commands may wake the car; that's expected because the user pressed the button. Polling never wakes it.
 function Get-CommandUrl {
     param([string]$Cmd, [hashtable]$Query = @{})
-    $q = 'wait_for_completion=true'
-    foreach ($k in @($Query.Keys)) { $q += '&' + $k + '=' + [uri]::EscapeDataString([string]$Query[$k]) }
+    $q = 'wait_for_completion=' + $(if ($Query.ContainsKey('wait_for_completion')) { [string]$Query['wait_for_completion'] } else { 'true' })
+    foreach ($k in @($Query.Keys)) { if ($k -eq 'wait_for_completion') { continue }; $q += '&' + $k + '=' + [uri]::EscapeDataString([string]$Query[$k]) }
     return ($ApiBase + '/' + $script:VIN + '/command/' + $Cmd + '?' + $q)
 }
 
@@ -615,7 +620,7 @@ function Get-HomeWindowCharge {
         $cost += $c; $kwh += $k; $wall += $wk
         $af = Get-After6 $s $wl; $a6k += $af[0]; $a6c += $af[1]
         $ee = $(if ($null -ne $s.endEpoch) { [int64]$s.endEpoch } else { [int64]$s.lastEpoch })
-        $plist += [ordered]@{ source = $(if ($p.live) { 'live (in progress)' } else { [string]$s.source }); start = (ConvertFrom-Epoch ([int64]$s.startEpoch)).ToString('ddd h:mm tt', $Inv); end = (ConvertFrom-Epoch $ee).ToString('ddd h:mm tt', $Inv)
+        $plist += [ordered]@{ startEpoch = [int64]$s.startEpoch; endEpoch = $ee; live = [bool]$p.live; source = $(if ($p.live) { 'live (in progress)' } else { [string]$s.source }); start = (ConvertFrom-Epoch ([int64]$s.startEpoch)).ToString('ddd h:mm tt', $Inv); end = (ConvertFrom-Epoch $ee).ToString('ddd h:mm tt', $Inv)
             kwhAdded = [math]::Round($k, 2); kwhWall = [math]::Round($wk, 2); costUsdAllIn = [math]::Round($c, 4); kwhAfter6 = $af[0]; costAfter6 = $af[1]; home = $s.home }
     }
     $first = $parts[0].s; $last = $parts[-1].s
@@ -630,6 +635,40 @@ function Get-HomeWindowCharge {
         kwhAfter6 = [math]::Round($a6k, 2); costAfter6 = [math]::Round($a6c, 4); parts = $plist
     }
 }
+# v4.3.5: one line per session of the current / last overnight window: '1) 11:00–11:30 PM · 3.1 kWh · $0.21'
+function Format-TimeRange {
+    param([int64]$FromEpoch, [int64]$ToEpoch)
+    $tA = ConvertFrom-Epoch $FromEpoch; $tB = ConvertFrom-Epoch $ToEpoch
+    if ($tA.ToString('tt', $Inv) -eq $tB.ToString('tt', $Inv)) { return ($tA.ToString('h:mm', $Inv) + [char]0x2013 + $tB.ToString('h:mm tt', $Inv)) }
+    return ($tA.ToString('h:mm tt', $Inv) + [char]0x2013 + $tB.ToString('h:mm tt', $Inv))
+}
+function Get-WindowSessions {
+    param($St)
+    $w = $null; try { $w = Get-HomeWindowCharge $St } catch { Write-WidgetLog ('sessions: ' + $_.Exception.Message) }
+    if ($null -eq $w -or @($w.parts).Count -eq 0) { return $null }
+    $lines = @(); $i = 0; $sum = 0.0; $sumK = 0.0
+    foreach ($p in @($w.parts)) {
+        $i++; $sum += [double]$p.costUsdAllIn; $sumK += [double]$p.kwhAdded
+        $lines += ('{0}) {1} · {2} kWh · {3}{4}' -f $i, (Format-TimeRange ([int64]$p.startEpoch) ([int64]$p.endEpoch)), ([double]$p.kwhAdded).ToString('0.0', $Inv), (Format-Money $p.costUsdAllIn), $(if ($p.live) { ' · live' } else { '' }))
+    }
+    $wsL = ConvertFrom-Epoch ([int64]$w.windowStart)
+    return [pscustomobject]@{ header = ('Sessions · ' + $wsL.ToString('ddd h tt', $Inv) + ' ' + [char]0x2192 + ' ' + $wsL.AddHours((($NW_END - $NW_START + 24) % 24)).ToString('ddd h tt', $Inv))
+        lines = $lines; count = $i; sumCostUsd = [math]::Round($sum, 4); sumKwh = [math]::Round($sumK, 2); windowCostUsd = [double]$w.costUsdAllIn }
+}
+
+function Render-Sessions {
+    param($S)
+    $has = ($null -ne $S -and @($S.lines).Count -gt 0)
+    Set-Visible $ui.SessBox $has
+    if (-not $has) { return }
+    $ui.SessHdr.Text = [string]$S.header; $ui.SessHdr.Foreground = T 'Caption'
+    $ui.SessList.Children.Clear()
+    foreach ($l in @($S.lines)) {
+        $tb = New-Object System.Windows.Controls.TextBlock; $tb.Text = [string]$l; $tb.FontSize = 10; $tb.Foreground = T 'TextSoft'; $tb.TextTrimming = 'CharacterEllipsis'
+        [void]$ui.SessList.Children.Add($tb)
+    }
+}
+
 function Get-LastChargeShown {
     # Most recent of: the overnight home window (as one charge) or a later single session (e.g. daytime / Supercharger).
     param($St)
@@ -1250,6 +1289,11 @@ function Open-Url433 {
               <TextBlock x:Name="NightKwh" Grid.Column="1" Text="— kWh" FontSize="9.5" Foreground="#FF666666" VerticalAlignment="Center" Margin="4,1,0,0"/>
               <TextBlock x:Name="NightCost" Grid.Column="2" Text="$—" FontSize="13" FontWeight="Bold" Foreground="#FFFFFFFF" HorizontalAlignment="Right" VerticalAlignment="Center"/>
             </Grid>
+            <!-- v4.3.5: SESSIONS of the current / last 11 PM -> 11 AM window (one line each) -->
+            <StackPanel x:Name="SessBox" Visibility="Collapsed" Margin="8,0,0,2">
+              <TextBlock x:Name="SessHdr" Text="Sessions" FontSize="9" FontWeight="SemiBold" Foreground="#FF888888"/>
+              <StackPanel x:Name="SessList"/>
+            </StackPanel>
             <Border x:Name="RowSep1" Height="1" Background="#FF222222" Margin="0,1,0,1"/>
             <Grid x:Name="D7Row" Height="19">
               <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="62"/></Grid.ColumnDefinitions>
@@ -1445,18 +1489,20 @@ function Open-Url433 {
                   </StackPanel>
                 </Grid>
               </Button>
-              <Border x:Name="FlashBox" Height="56" Margin="3,0,3,0" CornerRadius="10" BorderThickness="1.5" BorderBrush="#FF49DF93" Background="#2649DF93" Padding="5,3,5,3" ToolTip="Flash the headlights (Tessie flash), 1-20 times about 2.5 s apart. Asks first; Stop ends early.">
+              <Border x:Name="FlashBox" Height="56" Margin="3,0,3,0" CornerRadius="10" BorderThickness="1.5" BorderBrush="#FF49DF93" Background="#2649DF93" Padding="5,3,5,3" ToolTip="Flash the headlights (Tessie flash), 1-20 times with the pause you set (1-30 s). Asks first; Stop ends early.">
                 <StackPanel VerticalAlignment="Center">
                   <Viewbox StretchDirection="DownOnly" HorizontalAlignment="Center"><TextBlock x:Name="FlashTxt" Text="FLASH LIGHTS" FontSize="11" FontWeight="Bold"/></Viewbox>
                   <Grid Margin="0,2,0,1">
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="28"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                    <TextBox x:Name="FlashCount" Text="3" Height="19" FontSize="11" FontWeight="Bold" TextAlignment="Center" VerticalContentAlignment="Center" Padding="0" MaxLength="2"
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="22"/><ColumnDefinition Width="30"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                    <TextBox x:Name="FlashCount" Text="5" Height="19" FontSize="11" FontWeight="Bold" TextAlignment="Center" VerticalContentAlignment="Center" Padding="0" MaxLength="2"
                              Background="#33000000" Foreground="#FFFFFFFF" BorderBrush="#FF49DF93" BorderThickness="1" CaretBrush="#FFFFFFFF" ToolTip="How many flashes (1-20)"/>
-                    <Button x:Name="FlashBtn" Grid.Column="1" Style="{StaticResource CtlBtn}" Height="19" Margin="4,0,0,0" Padding="2,0,2,0" ToolTip="Flash (asks first) / Stop">
-                      <TextBlock x:Name="FlashBtnTxt" Text="FLASH" FontSize="9.5" FontWeight="Bold" HorizontalAlignment="Center"/>
+                    <TextBox x:Name="FlashPause" Grid.Column="1" Text="1.0" Height="19" Margin="3,0,0,0" FontSize="10" FontWeight="Bold" TextAlignment="Center" VerticalContentAlignment="Center" Padding="0" MaxLength="4"
+                             Background="#33000000" Foreground="#FFFFFFFF" BorderBrush="#FF49DF93" BorderThickness="1" CaretBrush="#FFFFFFFF" ToolTip="Pause between flashes, seconds (1-30, 0.5 s steps; mouse wheel or Up/Down changes it). Under 3 s each flash is sent without waiting for the car (fire and go)."/>
+                    <Button x:Name="FlashBtn" Grid.Column="2" Style="{StaticResource CtlBtn}" Height="19" Margin="3,0,0,0" Padding="1,0,1,0" ToolTip="Flash (asks first) / Stop">
+                      <Viewbox StretchDirection="DownOnly"><TextBlock x:Name="FlashBtnTxt" Text="FLASH" FontSize="9.5" FontWeight="Bold" HorizontalAlignment="Center"/></Viewbox>
                     </Button>
                   </Grid>
-                  <Viewbox StretchDirection="DownOnly" HorizontalAlignment="Center"><TextBlock x:Name="FlashSub" Text="how many flashes" FontSize="8.5" FontWeight="SemiBold" Foreground="#FF888888"/></Viewbox>
+                  <Viewbox StretchDirection="DownOnly" HorizontalAlignment="Center"><TextBlock x:Name="FlashSub" Text="flashes · pause s" FontSize="8.5" FontWeight="SemiBold" Foreground="#FF888888"/></Viewbox>
                 </StackPanel>
               </Border>
               <Button x:Name="ClimBtn" Style="{StaticResource CtlBtn}" Height="56" Margin="3,0,0,0" Padding="4,4,4,4" ToolTip="Turn climate (A/C) on or off">
@@ -1470,6 +1516,8 @@ function Open-Url433 {
                 </Grid>
               </Button>
             </UniformGrid>
+            <TextBlock x:Name="FlashStats" Text="" Visibility="Collapsed" FontSize="9" FontWeight="SemiBold" Foreground="#FF888888" HorizontalAlignment="Center" Margin="0,3,0,0"
+                       ToolTip="Flash lights: response time of each flash request (sent until Tessie answered), average, and the measured gap between successful flashes"/>
             <UniformGrid Columns="3" Rows="1" Margin="0,6,0,0">
               <Button x:Name="HeatBtn" Style="{StaticResource CtlBtn}" Height="50" Margin="0,0,3,0" Padding="3,2,3,2" ToolTip="Heat = climate on with a warm set temperature (Tesla has no separate heater command)">
                 <StackPanel HorizontalAlignment="Center">
@@ -1713,6 +1761,17 @@ function Open-Url433 {
             <TextBlock x:Name="FooterSep" Text="  ·  " FontSize="9" Foreground="#FF6A6A6A"/>
             <TextBlock x:Name="FooterAbout" Text="About / Privacy" FontSize="9" Foreground="#FF6A6A6A"/>
           </StackPanel>
+          <!-- v4.3.5: KEEP / RESTORE this window's spot (same idea as Remember / Restore on Van's other windows) -->
+          <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,5,0,0">
+            <Border x:Name="KeepBtn" CornerRadius="8" BorderBrush="#FF49DF93" BorderThickness="1.5" Background="#1A49DF93" Padding="9,1,9,2" Margin="0,0,5,0" Cursor="Hand"
+                    ToolTip="KEEP: remember where TessDesk is now (position, size and screen). It opens here next time.">
+              <TextBlock x:Name="KeepTxt" Text="KEEP" FontSize="9.5" FontWeight="Bold" Foreground="#FFFFFFFF"/>
+            </Border>
+            <Border x:Name="RestoreBtn" CornerRadius="8" BorderBrush="#FF49DF93" BorderThickness="1.5" Background="#1A49DF93" Padding="9,1,9,2" Cursor="Hand"
+                    ToolTip="RESTORE: move TessDesk back to the kept spot">
+              <TextBlock x:Name="RestoreTxt" Text="RESTORE" FontSize="9.5" FontWeight="Bold" Foreground="#FFFFFFFF"/>
+            </Border>
+          </StackPanel>
         </StackPanel>
         <!-- v4.3: toast + confirm box (Confirm / Cancel) -->
         <Border x:Name="WToast" Grid.Row="4" Grid.RowSpan="2" VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,46" CornerRadius="10"
@@ -1869,7 +1928,7 @@ function Apply-Theme {
     # v4.3.2: green outline on the Alexa pill and the Flash Lights box too; glow follows the window corners
     $ui.AlexaBox.BorderBrush = T 'BtnBorder'; $ui.AlexaBox.BorderThickness = [System.Windows.Thickness]::new(1.5)
     $ui.FlashBox.Background = T 'BtnBg'; $ui.FlashBox.BorderBrush = T 'BtnBorder'; $ui.FlashBox.CornerRadius = $btnR
-    $ui.FlashTxt.Foreground = T 'Text'; $ui.FlashCount.BorderBrush = T 'BtnBorder'
+    $ui.FlashTxt.Foreground = T 'Text'; $ui.FlashCount.BorderBrush = T 'BtnBorder'; $ui.FlashPause.BorderBrush = T 'BtnBorder'
     $ui.GlowFrame.CornerRadius = [System.Windows.CornerRadius]::new($th.RootRadius); $ui.GlowInner.CornerRadius = [System.Windows.CornerRadius]::new([math]::Max(0, $th.RootRadius - 2))
     $script:GlowMode = $null
 }
@@ -1938,6 +1997,7 @@ function Add-CommonRows {
     $hasHist = ($null -ne $st) -and (@($st.recentSessions).Count -gt 0)
     if ($hasHist -or ($null -ne (Get-CurrentLive $st))) {
         $View.night = Get-NightTotal $st $nowE
+        $View.sessions = Get-WindowSessions $st
     } else {
         $nw = Get-NightWindow $nowE
         $View.night = [pscustomobject]@{ label = $(if ($nw.inWindow) { 'Tonight' } else { 'Last night' }); caption = 'no data yet'; costUsdAllIn = $null; kwhAdded = $null }
@@ -2229,6 +2289,7 @@ function Render-View {
         $ui.NightKwh.Text = Format-Kwh $v.night.kwhAdded
         if ($v.night.inWindow -and $v.accent -eq 'green') { $ui.NightCost.Foreground = T 'Green' } else { $ui.NightCost.Foreground = T 'Text' }
     }
+    Render-Sessions $v.sessions
     $cap = 'live from Tessie'; if ($v.periodSource -like 'daily*') { $cap = 'from daily file' }
     if ($null -ne $v.d7) {
         $ui.D7Cost.Text = Format-Money $v.d7.costUsdAllIn; $ui.D7Kwh.Text = Format-Kwh $v.d7.kwhAdded
@@ -2691,8 +2752,7 @@ function Complete-TessieCommand {
     }
     $script:CtlLog = @(@($script:CtlLog) + [ordered]@{ at = (Get-LocalNow).ToString('s'); cmd = $j.cmd; query = $j.query; url = $j.url
         dryRun = [bool]$CTL_DRYRUN; ok = $ok; seconds = $secs; result = $script:CtlResultText }) | Select-Object -Last 12
-    Render-View
-    Write-WidgetStatus
+    if ($j.cmd -eq 'flash' -and $script:Flash.running -and $script:Flash.done -lt $script:Flash.total) { Render-Controls } else { Render-View; Write-WidgetStatus }
     if ($null -ne $next) { if (-not (Start-TessieCommand $next.cmd $next.query $next.busy $next.okText $next.onOk $next.ann)) { $script:CtlQueue.Clear() } }
 }
 
@@ -2796,11 +2856,37 @@ function Render-Controls {
     try { Render-Flash } catch {}
 }
 
-# ---------------- v4.3.2: FLASH LIGHTS (1-20 flashes, ~2.5 s apart, asks first, Stop ends early) ----------------
-$script:Flash = [ordered]@{ total = 0; done = 0; running = $false; stoppedEarly = $false }
+# ---------------- v4.3.2: FLASH LIGHTS (1-20 flashes, asks first, Stop ends early) ----------------
+# v4.3.5: pause 1-30 s (config flashPauseSec). The next flash goes at (previous send + pause), but never while the previous
+# request is still in flight. Under 3 s: wait_for_completion=false (fire and go). Stats: response time last/avg + measured gap.
+$script:Flash = [ordered]@{ total = 0; done = 0; running = $false; stoppedEarly = $false; pause = $FLASH_PAUSE; noWait = $false
+    pendingAt = $null; nextAt = $null; sends = @(); rtts = @() }
 $script:FlashWaitFor = $null
 $script:FlashTimer = New-Object System.Windows.Threading.DispatcherTimer
-$script:FlashTimer.Interval = [TimeSpan]::FromMilliseconds(2500)
+$script:FlashTimer.Interval = [TimeSpan]::FromMilliseconds(50)
+function Get-FlashPause {
+    $t = ([string]$ui.FlashPause.Text).Trim().Replace(',', '.'); $v = 0.0
+    if (-not [double]::TryParse($t, [System.Globalization.NumberStyles]::Float, $Inv, [ref]$v)) { $v = $FLASH_PAUSE }
+    return [math]::Min(30.0, [math]::Max(1.0, [math]::Round($v * 2) / 2))
+}
+function Set-FlashPause {
+    param([double]$V)
+    $V = [math]::Min(30.0, [math]::Max(1.0, [math]::Round($V * 2) / 2))
+    $ui.FlashPause.Text = $V.ToString('0.0', $Inv)
+    if ($V -ne $script:FlashPauseSaved) { $script:FlashPauseSaved = $V; if (-not $SelfTest) { try { Save-ConfigProp 'flashPauseSec' $V } catch { Write-WidgetLog ('flash pause save failed: ' + $_.Exception.Message) } } }
+}
+$script:FlashPauseSaved = $FLASH_PAUSE; $script:FlashCountSaved = $FLASH_COUNT
+function Get-FlashStatsText {
+    $F = $script:Flash; $r = @($F.rtts); $s = @($F.sends)
+    if ($r.Count -eq 0) { return '' }
+    $txt = 'Last {0}s · avg {1}s' -f $r[-1].ToString('0.0', $Inv), (($r | Measure-Object -Average).Average).ToString('0.0', $Inv)
+    $g = Get-FlashGap; if ($null -ne $g) { $txt += ' · gap ' + $g.ToString('0.0', $Inv) + 's' }
+    return $txt
+}
+function Get-FlashGap {
+    $s = @($script:Flash.sends); if ($s.Count -lt 2) { return $null }
+    return (($s[-1] - $s[0]).TotalSeconds / ($s.Count - 1))
+}
 function Get-FlashCount {
     $n = 0; [void][int]::TryParse(([string]$ui.FlashCount.Text).Trim(), [ref]$n)
     if ($n -lt 1) { $n = 1 }; if ($n -gt 20) { $n = 20 }
@@ -2810,21 +2896,31 @@ function Invoke-FlashLights {
     if ($script:Flash.running) { Stop-FlashLights 'Stopped'; return }
     if (-not (Test-CmdOn) -or $script:CtlBusy) { return }
     $n = Get-FlashCount; $ui.FlashCount.Text = [string]$n
+    if ($n -ne $script:FlashCountSaved) { $script:FlashCountSaved = $n; if (-not $SelfTest) { try { Save-ConfigProp 'flashCount' $n } catch { Write-WidgetLog ('flash count save failed: ' + $_.Exception.Message) } } }
+    $p = Get-FlashPause; Set-FlashPause $p
     $plural = $(if ($n -eq 1) { '' } else { 'es' })
-    if (-not (Confirm-Ctl ('Flash the lights {0} time{1}?' -f $n, $(if ($n -eq 1) { '' } else { 's' })) ('{0} flash{1}, about 2.5 seconds apart. Tap Stop to end early.' -f $n, $plural) 'Flash' 'Cancel')) { Set-CtlResult 'idle' 'Flash lights cancelled'; Render-Flash; return }
-    $script:Flash.total = $n; $script:Flash.done = 0; $script:Flash.running = $true; $script:Flash.stoppedEarly = $false
+    if (-not (Confirm-Ctl ('Flash the lights {0} time{1}?' -f $n, $(if ($n -eq 1) { '' } else { 's' })) ('{0} flash{1}, about {2} seconds apart. Tap Stop to end early.' -f $n, $plural, $p.ToString('0.#', $Inv)) 'Flash' 'Cancel')) { Set-CtlResult 'idle' 'Flash lights cancelled'; Render-Flash; return }
+    $F = $script:Flash
+    $F.total = $n; $F.done = 0; $F.running = $true; $F.stoppedEarly = $false; $F.pause = $p; $F.noWait = ($p -lt 3.0)
+    $F.pendingAt = $null; $F.nextAt = $null; $F.sends = @(); $F.rtts = @()
+    $script:FlashTimer.Start()
     Step-FlashLights
 }
 function Step-FlashLights {
     $F = $script:Flash
     if (-not $F.running) { $script:FlashTimer.Stop(); return }
-    if ($script:CtlBusy) { return }          # the last flash is still being sent: try again on the next tick
+    if ($script:CtlBusy) { return }          # the last flash request is still in flight: never send another one on top of it
     if ($F.done -ge $F.total) { Stop-FlashLights 'Done'; return }
+    $now = Get-Date
+    if ($null -ne $F.nextAt -and $now -lt $F.nextAt) { return }
     $i = $F.done + 1
-    $ok = Start-TessieCommand 'flash' @{} ('Flashing {0} of {1}' -f $i, $F.total) ('Flashed {0} of {1}' -f $i, $F.total) $null
-    if (-not $ok) { Stop-FlashLights 'Could not send'; return }
+    $q = @{}; if ($F.noWait) { $q['wait_for_completion'] = 'false' }
+    $F.pendingAt = $now
+    $okb = { $FF = $script:Flash; if ($null -ne $FF.pendingAt) { $FF.rtts = @(@($FF.rtts) + [math]::Round(((Get-Date) - $FF.pendingAt).TotalSeconds, 2)); $FF.sends = @(@($FF.sends) + $FF.pendingAt); $FF.pendingAt = $null } }
+    $ok = Start-TessieCommand 'flash' $q ('Flashing {0} of {1}' -f $i, $F.total) ('Flashed {0} of {1}' -f $i, $F.total) $okb
+    if (-not $ok) { $F.pendingAt = $null; Stop-FlashLights 'Could not send'; return }
     $F.done = $i
-    $script:FlashTimer.Stop(); $script:FlashTimer.Start()
+    $F.nextAt = $now.AddSeconds($F.pause)
     Render-Flash
 }
 function Stop-FlashLights {
@@ -2832,27 +2928,34 @@ function Stop-FlashLights {
     $F = $script:Flash; $script:FlashTimer.Stop()
     $was = $F.running; $F.running = $false
     if ($Why -eq 'Stopped' -and $was) { $F.stoppedEarly = $true; if (-not $script:CtlBusy) { Set-CtlResult 'idle' ('Flash lights stopped after {0} of {1}' -f $F.done, $F.total) } }
-    if ($Why -eq 'Done' -and $was -and -not $script:CtlBusy) { Set-CtlResult 'ok' ('✓ Flashed the lights {0} time{1}{2}' -f $F.done, $(if ($F.done -eq 1) { '' } else { 's' }), $(if ($CTL_DRYRUN) { ' (dry run, not sent)' } else { '' })) }
+    if ($Why -eq 'Done' -and $was -and -not $script:CtlBusy) { $g = Get-FlashGap; Set-CtlResult 'ok' ('✓ Flashed the lights {0} time{1}{2}{3}' -f $F.done, $(if ($F.done -eq 1) { '' } else { 's' }), $(if ($null -ne $g) { ' · ~' + $g.ToString('0.0', $Inv) + 's apart' } else { '' }), $(if ($CTL_DRYRUN) { ' (dry run, not sent)' } else { '' })) }
     Render-Flash
 }
 function Render-Flash {
     $F = $script:Flash
     if ($F.running) {
         $ui.FlashBtnTxt.Text = 'STOP'; $ui.FlashBtn.Background = T 'SeatOn'; $ui.FlashBtn.BorderBrush = T 'SeatOn'
-        $ui.FlashSub.Text = ('Flashing {0} of {1}' -f [math]::Max(1, $F.done), $F.total); $ui.FlashSub.Foreground = T 'Green'
+        $g = Get-FlashGap
+        $ui.FlashSub.Text = ('Flashing {0} of {1}' -f [math]::Max(1, $F.done), $F.total) + $(if ($null -ne $g) { ' · ~' + $g.ToString('0.0', $Inv) + 's apart' } else { '' }); $ui.FlashSub.Foreground = T 'Green'
         $ui.FlashBtn.IsEnabled = $true
     } else {
         $ui.FlashBtnTxt.Text = 'FLASH'; $ui.FlashBtn.Background = T 'BtnBg'; $ui.FlashBtn.BorderBrush = T 'BtnBorder'
-        $ui.FlashSub.Text = 'how many flashes'; $ui.FlashSub.Foreground = T 'Caption'
+        $ui.FlashSub.Text = 'flashes · pause s'; $ui.FlashSub.Foreground = T 'Caption'
         $ui.FlashBtn.IsEnabled = ((Test-CmdOn) -and -not $script:CtlBusy -and $null -ne (Get-CtlCar))
     }
     $ui.FlashBtnTxt.Foreground = T 'Text'
-    $ui.FlashCount.IsEnabled = -not $F.running
+    $ui.FlashCount.IsEnabled = -not $F.running; $ui.FlashPause.IsEnabled = -not $F.running
+    $st = Get-FlashStatsText; Set-Visible $ui.FlashStats ([bool]$st); if ($ui.FlashStats.Text -ne $st) { $ui.FlashStats.Text = $st }; $ui.FlashStats.Foreground = T 'Caption'
 }
 $script:FlashTimer.Add_Tick({ try { Step-FlashLights } catch { Write-WidgetLog ('flash: ' + $_.Exception.Message) } })
 $ui.FlashBtn.Add_Click({ try { Invoke-FlashLights } catch { Write-WidgetLog ('flash: ' + $_.Exception.Message) } })
 $ui.FlashCount.Add_PreviewTextInput({ param($s, $e) if ($e.Text -notmatch '^[0-9]+$') { $e.Handled = $true } })
 $ui.FlashCount.Add_LostFocus({ try { $ui.FlashCount.Text = [string](Get-FlashCount) } catch {} })
+$ui.FlashPause.Text = $FLASH_PAUSE.ToString('0.0', $Inv); $ui.FlashCount.Text = [string]$FLASH_COUNT
+$ui.FlashPause.Add_PreviewTextInput({ param($s, $e) if ($e.Text -notmatch '^[0-9.,]+$') { $e.Handled = $true } })
+$ui.FlashPause.Add_LostFocus({ try { Set-FlashPause (Get-FlashPause) } catch {} })
+$ui.FlashPause.Add_PreviewMouseWheel({ param($s, $e) try { if ($ui.FlashPause.IsEnabled) { Set-FlashPause ((Get-FlashPause) + $(if ($e.Delta -gt 0) { 0.5 } else { -0.5 })); $e.Handled = $true } } catch {} })
+$ui.FlashPause.Add_PreviewKeyDown({ param($s, $e) try { if ($e.Key -eq 'Up') { Set-FlashPause ((Get-FlashPause) + 0.5); $e.Handled = $true } elseif ($e.Key -eq 'Down') { Set-FlashPause ((Get-FlashPause) - 0.5); $e.Handled = $true } elseif ($e.Key -eq 'Enter') { Set-FlashPause (Get-FlashPause); $e.Handled = $true } } catch {} })
 
 # ---------------- v4.2 controls: charging start/stop, amps, heat, defrost, cabin overheat, seats, wheel ----------------
 $script:CtlQueue = New-Object System.Collections.Queue     # follow-up commands (Heat = set_temperatures then start_climate)
@@ -4587,6 +4690,7 @@ function Write-WidgetStatus {
                 seats = [ordered]@{ fl = $ui.SeatFLN.Text; fr = $ui.SeatFRN.Text; rl = $(if ($ui.SeatRL.Visibility -eq 'Visible') { $ui.SeatRLN.Text } else { 'hidden' }); rc = $(if ($ui.SeatRC.Visibility -eq 'Visible') { $ui.SeatRCN.Text } else { 'hidden' }); rr = $(if ($ui.SeatRR.Visibility -eq 'Visible') { $ui.SeatRRN.Text } else { 'hidden' }); wheel = $(if ($ui.WheelBtn.Visibility -eq 'Visible') { $ui.WheelLvl.Text } else { 'hidden' }) }
                 result = $script:CtlResultText; resultKind = $script:CtlResultKind; recent = $script:CtlLog; realCommandsSentThisRun = $script:NetCommandsSent }
             rows = [ordered]@{
+                sessions = [ordered]@{ visible = ($ui.SessBox.Visibility -eq 'Visible'); header = $ui.SessHdr.Text; lines = @($ui.SessList.Children | ForEach-Object { $_.Text }) }
                 night = [ordered]@{ label = $ui.NightLbl.Text; caption = $ui.NightCap.Text; cost = $ui.NightCost.Text; kwh = $ui.NightKwh.Text }
                 d7 = [ordered]@{ cost = $ui.D7Cost.Text; kwh = $ui.D7Kwh.Text; caption = $ui.D7Cap.Text }
                 d30 = [ordered]@{ cost = $ui.D30Cost.Text; kwh = $ui.D30Kwh.Text; caption = $ui.D30Cap.Text } }
@@ -4594,10 +4698,11 @@ function Write-WidgetStatus {
             footer = [ordered]@{ text = (((@($ui.FooterText.Inlines | ForEach-Object { $_.Text }) -join '') -replace [string][char]0x2009, '') -replace '\s+', ' ').Trim(); version = $ui.FooterVersion.Text; link = $ChangelogUrl; about = $ui.FooterAbout.Text; aboutLink = $PrivacyUrl }
             layout = Get-LayoutCheck
             position = [ordered]@{ left = $window.Left; top = $window.Top; width = $window.Width; height = $window.Height }
+            keptSpot = $script:KeptSpot; startedAtKeptSpot = [bool]$script:StartedAtKept
             lastSnapshot = $script:LastSnapshot
             v43 = (Get-V43Status)
             v432 = [ordered]@{ glow = $script:GlowMode; glowForced = $script:GlowForce; glowOpacityNow = [math]::Round($ui.GlowFrame.Opacity, 2); seatsCardAboveTires = $true
-                flash = [ordered]@{ count = $ui.FlashCount.Text; button = $ui.FlashBtnTxt.Text; progress = $ui.FlashSub.Text; running = [bool]$script:Flash.running; done = $script:Flash.done; total = $script:Flash.total }
+                flash = [ordered]@{ pauseSec = $ui.FlashPause.Text; noWait = [bool]$script:Flash.noWait; stats = $ui.FlashStats.Text; rtts = @($script:Flash.rtts); gapSec = (Get-FlashGap); count = $ui.FlashCount.Text; button = $ui.FlashBtnTxt.Text; progress = $ui.FlashSub.Text; running = [bool]$script:Flash.running; done = $script:Flash.done; total = $script:Flash.total }
                 lastChargeWindow = $script:LastWindow }
             v433 = [ordered]@{ trunk = [ordered]@{ button = $ui.TrunkTxt.Text; sub = $ui.TrunkSub.Text }; sentry = [ordered]@{ button = $ui.SentryTxt.Text; sub = $ui.SentrySub.Text }
                 drives = @(@(Get-Val $script:State.drives @()) | Where-Object { $null -ne $_ }).Count; drivesFetched = $script:State.drivesFetchEpoch; drivesNote = $script:DrivesNote
@@ -4678,6 +4783,8 @@ $ui.FooterAbout.ToolTip = 'About TessDesk: notice, privacy, permissions and gett
 $ui.FooterAbout.Add_MouseEnter({ $ui.FooterAbout.TextDecorations = [System.Windows.TextDecorations]::Underline })
 $ui.FooterAbout.Add_MouseLeave({ $ui.FooterAbout.TextDecorations = $null })
 $ui.FooterAbout.Add_MouseLeftButtonUp({ if (-not $SelfTest) { try { Show-ConsentWindow $false } catch { Write-WidgetLog ('about window failed: ' + $_.Exception.Message) } } })
+$ui.KeepBtn.Add_MouseLeftButtonUp({ try { Invoke-KeepSpot } catch { Write-WidgetLog ('keep failed: ' + $_.Exception.Message); Show-TdToast ('Could not save the spot: ' + $_.Exception.Message) $false } })
+$ui.RestoreBtn.Add_MouseLeftButtonUp({ try { Invoke-RestoreSpot } catch { Write-WidgetLog ('restore failed: ' + $_.Exception.Message) } })
 $ui.LayoutBtn.Add_Click({ try { Set-LayoutMode $(if ($script:Layout -eq 'compact') { 'full' } else { 'compact' }) (-not $SelfTest) } catch { Write-WidgetLog ('layout toggle failed: ' + $_.Exception.Message) } })
 $ui.RemindSetup.Add_MouseLeftButtonUp({ try { [void](Show-ReminderSetup) } catch { Write-WidgetLog ('reminder setup failed: ' + $_.Exception.Message) } })
 $ui.RemindBtn.Add_Click({ try { Request-TireReminder } catch { Write-WidgetLog ('reminder failed: ' + $_.Exception.Message); [void][System.Windows.MessageBox]::Show($window, ('Could not set the reminder: ' + $_.Exception.Message), 'TessDesk · Reminder', 'OK', 'Warning') } })
@@ -4690,6 +4797,73 @@ try {
     $window.Left = [math]::Max($wa.Left, [math]::Min($left, $wa.Right - $winW))
     $window.Top  = [math]::Max($wa.Top, [math]::Min($top, $wa.Bottom - $winH))
 } catch { $window.Left = 40; $window.Top = 40 }
+
+# ---------------- v4.3.5: KEEP / RESTORE (window spot) ----------------
+try { Add-Type -AssemblyName System.Windows.Forms -ErrorAction Stop } catch {}
+if (-not ('TdWinRect' -as [type])) {
+    Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public static class TdWinRect { [StructLayout(LayoutKind.Sequential)] public struct RECT { public int L, T, R, B; } [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r); }'
+}
+$CbLayoutPath = Join-Path $env:USERPROFILE 'cb_window_layout.json'     # Van's window-layout system (Remember / Restore / Save All)
+$script:KeptSpot = $null; try { if ($null -ne $c.keptSpot -and $null -ne $c.keptSpot.left) { $script:KeptSpot = $c.keptSpot } } catch {}
+function Get-TdHwnd { return (New-Object System.Windows.Interop.WindowInteropHelper($window)).Handle }
+function Get-TdMonitor { try { return [string][System.Windows.Forms.Screen]::FromHandle((Get-TdHwnd)).DeviceName } catch { return $null } }
+function Test-SpotUsable {
+    param($S)
+    if ($null -eq $S) { return $false }
+    try {
+        $scr = @([System.Windows.Forms.Screen]::AllScreens)
+        if ($S.monitor -and -not ($scr | Where-Object { $_.DeviceName -eq [string]$S.monitor })) { return $false }
+        $vl = [System.Windows.SystemParameters]::VirtualScreenLeft; $vt = [System.Windows.SystemParameters]::VirtualScreenTop
+        $vw = [System.Windows.SystemParameters]::VirtualScreenWidth; $vh = [System.Windows.SystemParameters]::VirtualScreenHeight
+        $l = [double]$S.left; $t = [double]$S.top; $w = [double]$S.width
+        return (($l + $w) -gt ($vl + 40) -and $l -lt ($vl + $vw - 40) -and $t -ge ($vt - 10) -and $t -lt ($vt + $vh - 40))
+    } catch { return $false }
+}
+function Set-TdSpot {
+    param($S)
+    $window.Left = [double]$S.left; $window.Top = [double]$S.top
+    if ($null -ne $S.width -and [double]$S.width -ge 200) { $window.Width = [double]$S.width }
+    if ($null -ne $S.height -and [double]$S.height -ge 400) { $window.Height = [double]$S.height }
+}
+function Write-CbTessDeskEntry {
+    # Adds / updates the TESSDESK entry in Van's layout file (same fields as cb_window_lib.ps1 writes); other entries are kept as-is.
+    param($Rect)
+    $path = $(if ($SelfTest -and $script:SelfCbPath) { $script:SelfCbPath } else { $CbLayoutPath })
+    if (-not (Test-Path -LiteralPath $path)) { return 'no layout file' }
+    $doc = Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json
+    $list = @(@($doc.windows) | Where-Object { $null -ne $_ -and [string]$_.name -ne 'TESSDESK' })
+    $e = [ordered]@{ name = 'TESSDESK'; kind = 'widget'; script = (Join-Path $scriptDir 'TessDesk.ps1'); sta = $true; excludeArgs = ''; titleRegex = '^TessDesk'
+        startupEntry = 'Startup folder: TessDesk.lnk'; x = [int]$Rect.x; y = [int]$Rect.y; w = [int]$Rect.w; h = [int]$Rect.h; source = ('kept in TessDesk ' + (Get-Date).ToString('yyyy-MM-dd HH:mm')) }
+    $old = @(@($doc.windows) | Where-Object { $null -ne $_ -and [string]$_.name -eq 'TESSDESK' })[0]
+    if ($null -ne $old -and $old.startupEntry) { $e.startupEntry = [string]$old.startupEntry }
+    $out = [ordered]@{ saved = (Get-Date).ToString('yyyy-MM-dd HH:mm:ss'); note = $(if ($doc.note) { [string]$doc.note } else { 'Saved by Remember / Save All / Save Window Locations; read by restore, startup and maintenance' }); windows = @($list + [pscustomobject]$e) }
+    $tmp = $path + '.tmp'
+    $out | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $tmp -Encoding UTF8
+    Move-Item -LiteralPath $tmp -Destination $path -Force
+    return 'TESSDESK entry written'
+}
+function Invoke-KeepSpot {
+    $r = New-Object TdWinRect+RECT; [void][TdWinRect]::GetWindowRect((Get-TdHwnd), [ref]$r)
+    $rect = [ordered]@{ x = $r.L; y = $r.T; w = ($r.R - $r.L); h = ($r.B - $r.T) }
+    $S = [ordered]@{ left = [math]::Round($window.Left, 1); top = [math]::Round($window.Top, 1); width = [math]::Round($window.ActualWidth, 1); height = [math]::Round($window.ActualHeight, 1)
+        x = $rect.x; y = $rect.y; w = $rect.w; h = $rect.h; monitor = (Get-TdMonitor); savedAt = (Get-LocalNow).ToString('s') }
+    Save-ConfigProp 'keptSpot' $S
+    $script:KeptSpot = [pscustomobject]$S
+    $cb = $null; try { $cb = Write-CbTessDeskEntry $rect } catch { $cb = 'layout file not updated: ' + $_.Exception.Message; Write-WidgetLog $cb }
+    $script:KeepLast = [ordered]@{ action = 'keep'; spot = $S; layoutFile = $cb }
+    Write-WidgetLog ('KEEP: spot saved ' + $S.left + ',' + $S.top + ' ' + $S.width + 'x' + $S.height + ' on ' + $S.monitor + ' (' + $cb + ')')
+    Show-TdToast 'Spot saved' $true
+}
+function Invoke-RestoreSpot {
+    if ($null -eq $script:KeptSpot) { Show-TdToast 'No kept spot yet: press KEEP first' $false; return }
+    if (-not (Test-SpotUsable $script:KeptSpot)) { Show-TdToast 'The kept spot is not on any screen right now' $false; return }
+    Set-TdSpot $script:KeptSpot
+    $script:KeepLast = [ordered]@{ action = 'restore'; spot = $script:KeptSpot }
+    Write-WidgetLog ('RESTORE: moved to ' + $script:KeptSpot.left + ',' + $script:KeptSpot.top)
+    Show-TdToast 'Back at the kept spot' $true
+}
+# startup: open at the kept spot
+try { if (Test-SpotUsable $script:KeptSpot) { Set-TdSpot $script:KeptSpot; $script:StartedAtKept = $true } } catch {}
 
 $script:State = Load-WidgetState
 $script:LastSnapshot = $null
@@ -4914,6 +5088,41 @@ function Start-SelfTest {
             backupFiles = @(Get-ChildItem -LiteralPath $script:Upd.backup | ForEach-Object { $_.Name }); installedIs434 = ($now -match "\`$AppVersion = '4.3.4'")
             backupIs433 = ([System.IO.File]::ReadAllText((Join-Path $script:Upd.backup 'TessDesk.ps1')) -match "\`$AppVersion = '4.3.3'") }
         & $script:Shot433 'update-installed' }
+    & $add 'v4.3.5 flash pause: clamp 0.3 -> 1.0, 31 -> 30.0, 2.7 -> 2.5' @() { $script:SelfRec.v435 = [ordered]@{}; $ui.FlashPause.Text = '0.3'; $a = Get-FlashPause; $ui.FlashPause.Text = '31'; $b = Get-FlashPause; $ui.FlashPause.Text = '2.7'; $c2 = Get-FlashPause; $script:SelfRec.v435.clamp = @($a, $b, $c2) }
+    & $add 'v4.3.5 flash x4, pause 1.0 s (fire and go, DRY RUN)' @($true) { $script:V435n0 = @($script:CtlLog).Count; $ui.FlashCount.Text = '4'; $ui.FlashPause.Text = '1.0'; Invoke-FlashLights; $script:FlashWaitFor = 99 }
+    & $add 'v4.3.5 flash x4 result' @() { $window.UpdateLayout(); $L = @(@($script:CtlLog)[$script:V435n0..(@($script:CtlLog).Count - 1)] | Where-Object { $_.cmd -eq 'flash' })
+        $script:SelfRec.v435.fast = [ordered]@{ urls = @($L | ForEach-Object { $_.url }); rtts = @($script:Flash.rtts); gap = (Get-FlashGap); stats = $ui.FlashStats.Text; statsVisible = ($ui.FlashStats.Visibility -eq 'Visible'); result = $script:CtlResultText
+            noOverlap = $(if (@($script:Flash.sends).Count -ge 2) { $ok2 = $true; for ($k = 1; $k -lt @($script:Flash.sends).Count; $k++) { if ((($script:Flash.sends[$k] - $script:Flash.sends[$k - 1]).TotalSeconds) -lt ($script:Flash.rtts[$k - 1] - 0.1)) { $ok2 = $false } }; $ok2 } else { $null }) }
+        & $script:Shot433 'v435-flash-stats' }
+    & $add 'v4.3.5 flash x2, pause 3.0 s (waits for completion, DRY RUN)' @($true) { $script:V435n1 = @($script:CtlLog).Count; $ui.FlashCount.Text = '2'; $ui.FlashPause.Text = '3.0'; Invoke-FlashLights; $script:FlashWaitFor = 2 }
+    & $add 'v4.3.5 flash x2 progress snapshot' @() { $window.UpdateLayout(); $script:SelfRec.v435.slowProgress = $ui.FlashSub.Text; & $script:Shot433 'v435-flash-progress'; $script:FlashWaitFor = 99 }
+    & $add 'v4.3.5 flash x2 result' @() { $window.UpdateLayout(); $L = @(@($script:CtlLog)[$script:V435n1..(@($script:CtlLog).Count - 1)] | Where-Object { $_.cmd -eq 'flash' }); $script:SelfRec.v435.slow = [ordered]@{ urls = @($L | ForEach-Object { $_.url }); gap = (Get-FlashGap); stats = $ui.FlashStats.Text; result = $script:CtlResultText; defaults = @($FLASH_COUNT, $FLASH_PAUSE) }; $ui.FlashPause.Text = $FLASH_PAUSE.ToString('0.0', $Inv) }
+    & $add 'v4.3.5 sessions: mock window, 3 parts (pause + replug, one after 6 AM)' @() {
+        $ws = Get-ChargeWindowStart ((Get-EpochNow) - 86400); if ($null -eq $ws) { $t0 = (Get-LocalNow).Date.AddDays(-1).AddHours($NW_START); $ws = ConvertTo-EpochLocal $t0 }
+        $mk = { param($a, $b, $k) $wall = $k / $EFFICIENCY; $c = (Get-SpreadCost $a $b $wall $a $b)[0]; [pscustomobject]@{ source = 'tessie'; startEpoch = [int64]$a; endEpoch = [int64]$b; kwhAdded = $k; kwhWall = $wall; costUsdAllIn = [math]::Round($c, 4); home = $null; fast = $false; kwhAtStart = 0.0 } }
+        $parts = @((& $mk ($ws) ($ws + 1800) 3.1), (& $mk ($ws + 3 * 3600) ($ws + 4 * 3600 + 900) 7.4), (& $mk ($ws + 7 * 3600 + 1800) ($ws + 8 * 3600) 2.2))
+        $mock = [pscustomobject]@{ recentSessions = $parts; wasCharging = $false; session = $null; lastCar = $null }
+        $ms = Get-WindowSessions $mock; $mw = Get-HomeWindowCharge $mock
+        $script:SelfRec.v435.sessionsMock = [ordered]@{ header = $ms.header; lines = $ms.lines; sumOfLines = $ms.sumCostUsd; windowCost = $mw.costUsdAllIn; sumMatches = ([math]::Abs($ms.sumCostUsd - $mw.costUsdAllIn) -lt 0.0001)
+            perPartCost = @($parts | ForEach-Object { $_.costUsdAllIn }); after6 = [ordered]@{ kwh = $mw.kwhAfter6; cost = $mw.costAfter6 } }
+        Render-Sessions $ms; $ui.RowsCard.BringIntoView(); $window.UpdateLayout(); & $script:Shot433 'v435-sessions-mock' }
+    & $add 'v4.3.5 sessions: cached real read (state.json, Tessie cache)' @() {
+        $rs = Get-WindowSessions $script:State; $rw = Get-HomeWindowCharge $script:State
+        $script:SelfRec.v435.sessionsReal = [ordered]@{ header = $(if ($rs) { $rs.header } else { $null }); lines = $(if ($rs) { $rs.lines } else { @() }); sumOfLines = $(if ($rs) { $rs.sumCostUsd } else { $null }); windowCost = $(if ($rw) { $rw.costUsdAllIn } else { $null }); hero = $ui.HeroCost.Text }
+        Render-View; $ui.RowsCard.BringIntoView(); $window.UpdateLayout(); & $script:Shot433 'v435-sessions-real' }
+    & $add 'v4.3.5 KEEP: save the spot (test copy of the layout file)' @() {
+        $script:SelfCbPath = Join-Path $script:SelfDir 'cb_window_layout.json'
+        if (Test-Path -LiteralPath $CbLayoutPath) { Copy-Item -LiteralPath $CbLayoutPath -Destination $script:SelfCbPath -Force } else { [ordered]@{ saved = ''; note = 'test'; windows = @() } | ConvertTo-Json | Set-Content -LiteralPath $script:SelfCbPath -Encoding UTF8 }
+        $script:SelfRec.v435.keepBefore = [ordered]@{ left = $window.Left; top = $window.Top; width = $window.ActualWidth; height = $window.ActualHeight }
+        Invoke-KeepSpot; $window.UpdateLayout(); & $script:Shot433 'v435-keep-toast'
+        $cbd = Get-Content -LiteralPath $script:SelfCbPath -Raw | ConvertFrom-Json
+        $script:SelfRec.v435.keep = [ordered]@{ toast = $ui.WToastTxt.Text; kept = $script:KeptSpot; configHasIt = ($null -ne (Get-Content -LiteralPath $ConfigPath -Raw | ConvertFrom-Json).keptSpot)
+            cbEntry = @(@($cbd.windows) | Where-Object { $_.name -eq 'TESSDESK' })[0]; cbOtherEntries = @(@($cbd.windows) | Where-Object { $_.name -ne 'TESSDESK' } | ForEach-Object { $_.name }) } }
+    & $add 'v4.3.5 RESTORE: move away, then back' @() {
+        $window.Left = $window.Left - 300; $window.Top = $window.Top + 25; $moved = [ordered]@{ left = $window.Left; top = $window.Top }
+        Invoke-RestoreSpot
+        $script:SelfRec.v435.restore = [ordered]@{ moved = $moved; after = [ordered]@{ left = $window.Left; top = $window.Top; width = $window.Width; height = $window.Height }; toast = $ui.WToastTxt.Text
+            backAtKept = ([math]::Abs($window.Left - [double]$script:KeptSpot.left) -lt 1 -and [math]::Abs($window.Top - [double]$script:KeptSpot.top) -lt 1) } }
     if ($Quick433) { return (Start-SelfTimer) }
     # ---- v4.3.2 steps (forced/mock state, DRY RUN: nothing is sent to the car, nothing announced) ----
     $script:Shot432 = { param($n, [switch]$Full) $f = 'tessdesk-v432-' + $n + '.png'; if ($Full) { Save-RootPng (Join-Path $script:SelfDir $f) -Full } else { Save-RootPng (Join-Path $script:SelfDir $f) }; $script:SelfRec.shots += $f }

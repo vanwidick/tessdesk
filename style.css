@@ -491,6 +491,8 @@ body.glow-pulse::after { animation: glowpulse 3.5s ease-in-out infinite; }
 .fl-go { flex: 1; min-width: 0; border: 1.5px solid #49df93; border-radius: 8px; background: color-mix(in srgb, #49df93 22%, transparent); color: #fff; font-weight: 900; font-size: 12px; letter-spacing: .05em; cursor: pointer; }
 .cbtn.flash.running .fl-go { background: #e5383b; border-color: #e5383b; }
 .fl-go:disabled { opacity: .45; }
+.fl-row input.fl-p { width: 40px; flex: 0 0 40px; font-size: 13px; }
+.fl-stats { text-align: center; font-size: 10.5px; font-weight: 600; color: var(--muted); margin: 5px 0 0; font-variant-numeric: tabular-nums; }
 body.compact .cbtn.flash { min-height: 0; }
 .ann-row .cbtn.ann { border-color: #49df93; }
 
@@ -520,3 +522,7 @@ body.compact .cbtn.flash { min-height: 0; }
   background: #49df93; color: #06210f; cursor: pointer; font: inherit; touch-action: manipulation; }
 .upd-banner b { font-size: 15px; font-weight: 800; letter-spacing: .03em; } .upd-banner small { font-size: 11px; font-weight: 700; opacity: .8; }
 .upd-banner:active { transform: scale(.98); }
+/* v4.3.5 sessions under Tonight */
+.rows .sess { padding: 0 2px 7px 10px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; line-height: 1.45; }
+.rows .sess small { display: block; font-size: 10.5px; letter-spacing: .03em; opacity: .85; }
+.rows .sess + .row { border-top: 1px solid var(--line); }

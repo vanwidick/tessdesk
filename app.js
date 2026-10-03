@@ -5,7 +5,7 @@
   var CFG = window.TD_CONFIG || {};
   var VARIANT = CFG.variant || 'main';
   var P = CFG.storagePrefix || 'td:';
-  var VERSION = 'v4.3.4';
+  var VERSION = 'v4.3.5';
   var VERSION_DATE = 'Oct 3, 2026';
   var TZ = 'America/Chicago';
   var DEFAULT_API = 'https://api.tessie.com';
@@ -151,7 +151,7 @@
   // Dry run (Settings > Advanced, and the headless tests) never touches the network.
   function command(name, query) {
     var cfg = getCfg() || {};
-    var q = 'wait_for_completion=true'; Object.keys(query || {}).forEach(function (k) { q += '&' + k + '=' + encodeURIComponent(query[k]); });
+    var q = 'wait_for_completion=' + (query && query.wait_for_completion !== undefined ? query.wait_for_completion : 'true'); Object.keys(query || {}).forEach(function (k) { if (k === 'wait_for_completion') return; q += '&' + k + '=' + encodeURIComponent(query[k]); });
     var path = '/' + cfg.vin + '/command/' + name + '?' + q;
     cmdLog.push({ at: new Date().toISOString(), cmd: name, path: path, dryRun: !!load('dryRun', false) });
     if (cmdLog.length > 20) cmdLog.shift();
@@ -346,7 +346,7 @@
       windows: { fd: vs.fd_window, fp: vs.fp_window, rd: vs.rd_window, rp: vs.rp_window },
       trunkOpen: vs.rt != null ? +vs.rt !== 0 : null, sentry: vs.sentry_mode != null ? !!vs.sentry_mode : null };
     return {
-      charging: charging, state: st, cs: cs, hero: hero, heroCost: hc,
+      charging: charging, state: st, cs: cs, hero: hero, heroCost: hc, win: agg,
       kw: charging ? chargerKw(cs) : null, toFull: charging ? fmtMins(cs.minutes_to_full_charge) : null,
       night: night, nightLabel: label, nightStart: w0, d7: d7, d30: d30,
       soc: soc, limit: limit, socStart: socStart, range: range, rangeKind: rangeKind, car: car,
@@ -468,7 +468,7 @@
     // v4.2: money rows right under the hero, compact
     var nightSub = v.nightLabel === 'Tonight' ? 'since ' + clock(v.nightStart) : dayLabel(v.nightStart) + ', 11 PM \u2013 11 AM';
     h += '<div class="card rows compact">' +
-      row(v.nightLabel, nightSub, v.night, true) + row('Last 7 days', null, v.d7) + row('Last 30 days', null, v.d30) + '</div>';
+      row(v.nightLabel, nightSub, v.night, true) + sessionsBlock(cfg, v.win) + row('Last 7 days', null, v.d7) + row('Last 30 days', null, v.d30) + '</div>';
 
     // battery: big % + range, 0-100% bar (ball = now, tick = where this charge started), draggable LIMIT handle
     var a = v.socStart, b = ctlVal('limit', v.limit), s = v.soc;
@@ -555,9 +555,11 @@
       '<button class="cbtn big' + lockCls + '" id="cLock"' + dis + '>' + (locked === false ? ICON_UNLOCK : ICON_LOCK) + '<span><b>' + lockTxt + '</b><small>' + lockSub + '</small></span></button>' +
       '<div class="cbtn flash' + (flash.running ? ' running' : '') + '" id="cFlashBox"><b>FLASH LIGHTS</b><div class="fl-row">' +
       '<input id="cFlashN" type="number" inputmode="numeric" min="1" max="20" step="1" value="' + flash.n + '" aria-label="How many flashes (1-20)"' + (flash.running || dis ? ' disabled' : '') + '>' +
+      '<input id="cFlashP" class="fl-p" type="number" inputmode="decimal" min="1" max="30" step="0.5" value="' + flash.pause.toFixed(1) + '" aria-label="Pause between flashes, seconds (1-30)" title="Pause between flashes, seconds (1-30, 0.5 s steps). Under 3 s each flash is sent without waiting for the car."' + (flash.running || dis ? ' disabled' : '') + '>' +
       '<button class="fl-go" id="cFlash"' + (flash.running ? '' : dis) + '>' + (flash.running ? 'STOP' : 'FLASH') + '</button></div>' +
-      '<small>' + (flash.running ? 'Flashing ' + Math.max(1, flash.done) + ' of ' + flash.total : 'how many flashes') + '</small></div>' +
+      '<small>' + (flash.running ? 'Flashing ' + Math.max(1, flash.done) + ' of ' + flash.total + (flashGap() !== null ? ' \u00b7 ~' + flashGap().toFixed(1) + 's apart' : '') : 'flashes \u00b7 pause s') + '</small></div>' +
       '<button class="cbtn big' + (clim ? ' on' : '') + '" id="cClim"' + dis + '>' + ICON_SNOW + '<span><b>' + (clim ? (heatOn(car) ? 'CLIMATE ON' : 'A/C ON') : 'A/C OFF') + '</b><small>' + ins + (clim ? 'tap off' : 'tap on') + '</small></span></button></div>' +
+      (flashStats() ? '<div class="fl-stats" id="cFlashStats" title="Flash lights: response time of each flash request (sent until Tessie answered), average, and the measured gap between successful flashes">' + flashStats() + '</div>' : '') +
       climateRow(car, dis) +
       '<div class="ctl-row3">' +
       '<button class="cbtn' + (win ? ' state' : '') + '" id="cVent"' + dis + '><b>VENT</b><small>' + (win ? 'VENTED / OPEN' : 'WINDOWS') + '</small></button>' +
@@ -637,31 +639,46 @@
     return h + '</ul></div>';
   }
 
-  // ---------- v4.3.2 FLASH LIGHTS: 1-20 flashes ~2.5 s apart, asks first, Stop ends early ----------
-  var flash = { n: 3, running: false, done: 0, total: 0, timer: null };
+  // ---------- v4.3.2 FLASH LIGHTS: 1-20 flashes, asks first, Stop ends early ----------
+  // v4.3.5: pause 1-30 s (0.5 s steps, localStorage flashPause, default 2.5). Next flash at (previous send + pause), never while the
+  // previous request is still in flight. Under 3 s: wait_for_completion=false (fire and go). Stats: response time last/avg + measured gap.
   function clampFlash(v) { v = parseInt(v, 10); if (!(v >= 1)) v = 1; if (v > 20) v = 20; return v; }
+  function clampPause(v) { v = parseFloat(String(v).replace(',', '.')); if (!(v >= 1)) v = 1; if (v > 30) v = 30; return Math.round(v * 2) / 2; }
+  var flash = { n: clampFlash(load('flashCount', 5)), running: false, done: 0, total: 0, timer: null, pause: clampPause(load('flashPause', 1)), noWait: false, pendingAt: null, nextAt: 0, sends: [], rtts: [] };
+  function setPause(v) { flash.pause = clampPause(v); save('flashPause', flash.pause); return flash.pause; }
+  function flashGap() { var s = flash.sends; return s.length < 2 ? null : (s[s.length - 1] - s[0]) / 1000 / (s.length - 1); }
+  function flashStats() {
+    var r = flash.rtts; if (!r.length) return '';
+    var avg = r.reduce(function (a, b) { return a + b; }, 0) / r.length, g = flashGap();
+    return 'Last ' + r[r.length - 1].toFixed(1) + 's \u00b7 avg ' + avg.toFixed(1) + 's' + (g !== null ? ' \u00b7 gap ' + g.toFixed(1) + 's' : '');
+  }
   function onFlash() {
     if (flash.running) { stopFlash(true); return; }
     if (ctlBusy || !cmdAllowed()) return;
-    var el = document.getElementById('cFlashN'); var n = clampFlash(el ? el.value : flash.n); flash.n = n;
-    confirmBox('Flash the lights ' + n + ' time' + (n === 1 ? '' : 's') + '?', 'Flash', n + ' flash' + (n === 1 ? '' : 'es') + ', about 2.5 seconds apart. Tap Stop to end early.').then(function (ok) {
+    var el = document.getElementById('cFlashN'); var n = clampFlash(el ? el.value : flash.n); flash.n = n; save('flashCount', n);
+    var pe = document.getElementById('cFlashP'); var p = setPause(pe ? pe.value : flash.pause);
+    confirmBox('Flash the lights ' + n + ' time' + (n === 1 ? '' : 's') + '?', 'Flash', n + ' flash' + (n === 1 ? '' : 'es') + ', about ' + p + ' seconds apart. Tap Stop to end early.').then(function (ok) {
       if (!ok) { ctlMsg = { kind: 'idle', text: 'Flash lights cancelled' }; render(); return; }
-      flash.running = true; flash.done = 0; flash.total = n; flashStep();
+      flash.running = true; flash.done = 0; flash.total = n; flash.noWait = p < 3; flash.pendingAt = null; flash.nextAt = 0; flash.sends = []; flash.rtts = []; flashStep();
     });
   }
   function flashStep() {
     clearTimeout(flash.timer);
     if (!flash.running) return;
-    if (flash.done >= flash.total) { stopFlash(false); return; }
-    if (ctlBusy) { flash.timer = setTimeout(flashStep, 300); return; }
+    if (ctlBusy) { flash.timer = setTimeout(flashStep, 50); return; }          // previous request still in flight: never send on top of it
+    if (flash.done >= flash.total) { stopFlash(false); return; }               // v4.3.5: only after the last request has answered
+    var now = Date.now();
+    if (now < flash.nextAt) { flash.timer = setTimeout(flashStep, Math.min(50, flash.nextAt - now)); return; }
     var i = flash.done + 1; flash.done = i;
-    runCmd('flash', {}, 'Flashing ' + i + ' of ' + flash.total + '\u2026', 'Flashed ' + i + ' of ' + flash.total, null, null);
-    flash.timer = setTimeout(flashStep, 2500);
+    flash.pendingAt = now; flash.nextAt = now + flash.pause * 1000;
+    runCmd('flash', flash.noWait ? { wait_for_completion: 'false' } : {}, 'Flashing ' + i + ' of ' + flash.total + '\u2026', 'Flashed ' + i + ' of ' + flash.total,
+      function () { if (flash.pendingAt !== null) { flash.rtts.push((Date.now() - flash.pendingAt) / 1000); flash.sends.push(flash.pendingAt); flash.pendingAt = null; } }, null);
+    flash.timer = setTimeout(flashStep, 50);
   }
   function stopFlash(early) {
     clearTimeout(flash.timer); var was = flash.running; flash.running = false;
     if (was && early && !ctlBusy) ctlMsg = { kind: 'idle', text: 'Flash lights stopped after ' + flash.done + ' of ' + flash.total };
-    if (was && !early && !ctlBusy) ctlMsg = { kind: 'ok', text: '\u2713 Flashed the lights ' + flash.done + ' time' + (flash.done === 1 ? '' : 's') + (load('dryRun', false) ? ' (dry run, not sent)' : '') };
+    if (was && !early && !ctlBusy) ctlMsg = { kind: 'ok', text: '\u2713 Flashed the lights ' + flash.done + ' time' + (flash.done === 1 ? '' : 's') + (flashGap() !== null ? ' \u00b7 ~' + flashGap().toFixed(1) + 's apart' : '') + (load('dryRun', false) ? ' (dry run, not sent)' : '') };
     render();
   }
   function confirmBox(msg, yes, sub) {
@@ -746,6 +763,26 @@
     function end(commit) { if (!dragging) return; dragging = false; th.classList.remove('drag'); if (commit && cur != null) requestLimit(cur); else render(); }
     bar.addEventListener('pointerup', function () { end(true); });
     bar.addEventListener('pointercancel', function () { end(false); });
+  }
+  // v4.3.5: SESSIONS of the current / last 11 PM -> 11 AM window, one line each ('1) 11:00\u201311:30 PM \u00b7 3.1 kWh \u00b7 $0.21').
+  // Same parts and per-minute pricing as the main $ (homeWindow), so the lines add up to it.
+  function timeRange(a, b) {
+    var x = clock(a), y = clock(b), m = /\s?([AP]M)$/i, xs = (x.match(m) || [])[1], ys = (y.match(m) || [])[1];
+    return (xs && xs === ys ? x.replace(m, '') : x) + '\u2013' + y;
+  }
+  function windowSessions(cfg, win) {
+    if (!win || !win.parts || !win.parts.length) return null;
+    var lines = [], sum = 0, lv = liveSession();
+    win.parts.forEach(function (p, i) {
+      var r = sessionCost(cfg, p); sum += r.cost;
+      var live = !!(lv && p === lv && !lv.done);
+      lines.push((i + 1) + ') ' + timeRange(p.start, p.end) + ' \u00b7 ' + (p.added || 0).toFixed(1) + ' kWh \u00b7 ' + money(r.cost) + (live ? ' \u00b7 live' : ''));
+    });
+    return { lines: lines, sum: sum, total: win.cost.cost, header: 'Sessions \u00b7 ' + dayLabel(win.windowStart) + ' 11 PM \u2192 11 AM' };
+  }
+  function sessionsBlock(cfg, win) {
+    var w = windowSessions(cfg, win); if (!w) return '';
+    return '<div class="sess" id="sessList"><small>' + esc(w.header) + '</small>' + w.lines.map(function (l) { return '<div>' + esc(l) + '</div>'; }).join('') + '</div>';
   }
   function row(l, sub, t, hl) {
     return '<div class="row' + (hl ? ' hl' : '') + '"><div class="l">' + esc(l) + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</div>' +
@@ -1146,7 +1183,8 @@
     var s = document.getElementById('btnSettings'); if (s) s.onclick = function () { screen = 'settings'; render(); window.scrollTo(0, 0); };
     var on = function (id, f) { var el = document.getElementById(id); if (el) el.onclick = f; };
     on('cFlash', onFlash);
-    var fN = document.getElementById('cFlashN'); if (fN) { fN.oninput = function () { if (fN.value !== '') flash.n = clampFlash(fN.value); }; fN.onchange = function () { fN.value = flash.n = clampFlash(fN.value); }; }
+    var fP = document.getElementById('cFlashP'); if (fP) { fP.onchange = function () { fP.value = setPause(fP.value).toFixed(1); }; }
+    var fN = document.getElementById('cFlashN'); if (fN) { fN.oninput = function () { if (fN.value !== '') flash.n = clampFlash(fN.value); }; fN.onchange = function () { fN.value = flash.n = clampFlash(fN.value); save('flashCount', flash.n); }; }
     on('btnUpdApp', applyUpdate);
     on('cTrunk', onTrunk); on('cSentry', onSentry);
     on('cLock', onLock); on('cVent', onVent); on('cClose', onClose); on('cClim', onClim);
@@ -1719,6 +1757,7 @@
       live = keepLive; cache.charges = keepCh; save('live', live); render();
       return res;
     } };
+  window.TessDesk435 = { sessions: function () { var c = getCfg(); var v = c && compute(c); return v ? windowSessions(c, v.win) : null; } };
   window.TessDesk432 = { glow: glowState, flash: function () { return flash; }, setGlow: function (g) { window.__glowForce = g || null; render(); }, lastWindow: function () { var c = getCfg(); var v = c && compute(c); return v && v.hero && v.hero.src === 'window' ? { cost: v.heroCost, sessions: v.hero.sessions, start: v.hero.start, end: v.hero.end, added: v.hero.added, kwhAfter6: v.hero.kwhAfter6, costAfter6: v.hero.costAfter6, home: v.hero.home } : null; } };
   window.TessDesk = { cmdLog: cmdLog, annLog: function () { return annLog; }, lastError: function () { return lastErr ? String(lastErr.message || lastErr) : null; }, live: function () { return liveInfo; }, layout: function () { return { mode: layoutMode(), zoom: curZoom }; }, seatPend: function () { return seatPend; }, tireFlag: tireFlag, buildIcs: buildIcs, priceSpan: function (t0, t1, wall) { var c = getCfg(); return priceSpan(c ? c.rates : PRESETS.pso, t0, t1, wall); }, PRESETS: PRESETS, ctEpoch: ctEpoch, refresh: refresh, rundown: function (o) { return buildRundown(o); }, peak: function () { var c = getCfg(); return c ? peakState(compute(c), c) : null; }, rate: function () { var c = getCfg(); return c ? rateStatus(compute(c), c) : null; }, version: VERSION };
 
