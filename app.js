@@ -5,7 +5,7 @@
   var CFG = window.TD_CONFIG || {};
   var VARIANT = CFG.variant || 'main';
   var P = CFG.storagePrefix || 'td:';
-  var VERSION = 'v4.3.6';
+  var VERSION = 'v4.3.7';
   var VERSION_DATE = 'Oct 3, 2026';
   var TZ = 'America/Chicago';
   var DEFAULT_API = 'https://api.tessie.com';
@@ -404,8 +404,40 @@
   function footer() {
     return '<div class="foot"><div class="dbv">DESIGN BY <span>VAN</span></div><div class="dbv-bar"></div>' +
       '<div class="foot-links"><a class="ver" href="' + CHANGELOG_URL + '" title="What\u2019s new">' + VERSION + ' \u00b7 ' + VERSION_DATE + (VARIANT === 'test' ? ' \u00b7 TEST' : '') + '</a>' +
-      '<span class="dot">\u00b7</span><a class="ver about" href="' + PRIVACY_URL + '" title="About TessDesk, privacy and permissions">About / Privacy</a></div></div>';
+      '<span class="dot">\u00b7</span><a class="ver about" href="' + PRIVACY_URL + '" title="About TessDesk, privacy and permissions">About / Privacy</a>' +
+      '<span class="dot">\u00b7</span><a class="ver share" href="#" id="shareLink" title="Share the TessDesk link (never your token)">Share</a></div></div>';
   }
+  // ---------- v4.3.7: SHARE (links only; the app that opens does the sending, never TessDesk) ----------
+  var SHARE = { phone: 'https://vanwidick.github.io/tessdesk/', download: 'https://vanwidick.github.io/tessdesk/download.html',
+    subject: 'TessDesk: live Tesla charging cost' };
+  function shareText() { return 'TessDesk shows what your Tesla\u2019s charging costs, live (it works with your Tessie account).\nPhone: ' + SHARE.phone + '\nWindows: ' + SHARE.download; }
+  var shareLog = [];
+  function shareOpen(kind, url) { shareLog.push({ kind: kind, url: url }); if (window.__tdNoOpen) return; location.href = url; }
+  function shareCopy() {
+    var done = function (ok) { shareMsg(ok ? 'Link copied' : 'Could not copy'); };
+    try { navigator.clipboard.writeText(SHARE.phone).then(function () { done(true); }, function () { done(false); }); } catch (e) { done(false); }
+    shareLog.push({ kind: 'copy', url: SHARE.phone });
+  }
+  function shareMsg(t) { var m = document.getElementById('shMsg'); if (m) m.textContent = t; }
+  function showShare() {
+    var d = document.createElement('div'); d.className = 'modal';
+    d.innerHTML = '<div class="mbox share-box" role="dialog" aria-modal="true"><div class="mq">Share TessDesk</div>' +
+      '<div class="msub">Only the TessDesk links are shared, never your token. Nothing is sent until you press send in the app that opens.</div>' +
+      '<div class="share-grid">' + (navigator.share ? '<button class="btn" id="shNative">Share\u2026</button>' : '') +
+      '<button class="btn ghost" id="shMessenger">Messenger</button><button class="btn ghost" id="shText">Text</button>' +
+      '<button class="btn ghost" id="shEmail">Email</button><button class="btn ghost" id="shCopy">Copy link</button></div>' +
+      '<div class="msub" id="shMsg"></div><div class="mbtns"><button class="btn ghost" id="shClose">Close</button></div></div>';
+    document.body.appendChild(d);
+    var close = function () { if (d.parentNode) d.parentNode.removeChild(d); };
+    var q = function (id) { return d.querySelector('#' + id); };
+    if (q('shNative')) q('shNative').onclick = function () { shareLog.push({ kind: 'native', url: SHARE.phone }); if (window.__tdNoOpen) return; navigator.share({ title: 'TessDesk', text: shareText(), url: SHARE.phone }).then(close, function () {}); };
+    q('shMessenger').onclick = function () { shareOpen('messenger', 'fb-messenger://share/?link=' + encodeURIComponent(SHARE.phone)); };
+    q('shText').onclick = function () { shareOpen('text', 'sms:?&body=' + encodeURIComponent(shareText())); };
+    q('shEmail').onclick = function () { shareOpen('email', 'mailto:?subject=' + encodeURIComponent(SHARE.subject) + '&body=' + encodeURIComponent(shareText())); };
+    q('shCopy').onclick = shareCopy;
+    q('shClose').onclick = close; d.onclick = function (e) { if (e.target === d) close(); };
+  }
+  document.addEventListener('click', function (e) { var t = e.target; if (t && t.id === 'shareLink') { e.preventDefault(); showShare(); } });
   // ---------- v4.3.3: new-version check (version.json on this site; no data is sent) ----------
   var upd = { latest: null, checkedAt: 0, info: null };
   function verGt(a, b) { a = String(a || '').replace(/^v/, '').split('.'); b = String(b || '').replace(/^v/, '').split('.'); for (var i = 0; i < Math.max(a.length, b.length); i++) { var x = +a[i] || 0, y = +b[i] || 0; if (x !== y) return x > y; } return false; }
@@ -1757,6 +1789,7 @@
       live = keepLive; cache.charges = keepCh; save('live', live); render();
       return res;
     } };
+  window.TessDesk437 = { share: function () { return shareLog; }, open: showShare };
   window.TessDesk435 = { sessions: function () { var c = getCfg(); var v = c && compute(c); return v ? windowSessions(c, v.win) : null; } };
   window.TessDesk432 = { glow: glowState, flash: function () { return flash; }, setGlow: function (g) { window.__glowForce = g || null; render(); }, lastWindow: function () { var c = getCfg(); var v = c && compute(c); return v && v.hero && v.hero.src === 'window' ? { cost: v.heroCost, sessions: v.hero.sessions, start: v.hero.start, end: v.hero.end, added: v.hero.added, kwhAfter6: v.hero.kwhAfter6, costAfter6: v.hero.costAfter6, home: v.hero.home } : null; } };
   window.TessDesk = { cmdLog: cmdLog, annLog: function () { return annLog; }, lastError: function () { return lastErr ? String(lastErr.message || lastErr) : null; }, live: function () { return liveInfo; }, layout: function () { return { mode: layoutMode(), zoom: curZoom }; }, seatPend: function () { return seatPend; }, tireFlag: tireFlag, buildIcs: buildIcs, priceSpan: function (t0, t1, wall) { var c = getCfg(); return priceSpan(c ? c.rates : PRESETS.pso, t0, t1, wall); }, PRESETS: PRESETS, ctEpoch: ctEpoch, refresh: refresh, rundown: function (o) { return buildRundown(o); }, peak: function () { var c = getCfg(); return c ? peakState(compute(c), c) : null; }, rate: function () { var c = getCfg(); return c ? rateStatus(compute(c), c) : null; }, version: VERSION };

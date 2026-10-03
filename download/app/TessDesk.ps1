@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-# TessDesk v4.3.6 - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
+# TessDesk v4.3.7 - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
 param(
     [string]$ConfigPath,
     [string]$Snapshot,    # optional: folder to write PNG snapshots of both themes
@@ -14,7 +14,7 @@ Add-Type -AssemblyName System.Xaml
 
 $ErrorActionPreference = 'Stop'
 $AppName    = 'TessDesk'
-$AppVersion = '4.3.6'
+$AppVersion = '4.3.7'
 $AppDate    = 'Oct 3, 2026'
 
 $scriptDir  = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -988,7 +988,7 @@ function Start-UpdJob {
 function Start-UpdateCheck {
     param([switch]$Force)
     if ($null -ne $script:UpdJob -or $script:Upd.state -eq 'updating') { return }
-    if (-not $Force -and ((Get-EpochNow) - [int64]$script:Upd.checkedEpoch) -lt 20 * 3600) { return }
+    if (-not $Force -and ((Get-EpochNow) - [int64]$script:Upd.checkedEpoch) -lt 3 * 3600) { return }   # v4.3.7: every ~3 h (was ~20 h)
     $u = Get-UpdUrl; if ($u -like 'http*') { $u += '?t=' + (Get-EpochNow) }
     Start-UpdJob 'check' @([pscustomobject]@{ name = 'version.json'; url = $u })
 }
@@ -1009,6 +1009,7 @@ function Complete-UpdJob {
             if ($script:Upd.state -ne 'failed') { $script:Upd.state = $(if ($script:Upd.latest) { 'available' } else { 'current' }) }
             try { [ordered]@{ checkedEpoch = $script:Upd.checkedEpoch; latest = [string]$info.version; info = $info } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $updCheckPath -Encoding UTF8 } catch {}
             Write-WidgetLog ('update check: latest v' + [string]$info.version + ', this copy v' + $AppVersion)
+            if ($script:Upd.state -eq 'available') { $window.Dispatcher.BeginInvoke([Action]{ try { Show-UpdatePrompt } catch { Write-WidgetLog ('update prompt: ' + $_.Exception.Message) } }) | Out-Null }
         } catch { $script:Upd.note = 'update check failed: ' + "$_"; Write-WidgetLog $script:Upd.note }
     } else {
         try {
@@ -1792,8 +1793,13 @@ function Open-Url433 {
               <TextBlock x:Name="KeepTxt" Text="REMEMBER" FontSize="9.5" FontWeight="Bold" Foreground="#FFFFFFFF"/>
             </Border>
             <Border x:Name="RestoreBtn" CornerRadius="8" BorderBrush="#FF49DF93" BorderThickness="1.5" Background="#1A49DF93" Padding="9,1,9,2" Cursor="Hand"
-                    ToolTip="RESTORE: move TessDesk back to the remembered spot">
+                    ToolTip="RESTORE: move TessDesk back to its remembered spot (desk_window_layout.json, same as TIMECLOCK LIVE)">
               <TextBlock x:Name="RestoreTxt" Text="RESTORE" FontSize="9.5" FontWeight="Bold" Foreground="#FFFFFFFF"/>
+            </Border>
+            <!-- v4.3.7: SHARE the TessDesk links (Messenger, text, email, copy, send to phone); never a token, never sent automatically -->
+            <Border x:Name="ShareBtn" CornerRadius="8" BorderBrush="#FF49DF93" BorderThickness="1.5" Background="#1A49DF93" Padding="9,1,9,2" Margin="5,0,0,0" Cursor="Hand"
+                    ToolTip="SHARE: send the TessDesk phone / download link to someone (only the link, never your token)">
+              <TextBlock x:Name="ShareTxt" Text="SHARE" FontSize="9.5" FontWeight="Bold" Foreground="#FFFFFFFF"/>
             </Border>
           </StackPanel>
         </StackPanel>
@@ -1811,6 +1817,27 @@ function Open-Url433 {
                 <Button x:Name="ConfirmNo" Style="{StaticResource CtlBtn}" Height="40" Margin="0,0,5,0" IsCancel="False"><TextBlock x:Name="ConfirmNoTxt" Text="Cancel" FontSize="13.5" FontWeight="Bold" HorizontalAlignment="Center"/></Button>
                 <Button x:Name="ConfirmYes" Style="{StaticResource CtlBtn}" Height="40" Margin="5,0,0,0"><TextBlock x:Name="ConfirmYesTxt" Text="Confirm" FontSize="13.5" FontWeight="Bold" HorizontalAlignment="Center"/></Button>
               </UniformGrid>
+            </StackPanel>
+          </Border>
+        </Grid>
+        <!-- v4.3.7: SHARE panel (links only; nothing is ever sent automatically) -->
+        <Grid x:Name="ShareOverlay" Grid.Row="0" Grid.RowSpan="6" Visibility="Collapsed" Background="#B0000000" Margin="-16,-8,-16,-10">
+          <Border x:Name="ShareBox" Width="300" CornerRadius="14" Background="#FF1A1A1A" BorderBrush="#FF49DF93" BorderThickness="1.5" Padding="14,14,14,12" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <StackPanel>
+              <TextBlock x:Name="ShareTitle" Text="SHARE TESSDESK" FontSize="16" FontWeight="Bold" Foreground="#FFFFFFFF" HorizontalAlignment="Center"/>
+              <TextBlock x:Name="ShareSub" Text="Only the TessDesk links are shared, never your token. Nothing is sent until you press send in the app that opens." FontSize="10.5" Foreground="#FFCCCCCC" TextWrapping="Wrap" TextAlignment="Center" Margin="0,4,0,8"/>
+              <UniformGrid Columns="2" Rows="3">
+                <Button x:Name="ShMessenger" Style="{StaticResource CtlBtn}" Height="34" Margin="0,0,4,6"><TextBlock Text="MESSENGER" FontSize="11.5" FontWeight="Bold" HorizontalAlignment="Center"/></Button>
+                <Button x:Name="ShText" Style="{StaticResource CtlBtn}" Height="34" Margin="4,0,0,6"><TextBlock Text="TEXT" FontSize="11.5" FontWeight="Bold" HorizontalAlignment="Center"/></Button>
+                <Button x:Name="ShEmail" Style="{StaticResource CtlBtn}" Height="34" Margin="0,0,4,6"><TextBlock Text="EMAIL" FontSize="11.5" FontWeight="Bold" HorizontalAlignment="Center"/></Button>
+                <Button x:Name="ShCopy" Style="{StaticResource CtlBtn}" Height="34" Margin="4,0,0,6"><TextBlock Text="COPY LINK" FontSize="11.5" FontWeight="Bold" HorizontalAlignment="Center"/></Button>
+                <Button x:Name="ShPhone" Style="{StaticResource CtlBtn}" Height="34" Margin="0,0,4,0"><TextBlock Text="SEND TO PHONE" FontSize="11.5" FontWeight="Bold" HorizontalAlignment="Center"/></Button>
+                <Button x:Name="ShClose" Style="{StaticResource CtlBtn}" Height="34" Margin="4,0,0,0"><TextBlock Text="CLOSE" FontSize="11.5" FontWeight="Bold" HorizontalAlignment="Center"/></Button>
+              </UniformGrid>
+              <StackPanel x:Name="ShQrBox" Visibility="Collapsed" Margin="0,10,0,0" HorizontalAlignment="Center">
+                <Border Background="#FFFFFFFF" CornerRadius="8" Padding="6" HorizontalAlignment="Center"><Image x:Name="ShQr" Width="150" Height="150" RenderOptions.BitmapScalingMode="NearestNeighbor"/></Border>
+                <TextBlock x:Name="ShQrTxt" Text="Point your phone's camera here to open TessDesk on your phone: vanwidick.github.io/tessdesk" FontSize="10.5" Foreground="#FFCCCCCC" TextWrapping="Wrap" TextAlignment="Center" Margin="0,6,0,0" MaxWidth="260"/>
+              </StackPanel>
             </StackPanel>
           </Border>
         </Grid>
@@ -4827,7 +4854,15 @@ try { Add-Type -AssemblyName System.Windows.Forms -ErrorAction Stop } catch {}
 if (-not ('TdWinRect' -as [type])) {
     Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public static class TdWinRect { [StructLayout(LayoutKind.Sequential)] public struct RECT { public int L, T, R, B; } [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r); }'
 }
-$CbLayoutPath = Join-Path $env:USERPROFILE 'cb_window_layout.json'     # Van's window-layout system (Remember / Restore / Save All)
+# v4.3.7: REMEMBER / RESTORE use the same file and behavior as TIMECLOCK LIVE and Paycheck Live:
+#   %USERPROFILE%\desk_window_layout.json, one entry per window (WPF units); only the TESSDESK entry is ever rewritten.
+#   REMEMBER = save the current size and place (not when minimized, maximized, off-screen or an implausible size).
+#   RESTORE  = back to the remembered size and place; nothing remembered yet -> the place TessDesk picked at startup.
+#   Startup  = opens at the remembered place. (cb_window_layout.json belongs to the stream windows and is not touched.)
+#   config.json keptSpot keeps a copy (with the screen name) in case the layout file is missing.
+$DeskLayoutPath = Join-Path $env:USERPROFILE 'desk_window_layout.json'
+$DWL_Name = 'TESSDESK'
+$DWL_Note = 'Written by the Remember button of Paycheck Live / TessDesk / TimeClock Live; read by their Restore button and at startup'
 $script:KeptSpot = $null; try { if ($null -ne $c.keptSpot -and $null -ne $c.keptSpot.left) { $script:KeptSpot = $c.keptSpot } } catch {}
 function Get-TdHwnd { return (New-Object System.Windows.Interop.WindowInteropHelper($window)).Handle }
 function Get-TdMonitor { try { return [string][System.Windows.Forms.Screen]::FromHandle((Get-TdHwnd)).DeviceName } catch { return $null } }
@@ -4849,45 +4884,157 @@ function Set-TdSpot {
     if ($null -ne $S.width -and [double]$S.width -ge 200) { $window.Width = [double]$S.width }
     if ($null -ne $S.height -and [double]$S.height -ge 400) { $window.Height = [double]$S.height }
 }
-function Write-CbTessDeskEntry {
-    # Adds / updates the TESSDESK entry in Van's layout file (same fields as cb_window_lib.ps1 writes); other entries are kept as-is.
-    param($Rect)
-    $path = $(if ($SelfTest -and $script:SelfCbPath) { $script:SelfCbPath } else { $CbLayoutPath })
-    if (-not (Test-Path -LiteralPath $path)) { return 'no layout file' }
-    $doc = Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json
-    $list = @(@($doc.windows) | Where-Object { $null -ne $_ -and [string]$_.name -ne 'TESSDESK' })
-    $e = [ordered]@{ name = 'TESSDESK'; kind = 'widget'; script = (Join-Path $scriptDir 'TessDesk.ps1'); sta = $true; excludeArgs = ''; titleRegex = '^TessDesk'
-        startupEntry = 'Startup folder: TessDesk.lnk'; x = [int]$Rect.x; y = [int]$Rect.y; w = [int]$Rect.w; h = [int]$Rect.h; source = ('remembered in TessDesk ' + (Get-Date).ToString('yyyy-MM-dd HH:mm')) }
-    $old = @(@($doc.windows) | Where-Object { $null -ne $_ -and [string]$_.name -eq 'TESSDESK' })[0]
-    if ($null -ne $old -and $old.startupEntry) { $e.startupEntry = [string]$old.startupEntry }
-    $out = [ordered]@{ saved = (Get-Date).ToString('yyyy-MM-dd HH:mm:ss'); note = $(if ($doc.note) { [string]$doc.note } else { 'Saved by Remember / Save All / Save Window Locations; read by restore, startup and maintenance' }); windows = @($list + [pscustomobject]$e) }
-    $tmp = $path + '.tmp'
+function Get-DeskLayoutPath {
+    if ($SelfTest) { if ($script:SelfDeskPath) { return $script:SelfDeskPath }; return $null }   # a self-test never writes the real file
+    return $DeskLayoutPath
+}
+function Read-DeskLayout {
+    param([switch]$Strict)
+    $p = Get-DeskLayoutPath; if (-not $p) { $p = $DeskLayoutPath }
+    if (-not (Test-Path -LiteralPath $p)) { return $null }
+    try { return (Get-Content -LiteralPath $p -Raw -Encoding UTF8 | ConvertFrom-Json) } catch { if ($Strict) { throw ('desk_window_layout.json could not be read - not changed (' + $_.Exception.Message + ')') }; Write-WidgetLog ('desk layout read: ' + $_.Exception.Message); return $null }
+}
+function Get-DeskSaved {
+    $doc = Read-DeskLayout
+    if ($doc -and $doc.windows) {
+        $e = @($doc.windows | Where-Object { $null -ne $_ -and [string]$_.name -eq $DWL_Name }) | Select-Object -First 1
+        if ($e -and $null -ne $e.x -and $null -ne $e.y -and [int]$e.w -ge 100 -and [int]$e.h -ge 60) { return [pscustomobject]@{ left = [double]$e.x; top = [double]$e.y; width = [double]$e.w; height = [double]$e.h; monitor = $null; from = 'desk_window_layout.json' } }
+    }
+    if ($null -ne $script:KeptSpot) { return [pscustomobject]@{ left = [double]$script:KeptSpot.left; top = [double]$script:KeptSpot.top; width = $script:KeptSpot.width; height = $script:KeptSpot.height; monitor = $script:KeptSpot.monitor; from = 'config.json keptSpot' } }
+    return $null
+}
+function Write-DeskTessDeskEntry {
+    param($R)
+    $p = Get-DeskLayoutPath; if (-not $p) { throw 'self-test without a test copy of the layout file' }
+    $doc = Read-DeskLayout -Strict
+    $list = New-Object System.Collections.Generic.List[object]; $found = $false
+    if ($doc -and $doc.windows) {
+        foreach ($e in @($doc.windows)) {
+            if ($null -eq $e) { continue }
+            if ([string]$e.name -eq $DWL_Name) {
+                foreach ($k in 'x', 'y', 'w', 'h') { $e | Add-Member -NotePropertyName $k -NotePropertyValue ([int]$R[$k]) -Force }
+                $e | Add-Member -NotePropertyName source -NotePropertyValue 'remembered' -Force
+                $found = $true
+            }
+            $list.Add($e)
+        }
+    }
+    if (-not $found) { $list.Add([pscustomobject][ordered]@{ name = $DWL_Name; script = (Join-Path $scriptDir 'TessDesk.ps1'); x = [int]$R.x; y = [int]$R.y; w = [int]$R.w; h = [int]$R.h; source = 'remembered' }) }
+    $out = [ordered]@{ saved = (Get-Date).ToString('yyyy-MM-dd HH:mm:ss'); note = $DWL_Note; windows = $list.ToArray() }
+    $tmp = $p + '.tmp'
     $out | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $tmp -Encoding UTF8
-    Move-Item -LiteralPath $tmp -Destination $path -Force
-    return 'TESSDESK entry written'
+    Move-Item -LiteralPath $tmp -Destination $p -Force
+    return $(if ($found) { 'TESSDESK entry updated' } else { 'TESSDESK entry added' })
+}
+function Set-SpotBtnFeedback {
+    # like TIMECLOCK LIVE: the button reads 'saved' / 'restored' / 'failed' for 1.4 s
+    param($Tb, [string]$Text, [string]$Orig)
+    $Tb.Text = $Text
+    $t = New-Object System.Windows.Threading.DispatcherTimer; $t.Interval = [TimeSpan]::FromMilliseconds(1400); $t.Tag = @($Tb, $Orig)
+    $t.Add_Tick({ param($sx, $ex) try { $sx.Stop(); $sx.Tag[0].Text = $sx.Tag[1] } catch {} })
+    $t.Start()
 }
 function Invoke-KeepSpot {
-    $r = New-Object TdWinRect+RECT; [void][TdWinRect]::GetWindowRect((Get-TdHwnd), [ref]$r)
-    $rect = [ordered]@{ x = $r.L; y = $r.T; w = ($r.R - $r.L); h = ($r.B - $r.T) }
-    $S = [ordered]@{ left = [math]::Round($window.Left, 1); top = [math]::Round($window.Top, 1); width = [math]::Round($window.ActualWidth, 1); height = [math]::Round($window.ActualHeight, 1)
-        x = $rect.x; y = $rect.y; w = $rect.w; h = $rect.h; monitor = (Get-TdMonitor); savedAt = (Get-LocalNow).ToString('s') }
+    $fail = { param($why) Set-SpotBtnFeedback $ui.KeepTxt 'FAILED' 'REMEMBER'; Show-TdToast ('Not saved: ' + $why) $false; Write-WidgetLog ('REMEMBER: not saved (' + $why + ')'); $script:KeepLast = [ordered]@{ action = 'remember'; ok = $false; error = $why } }
+    if ($window.WindowState -eq [System.Windows.WindowState]::Minimized) { & $fail 'minimized'; return }
+    if ($window.WindowState -eq [System.Windows.WindowState]::Maximized) { & $fail 'maximized'; return }
+    $R = [ordered]@{ x = [int][math]::Round($window.Left); y = [int][math]::Round($window.Top); w = [int][math]::Round($window.ActualWidth); h = [int][math]::Round($window.ActualHeight) }
+    $vl = [System.Windows.SystemParameters]::VirtualScreenLeft; $vt = [System.Windows.SystemParameters]::VirtualScreenTop
+    $vw = [System.Windows.SystemParameters]::VirtualScreenWidth; $vh = [System.Windows.SystemParameters]::VirtualScreenHeight
+    if (-not (($R.x + $R.w -gt $vl + 40) -and ($R.x -lt $vl + $vw - 40) -and ($R.y + 30 -gt $vt) -and ($R.y -lt $vt + $vh - 40))) { & $fail 'off-screen'; return }
+    if ($R.w -lt 100 -or $R.h -lt 60 -or $R.w -gt $vw -or $R.h -gt $vh) { & $fail 'implausible size'; return }
+    $S = [ordered]@{ left = $R.x; top = $R.y; width = $R.w; height = $R.h; monitor = (Get-TdMonitor); savedAt = (Get-LocalNow).ToString('s') }
     Save-ConfigProp 'keptSpot' $S
     $script:KeptSpot = [pscustomobject]$S
-    $cb = $null; try { $cb = Write-CbTessDeskEntry $rect } catch { $cb = 'layout file not updated: ' + $_.Exception.Message; Write-WidgetLog $cb }
-    $script:KeepLast = [ordered]@{ action = 'keep'; spot = $S; layoutFile = $cb }
-    Write-WidgetLog ('REMEMBER: spot saved ' + $S.left + ',' + $S.top + ' ' + $S.width + 'x' + $S.height + ' on ' + $S.monitor + ' (' + $cb + ')')
+    $lf = $null; try { $lf = Write-DeskTessDeskEntry $R } catch { $lf = 'desk_window_layout.json not updated: ' + $_.Exception.Message; Write-WidgetLog $lf }
+    $script:KeepLast = [ordered]@{ action = 'remember'; ok = $true; spot = $S; layoutFile = $lf; path = (Get-DeskLayoutPath) }
+    Write-WidgetLog ('REMEMBER: spot saved ' + $R.x + ',' + $R.y + ' ' + $R.w + 'x' + $R.h + ' on ' + $S.monitor + ' (' + $lf + ')')
+    Set-SpotBtnFeedback $ui.KeepTxt 'SAVED' 'REMEMBER'
     Show-TdToast 'Spot saved' $true
 }
 function Invoke-RestoreSpot {
-    if ($null -eq $script:KeptSpot) { Show-TdToast 'No spot remembered yet: press REMEMBER first' $false; return }
-    if (-not (Test-SpotUsable $script:KeptSpot)) { Show-TdToast 'The remembered spot is not on any screen right now' $false; return }
-    Set-TdSpot $script:KeptSpot
-    $script:KeepLast = [ordered]@{ action = 'restore'; spot = $script:KeptSpot }
-    Write-WidgetLog ('RESTORE: moved to ' + $script:KeptSpot.left + ',' + $script:KeptSpot.top)
-    Show-TdToast 'Back at the remembered spot' $true
+    $S = Get-DeskSaved
+    if ($null -ne $S -and -not (Test-SpotUsable $S)) { Set-SpotBtnFeedback $ui.RestoreTxt 'FAILED' 'RESTORE'; Show-TdToast 'The remembered spot is not on any screen right now' $false; return }
+    if ($window.WindowState -ne [System.Windows.WindowState]::Normal) { $window.WindowState = [System.Windows.WindowState]::Normal }
+    if ($null -eq $S) {
+        if ($null -eq $script:DWL_Default) { Set-SpotBtnFeedback $ui.RestoreTxt 'FAILED' 'RESTORE'; Show-TdToast 'No spot remembered yet: press REMEMBER first' $false; return }
+        $window.Left = [double]$script:DWL_Default.left; $window.Top = [double]$script:DWL_Default.top   # nothing remembered: the startup place, size unchanged
+        $from = 'startup place'
+    } else { Set-TdSpot $S; $from = [string]$S.from }
+    try { $window.UpdateLayout(); [void]$window.Activate() } catch {}
+    $script:KeepLast = [ordered]@{ action = 'restore'; spot = $S; from = $from; at = [ordered]@{ left = $window.Left; top = $window.Top; width = $window.Width; height = $window.Height } }
+    Write-WidgetLog ('RESTORE: moved to ' + [math]::Round($window.Left) + ',' + [math]::Round($window.Top) + ' (' + $from + ')')
+    Set-SpotBtnFeedback $ui.RestoreTxt 'RESTORED' 'RESTORE'
+    Show-TdToast $(if ($null -eq $S) { 'Back at the startup spot (nothing remembered yet)' } else { 'Back at the remembered spot' }) $true
 }
-# startup: open at the kept spot
-try { if (Test-SpotUsable $script:KeptSpot) { Set-TdSpot $script:KeptSpot; $script:StartedAtKept = $true } } catch {}
+# startup: remember the place TessDesk picked itself (RESTORE falls back to it), then open at the remembered spot
+$script:DWL_Default = [pscustomobject]@{ left = $window.Left; top = $window.Top }
+try { $sp0 = Get-DeskSaved; if ($null -ne $sp0 -and (Test-SpotUsable $sp0)) { Set-TdSpot $sp0; $script:StartedAtKept = $true; $script:StartedFrom = [string]$sp0.from } } catch {}
+
+# ---------------- v4.3.7: SHARE (links only; the app that opens does the sending, never TessDesk) ----------------
+$ShareLinks = [ordered]@{ phone = 'https://vanwidick.github.io/tessdesk/'; download = 'https://vanwidick.github.io/tessdesk/download.html' }
+$ShareSubject = 'TessDesk: live Tesla charging cost'
+$ShareQrB64 = 'iVBORw0KGgoAAAANSUhEUgAAAIQAAACEAQAAAAB5P74KAAABGUlEQVR4nM2WQW5EMQhDH1+zNzf49z9WbmBO4C6mXUy7KiNVZZUghRiwSSq82lx8t7/1VFUPUz1UVS/jECVS8rX0GmE1Z9pKU/1mpn3k9m9P/fC0KebXt796YoJoQ7yNUynQ52ZAZ9uvpym2kmTZrwcNeIDb9NGePyjCUZDX/HmAKaw+ZFR7PA5JACfxtj4XXaqaCKqGrb4uJCwaCaE9D4dp+pg2zDYOgdiSEWFdH+JIskKQ/UbfSwfNUxz3Pi+BIHJkrfFcHPnIAw0Hv4HHKJIBrXV6PZXVcFthPecfFOjQGejxvedzggg0Rtv6PN+LuhsypdnrCyAHumV6y58HAA0dmMkbeGJ8mJpCs6/PVNE6AdjPn/pn/5YPNzan6JGUdtgAAAAASUVORK5CYII='
+$script:ShareLog = @()
+function Get-ShareText { return ("TessDesk shows what your Tesla's charging costs, live (it works with your Tessie account).`r`nPhone: " + $ShareLinks.phone + "`r`nWindows: " + $ShareLinks.download) }
+function Get-ShareQr {
+    $b = [Convert]::FromBase64String($ShareQrB64); $ms = New-Object System.IO.MemoryStream(, $b)
+    $bi = New-Object System.Windows.Media.Imaging.BitmapImage; $bi.BeginInit(); $bi.CacheOption = [System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad; $bi.StreamSource = $ms; $bi.EndInit(); $bi.Freeze()
+    return $bi
+}
+function Open-ShareTarget {
+    param([string]$Kind, [string]$Uri)
+    $script:ShareLog += [pscustomobject]@{ kind = $Kind; uri = $Uri; at = (Get-LocalNow).ToString('s'); launched = (-not $SelfTest) }
+    if ($SelfTest) { return }      # the self-test records what would open; it never opens an app
+    Start-Process $Uri
+}
+function Set-ShareClipboard { param([string]$T) try { [System.Windows.Clipboard]::SetText($T); return $true } catch { return $false } }
+function Open-ShareOverlay {
+    $ui.ShareBox.Background = T 'CardBg'; $ui.ShareTitle.Foreground = T 'Text'; $ui.ShareSub.Foreground = T 'TextSoft'; $ui.ShQrTxt.Foreground = T 'TextSoft'
+    foreach ($n in 'ShMessenger', 'ShText', 'ShEmail', 'ShCopy', 'ShPhone', 'ShClose') { $ui[$n].Background = T 'BtnBg'; $ui[$n].BorderBrush = T 'BtnBorder'; $ui[$n].Foreground = T 'Text' }
+    $ui.ShPhone.BorderBrush = T 'Green'
+    Set-Visible $ui.ShQrBox $false
+    Set-Visible $ui.ShareOverlay $true
+}
+function Close-ShareOverlay { Set-Visible $ui.ShareOverlay $false }
+function Invoke-Share {
+    param([string]$Kind)
+    $txt = Get-ShareText
+    switch ($Kind) {
+        'messenger' { [void](Set-ShareClipboard $txt); Open-ShareTarget 'messenger' 'https://www.messenger.com/'; Close-ShareOverlay; Show-TdToast 'Message copied. Messenger is opening: pick who gets it, paste (Ctrl+V) and press send.' $true }
+        'text' { [void](Set-ShareClipboard $txt); Open-ShareTarget 'text' ('sms:?body=' + [uri]::EscapeDataString($txt)); Close-ShareOverlay; Show-TdToast 'Your texting app is opening with the message filled in (also copied). Pick who gets it and press send.' $true }
+        'email' { Open-ShareTarget 'email' ('mailto:?subject=' + [uri]::EscapeDataString($ShareSubject) + '&body=' + [uri]::EscapeDataString($txt)); Close-ShareOverlay; Show-TdToast 'Your email app is opening with a new message. Add who gets it and press send.' $true }
+        'copy' { $ok = Set-ShareClipboard $ShareLinks.phone; $script:ShareLog += [pscustomobject]@{ kind = 'copy'; uri = $ShareLinks.phone; at = (Get-LocalNow).ToString('s'); launched = $false }; Close-ShareOverlay; Show-TdToast $(if ($ok) { 'Link copied: ' + $ShareLinks.phone } else { 'Could not copy the link' }) $ok }
+        'phone' { try { if ($null -eq $ui.ShQr.Source) { $ui.ShQr.Source = Get-ShareQr } } catch { Write-WidgetLog ('share QR: ' + $_.Exception.Message) }; Set-Visible $ui.ShQrBox $true; $script:ShareLog += [pscustomobject]@{ kind = 'phone'; uri = $ShareLinks.phone; at = (Get-LocalNow).ToString('s'); launched = $false } }
+    }
+}
+
+# ---------------- v4.3.7: UPDATE POP-UP (Update now / Later) ----------------
+# When version.json lists a newer version, TessDesk asks once: Update now (download, check SHA-256, back up, install, restart)
+# or Later (asks again in 24 h; the green UPDATE AVAILABLE button stays). Publishing a new version from Van's master copy
+# to the site is what every other copy picks up here.
+$script:UpdSnooze = $null; try { if ($null -ne $c.updSnooze -and $c.updSnooze.version) { $script:UpdSnooze = $c.updSnooze } } catch {}
+$script:UpdPrompt = [ordered]@{ shown = $null; answer = $null; pending = $false }
+function Show-UpdatePrompt {
+    param([switch]$NoWait)
+    if (-not $script:Upd.latest -or $script:Upd.state -ne 'available' -or $null -ne $script:UpdJob) { return }
+    if ($SelfTest -and -not $NoWait) { return }
+    $sn = $script:UpdSnooze
+    if (-not $NoWait -and $null -ne $sn -and [string]$sn.version -eq [string]$script:Upd.latest -and (Get-EpochNow) -lt [int64]$sn.until) { return }
+    if ($ui.ConfirmOverlay.Visibility -eq 'Visible' -or $ui.ShareOverlay.Visibility -eq 'Visible') { $script:UpdPrompt.pending = $true; return }
+    $script:UpdPrompt.pending = $false; $script:UpdPrompt.shown = [string]$script:Upd.latest
+    $msg = 'Update to v' + $script:Upd.latest + '?'
+    $sub = 'TessDesk v' + $script:Upd.latest + ' is out (you have v' + $AppVersion + '). Update now downloads it, checks every file, backs up this copy and restarts TessDesk right here. Later asks again tomorrow.'
+    if ($NoWait) { [void](Show-ConfirmOverlay $msg $sub 'Update now' 'Later' -NoWait); return }
+    $a = Show-ConfirmOverlay $msg $sub 'Update now' 'Later'
+    $script:UpdPrompt.answer = $(if ($a) { 'update now' } else { 'later' })
+    if ($a) { Write-WidgetLog ('update v' + $script:Upd.latest + ': Update now'); Invoke-UpdateApply }
+    else {
+        $script:UpdSnooze = [pscustomobject]@{ version = [string]$script:Upd.latest; until = (Get-EpochNow) + 86400 }
+        try { Save-ConfigProp 'updSnooze' $script:UpdSnooze } catch {}
+        Write-WidgetLog ('update v' + $script:Upd.latest + ': Later (asks again in 24 h; the UPDATE button stays)')
+    }
+}
 
 $script:State = Load-WidgetState
 $script:LastSnapshot = $null
@@ -4911,7 +5058,7 @@ $script:UpdTimer.Add_Tick({
 # daily check: 90 s after start, then every hour asks "has it been ~a day?" (not during -SelfTest)
 $script:UpdDaily = New-Object System.Windows.Threading.DispatcherTimer
 $script:UpdDaily.Interval = [TimeSpan]::FromSeconds(90)
-$script:UpdDaily.Add_Tick({ try { $script:UpdDaily.Interval = [TimeSpan]::FromHours(1); if (-not $SelfTest) { Start-UpdateCheck } } catch {} })
+$script:UpdDaily.Add_Tick({ try { $script:UpdDaily.Interval = [TimeSpan]::FromHours(1); if (-not $SelfTest) { Start-UpdateCheck; if ($null -eq $script:UpdJob) { Show-UpdatePrompt } } } catch {} })
 $script:UpdDaily.Start()
 try { Render-Update } catch {}
 $ui.TrunkBtn.Add_Click({ try { Invoke-Trunk } catch { Set-CtlResult 'err' ('✕ ' + $_.Exception.Message) } })
@@ -4977,6 +5124,13 @@ $ui.AnnSetupBtn.Add_Click({ if (-not $SelfTest) { try { Show-AnnSetupWindow } ca
 $ui.PeakStopBtn.Add_Click({ try { Invoke-ChargeStop } catch { Set-CtlResult 'err' ('✕ ' + $_.Exception.Message) } })
 $ui.PeakClose.Add_MouseLeftButtonUp({ try { $pk = Get-RateStatus; $script:PeakHiddenKey = $pk.key; Render-Peak; Confirm-Fit } catch {} })   # x = fold to the pill for this session
 $ui.ConfirmYes.Add_Click({ Close-ConfirmOverlay $true })
+$ui.ShareBtn.Add_MouseLeftButtonUp({ try { Open-ShareOverlay } catch { Write-WidgetLog ('share: ' + $_.Exception.Message) } })
+$ui.ShMessenger.Add_Click({ try { Invoke-Share 'messenger' } catch { Show-TdToast ('Could not open Messenger: ' + $_.Exception.Message) $false } })
+$ui.ShText.Add_Click({ try { Invoke-Share 'text' } catch { Show-TdToast ('Could not open a texting app: ' + $_.Exception.Message + ' (the message is copied)') $false } })
+$ui.ShEmail.Add_Click({ try { Invoke-Share 'email' } catch { Show-TdToast ('Could not open your email app: ' + $_.Exception.Message) $false } })
+$ui.ShCopy.Add_Click({ try { Invoke-Share 'copy' } catch {} })
+$ui.ShPhone.Add_Click({ try { Invoke-Share 'phone' } catch {} })
+$ui.ShClose.Add_Click({ Close-ShareOverlay })
 $ui.ConfirmNo.Add_Click({ Close-ConfirmOverlay $false })
 $window.Add_PreviewKeyDown({ param($s, $e) if ($ui.ConfirmOverlay.Visibility -eq 'Visible') { if ($e.Key -eq 'Escape') { Close-ConfirmOverlay $false; $e.Handled = $true } elseif ($e.Key -eq 'Return') { Close-ConfirmOverlay $true; $e.Handled = $true } } })
 
@@ -5155,19 +5309,44 @@ function Start-SelfTest {
         $script:SelfRec.v436.real = [ordered]@{ header = $ws.header; lines = @($ws.lines); sumCost = $ws.sumCostUsd; sumKwh = $ws.sumKwh; windowCost = $ws.windowCostUsd
             parts = @(@($w.parts) | ForEach-Object { [string]$_.source + ' ' + $_.start + '-' + $_.end + ' ' + $_.kwhAdded }) }
     }
-    & $add 'v4.3.5 KEEP: save the spot (test copy of the layout file)' @() {
-        $script:SelfCbPath = Join-Path $script:SelfDir 'cb_window_layout.json'
-        if (Test-Path -LiteralPath $CbLayoutPath) { Copy-Item -LiteralPath $CbLayoutPath -Destination $script:SelfCbPath -Force } else { [ordered]@{ saved = ''; note = 'test'; windows = @() } | ConvertTo-Json | Set-Content -LiteralPath $script:SelfCbPath -Encoding UTF8 }
-        $script:SelfRec.v435.keepBefore = [ordered]@{ left = $window.Left; top = $window.Top; width = $window.ActualWidth; height = $window.ActualHeight }
-        Invoke-KeepSpot; $window.UpdateLayout(); & $script:Shot433 'v435-keep-toast'
-        $cbd = Get-Content -LiteralPath $script:SelfCbPath -Raw | ConvertFrom-Json
-        $script:SelfRec.v435.keep = [ordered]@{ toast = $ui.WToastTxt.Text; kept = $script:KeptSpot; configHasIt = ($null -ne (Get-Content -LiteralPath $ConfigPath -Raw | ConvertFrom-Json).keptSpot)
-            cbEntry = @(@($cbd.windows) | Where-Object { $_.name -eq 'TESSDESK' })[0]; cbOtherEntries = @(@($cbd.windows) | Where-Object { $_.name -ne 'TESSDESK' } | ForEach-Object { $_.name }) } }
+    & $add 'v4.3.7 REMEMBER: save the spot (test copy of desk_window_layout.json)' @() {
+        $script:SelfDeskPath = Join-Path $script:SelfDir 'desk_window_layout.json'
+        if (Test-Path -LiteralPath $DeskLayoutPath) { Copy-Item -LiteralPath $DeskLayoutPath -Destination $script:SelfDeskPath -Force } else { [ordered]@{ saved = ''; note = 'test'; windows = @() } | ConvertTo-Json | Set-Content -LiteralPath $script:SelfDeskPath -Encoding UTF8 }
+        $before = @(@((Get-Content -LiteralPath $script:SelfDeskPath -Raw | ConvertFrom-Json).windows) | Where-Object { $null -ne $_ -and $_.name -ne 'TESSDESK' } | ForEach-Object { ($_ | ConvertTo-Json -Compress -Depth 4) })
+        $script:SelfRec.v437 = [ordered]@{ startedFrom = $script:StartedFrom }
+        Invoke-KeepSpot; $window.UpdateLayout(); & $script:Shot433 'v437-remember-toast'
+        $d = Get-Content -LiteralPath $script:SelfDeskPath -Raw | ConvertFrom-Json
+        $after = @(@($d.windows) | Where-Object { $null -ne $_ -and $_.name -ne 'TESSDESK' } | ForEach-Object { ($_ | ConvertTo-Json -Compress -Depth 4) })
+        $script:SelfRec.v437.remember = [ordered]@{ toast = $ui.WToastTxt.Text; button = $ui.KeepTxt.Text; kept = $script:KeptSpot; entry = @(@($d.windows) | Where-Object { $_.name -eq 'TESSDESK' })[0]
+            otherEntriesUnchanged = (($before -join '|') -eq ($after -join '|')); others = @(@($d.windows) | Where-Object { $_.name -ne 'TESSDESK' } | ForEach-Object { $_.name }); note = $d.note; layoutFile = $script:KeepLast.layoutFile }
+        $script:SelfRec.v435 = $(if ($script:SelfRec.v435) { $script:SelfRec.v435 } else { [ordered]@{} })
+    }
     & $add 'v4.3.5 RESTORE: move away, then back' @() {
         $window.Left = $window.Left - 300; $window.Top = $window.Top + 25; $moved = [ordered]@{ left = $window.Left; top = $window.Top }
         Invoke-RestoreSpot
         $script:SelfRec.v435.restore = [ordered]@{ moved = $moved; after = [ordered]@{ left = $window.Left; top = $window.Top; width = $window.Width; height = $window.Height }; toast = $ui.WToastTxt.Text
-            backAtKept = ([math]::Abs($window.Left - [double]$script:KeptSpot.left) -lt 1 -and [math]::Abs($window.Top - [double]$script:KeptSpot.top) -lt 1) } }
+            backAtKept = ([math]::Abs($window.Left - [double]$script:KeptSpot.left) -lt 1 -and [math]::Abs($window.Top - [double]$script:KeptSpot.top) -lt 1); button = $ui.RestoreTxt.Text; from = $script:KeepLast.from } }
+    & $add 'v4.3.7 SHARE panel + each target (recorded, nothing opened or sent)' @() {
+        $clip0 = $null; try { if ([System.Windows.Clipboard]::ContainsText()) { $clip0 = [System.Windows.Clipboard]::GetText() } } catch {}
+        Open-ShareOverlay; $window.UpdateLayout(); & $script:Shot433 'v437-share'
+        Invoke-Share 'phone'; $window.UpdateLayout(); & $script:Shot433 'v437-share-qr'
+        $qrOk = ($null -ne $ui.ShQr.Source -and $ui.ShQr.Source.PixelWidth -gt 50)
+        foreach ($k in 'messenger', 'text', 'email', 'copy') { Open-ShareOverlay; Invoke-Share $k }
+        $clipNow = $null; try { $clipNow = [System.Windows.Clipboard]::GetText() } catch {}
+        try { if ($null -ne $clip0) { [System.Windows.Clipboard]::SetText($clip0) } else { [System.Windows.Clipboard]::Clear() } } catch {}
+        $tok = ''; try { $tok = [string](Get-TessieToken) } catch {}
+        $all = (@($script:ShareLog | ForEach-Object { $_.uri }) -join ' ') + ' ' + $clipNow
+        $script:SelfRec.v437.share = [ordered]@{ log = @($script:ShareLog); qrShown = $qrOk; copied = $clipNow; launchedAny = (@($script:ShareLog | Where-Object { $_.launched }).Count -gt 0)
+            noToken = ($tok.Length -lt 8 -or -not $all.Contains($tok)); onlyOurLinks = (-not ($all -match 'token|Bearer|vin=')); toast = $ui.WToastTxt.Text }
+    }
+    & $add 'v4.3.7 UPDATE pop-up (pretend v9.9.9 is out; Later)' @() {
+        $u0 = [ordered]@{ state = $script:Upd.state; latest = $script:Upd.latest }
+        $script:Upd.state = 'available'; $script:Upd.latest = '9.9.9'
+        Show-UpdatePrompt -NoWait; $window.UpdateLayout(); & $script:Shot433 'v437-update-popup'
+        $script:SelfRec.v437.updatePopup = [ordered]@{ msg = $ui.ConfirmMsg.Text; sub = $ui.ConfirmSub.Text; yes = $ui.ConfirmYesTxt.Text; no = $ui.ConfirmNoTxt.Text; visible = ($ui.ConfirmOverlay.Visibility -eq 'Visible') }
+        Close-ConfirmOverlay $false
+        $script:Upd.state = $u0.state; $script:Upd.latest = $u0.latest; Render-Update
+    }
     if ($Quick433) { return (Start-SelfTimer) }
     # ---- v4.3.2 steps (forced/mock state, DRY RUN: nothing is sent to the car, nothing announced) ----
     $script:Shot432 = { param($n, [switch]$Full) $f = 'tessdesk-v432-' + $n + '.png'; if ($Full) { Save-RootPng (Join-Path $script:SelfDir $f) -Full } else { Save-RootPng (Join-Path $script:SelfDir $f) }; $script:SelfRec.shots += $f }

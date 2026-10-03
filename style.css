@@ -526,3 +526,7 @@ body.compact .cbtn.flash { min-height: 0; }
 .rows .sess { padding: 0 2px 7px 10px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; line-height: 1.45; }
 .rows .sess small { display: block; font-size: 10.5px; letter-spacing: .03em; opacity: .85; }
 .rows .sess + .row { border-top: 1px solid var(--line); }
+
+/* v4.3.7 share */
+.share-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0 4px; }
+.share-grid #shNative { grid-column: 1 / -1; }

@@ -31,9 +31,18 @@
   <p class="lead">Every TessDesk version (desktop widget and phone app), newest first.</p>
 
   <!-- Add each new version at the top: <section class="rel new"> ... -->
-  <section class="rel new" id="v4.3.6">
-    <h2>v4.3.6 <small>Oct 3, 2026</small></h2>
+  <section class="rel new" id="v4.3.7">
+    <h2>v4.3.7 <small>Oct 3, 2026</small></h2>
     <span class="tag">LATEST</span>
+    <ul>
+      <li><b>Update pop-up.</b> When a newer version is out, the desktop widget asks <b>Update now / Later</b>. Update now downloads it, checks every file&rsquo;s SHA-256, backs up your copy and restarts TessDesk where it is. Later asks again the next day (the green UPDATE button stays). It now checks about every 3 hours, so a new version reaches every copy the same day.</li>
+      <li><b>SHARE.</b> A Share button (desktop footer and phone footer) sends the TessDesk link by Messenger, text or email, copies it, or shows a QR code to open it on your phone. Only the link is shared, never your token, and nothing is sent until you press send in the app that opens.</li>
+      <li><b>REMEMBER / RESTORE use your desk layout file</b> (desktop). TessDesk now saves its place in desk_window_layout.json, the same file and behavior as TIMECLOCK LIVE and Paycheck Live (its own TESSDESK entry; the others are never touched). It won&rsquo;t save a minimized, maximized or off-screen window, and RESTORE goes back to the startup place if nothing was remembered yet.</li>
+      <li>Version v4.3.7, new offline cache (tessdesk-v4.3.7). Windows download: TessDesk Setup 4.4.7.</li>
+    </ul>
+  </section>
+  <section class="rel" id="v4.3.6">
+    <h2>v4.3.6 <small>Oct 3, 2026</small></h2>
     <ul>
       <li><b>KEEP renamed REMEMBER.</b> The desktop window-spot buttons now read <b>REMEMBER / RESTORE</b>, the same wording as Van&rsquo;s other windows. They work exactly as before: REMEMBER saves where TessDesk sits (position, size, screen), RESTORE moves it back, and it opens there next time.</li>
       <li><b>Desktop and phone Sessions agree.</b> Both use the same rule: finished charges come from Tessie&rsquo;s charge list, the charge in progress comes from the car, and nothing is counted twice. Back-to-back parts (for example 11:00&ndash;11:03 and 11:03&ndash;2:47) are both kept, so Tonight, the Sessions lines and the big number match on both.</li>
