@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-# TessDesk v4.3.5 - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
+# TessDesk v4.3.6 - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
 param(
     [string]$ConfigPath,
     [string]$Snapshot,    # optional: folder to write PNG snapshots of both themes
@@ -14,7 +14,7 @@ Add-Type -AssemblyName System.Xaml
 
 $ErrorActionPreference = 'Stop'
 $AppName    = 'TessDesk'
-$AppVersion = '4.3.5'
+$AppVersion = '4.3.6'
 $AppDate    = 'Oct 3, 2026'
 
 $scriptDir  = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -387,12 +387,19 @@ function New-State {
     return [pscustomobject]$h
 }
 
+# v4.3.6: real overlap (more than 90 s), so a part that ended just before the next one began is not counted as the same charge (phone: dupOfLive)
+function Test-RealOverlap {
+    param($a, $b)
+    $ae = $(if ($null -ne $a.endEpoch) { [int64]$a.endEpoch } else { [int64]$a.lastEpoch }); $be = $(if ($null -ne $b.endEpoch) { [int64]$b.endEpoch } else { [int64]$b.lastEpoch })
+    return (([int64]$a.startEpoch -lt ($be - 90)) -and ([int64]$b.startEpoch -lt ($ae - 90)))
+}
 function Test-Overlap {
     param($a, $b)
     return (([int64]$a.startEpoch -lt ([int64]$b.endEpoch + 300)) -and ([int64]$b.startEpoch -lt ([int64]$a.endEpoch + 300)))
 }
 
-# Add/replace a completed session; live-tracked sessions win over overlapping Tessie records.
+# Add/replace a completed session. v4.3.6: both sources are stored (a Tessie record and the widget's own record of the
+# same charge); which one counts is decided when reading (Select-CountedSessions: Tessie wins), same rule as the phone.
 function Merge-Sessions {
     param($List, $Item)
     $out = @()
@@ -401,9 +408,9 @@ function Merge-Sessions {
         if ($null -eq $x) { continue }
         if ([string]$x.source -eq [string]$Item.source -and [int64]$x.startEpoch -eq [int64]$Item.startEpoch) { continue }
         if (Test-Overlap $x $Item) {
-            if ([string]$Item.source -eq 'live' -and [string]$x.source -ne 'live') { if (-not $Item.home -and $x.home) { $Item | Add-Member -NotePropertyName home -NotePropertyValue $x.home -Force }; continue }
-            if ([string]$x.source -eq 'live' -and [string]$Item.source -ne 'live') { $keepItem = $false; if (-not $x.home -and $Item.home) { $x | Add-Member -NotePropertyName home -NotePropertyValue $Item.home -Force } }
-            elseif ([string]$x.source -eq [string]$Item.source) { continue }
+            if ([string]$Item.source -eq 'live' -and [string]$x.source -ne 'live') { if (-not $Item.home -and $x.home) { $Item | Add-Member -NotePropertyName home -NotePropertyValue $x.home -Force } }
+            elseif ([string]$x.source -eq 'live' -and [string]$Item.source -ne 'live') { if (-not $x.home -and $Item.home) { $x | Add-Member -NotePropertyName home -NotePropertyValue $Item.home -Force } }
+            elseif ([string]$x.source -eq 'live' -and [string]$Item.source -eq 'live') { continue }
         }
         $out += $x
     }
@@ -474,17 +481,34 @@ function Get-CurrentLive {
     return $null
 }
 
-# Completed sessions minus anything that duplicates the live session in progress.
+# v4.3.6 SESSIONS RULE (same as the phone): completed sessions come from Tessie's /charges list. The widget's own record
+# of a finished charge counts only while Tessie has no record overlapping it (Tessie lists a charge a few minutes after it
+# ends). The live session in progress always counts, and any Tessie record overlapping it is dropped. Nothing counts twice.
+function Select-CountedSessions {
+    param($List)
+    $all = @(@($List) | Where-Object { $null -ne $_ })
+    $tes = @($all | Where-Object { [string]$_.source -ne 'live' })
+    $out = @()
+    foreach ($s in $all) {
+        if ([string]$s.source -eq 'live') {
+            $dup = $false; foreach ($t in $tes) { if (Test-RealOverlap $s $t) { $dup = $true; break } }
+            if ($dup) { continue }
+        }
+        $out += $s
+    }
+    return $out
+}
+# Completed sessions (Tessie first, see above) minus anything that duplicates the live session in progress.
 function Get-CompletedForTotals {
     param($St)
     $cur = Get-CurrentLive $St
     $out = @()
-    foreach ($s in @($St.recentSessions)) {
+    foreach ($s in @(Select-CountedSessions $St.recentSessions)) {
         if ($null -eq $s) { continue }
         if ($null -ne $cur) {
             if ([string]$s.source -eq 'live' -and [int64]$s.startEpoch -eq [int64]$cur.startEpoch) { continue }
             $span = [pscustomobject]@{ startEpoch = $cur.startEpoch; endEpoch = $cur.lastEpoch }
-            if ([string]$s.source -ne 'live' -and (Test-Overlap $s $span)) { continue }
+            if ([string]$s.source -ne 'live' -and (Test-RealOverlap $s $span)) { continue }   # v4.3.6: an earlier back-to-back part stays (carry rule handles a running counter)
         }
         $out += $s
     }
@@ -1761,14 +1785,14 @@ function Open-Url433 {
             <TextBlock x:Name="FooterSep" Text="  ·  " FontSize="9" Foreground="#FF6A6A6A"/>
             <TextBlock x:Name="FooterAbout" Text="About / Privacy" FontSize="9" Foreground="#FF6A6A6A"/>
           </StackPanel>
-          <!-- v4.3.5: KEEP / RESTORE this window's spot (same idea as Remember / Restore on Van's other windows) -->
+          <!-- v4.3.5: KEEP / RESTORE (v4.3.6: labelled REMEMBER) this window's spot (same idea as Remember / Restore on Van's other windows) -->
           <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,5,0,0">
             <Border x:Name="KeepBtn" CornerRadius="8" BorderBrush="#FF49DF93" BorderThickness="1.5" Background="#1A49DF93" Padding="9,1,9,2" Margin="0,0,5,0" Cursor="Hand"
-                    ToolTip="KEEP: remember where TessDesk is now (position, size and screen). It opens here next time.">
-              <TextBlock x:Name="KeepTxt" Text="KEEP" FontSize="9.5" FontWeight="Bold" Foreground="#FFFFFFFF"/>
+                    ToolTip="REMEMBER: save where TessDesk is now (position, size and screen). It opens here next time.">
+              <TextBlock x:Name="KeepTxt" Text="REMEMBER" FontSize="9.5" FontWeight="Bold" Foreground="#FFFFFFFF"/>
             </Border>
             <Border x:Name="RestoreBtn" CornerRadius="8" BorderBrush="#FF49DF93" BorderThickness="1.5" Background="#1A49DF93" Padding="9,1,9,2" Cursor="Hand"
-                    ToolTip="RESTORE: move TessDesk back to the kept spot">
+                    ToolTip="RESTORE: move TessDesk back to the remembered spot">
               <TextBlock x:Name="RestoreTxt" Text="RESTORE" FontSize="9.5" FontWeight="Bold" Foreground="#FFFFFFFF"/>
             </Border>
           </StackPanel>
@@ -4833,7 +4857,7 @@ function Write-CbTessDeskEntry {
     $doc = Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json
     $list = @(@($doc.windows) | Where-Object { $null -ne $_ -and [string]$_.name -ne 'TESSDESK' })
     $e = [ordered]@{ name = 'TESSDESK'; kind = 'widget'; script = (Join-Path $scriptDir 'TessDesk.ps1'); sta = $true; excludeArgs = ''; titleRegex = '^TessDesk'
-        startupEntry = 'Startup folder: TessDesk.lnk'; x = [int]$Rect.x; y = [int]$Rect.y; w = [int]$Rect.w; h = [int]$Rect.h; source = ('kept in TessDesk ' + (Get-Date).ToString('yyyy-MM-dd HH:mm')) }
+        startupEntry = 'Startup folder: TessDesk.lnk'; x = [int]$Rect.x; y = [int]$Rect.y; w = [int]$Rect.w; h = [int]$Rect.h; source = ('remembered in TessDesk ' + (Get-Date).ToString('yyyy-MM-dd HH:mm')) }
     $old = @(@($doc.windows) | Where-Object { $null -ne $_ -and [string]$_.name -eq 'TESSDESK' })[0]
     if ($null -ne $old -and $old.startupEntry) { $e.startupEntry = [string]$old.startupEntry }
     $out = [ordered]@{ saved = (Get-Date).ToString('yyyy-MM-dd HH:mm:ss'); note = $(if ($doc.note) { [string]$doc.note } else { 'Saved by Remember / Save All / Save Window Locations; read by restore, startup and maintenance' }); windows = @($list + [pscustomobject]$e) }
@@ -4851,16 +4875,16 @@ function Invoke-KeepSpot {
     $script:KeptSpot = [pscustomobject]$S
     $cb = $null; try { $cb = Write-CbTessDeskEntry $rect } catch { $cb = 'layout file not updated: ' + $_.Exception.Message; Write-WidgetLog $cb }
     $script:KeepLast = [ordered]@{ action = 'keep'; spot = $S; layoutFile = $cb }
-    Write-WidgetLog ('KEEP: spot saved ' + $S.left + ',' + $S.top + ' ' + $S.width + 'x' + $S.height + ' on ' + $S.monitor + ' (' + $cb + ')')
+    Write-WidgetLog ('REMEMBER: spot saved ' + $S.left + ',' + $S.top + ' ' + $S.width + 'x' + $S.height + ' on ' + $S.monitor + ' (' + $cb + ')')
     Show-TdToast 'Spot saved' $true
 }
 function Invoke-RestoreSpot {
-    if ($null -eq $script:KeptSpot) { Show-TdToast 'No kept spot yet: press KEEP first' $false; return }
-    if (-not (Test-SpotUsable $script:KeptSpot)) { Show-TdToast 'The kept spot is not on any screen right now' $false; return }
+    if ($null -eq $script:KeptSpot) { Show-TdToast 'No spot remembered yet: press REMEMBER first' $false; return }
+    if (-not (Test-SpotUsable $script:KeptSpot)) { Show-TdToast 'The remembered spot is not on any screen right now' $false; return }
     Set-TdSpot $script:KeptSpot
     $script:KeepLast = [ordered]@{ action = 'restore'; spot = $script:KeptSpot }
     Write-WidgetLog ('RESTORE: moved to ' + $script:KeptSpot.left + ',' + $script:KeptSpot.top)
-    Show-TdToast 'Back at the kept spot' $true
+    Show-TdToast 'Back at the remembered spot' $true
 }
 # startup: open at the kept spot
 try { if (Test-SpotUsable $script:KeptSpot) { Set-TdSpot $script:KeptSpot; $script:StartedAtKept = $true } } catch {}
@@ -5110,6 +5134,27 @@ function Start-SelfTest {
         $rs = Get-WindowSessions $script:State; $rw = Get-HomeWindowCharge $script:State
         $script:SelfRec.v435.sessionsReal = [ordered]@{ header = $(if ($rs) { $rs.header } else { $null }); lines = $(if ($rs) { $rs.lines } else { @() }); sumOfLines = $(if ($rs) { $rs.sumCostUsd } else { $null }); windowCost = $(if ($rw) { $rw.costUsdAllIn } else { $null }); hero = $ui.HeroCost.Text }
         Render-View; $ui.RowsCard.BringIntoView(); $window.UpdateLayout(); & $script:Shot433 'v435-sessions-real' }
+    & $add 'v4.3.6 sessions rule: Tessie wins for completed, live in progress wins, nothing twice' @() {
+        $b0 = ConvertTo-EpochLocal ((Get-Date).Date.AddDays(-1).AddHours(23))
+        $L = [pscustomobject]@{ source = 'live'; startEpoch = $b0 + 240; endEpoch = $b0 + 13620; kwhAdded = 12.8; kwhWall = 14.2; costUsdAllIn = 0.89 }
+        $T1 = [pscustomobject]@{ source = 'tessie'; startEpoch = $b0 + 200; endEpoch = $b0 + 600; kwhAdded = 0.2; kwhWall = 0.25; costUsdAllIn = 0.02 }
+        $T2 = [pscustomobject]@{ source = 'tessie'; startEpoch = $b0 + 900; endEpoch = $b0 + 13700; kwhAdded = 13.6; kwhWall = 15.1; costUsdAllIn = 0.90 }
+        $r = @(); foreach ($x in @($L, $T1, $T2)) { $r = Merge-Sessions $r $x }
+        $c = @(Select-CountedSessions $r)
+        $only = @(Select-CountedSessions @($L))
+        $script:SelfRec.v436 = [ordered]@{ stored = $r.Count; counted = @($c | ForEach-Object { [string]$_.source + ':' + $_.kwhAdded }); liveAloneCounts = ($only.Count -eq 1)
+            ok = ($r.Count -eq 3 -and @($r | Where-Object { $_.source -eq 'tessie' }).Count -eq 2 -and $c.Count -eq 2 -and @($c | Where-Object { $_.source -eq 'live' }).Count -eq 0 -and $only.Count -eq 1) }
+        if (-not $script:SelfRec.v436.ok) { throw ('sessions rule wrong: ' + ($script:SelfRec.v436 | ConvertTo-Json -Compress)) }
+    }
+    & $add 'v4.3.6 sessions: tonight from a fresh Tessie /charges read (GET only) + this state' @() {
+        $tok = Get-TessieToken; Resolve-Vin $tok | Out-Null
+        $list = @(Get-ChargeSessions $tok)
+        $st = $script:State; $r = @($st.recentSessions); foreach ($x in $list) { $r = Merge-Sessions $r $x }
+        $st2 = New-State $st @{ recentSessions = $r }
+        $ws = Get-WindowSessions $st2; $w = Get-HomeWindowCharge $st2
+        $script:SelfRec.v436.real = [ordered]@{ header = $ws.header; lines = @($ws.lines); sumCost = $ws.sumCostUsd; sumKwh = $ws.sumKwh; windowCost = $ws.windowCostUsd
+            parts = @(@($w.parts) | ForEach-Object { [string]$_.source + ' ' + $_.start + '-' + $_.end + ' ' + $_.kwhAdded }) }
+    }
     & $add 'v4.3.5 KEEP: save the spot (test copy of the layout file)' @() {
         $script:SelfCbPath = Join-Path $script:SelfDir 'cb_window_layout.json'
         if (Test-Path -LiteralPath $CbLayoutPath) { Copy-Item -LiteralPath $CbLayoutPath -Destination $script:SelfCbPath -Force } else { [ordered]@{ saved = ''; note = 'test'; windows = @() } | ConvertTo-Json | Set-Content -LiteralPath $script:SelfCbPath -Encoding UTF8 }
