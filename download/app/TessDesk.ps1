@@ -1997,7 +1997,7 @@ function Add-CommonRows {
     $hasHist = ($null -ne $st) -and (@($st.recentSessions).Count -gt 0)
     if ($hasHist -or ($null -ne (Get-CurrentLive $st))) {
         $View.night = Get-NightTotal $st $nowE
-        $View.sessions = Get-WindowSessions $st
+        $View | Add-Member -NotePropertyName sessions -NotePropertyValue (Get-WindowSessions $st) -Force
     } else {
         $nw = Get-NightWindow $nowE
         $View.night = [pscustomobject]@{ label = $(if ($nw.inWindow) { 'Tonight' } else { 'Last night' }); caption = 'no data yet'; costUsdAllIn = $null; kwhAdded = $null }
@@ -2289,7 +2289,7 @@ function Render-View {
         $ui.NightKwh.Text = Format-Kwh $v.night.kwhAdded
         if ($v.night.inWindow -and $v.accent -eq 'green') { $ui.NightCost.Foreground = T 'Green' } else { $ui.NightCost.Foreground = T 'Text' }
     }
-    Render-Sessions $v.sessions
+    Render-Sessions $(if ($null -ne $v.PSObject.Properties['sessions']) { $v.sessions } else { $null })
     $cap = 'live from Tessie'; if ($v.periodSource -like 'daily*') { $cap = 'from daily file' }
     if ($null -ne $v.d7) {
         $ui.D7Cost.Text = Format-Money $v.d7.costUsdAllIn; $ui.D7Kwh.Text = Format-Kwh $v.d7.kwhAdded

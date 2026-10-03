@@ -11,8 +11,8 @@
    {
     "name": "TessDesk.ps1",
     "url": "https://vanwidick.github.io/tessdesk/download/app/TessDesk.ps1",
-    "sha256": "880f24c2c5e1cc283a46db65207cde6a6dd64568fb06bc30c7754c64d288e161",
-    "bytes": 436607
+    "sha256": "ad349248d05f9334a309d5d9ae229c607b88f44c64ad0d616f3fe3485f4f1647",
+    "bytes": 436736
    },
    {
     "name": "TessDesk-Announce.ps1",
