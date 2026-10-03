@@ -70,6 +70,10 @@
     <p>Off unless you set it up. If you add a Voice Monkey token and speaker in Connected apps and tick the disclosure, TessDesk sends the <b>text of each announcement</b> (for example charging cost and kWh, tire pressures, battery %, range, lock/window/climate state, or "unlock failed") to Voice Monkey (api-v3.voicemonkey.io), which passes it to Amazon Alexa so your Echo speaks it. Their privacy policies then apply.</p>
     <p>The Voice Monkey token is stored encrypted with Windows DPAPI on the PC, and in this browser's local storage on the phone. Turn announcements off with the ALEXA switch. Remove them completely by clearing the token in Connected apps; on the PC that also deletes the "TessDesk Announce" scheduled tasks, and so does uninstalling.</p>
   </section>
+  <section class="rel" id="updates">
+    <h2>Update check <small>v4.3.3</small></h2>
+    <p>About once a day the desktop widget, and the phone app while it is open, read <b>version.json</b> from vanwidick.github.io/tessdesk to see whether a newer version is out. Nothing about you, your car or your tokens is sent; it is an ordinary page request (like opening this page). An update is only installed when you click <b>UPDATE AVAILABLE</b>; the files are checked against their SHA-256 and your current copy is backed up first.</p>
+  </section>
   <section class="rel">
     <h2>Costs, warranty, terms</h2>
     <ul>

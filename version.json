@@ -1,0 +1,47 @@
+{
+ "app": "TessDesk",
+ "version": "4.3.3",
+ "date": "Oct 3, 2026",
+ "setup": "4.4.3",
+ "changelog": "https://vanwidick.github.io/tessdesk/changelog.html#v4.3.3",
+ "download": "https://vanwidick.github.io/tessdesk/download.html",
+ "desktop": {
+  "version": "4.3.3",
+  "files": [
+   {
+    "name": "TessDesk.ps1",
+    "url": "https://vanwidick.github.io/tessdesk/download/app/TessDesk.ps1",
+    "sha256": "8de23cd6357d8fbf6c07f099a382cedab4f59d61e0ec9d6e30a3f364efd22f52",
+    "bytes": 415262
+   },
+   {
+    "name": "TessDesk-Announce.ps1",
+    "url": "https://vanwidick.github.io/tessdesk/download/app/TessDesk-Announce.ps1",
+    "sha256": "ed172d0f09dba960ed6c361fecad1aead3b943b3bdc0a73c806ac70a79cd62a5",
+    "bytes": 11053
+   },
+   {
+    "name": "TessDesk-Remind.ps1",
+    "url": "https://vanwidick.github.io/tessdesk/download/app/TessDesk-Remind.ps1",
+    "sha256": "f83007e52e2e877576caec5a96697f93ea9640cb614d953c2d7df18087bc93cc",
+    "bytes": 8628
+   },
+   {
+    "name": "TessDesk-Speakers.ps1",
+    "url": "https://vanwidick.github.io/tessdesk/download/app/TessDesk-Speakers.ps1",
+    "sha256": "1d8f64cf9a7baed5bbfdae1588c680d45d3fd18088a755c233f365b49e130a21",
+    "bytes": 2601
+   },
+   {
+    "name": "PRIVACY.md",
+    "url": "https://vanwidick.github.io/tessdesk/download/app/PRIVACY.md",
+    "sha256": "db019220b9999a8d0ee8ea36f30d44b17a19242a817188edbb7876b6c314f109",
+    "bytes": 4669
+   }
+  ]
+ },
+ "phone": {
+  "version": "4.3.3",
+  "cache": "tessdesk-v4.3.3"
+ }
+}

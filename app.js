@@ -406,6 +406,29 @@
       '<div class="foot-links"><a class="ver" href="' + CHANGELOG_URL + '" title="What\u2019s new">' + VERSION + ' \u00b7 ' + VERSION_DATE + (VARIANT === 'test' ? ' \u00b7 TEST' : '') + '</a>' +
       '<span class="dot">\u00b7</span><a class="ver about" href="' + PRIVACY_URL + '" title="About TessDesk, privacy and permissions">About / Privacy</a></div></div>';
   }
+  // ---------- v4.3.3: new-version check (version.json on this site; no data is sent) ----------
+  var upd = { latest: null, checkedAt: 0, info: null };
+  function verGt(a, b) { a = String(a || '').replace(/^v/, '').split('.'); b = String(b || '').replace(/^v/, '').split('.'); for (var i = 0; i < Math.max(a.length, b.length); i++) { var x = +a[i] || 0, y = +b[i] || 0; if (x !== y) return x > y; } return false; }
+  function checkUpdate(force) {
+    if (VARIANT === 'test' && !force) return;
+    if (!force && Date.now() - upd.checkedAt < 6 * 3600 * 1000) return;
+    upd.checkedAt = Date.now();
+    fetch('version.json?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
+      if (!j) return; var v = (j.phone && j.phone.version) || j.version; upd.info = j;
+      var was = upd.latest; upd.latest = verGt(v, VERSION) ? String(v).replace(/^v/, '') : null;
+      if (was !== upd.latest) render();
+    }).catch(function () {});
+  }
+  function updBanner() { return upd.latest ? '<button class="upd-banner" id="btnUpdApp" type="button"><b>New version, tap to refresh</b><small>v' + esc(upd.latest) + ' is out \u00b7 you have ' + esc(VERSION) + '</small></button>' : ''; }
+  function applyUpdate() {
+    window.__tdUpdTapped = (window.__tdUpdTapped || 0) + 1;
+    var el = document.getElementById('btnUpdApp'); if (el) el.querySelector('b').textContent = 'Refreshing\u2026';
+    var done = function () { var u = location.href.split('#')[0].replace(/[?&]v=\d+/, ''); location.replace(u + (u.indexOf('?') >= 0 ? '&' : '?') + 'v=' + Date.now()); };
+    var p = (window.caches ? caches.keys().then(function (ks) { return Promise.all(ks.filter(function (k) { return k.indexOf('tessdesk-v') === 0; }).map(function (k) { return caches.delete(k); })); }) : Promise.resolve())
+      .then(function () { return navigator.serviceWorker && navigator.serviceWorker.getRegistration ? navigator.serviceWorker.getRegistration().then(function (r) { return r && r.update(); }) : null; })
+      .catch(function () {});
+    Promise.race([p, new Promise(function (r) { setTimeout(r, 4000); })]).then(done);
+  }
   function testBanner() { return VARIANT === 'test' ? '<div class="test-banner">TEST BUILD</div>' : ''; }
 
   function render() {
@@ -421,7 +444,7 @@
     else if (v) note = '<span class="note upd" id="updAge" data-t="' + v.updated + '">' + updText(v.updated) + '</span>';
     else note = '<span class="note">Loading\u2026</span>';
 
-    var h = '<div class="wrap">' + testBanner() +
+    var h = '<div class="wrap">' + testBanner() + updBanner() +
       '<div class="hdr"><div class="brand">TESSDESK</div><div class="who">' + layoutChip() + 'Logged in as <b>' + esc(cfg.name) + '</b></div></div>' +
       '<div class="toolbar">' + note + '<div class="tools">' + alexaChip() + '<button class="icon-btn" id="btnRefresh" aria-label="Refresh">' + ICON_REFRESH +
       '</button><button class="icon-btn" id="btnSettings" aria-label="Settings">' + ICON_GEAR + '</button></div></div>';
@@ -1124,6 +1147,7 @@
     var on = function (id, f) { var el = document.getElementById(id); if (el) el.onclick = f; };
     on('cFlash', onFlash);
     var fN = document.getElementById('cFlashN'); if (fN) { fN.oninput = function () { if (fN.value !== '') flash.n = clampFlash(fN.value); }; fN.onchange = function () { fN.value = flash.n = clampFlash(fN.value); }; }
+    on('btnUpdApp', applyUpdate);
     on('cTrunk', onTrunk); on('cSentry', onSentry);
     on('cLock', onLock); on('cVent', onVent); on('cClose', onClose); on('cClim', onClim);
     on('cTdn', function () { onTemp(-1); }); on('cTup', function () { onTemp(1); });
@@ -1646,6 +1670,7 @@
     return (st.state && st.state !== 'online' ? 'Car ' + esc(st.state) + ' \u00b7 ' : '<i class="dot' + (a <= 30 ? ' on' : '') + '"></i>') + 'Updated ' + age;
   }
   setInterval(function () { var e = document.getElementById('updAge'); if (e) e.innerHTML = updText(+e.getAttribute('data-t')); }, 1000);
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') checkUpdate(false); });
   document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible' && getCfg() && screen === 'main' && nowSec() - cache.stateAt > 10) refresh(false); });
   (function ptr() {
     var y0 = null, ind = document.createElement('div'); ind.className = 'ptr'; ind.textContent = 'Pull to refresh'; document.body.appendChild(ind);
@@ -1662,6 +1687,7 @@
 
   // test hooks for headless checks (no secrets)
   // v4.3.3 test hooks (read-only; selfTest restores the live session it borrows)
+  window.TessDesk433u = { check: function () { checkUpdate(true); }, state: function () { return upd; }, taps: function () { return window.__tdUpdTapped || 0; } };
   window.TessDesk433 = { drives: function () { var c = getCfg(); return c ? drivesList(c) : []; }, live: function () { return live; },
     selfTest: function () {
       var cfg = getCfg(), keepLive = live, keepCh = cache.charges, t = nowSec(), res = [];
@@ -1698,4 +1724,6 @@
 
   render();
   if (getCfg()) { refresh(false); startTimer(); }
+  setTimeout(function () { checkUpdate(false); }, 3000);
+  setInterval(function () { if (document.visibilityState === 'visible') checkUpdate(false); }, 30 * 60 * 1000);
 })();

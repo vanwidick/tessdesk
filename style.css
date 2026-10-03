@@ -514,3 +514,9 @@ body.compact .cbtn.flash { min-height: 0; }
 .hist li a, .hist li > span { display: flex; justify-content: space-between; gap: 8px; padding: 5px 2px; border-bottom: 1px solid var(--line); color: var(--text); text-decoration: none; font-size: 13px; }
 .hist li:last-child a, .hist li:last-child > span { border-bottom: 0; }
 .hist .hp { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .hist .ht { color: var(--muted); font-size: 12px; white-space: nowrap; }
+
+/* v4.3.3: new version banner */
+.upd-banner { display: flex; flex-direction: column; align-items: center; width: 100%; margin: 8px 0 2px; padding: 9px 12px; border-radius: 14px; border: 1.5px solid #49df93;
+  background: #49df93; color: #06210f; cursor: pointer; font: inherit; touch-action: manipulation; }
+.upd-banner b { font-size: 15px; font-weight: 800; letter-spacing: .03em; } .upd-banner small { font-size: 11px; font-weight: 700; opacity: .8; }
+.upd-banner:active { transform: scale(.98); }

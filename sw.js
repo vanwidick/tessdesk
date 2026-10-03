@@ -15,6 +15,7 @@ self.addEventListener('fetch', function (e) {
   if (req.method !== 'GET' || url.origin !== self.location.origin) return;           // let Tessie API go straight to network
   var scope = new URL(self.registration.scope);
   if (url.pathname.indexOf(scope.pathname + 'test/') === 0) return;                  // never touch the TEST build
+  if (/\/version\.json$/.test(url.pathname)) return;                               // v4.3.3: update check always goes to the network
   // stale-while-revalidate: instant from cache, refresh in the background
   e.respondWith(caches.open(CACHE).then(function (c) {
     return c.match(req, { ignoreSearch: req.mode === 'navigate' }).then(function (hit) {
