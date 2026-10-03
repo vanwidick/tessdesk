@@ -31,9 +31,21 @@
   <p class="lead">Every TessDesk version (desktop widget and phone app), newest first.</p>
 
   <!-- Add each new version at the top: <section class="rel new"> ... -->
-  <section class="rel new" id="v4.3.8">
-    <h2>v4.3.8 <small>Oct 3, 2026</small></h2>
+  <section class="rel new" id="v4.3.9">
+    <h2>v4.3.9 <small>Oct 3, 2026</small></h2>
     <span class="tag">LATEST</span>
+    <ul>
+      <li><b>CAMERAS panel</b> (desktop and phone). A camera On / Off switch in the title bar adds a panel at the top, above the charging amount: Front, Rear, Left and Right repeater tabs and a 4-up grid. It is <b>not live</b>: Tesla and Tessie don&rsquo;t offer a live camera feed, so TessDesk loops still frames from your saved Sentry and Dashcam clips and says so on the panel. Off by default; turned off, nothing changes.</li>
+      <li><b>Where the clips come from.</b> Desktop: the TeslaCam folder copied to the PC or a Wi-Fi USB drive (pick the folder in Camera options, it looks again every 5 minutes). Phone: tap Pick clips and choose the -front, -back, -left_repeater and -right_repeater files of one event. Loading shows &ldquo;Loading frames 42 / 64&rdquo; with a Stop button.</li>
+      <li><b>Capture.</b> Each camera has a Capture button. It saves that frame as a picture and opens an email to vanwidick@gmail.com with it (desktop: the picture is saved in Pictures\TessDesk Captures and copied, ready to paste, or sent for you if email is set up in TessDesk Setup &gt; Reminders; phone: the share sheet, or a download plus an email draft, and nothing goes out until you press send).</li>
+      <li><b>Full screen.</b> A Full screen grid with a layout choice: two monitors (Front on one, the other cameras on the other) or one screen. Esc or X closes it. The always-on-top TessDesk window steps out of the way while it is open and comes back after.</li>
+      <li><b>Save clip.</b> With a Sentry clip selected, Save copies its video files (desktop: to Videos\TessDesk Clips, with a count and Stop; phone: share or download).</li>
+      <li>Version v4.3.9 on desktop and phone, new offline cache (tessdesk-v4.3.9). Windows download: TessDesk Setup 4.4.9. Already on 4.3.8? TessDesk shows the Update now pop-up the next time it opens or you bring it back.</li>
+    </ul>
+  </section>
+
+  <section class="rel" id="v4.3.8">
+    <h2>v4.3.8 <small>Oct 3, 2026</small></h2>
     <ul>
       <li><b>Checks for updates every time TessDesk opens or the PC turns on/wakes</b> (desktop). TessDesk now looks for a new version right away each time it starts, including the auto-start when the PC boots, when the PC wakes from sleep, and when you bring the window back (restore or click on it, at most once every 5 minutes), the same way the phone app refreshes when you open it. The check about every 3 hours stays. If the network isn&rsquo;t up yet after a boot or wake, it quietly tries again a few times over about 2 minutes.</li>
       <li><b>Later means later.</b> If you press Later on the Update now / Later pop-up, TessDesk won&rsquo;t ask again about that version until the next time it opens (the green UPDATE button stays).</li>

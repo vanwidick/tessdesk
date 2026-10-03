@@ -1,5 +1,5 @@
 /* TessDesk service worker: offline app shell. API calls (api.tessie.com) are never cached here. */
-var CACHE = 'tessdesk-v4.3.7';
+var CACHE = 'tessdesk-v4.3.9';
 var SHELL = ['./', 'index.html', 'app.js', 'style.css', 'manifest.json', 'changelog.html', 'privacy.html', 'fonts/BebasNeue-Regular.ttf',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'icons/favicon-32.png'];
 self.addEventListener('install', function (e) {

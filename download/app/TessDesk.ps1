@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-# TessDesk v4.3.8 (checks for updates on open / wake; compact-when-OFF via cb_compact_addon.ps1) - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
+# TessDesk v4.3.9 (CAMERAS panel from saved Sentry / Dashcam clips; checks for updates on open / wake; compact-when-OFF via cb_compact_addon.ps1) - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
 param(
     [string]$ConfigPath,
     [string]$Snapshot,    # optional: folder to write PNG snapshots of both themes
@@ -14,7 +14,7 @@ Add-Type -AssemblyName System.Xaml
 
 $ErrorActionPreference = 'Stop'
 $AppName    = 'TessDesk'
-$AppVersion = '4.3.8'
+$AppVersion = '4.3.9'
 $AppDate    = 'Oct 3, 2026'
 
 $scriptDir  = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -1241,16 +1241,78 @@ function Open-Url433 {
         </ControlTemplate>
       </Setter.Value></Setter>
     </Style>
+    <!-- v4.3.9: camera panel button + frame slider -->
+    <Style x:Key="CamBtn" TargetType="Button">
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Focusable" Value="False"/>
+      <Setter Property="Foreground" Value="#FFE6E6E6"/>
+      <Setter Property="Background" Value="#FF1A1A1A"/>
+      <Setter Property="BorderBrush" Value="#FF333333"/>
+      <Setter Property="Padding" Value="6,2,6,2"/>
+      <Setter Property="FontSize" Value="10.5"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1.5" CornerRadius="7" Padding="{TemplateBinding Padding}">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Bd" Property="Opacity" Value="0.85"/></Trigger>
+              <Trigger Property="IsPressed" Value="True"><Setter TargetName="Bd" Property="Opacity" Value="0.6"/></Trigger>
+              <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Bd" Property="Opacity" Value="0.4"/></Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style x:Key="CamSlider" TargetType="Slider">
+      <Setter Property="Focusable" Value="False"/>
+      <Setter Property="IsMoveToPointEnabled" Value="True"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Slider">
+            <Grid Height="22" Background="Transparent">
+              <Border Height="6" CornerRadius="3" Background="#FF2E2E2E" VerticalAlignment="Center"/>
+              <Track x:Name="PART_Track">
+                <Track.DecreaseRepeatButton>
+                  <RepeatButton Command="Slider.DecreaseLarge" Focusable="False">
+                    <RepeatButton.Template><ControlTemplate TargetType="RepeatButton"><Border Height="6" CornerRadius="3" Background="#FF49DF93" VerticalAlignment="Center"/></ControlTemplate></RepeatButton.Template>
+                  </RepeatButton>
+                </Track.DecreaseRepeatButton>
+                <Track.IncreaseRepeatButton>
+                  <RepeatButton Command="Slider.IncreaseLarge" Focusable="False">
+                    <RepeatButton.Template><ControlTemplate TargetType="RepeatButton"><Border Background="Transparent"/></ControlTemplate></RepeatButton.Template>
+                  </RepeatButton>
+                </Track.IncreaseRepeatButton>
+                <Track.Thumb>
+                  <Thumb><Thumb.Template><ControlTemplate TargetType="Thumb"><Border Width="12" Height="18" CornerRadius="4" Background="#FFFFFFFF"/></ControlTemplate></Thumb.Template></Thumb>
+                </Track.Thumb>
+              </Track>
+            </Grid>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
   </Window.Resources>
   <Border x:Name="RootBorder" Background="#FF0B0B0B" BorderBrush="#FF333333" BorderThickness="1" CornerRadius="10">
    <Grid x:Name="RootGrid">
     <DockPanel LastChildFill="True">
       <Border x:Name="TitleBar" DockPanel.Dock="Top" Background="#FF141414" Height="28" Cursor="SizeAll" CornerRadius="10,10,0,0">
         <Grid Margin="12,0,6,0">
-          <TextBlock x:Name="TitleText" Text="TESSDESK" Foreground="#FFE82127" FontFamily="Segoe UI"
+          <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+          <TextBlock x:Name="TitleText" Grid.Column="0" Text="TESSDESK" Foreground="#FFE82127" FontFamily="Segoe UI"
                      FontSize="11" FontWeight="Bold" VerticalAlignment="Center"/>
-          <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-            <TextBlock x:Name="LoggedIn" Text="" Foreground="#FF7A7A7A" FontSize="10" VerticalAlignment="Center" Margin="0,0,8,0"/>
+          <TextBlock x:Name="LoggedIn" Grid.Column="1" Text="" Foreground="#FF7A7A7A" FontSize="10" VerticalAlignment="Center" Margin="8,0,6,0" TextAlignment="Right" TextTrimming="CharacterEllipsis"/>
+          <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+            <!-- v4.3.9: camera panel On / Off -->
+            <Border x:Name="CamBox" CornerRadius="9" Background="#22FFFFFF" Padding="6,1,3,1" Margin="0,0,4,0" VerticalAlignment="Center" ToolTip="Camera panel On / Off (frames from your saved Sentry / Dashcam clips, not live)">
+              <StackPanel Orientation="Horizontal">
+                <TextBlock x:Name="CamLbl" Text="&#xE722;" FontFamily="Segoe MDL2 Assets" FontSize="10.5" Foreground="#FFCCCCCC" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                <ToggleButton x:Name="CamToggle" Style="{StaticResource SwitchStyle}" Tag="#FF49DF93" VerticalAlignment="Center"/>
+              </StackPanel>
+            </Border>
             <Border x:Name="AlexaBox" CornerRadius="9" Background="#22FFFFFF" Padding="7,1,3,1" Margin="0,0,4,0" VerticalAlignment="Center" ToolTip="Alexa: announce the result of every control you press (Voice Monkey)">
               <StackPanel Orientation="Horizontal">
                 <TextBlock x:Name="AlexaLbl" Text="ALEXA" FontSize="9.5" FontWeight="Bold" Foreground="#FFCCCCCC" VerticalAlignment="Center" Margin="0,0,5,0"/>
@@ -1277,13 +1339,57 @@ function Open-Url433 {
           <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <DockPanel Grid.Row="0" LastChildFill="True" Margin="0,0,0,2">
+        <StackPanel Grid.Row="0">
+          <!-- v4.3.9: CAMERAS panel (top of the widget, above the charging amount). Frames from saved Sentry / Dashcam clips; Tesla has no live camera feed for apps. -->
+          <Border x:Name="CamCard" CornerRadius="10" Background="#FF111111" BorderBrush="#FF222222" BorderThickness="1" Padding="8,6,8,7" Margin="0,0,0,7" Visibility="Collapsed">
+            <StackPanel>
+              <DockPanel LastChildFill="False">
+                <TextBlock x:Name="CamHdr" DockPanel.Dock="Left" Text="CAMERAS" FontSize="12.5" FontWeight="Bold" Foreground="#FF9A9A9A" VerticalAlignment="Center"/>
+                <Button x:Name="CamGear" DockPanel.Dock="Right" Style="{StaticResource CamBtn}" Width="26" Height="22" Padding="0" ToolTip="Camera options: clip folder, speed, which clips, full-screen layout">
+                  <TextBlock Text="&#xE713;" FontFamily="Segoe MDL2 Assets" FontSize="11"/>
+                </Button>
+                <Border x:Name="CamPill" DockPanel.Dock="Right" CornerRadius="9" BorderBrush="#FFFFB547" BorderThickness="1.5" Background="#22FFB547" Padding="7,1,7,2" Margin="0,0,5,0" VerticalAlignment="Center"
+                        ToolTip="Tesla gives apps no live camera feed. This panel loops frames from your latest saved Sentry / Dashcam clip.">
+                  <TextBlock x:Name="CamPillTxt" Text="NOT LIVE · FROM SAVED CLIPS" FontSize="8.5" FontWeight="Bold" Foreground="#FFFFB547"/>
+                </Border>
+              </DockPanel>
+              <UniformGrid x:Name="CamTabs" Rows="1" Columns="5" Margin="0,6,0,0"/>
+              <DockPanel Margin="1,5,1,3" LastChildFill="True">
+                <TextBlock x:Name="CamSrc" DockPanel.Dock="Right" Text="" FontSize="9.5" FontWeight="SemiBold" Foreground="#FF8A8A8A" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                <TextBlock x:Name="CamEvent" Text="" FontSize="10" FontWeight="Bold" Foreground="#FFE82127" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+              </DockPanel>
+              <Border CornerRadius="6" Background="#FF0A0A0A" ClipToBounds="True">
+                <Grid x:Name="CamView" Height="238"/>
+              </Border>
+              <Grid x:Name="CamBusy" Margin="0,6,0,0" Visibility="Collapsed">
+                <TextBlock x:Name="CamBusyTxt" Text="" FontSize="10.5" FontWeight="SemiBold" Foreground="#FFCCCCCC" VerticalAlignment="Center" Margin="2,0,70,0" TextTrimming="CharacterEllipsis"/>
+                <Button x:Name="CamStop" Style="{StaticResource CamBtn}" HorizontalAlignment="Right" Height="24" Padding="10,0,10,0" BorderBrush="#FFE82127" ToolTip="Stop">
+                  <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE71A;" FontFamily="Segoe MDL2 Assets" FontSize="9" VerticalAlignment="Center" Margin="0,0,5,0"/><TextBlock Text="Stop" VerticalAlignment="Center"/></StackPanel>
+                </Button>
+              </Grid>
+              <DockPanel x:Name="CamCtl" Margin="0,6,0,0" LastChildFill="True">
+                <Button x:Name="CamPlay" DockPanel.Dock="Left" Style="{StaticResource CamBtn}" Width="32" Height="26" Padding="0" BorderBrush="#FF49DF93" ToolTip="Play / pause the loop">
+                  <TextBlock x:Name="CamPlayTxt" Text="&#xE769;" FontFamily="Segoe MDL2 Assets" FontSize="12" Foreground="#FF49DF93"/>
+                </Button>
+                <Button x:Name="CamFs" DockPanel.Dock="Right" Style="{StaticResource CamBtn}" Height="26" Padding="7,0,8,0" Margin="4,0,0,0" ToolTip="Full screen: every camera (Esc or X to exit)">
+                  <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE740;" FontFamily="Segoe MDL2 Assets" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"/><TextBlock Text="Full screen" VerticalAlignment="Center"/></StackPanel>
+                </Button>
+                <Button x:Name="CamSave" DockPanel.Dock="Right" Style="{StaticResource CamBtn}" Width="28" Height="26" Padding="0" Margin="4,0,0,0" ToolTip="Save this clip (copies the selected Sentry / Dashcam clip to Videos\TessDesk Clips)">
+                  <TextBlock Text="&#xE896;" FontFamily="Segoe MDL2 Assets" FontSize="11"/>
+                </Button>
+                <TextBlock x:Name="CamCount" DockPanel.Dock="Right" Text="" FontSize="9.5" Foreground="#FF8A8A8A" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                <Slider x:Name="CamSlider" Style="{StaticResource CamSlider}" Minimum="0" Maximum="15" Value="0" SmallChange="1" LargeChange="1" IsSnapToTickEnabled="True" TickFrequency="1" Margin="6,0,0,0" VerticalAlignment="Center"/>
+              </DockPanel>
+            </StackPanel>
+          </Border>
+        <DockPanel LastChildFill="True" Margin="0,0,0,2">
           <TextBlock x:Name="UpdBadge" DockPanel.Dock="Right" Text="" Foreground="#FF888888" FontSize="10" FontWeight="SemiBold" Margin="6,1,0,0" VerticalAlignment="Top"
                      ToolTip="How old the car data is (Tessie's cached data; TessDesk never wakes the car)"/>
           <TextBlock x:Name="LiveBadge" DockPanel.Dock="Right" Text="" Foreground="#FF2ECC40" FontSize="10"
                      FontWeight="SemiBold" Margin="6,1,0,0" VerticalAlignment="Top" Visibility="Collapsed"/>
           <TextBlock x:Name="DateLabel" Text="—" Foreground="#FF888888" FontSize="11" TextTrimming="CharacterEllipsis"/>
         </DockPanel>
+        </StackPanel>
 
         <StackPanel Grid.Row="1" Margin="0,0,0,2">
           <!-- v4.3.3: UPDATE AVAILABLE (one click: download, back up, install, restart) -->
@@ -1842,6 +1948,22 @@ function Open-Url433 {
             </StackPanel>
           </Border>
         </Grid>
+        <!-- v4.3.9: Camera options (clip source, speed, which clips, default camera, full-screen layout, captures) -->
+        <Grid x:Name="CamOptOverlay" Grid.Row="0" Grid.RowSpan="6" Visibility="Collapsed" Background="#B0000000" Margin="-16,-8,-16,-10">
+          <Border x:Name="CamOptBox" Width="318" CornerRadius="14" Background="#FF161616" BorderBrush="#FF49DF93" BorderThickness="1.5" Padding="12,10,8,10" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,10,0,10">
+            <DockPanel>
+              <DockPanel DockPanel.Dock="Top" Margin="0,0,4,6">
+                <Button x:Name="CamOptClose" DockPanel.Dock="Right" Style="{StaticResource CamBtn}" Width="24" Height="22" Padding="0" Background="Transparent" BorderBrush="Transparent" ToolTip="Close">
+                  <TextBlock Text="&#xE711;" FontFamily="Segoe MDL2 Assets" FontSize="10"/>
+                </Button>
+                <TextBlock Text="Camera options" FontSize="14" FontWeight="Bold" Foreground="#FFFFFFFF" VerticalAlignment="Center"/>
+              </DockPanel>
+              <ScrollViewer x:Name="CamOptScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel x:Name="CamOptBody" Margin="0,0,6,0"/>
+              </ScrollViewer>
+            </DockPanel>
+          </Border>
+        </Grid>
       </Grid>
     </DockPanel>
     <!-- v4.3.2: whole-window glow. red = not plugged in, green = plugged in, slow green pulse = charging -->
@@ -1931,7 +2053,7 @@ function Apply-Theme {
     $ui.TitleBar.CornerRadius = [System.Windows.CornerRadius]::new($th.RootRadius, $th.RootRadius, 0, 0)
     $ui.TitleText.Foreground = T 'Title'; $ui.LoggedIn.Foreground = T 'LoggedIn'
     $ui.DateLabel.Foreground = T 'Caption'
-    foreach ($n in 'TiresCard', 'RowsCard', 'BattCard', 'CtlCard', 'SeatsCard', 'DrivesCard') {
+    foreach ($n in 'TiresCard', 'RowsCard', 'BattCard', 'CtlCard', 'SeatsCard', 'DrivesCard', 'CamCard') {
         $ui[$n].Background = T 'CardBg'; $ui[$n].BorderBrush = T 'CardBorder'
         $ui[$n].CornerRadius = [System.Windows.CornerRadius]::new($th.CardRadius)
     }
@@ -5265,6 +5387,928 @@ $script:AnnTimer = New-Object System.Windows.Threading.DispatcherTimer
 $script:AnnTimer.Interval = [TimeSpan]::FromMilliseconds(300)
 $script:AnnTimer.Add_Tick({ try { Complete-AnnJobs } catch {} })
 
+# ---------------- v4.3.9: CAMERAS panel ----------------
+# Tesla / Tessie give apps NO live camera feed. This panel loops still frames pulled from saved Sentry / Dashcam clips
+# (the TeslaCam folder from the car's USB drive: a Wi-Fi USB drive such as TeslaUSB, or the folder copied to this PC).
+# Frames are read on this PC with Windows' own video player (MediaPlayer), kept in memory as small JPEGs, never uploaded.
+# Capture saves the frame as a PNG and emails it (your own email account from Setup > Reminders if it is set up,
+# otherwise your email app opens to the address with the picture copied). TessDesk never stores or embeds a password.
+$CamKeys  = @('front', 'back', 'left_repeater', 'right_repeater', 'left_pillar', 'right_pillar')
+$CamNames = @{ front = 'Front'; back = 'Rear'; left_repeater = 'Left repeater'; right_repeater = 'Right repeater'; left_pillar = 'Left pillar'; right_pillar = 'Right pillar' }
+$CamShort = @{ front = 'Front'; back = 'Rear'; left_repeater = 'Left rep.'; right_repeater = 'Right rep.'; left_pillar = 'L pillar'; right_pillar = 'R pillar' }
+$CamFramesN = 16
+$CamMaxW = 1280
+$CamMailDefault = 'vanwidick@gmail.com'
+function Get-CamCfg {
+    $d = [ordered]@{ enabled = $false; source = 'usb'; usbPath = ''; folderPath = ''; fps = 4; which = 'latest'; defaultCam = 'grid'; fsLayout = 'two'; fsFront = 'left'; mailTo = $CamMailDefault; captureDir = ''; clipDir = '' }
+    try { $c0 = $script:Cfg.camera; if ($null -ne $c0) { foreach ($p in $c0.PSObject.Properties) { if ($d.Contains($p.Name)) { $d[$p.Name] = $p.Value } } } } catch {}
+    $d.enabled = [bool]$d.enabled
+    if (@('usb', 'folder') -notcontains [string]$d.source) { $d.source = 'usb' }
+    if (@(2, 4, 8) -notcontains [int]$d.fps) { $d.fps = 4 }; $d.fps = [int]$d.fps
+    if (@('latest', 'all') -notcontains [string]$d.which) { $d.which = 'latest' }
+    if (@('grid') + $CamKeys -notcontains [string]$d.defaultCam) { $d.defaultCam = 'grid' }
+    if (@('two', 'one') -notcontains [string]$d.fsLayout) { $d.fsLayout = 'two' }
+    if (@('left', 'right') -notcontains [string]$d.fsFront) { $d.fsFront = 'left' }
+    if (-not [string]$d.mailTo) { $d.mailTo = $CamMailDefault }
+    return $d
+}
+$script:CamCfg = Get-CamCfg
+function Save-CamCfg { try { Save-ConfigProp 'camera' ([pscustomobject]$script:CamCfg) } catch { Write-WidgetLog ('camera settings save failed: ' + $_.Exception.Message) } }
+$script:Cam = [ordered]@{ status = 'off'; msg = ''; events = @(); ev = $null; evKey = $null; frames = @{}; times = @{}; errs = @{}; cams = @(); n = 0; idx = 0; playing = $true; view = [string]$script:CamCfg.defaultCam; scanNote = ''; lastScan = $null; lastLoad = $null }
+$script:CamViews = New-Object System.Collections.ArrayList    # every Image that shows a camera (widget + full screen)
+$script:CamBars = New-Object System.Collections.ArrayList     # sliders / counts / play buttons (widget + full screen)
+$script:CamJob = $null; $script:CamScan = $null; $script:CamSave = $null; $script:CamMail = $null
+$script:CamLog = @(); $script:CamStopAt = 0; $script:CamBusySeen = $null; $script:CamFs = $null; $script:CamSync = $false; $script:CamCaptures = @(); $script:CamMsgText = $null; $script:CamOptList = $null
+function Get-CamBrush { param([string]$c) return (Get-Brush $c) }
+function Get-CamRoot { if ([string]$script:CamCfg.source -eq 'folder') { return [string]$script:CamCfg.folderPath } else { return [string]$script:CamCfg.usbPath } }
+function Get-CamSrcLabel { if ([string]$script:CamCfg.source -eq 'folder') { return 'PC folder' } else { return 'USB drive' } }
+function Test-CamBusy { return ($null -ne $script:CamJob -or $null -ne $script:CamScan -or $null -ne $script:CamSave) }
+function Add-CamLog { param([string]$M) $script:CamLog = @(@($script:CamLog) + @(((Get-LocalNow).ToString('HH:mm:ss') + ' ' + $M)) | Select-Object -Last 60); Write-WidgetLog ('camera: ' + $M) }
+
+# ---- folder scan (background, so a sleeping Wi-Fi drive never freezes the widget) ----
+$script:CamScanBlock = {
+    param([string]$Root, [int]$Max)
+    $inv = [System.Globalization.CultureInfo]::InvariantCulture
+    $res = [ordered]@{ ok = $false; err = $null; camRoot = $null; events = @() }
+    try {
+        if (-not $Root) { throw 'nofolder' }
+        if (-not (Test-Path -LiteralPath $Root)) { throw ('Folder not found: ' + $Root) }
+        $tc = $Root; $sub = Join-Path $Root 'TeslaCam'; if (Test-Path -LiteralPath $sub) { $tc = $sub }
+        $res.camRoot = $tc
+        $rx = '^(\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})-(front|back|left_repeater|right_repeater|left_pillar|right_pillar)\.mp4$'
+        $mk = {
+            param($Kind, $Dir, $Files, $Name)
+            $clips = [ordered]@{}; $all = @(); $bytes = [int64]0
+            foreach ($f in $Files) {
+                $all += $f.FullName; $bytes += $f.Length
+                $m = [regex]::Match($f.Name, $rx); if (-not $m.Success) { continue }
+                $st = [datetime]::ParseExact($m.Groups[1].Value, 'yyyy-MM-dd_HH-mm-ss', $inv)
+                $k = $m.Groups[2].Value; if (-not $clips.Contains($k)) { $clips[$k] = @() }
+                $clips[$k] += [pscustomobject]@{ start = $st.ToString('s'); path = $f.FullName; bytes = $f.Length }
+            }
+            if ($clips.Count -eq 0) { return $null }
+            $t = $null; $trig = $false; $reason = $null; $city = $null
+            $ej = Join-Path $Dir 'event.json'
+            if ($Kind -ne 'RecentClips' -and (Test-Path -LiteralPath $ej)) { try { $j = Get-Content -LiteralPath $ej -Raw | ConvertFrom-Json; if ($j.timestamp) { $t = ([datetime]::Parse([string]$j.timestamp, $inv)).ToString('s'); $trig = $true }; $reason = [string]$j.reason; $city = [string]$j.city } catch {} }
+            if (-not $t -and $Name -match '^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}$') { $t = ([datetime]::ParseExact($Name, 'yyyy-MM-dd_HH-mm-ss', $inv)).ToString('s') }
+            if (-not $t) { $t = (@($clips.Values | ForEach-Object { $_ } | Sort-Object start) | Select-Object -Last 1).start }
+            return [pscustomobject]@{ kind = $Kind; name = $Name; dir = $Dir; time = $t; trigger = $trig; reason = $reason; city = $city; clips = [pscustomobject]$clips; files = $all; bytes = $bytes }
+        }
+        $evs = @()
+        foreach ($kind in @('SentryClips', 'SavedClips')) {
+            $kd = Join-Path $tc $kind; if (-not (Test-Path -LiteralPath $kd)) { continue }
+            foreach ($d in @(Get-ChildItem -LiteralPath $kd -Directory -ErrorAction SilentlyContinue | Sort-Object Name -Descending | Select-Object -First $Max)) {
+                $e = & $mk $kind $d.FullName @(Get-ChildItem -LiteralPath $d.FullName -File -ErrorAction SilentlyContinue) $d.Name; if ($null -ne $e) { $evs += $e }
+            }
+        }
+        $rd = Join-Path $tc 'RecentClips'
+        if (Test-Path -LiteralPath $rd) {
+            $groups = @(Get-ChildItem -LiteralPath $rd -File -Filter '*.mp4' -ErrorAction SilentlyContinue | Where-Object { $_.Name -match $rx } | Group-Object { $_.Name.Substring(0, 19) } | Sort-Object Name -Descending | Select-Object -First ([math]::Max(1, [int]($Max / 2))))
+            foreach ($g in $groups) { $e = & $mk 'RecentClips' $rd @($g.Group) $g.Name; if ($null -ne $e) { $evs += $e } }
+        }
+        if ($evs.Count -eq 0) {   # a single event folder picked directly
+            $here = @(Get-ChildItem -LiteralPath $tc -File -ErrorAction SilentlyContinue)
+            if (@($here | Where-Object { $_.Name -match $rx }).Count -gt 0) { $e = & $mk 'Folder' $tc $here (Split-Path -Leaf $tc); if ($null -ne $e) { $evs += $e } }
+        }
+        $res.events = @($evs | Sort-Object time -Descending)
+        $res.ok = $true
+    } catch { $res.err = $_.Exception.Message }
+    return [pscustomobject]$res
+}
+function Start-CamScan {
+    param([switch]$Load)
+    if ($null -ne $script:CamScan) { return }
+    $root = Get-CamRoot
+    if (-not $root) { Set-CamStatus 'nofolder' ''; return }
+    $ps = [powershell]::Create()
+    [void]$ps.AddScript($script:CamScanBlock).AddArgument($root).AddArgument(25)
+    $script:CamScan = [pscustomobject]@{ ps = $ps; async = $ps.BeginInvoke(); started = (Get-Date); load = [bool]$Load; root = $root }
+    if ($script:Cam.n -eq 0) { Set-CamStatus 'scanning' ('Looking for clips in ' + $root) } else { Update-CamBusy }
+    $script:CamTick.Start()
+}
+function Complete-CamScan {
+    $s = $script:CamScan; $r = $null; $err = $null
+    try { $r = @($s.ps.EndInvoke($s.async))[0] } catch { $err = $_.Exception.Message }
+    try { $s.ps.Dispose() } catch {}
+    $script:CamScan = $null; $script:Cam.lastScan = Get-LocalNow
+    if ($err -or $null -eq $r -or -not $r.ok) {
+        $m = $(if ($err) { $err } elseif ($r) { [string]$r.err } else { 'scan failed' })
+        if ($m -eq 'nofolder') { Set-CamStatus 'nofolder' ''; return }
+        Add-CamLog ('scan: ' + $m)
+        if ($script:Cam.n -eq 0) { Set-CamStatus 'error' ($m + ' (if it is a Wi-Fi drive, it may be asleep or away from home)') } else { $script:Cam.scanNote = $m; Update-CamBusy }
+        return
+    }
+    $script:Cam.events = @($r.events)
+    Add-CamLog ('scan: ' + @($r.events).Count + ' event(s) in ' + $r.camRoot)
+    if (@($r.events).Count -eq 0) { if ($script:Cam.n -eq 0) { Set-CamStatus 'noclips' ('No Sentry / Dashcam clips found in ' + $s.root) }; return }
+    $newest = @($r.events)[0]
+    $key = [string]$newest.dir + '|' + [string]$newest.name
+    if ($s.load -or ([string]$script:CamCfg.which -eq 'latest' -and $key -ne $script:Cam.evKey -and $null -eq $script:CamJob)) { Start-CamLoad $newest }
+    else { Update-CamBusy; Update-CamOptEvents }
+}
+
+# ---- frame extraction: Windows MediaPlayer, seek + render each frame (UI thread, small steps, Stop any time) ----
+function Get-CamClipFor {
+    param($Ev, [string]$Cam)
+    $list = @($Ev.clips.$Cam); if ($list.Count -eq 0 -or $null -eq $list[0]) { return $null }
+    $t = [datetime]::Parse([string]$Ev.time, $Inv)
+    $pick = $null
+    if ($Ev.trigger) { $pick = @($list | Where-Object { [datetime]::Parse([string]$_.start, $Inv) -le $t } | Sort-Object start | Select-Object -Last 1)[0] }
+    if ($null -eq $pick) { $pick = @($list | Sort-Object start | Select-Object -Last 1)[0] }
+    $st = [datetime]::Parse([string]$pick.start, $Inv)
+    $off = $(if ($Ev.trigger) { ($t - $st).TotalSeconds } else { $null })
+    return [pscustomobject]@{ path = [string]$pick.path; start = $st; offset = $off }
+}
+function Get-CamPositions {
+    param([double]$Dur, $Offset, [int]$N)
+    # around a Sentry trigger: about 6 s before to 2 s after; otherwise spread over the whole clip
+    $lo = 0.3; $hi = [math]::Max(0.4, $Dur - 0.3)
+    if ($null -ne $Offset) { $a = [double]$Offset - 6; $b = [double]$Offset + 2; if ($b -gt $hi) { $a -= ($b - $hi); $b = $hi }; if ($a -lt $lo) { $b = [math]::Min($hi, $b + ($lo - $a)); $a = $lo } }
+    else { $a = $lo; $b = $hi }
+    $out = @(); for ($i = 0; $i -lt $N; $i++) { $out += [math]::Round($a + ($b - $a) * $i / [math]::Max(1, $N - 1), 2) }
+    return $out
+}
+function Start-CamLoad {
+    param($Ev)
+    Stop-CamJob 'replaced'
+    $items = @()
+    foreach ($k in $CamKeys) {
+        $cl = Get-CamClipFor $Ev $k; if ($null -eq $cl) { continue }
+        $p = New-Object System.Windows.Media.MediaPlayer
+        $p.ScrubbingEnabled = $true; $p.IsMuted = $true; $p.Volume = 0
+        $it = [ordered]@{ cam = $k; path = $cl.path; start = $cl.start; offset = $cl.offset; p = $p; state = 'open'; k = 0; wait = 0; tries = 0; t0 = (Get-Date); w = 0; h = 0; pos = @(); frames = (New-Object System.Collections.ArrayList); err = $null }
+        $p.Add_MediaFailed({ param($s9, $e9) try { foreach ($x in @($script:CamJob.items)) { if ([object]::ReferenceEquals($x.p, $s9)) { $x.err = $(if ($e9.ErrorException) { $e9.ErrorException.Message } else { 'could not open' }) } } } catch {} })
+        try { $p.Open([Uri]::new($cl.path)) } catch { $it.err = $_.Exception.Message }
+        $items += $it
+    }
+    if ($items.Count -eq 0) { Set-CamStatus 'noclips' 'This event has no camera clips'; return }
+    $script:CamJob = [ordered]@{ ev = $Ev; items = $items; total = $items.Count * $CamFramesN; done = 0; cancelled = $false; started = (Get-Date) }
+    Add-CamLog ('loading ' + $Ev.kind + ' ' + $Ev.name + ' (' + $items.Count + ' cameras x ' + $CamFramesN + ' frames)')
+    if ($script:Cam.n -eq 0) { Set-CamStatus 'loading' '' } else { Update-CamBusy }
+    $script:CamTick.Start()
+}
+function Close-CamPlayer { param($It) try { $It.p.Stop() } catch {}; try { $It.p.Close() } catch {}; $It.p = $null }
+function Get-CamGrab {
+    param($It, [bool]$Accept)
+    $w = [int]$It.w; $h = [int]$It.h
+    $dv = New-Object System.Windows.Media.DrawingVisual
+    $dc = $dv.RenderOpen(); $dc.DrawVideo($It.p, [System.Windows.Rect]::new(0, 0, $w, $h)); $dc.Close()
+    $rtb = New-Object System.Windows.Media.Imaging.RenderTargetBitmap $w, $h, 96, 96, ([System.Windows.Media.PixelFormats]::Pbgra32)
+    $rtb.Render($dv)
+    if (-not $Accept) {
+        $stride = $w * 4; $px = New-Object byte[] $stride
+        $rtb.CopyPixels([System.Windows.Int32Rect]::new(0, [int]($h / 2), $w, 1), $px, $stride, 0)
+        $sum = 0; for ($i = 0; $i -lt $px.Length; $i += 32) { $sum += [int]$px[$i] + [int]$px[$i + 1] + [int]$px[$i + 2] }
+        if ($sum -eq 0) { return $null }   # not decoded yet: wait a little longer
+    }
+    $enc = New-Object System.Windows.Media.Imaging.JpegBitmapEncoder; $enc.QualityLevel = 85
+    $enc.Frames.Add([System.Windows.Media.Imaging.BitmapFrame]::Create($rtb))
+    $ms = New-Object System.IO.MemoryStream; $enc.Save($ms); $b = $ms.ToArray(); $ms.Dispose()
+    return , $b
+}
+function Step-CamJob {
+    $j = $script:CamJob; if ($null -eq $j) { return }
+    foreach ($it in $j.items) {
+        if ($it.state -eq 'done' -or $it.state -eq 'failed') { continue }
+        if ($it.state -eq 'open') {
+            if ($it.err) { $it.state = 'failed'; $j.done += $CamFramesN; Close-CamPlayer $it; Add-CamLog ($it.cam + ': ' + $it.err); continue }
+            $p = $it.p
+            if ($p.NaturalDuration.HasTimeSpan -and $p.NaturalVideoWidth -gt 0) {
+                $dur = $p.NaturalDuration.TimeSpan.TotalSeconds
+                $w = [double]$p.NaturalVideoWidth; $h = [double]$p.NaturalVideoHeight
+                if ($w -gt $CamMaxW) { $h = [math]::Round($h * $CamMaxW / $w); $w = $CamMaxW }
+                $it.w = [int]$w; $it.h = [int]$h
+                $it.pos = @(Get-CamPositions $dur $it.offset $CamFramesN)
+                try { $p.Play(); $p.Pause() } catch {}
+                $it.state = 'seek'
+            } elseif (((Get-Date) - $it.t0).TotalSeconds -gt 15) { $it.err = 'timed out opening the clip (Windows may need the HEVC Video Extension for newer cars)'; $it.state = 'failed'; $j.done += $CamFramesN; Close-CamPlayer $it; Add-CamLog ($it.cam + ': ' + $it.err) }
+            continue
+        }
+        if ($it.state -eq 'seek') { $it.p.Position = [TimeSpan]::FromSeconds([double]$it.pos[$it.k]); $it.wait = 0; $it.state = 'wait'; continue }
+        if ($it.state -eq 'wait') {
+            $it.wait++
+            if ($it.wait -lt 4) { continue }
+            $b = $null; try { $b = Get-CamGrab $it ($it.tries -ge 3) } catch { $it.err = $_.Exception.Message }
+            if ($null -eq $b -and -not $it.err) { $it.tries++; $it.wait = 0; continue }
+            if ($null -ne $b) { [void]$it.frames.Add($b) }
+            $it.k++; $it.tries = 0; $j.done++
+            if ($it.err -or $it.k -ge $it.pos.Count) { $it.state = 'done'; Close-CamPlayer $it } else { $it.state = 'seek' }
+        }
+    }
+    Update-CamBusy
+    if ($SelfTest -and $script:CamStopAt -gt 0 -and $j.done -ge $script:CamStopAt) {   # self-test: picture mid-load, then press Stop
+        $script:CamStopAt = 0; try { $window.UpdateLayout(); & $script:Shot439 'camera-loading' } catch {}
+        Stop-CamJob; return
+    }
+    if (@($j.items | Where-Object { $_.state -ne 'done' -and $_.state -ne 'failed' }).Count -eq 0) { Complete-CamJob $false }
+}
+function Complete-CamJob {
+    param([bool]$Stopped)
+    $j = $script:CamJob; if ($null -eq $j) { return }
+    $script:CamJob = $null
+    foreach ($it in $j.items) { if ($null -ne $it.p) { Close-CamPlayer $it } }
+    $ok = @($j.items | Where-Object { $_.frames.Count -gt 0 })
+    if ($ok.Count -eq 0) {
+        $e = @($j.items | Where-Object { $_.err } | ForEach-Object { $_.err } | Select-Object -First 1)[0]
+        if ($Stopped) { if ($script:Cam.n -eq 0) { Set-CamStatus 'stopped' 'Stopped before any frame was loaded' } else { Update-CamBusy } }
+        else { Set-CamStatus 'error' $(if ($e) { 'Could not read the clip: ' + $e } else { 'Could not read the clip' }) }
+        return
+    }
+    $n = $(if ($Stopped) { [int](@($ok | ForEach-Object { $_.frames.Count } | Measure-Object -Minimum).Minimum) } else { [int](@($ok | ForEach-Object { $_.frames.Count } | Measure-Object -Maximum).Maximum) })
+    $fr = @{}; $tm = @{}; $er = @{}
+    foreach ($it in $j.items) {
+        if ($it.frames.Count -gt 0) { $fr[$it.cam] = @($it.frames | Select-Object -First $n); $st0 = $it.start; $tm[$it.cam] = @(@($it.pos | Select-Object -First $n) | ForEach-Object { $st0.AddSeconds([double]$_) }) }
+        else { $er[$it.cam] = $(if ($it.err) { [string]$it.err } else { 'no frames' }) }
+    }
+    $C = $script:Cam
+    $C.frames = $fr; $C.times = $tm; $C.errs = $er
+    $C.cams = @($CamKeys | Where-Object { $fr.ContainsKey($_) -or $er.ContainsKey($_) })
+    $C.ev = $j.ev; $C.evKey = [string]$j.ev.dir + '|' + [string]$j.ev.name; $C.n = $n; $C.idx = 0
+    if ($C.view -ne 'grid' -and -not $fr.ContainsKey($C.view)) { $C.view = 'grid' }
+    $C.status = 'ready'; $C.msg = $(if ($Stopped) { 'Stopped: ' + $n + ' of ' + $CamFramesN + ' frames per camera' } else { '' })
+    $secs = [math]::Round(((Get-Date) - $j.started).TotalSeconds, 1)
+    Add-CamLog ('loaded ' + $j.ev.kind + ' ' + $j.ev.name + ': ' + $fr.Count + ' camera(s) x ' + $n + ' frames in ' + $secs + ' s' + $(if ($Stopped) { ' (stopped)' } else { '' }) + $(if ($er.Count) { '; failed: ' + (($er.Keys | ForEach-Object { $_ + ' (' + $er[$_] + ')' }) -join ', ') } else { '' }))
+    $C.lastLoad = [ordered]@{ event = [string]$j.ev.kind + '/' + [string]$j.ev.name; cameras = $fr.Count; frames = $n; seconds = $secs; stopped = $Stopped; failed = $er; doneAtStop = $j.done; total = $j.total }
+    Render-Cam
+    Start-CamPlay
+    Update-CamOptEvents
+}
+function Stop-CamJob {
+    param([string]$Why = 'stop')
+    if ($null -eq $script:CamJob) { return }
+    $script:CamJob.cancelled = $true
+    if ($Why -eq 'replaced') { foreach ($it in $script:CamJob.items) { if ($null -ne $it.p) { Close-CamPlayer $it } }; $script:CamJob = $null; return }
+    Add-CamLog ('stopped loading at ' + $script:CamJob.done + ' / ' + $script:CamJob.total + ' frames')
+    Complete-CamJob $true
+}
+
+# ---- playback ----
+$script:CamPlayTimer = New-Object System.Windows.Threading.DispatcherTimer
+$script:CamPlayTimer.Add_Tick({ try { Step-CamPlay } catch { Write-WidgetLog ('camera play: ' + $_.Exception.Message) } })
+function Start-CamPlay {
+    $script:CamPlayTimer.Stop()
+    $script:CamPlayTimer.Interval = [TimeSpan]::FromMilliseconds([int](1000 / [math]::Max(1, [int]$script:CamCfg.fps)))
+    Show-CamFrame
+    if ($script:Cam.playing -and $script:Cam.n -gt 1) { $script:CamPlayTimer.Start() }
+}
+function Step-CamPlay {
+    $C = $script:Cam
+    if (-not $C.playing -or $C.n -lt 2) { $script:CamPlayTimer.Stop(); return }
+    $fsOn = ($null -ne $script:CamFs)
+    if (-not $fsOn -and (-not $ui.CamCard.IsVisible -or $window.WindowState -eq [System.Windows.WindowState]::Minimized)) { return }   # nothing on screen: no work
+    $C.idx = ($C.idx + 1) % $C.n
+    Show-CamFrame
+}
+function Set-CamPlaying { param([bool]$On) $script:Cam.playing = $On; Start-CamPlay; Update-CamBars }
+function ConvertTo-CamImage {
+    param([byte[]]$Bytes, [int]$W)
+    $bi = New-Object System.Windows.Media.Imaging.BitmapImage
+    $bi.BeginInit(); $bi.CacheOption = [System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad
+    $bi.StreamSource = New-Object System.IO.MemoryStream (, $Bytes)
+    if ($W -gt 0) { $bi.DecodePixelWidth = $W }
+    $bi.EndInit(); $bi.Freeze()
+    return $bi
+}
+function Show-CamFrame {
+    $C = $script:Cam
+    foreach ($v in @($script:CamViews)) {
+        $f = $C.frames[$v.cam]
+        if ($null -eq $f -or @($f).Count -eq 0) { continue }
+        $i = [math]::Min([int]$C.idx, @($f).Count - 1)
+        try { $v.img.Source = ConvertTo-CamImage $f[$i] $v.w } catch {}
+        if ($null -ne $v.ts) { try { $v.ts.Text = ([datetime]$C.times[$v.cam][$i]).ToString('yyyy-MM-dd HH:mm:ss', $Inv) } catch {} }
+    }
+    Update-CamBars
+}
+function Update-CamBars {
+    $C = $script:Cam
+    $script:CamSync = $true
+    try {
+        foreach ($b in @($script:CamBars)) {
+            if ($b.kind -eq 'slider') { $b.el.Maximum = [math]::Max(0, $C.n - 1); $b.el.Value = $C.idx; $b.el.IsEnabled = ($C.n -gt 1) }
+            elseif ($b.kind -eq 'count') { $b.el.Text = $(if ($C.n -gt 0) { [string]($C.idx + 1) + ' / ' + $C.n + ' · ' + $script:CamCfg.fps + ' fps' } else { '' }) }
+            elseif ($b.kind -eq 'play') { $b.el.Text = $(if ($C.playing) { [string][char]0xE769 } else { [string][char]0xE768 }) }
+            elseif ($b.kind -eq 'fps') { $on = ([int]$b.el.Tag -eq [int]$script:CamCfg.fps); $b.el.BorderBrush = Get-CamBrush $(if ($on) { '#FF49DF93' } else { '#FF333333' }); $b.el.Foreground = Get-CamBrush $(if ($on) { '#FF49DF93' } else { '#FFE6E6E6' }) }
+        }
+    } finally { $script:CamSync = $false }
+}
+function Register-CamBar { param([string]$Kind, $El, [string]$Owner) [void]$script:CamBars.Add([pscustomobject]@{ kind = $Kind; el = $El; owner = $Owner }) }
+function Clear-CamOwner {
+    param([string]$Owner)
+    foreach ($v in @($script:CamViews | Where-Object { $_.owner -eq $Owner })) { $script:CamViews.Remove($v) }
+    foreach ($b in @($script:CamBars | Where-Object { $_.owner -eq $Owner })) { $script:CamBars.Remove($b) }
+}
+function On-CamSlider { param($S) if ($script:CamSync) { return }; $script:Cam.idx = [int][math]::Round($S.Value); if ($script:Cam.playing) { $script:Cam.playing = $false; $script:CamPlayTimer.Stop() }; Show-CamFrame }
+
+# ---- tiles ----
+function New-CamText {
+    param([string]$T, [double]$Size, [string]$Color = '#FFFFFFFF', [string]$Weight = 'Bold', [string]$Font = $null)
+    $tb = New-Object System.Windows.Controls.TextBlock; $tb.Text = $T; $tb.FontSize = $Size; $tb.Foreground = Get-CamBrush $Color; $tb.FontWeight = $Weight
+    if ($Font) { $tb.FontFamily = [System.Windows.Media.FontFamily]::new($Font) }
+    return $tb
+}
+function New-CamButton {
+    param($Content, [double]$Size = 10.5, [string]$Tip = $null, [string]$Border = '#FF333333')
+    $b = New-Object System.Windows.Controls.Button; $b.Style = $window.FindResource('CamBtn'); $b.FontSize = $Size; $b.BorderBrush = Get-CamBrush $Border
+    $b.Content = $Content
+    if ($Tip) { $b.ToolTip = $Tip }
+    return $b
+}
+function New-CamIconLabel {
+    param([string]$Glyph, [string]$Text, [double]$Size)
+    $sp = New-Object System.Windows.Controls.StackPanel; $sp.Orientation = 'Horizontal'
+    $g = New-CamText $Glyph ($Size - 0.5) '#FFE6E6E6' 'Normal' 'Segoe MDL2 Assets'; $g.VerticalAlignment = 'Center'; [void]$sp.Children.Add($g)
+    if ($Text) { $g.Margin = '0,0,4,0'; $t = New-CamText $Text $Size '#FFE6E6E6' 'SemiBold'; $t.VerticalAlignment = 'Center'; [void]$sp.Children.Add($t) }
+    return $sp
+}
+function New-CamTile {
+    param([string]$Cam, [int]$DecodeW, [double]$Scale = 1.0, [string]$Owner = 'widget', [bool]$CapText = $true, [bool]$ClickToOpen = $false)
+    $C = $script:Cam
+    $bd = New-Object System.Windows.Controls.Border; $bd.Background = Get-CamBrush '#FF0E0E0E'; $bd.CornerRadius = [System.Windows.CornerRadius]::new(5); $bd.Margin = '1.5'; $bd.ClipToBounds = $true
+    $g = New-Object System.Windows.Controls.Grid; $bd.Child = $g
+    if ($C.frames.ContainsKey($Cam)) {
+        $img = New-Object System.Windows.Controls.Image; $img.Stretch = 'Uniform'; [System.Windows.Media.RenderOptions]::SetBitmapScalingMode($img, 'HighQuality'); [void]$g.Children.Add($img)
+        if ($ClickToOpen) { $img.Cursor = [System.Windows.Input.Cursors]::Hand; $img.Tag = $Cam; $img.ToolTip = 'Show only ' + $CamNames[$Cam]; $img.Add_MouseLeftButtonUp({ param($s9, $e9) try { Set-CamView ([string]$s9.Tag) } catch {} }) }
+        $tsb = New-Object System.Windows.Controls.Border; $tsb.Background = Get-CamBrush '#B0000000'; $tsb.CornerRadius = [System.Windows.CornerRadius]::new(3); $tsb.Padding = '4,1,4,1'
+        $tsb.HorizontalAlignment = 'Left'; $tsb.VerticalAlignment = 'Bottom'; $tsb.Margin = [System.Windows.Thickness]::new(4 * $Scale)
+        $ts = New-CamText '' (8 * $Scale) '#FFFFFFFF' 'Bold' 'Consolas'; $tsb.Child = $ts; [void]$g.Children.Add($tsb)
+        $cap = New-CamButton (New-CamIconLabel ([string][char]0xE722) $(if ($CapText) { 'Capture' } else { $null }) (8.5 * $Scale)) (8.5 * $Scale) ('Capture this ' + $CamNames[$Cam] + ' frame and email it to ' + $script:CamCfg.mailTo) '#FF555555'
+        $cap.Background = Get-CamBrush '#D0111111'; $cap.Padding = [System.Windows.Thickness]::new(5 * $Scale, 1, 5 * $Scale, 1); $cap.HorizontalAlignment = 'Right'; $cap.VerticalAlignment = 'Bottom'; $cap.Margin = [System.Windows.Thickness]::new(3 * $Scale)
+        $cap.Tag = $Cam; $cap.Add_Click({ param($s9, $e9) try { [void](Invoke-CamCapture ([string]$s9.Tag)) } catch { Show-CamToast ('Capture failed: ' + $_.Exception.Message) $false } })
+        [void]$g.Children.Add($cap)
+        [void]$script:CamViews.Add([pscustomobject]@{ cam = $Cam; img = $img; ts = $ts; w = $DecodeW; owner = $Owner; cap = $cap })
+    } else {
+        $t = New-CamText ($CamNames[$Cam] + ': could not read this clip' + $(if ($C.errs[$Cam]) { ' (' + $C.errs[$Cam] + ')' } else { '' })) (9 * $Scale) '#FF8A8A8A' 'SemiBold'
+        $t.TextWrapping = 'Wrap'; $t.TextAlignment = 'Center'; $t.HorizontalAlignment = 'Center'; $t.VerticalAlignment = 'Center'; $t.Margin = '8'; [void]$g.Children.Add($t)
+    }
+    $lb = New-Object System.Windows.Controls.Border; $lb.Background = Get-CamBrush '#B0000000'; $lb.CornerRadius = [System.Windows.CornerRadius]::new(3); $lb.Padding = '4,1,4,1'
+    $lb.HorizontalAlignment = 'Left'; $lb.VerticalAlignment = 'Top'; $lb.Margin = [System.Windows.Thickness]::new(4 * $Scale)
+    $lb.Child = (New-CamText ($CamNames[$Cam].ToUpper()) (8 * $Scale)); [void]$g.Children.Add($lb)
+    return $bd
+}
+
+# ---- widget panel ----
+function Set-CamStatus { param([string]$S, [string]$M) $script:Cam.status = $S; $script:Cam.msg = $M; Render-Cam }
+function Set-CamView { param([string]$V) $script:Cam.view = $V; Render-Cam; Show-CamFrame }
+function Get-CamEventLine {
+    param($Ev)
+    if ($null -eq $Ev) { return '' }
+    $t = [datetime]::Parse([string]$Ev.time, $Inv)
+    $when = $(if ($t.Date -eq (Get-LocalNow).Date) { $t.ToString('h:mm tt', $Inv) } else { $t.ToString('ddd MMM d, h:mm tt', $Inv) })
+    $dot = [string][char]0x25CF
+    switch ([string]$Ev.kind) {
+        'SentryClips' { return $dot + ' SENTRY EVENT · saved ' + $when }
+        'SavedClips' { return $dot + ' SAVED DASHCAM CLIP · ' + $when }
+        'RecentClips' { return $dot + ' RECENT DASHCAM · ' + $when }
+        default { return $dot + ' CLIP · ' + $when }
+    }
+}
+function Update-CamBusy {
+    $txt = $null
+    if ($null -ne $script:CamSave) { $s = $script:CamSave.sync; $txt = 'Saving clip: ' + $s.done + ' / ' + $s.total + ' files' + $(if ($s.mb -gt 0) { ' (' + [math]::Round($s.mb, 1) + ' MB)' } else { '' }) }
+    elseif ($null -ne $script:CamJob) { $txt = 'Loading frames ' + $script:CamJob.done + ' / ' + $script:CamJob.total }
+    elseif ($null -ne $script:CamScan) { $txt = 'Looking for new clips...' }
+    Set-Visible $ui.CamBusy ([bool]$txt)
+    if ($txt) { $ui.CamBusyTxt.Text = $txt }
+    if ($SelfTest -and $txt -and $null -ne $script:CamBusySeen -and ($script:CamBusySeen.Count -eq 0 -or [string]$script:CamBusySeen[$script:CamBusySeen.Count - 1] -ne $txt)) { [void]$script:CamBusySeen.Add($txt) }
+    $ui.CamSave.IsEnabled = ($null -ne $script:Cam.ev -and $null -eq $script:CamSave)
+    if ($script:Cam.status -eq 'loading' -and $null -ne $script:CamJob -and $null -ne $script:CamMsgText) { $script:CamMsgText.Text = 'Loading frames ' + $script:CamJob.done + ' / ' + $script:CamJob.total }
+}
+function Render-Cam {
+    $C = $script:Cam; $on = [bool]$script:CamCfg.enabled
+    $ui.CamToggle.IsChecked = $on
+    Set-Visible $ui.CamCard $on
+    if (-not $on) { return }
+    $ui.CamCard.Background = T 'CardBg'; $ui.CamCard.BorderBrush = T 'CardBorder'
+    # tabs
+    $ui.CamTabs.Children.Clear()
+    $have = @($C.cams); if ($have.Count -eq 0) { $have = @('front', 'back', 'left_repeater', 'right_repeater') }
+    $tabs = @($have) + @('grid')
+    $ui.CamTabs.Columns = $tabs.Count
+    foreach ($k in $tabs) {
+        $lbl = $(if ($k -eq 'grid') { $(if ($have.Count -gt 4) { [string]$have.Count + '-up' } else { '4-up' }) } else { $CamShort[$k] })
+        $b = New-CamButton $lbl $(if ($tabs.Count -gt 5) { 9 } else { 10.5 }) $(if ($k -eq 'grid') { 'All cameras in a grid' } else { $CamNames[$k] })
+        $b.Height = 26; $b.Margin = '1.5,0,1.5,0'; $b.Padding = '2,0,2,0'; $b.Tag = $k
+        if ($C.view -eq $k) { $b.BorderBrush = Get-CamBrush '#FF49DF93'; $b.Foreground = Get-CamBrush '#FF49DF93'; $b.Background = Get-CamBrush '#1A49DF93' }
+        $b.IsEnabled = ($C.n -gt 0 -and ($k -eq 'grid' -or $C.frames.ContainsKey($k)))
+        $b.Add_Click({ param($s9, $e9) try { Set-CamView ([string]$s9.Tag) } catch {} })
+        [void]$ui.CamTabs.Children.Add($b)
+    }
+    $ui.CamEvent.Text = Get-CamEventLine $C.ev
+    $ui.CamEvent.Foreground = Get-CamBrush $(if ($null -ne $C.ev -and [string]$C.ev.kind -eq 'SentryClips') { '#FFE82127' } else { '#FFCCCCCC' })
+    $ui.CamSrc.Text = $(if ($null -ne $C.ev) { (Get-CamSrcLabel) + ' · ' + $(if ($C.ev.kind -eq 'Folder') { 'folder' } else { [string]$C.ev.kind }) } else { Get-CamSrcLabel })
+    $ui.CamSrc.ToolTip = $(if (Get-CamRoot) { Get-CamRoot } else { 'No clip folder chosen yet' })
+    # view
+    Clear-CamOwner 'widget'
+    Register-CamBar 'slider' $ui.CamSlider 'widget'; Register-CamBar 'count' $ui.CamCount 'widget'; Register-CamBar 'play' $ui.CamPlayTxt 'widget'
+    $ui.CamView.Children.Clear(); $script:CamMsgText = $null
+    if ($C.n -gt 0) {
+        if ($C.view -eq 'grid') {
+            $ug = New-Object System.Windows.Controls.Primitives.UniformGrid
+            $cols = $(if (@($C.cams).Count -gt 4) { 3 } else { 2 }); $ug.Columns = $cols
+            foreach ($k in $C.cams) { [void]$ug.Children.Add((New-CamTile $k $(if ($cols -eq 3) { 240 } else { 320 }) $(if ($cols -eq 3) { 0.85 } else { 1.0 }) 'widget' ($cols -eq 2) $true)) }
+            [void]$ui.CamView.Children.Add($ug)
+        } else { [void]$ui.CamView.Children.Add((New-CamTile $C.view 640 1.15 'widget' $true $false)) }
+        if ($C.msg) { $nb = New-Object System.Windows.Controls.Border; $nb.Background = Get-CamBrush '#C0000000'; $nb.CornerRadius = [System.Windows.CornerRadius]::new(4); $nb.Padding = '6,2,6,2'; $nb.HorizontalAlignment = 'Center'; $nb.VerticalAlignment = 'Top'; $nb.Margin = '0,4,0,0'; $nb.Child = (New-CamText $C.msg 9 '#FFFFB547' 'SemiBold'); [void]$ui.CamView.Children.Add($nb) }
+    } else {
+        $sp = New-Object System.Windows.Controls.StackPanel; $sp.VerticalAlignment = 'Center'; $sp.HorizontalAlignment = 'Center'; $sp.Margin = '14,0,14,0'
+        $title = ''; $sub = ''; $btns = @()
+        switch ($C.status) {
+            'nofolder' { $title = 'Where are your TeslaCam clips?'; $sub = 'Pick the TeslaCam folder: a Wi-Fi USB drive (such as TeslaUSB) or the folder copied from the car''s USB stick. Tesla has no live camera feed, so TessDesk shows frames from saved Sentry / Dashcam clips.'; $btns = @('pick') }
+            'scanning' { $title = 'Looking for clips...'; $sub = $C.msg }
+            'loading' { $title = 'Loading frames...'; $sub = '' }
+            'noclips' { $title = 'No clips yet'; $sub = $C.msg + '. New Sentry events show up here after the car saves them to its USB drive.'; $btns = @('pick', 'rescan') }
+            'stopped' { $title = 'Stopped'; $sub = $C.msg; $btns = @('rescan') }
+            default { $title = 'Could not load clips'; $sub = $C.msg; $btns = @('pick', 'rescan') }
+        }
+        $t1 = New-CamText $title 12.5 '#FFFFFFFF' 'Bold'; $t1.HorizontalAlignment = 'Center'; [void]$sp.Children.Add($t1)
+        $t2 = New-CamText $sub 9.5 '#FFAAAAAA' 'Normal'; $t2.TextWrapping = 'Wrap'; $t2.TextAlignment = 'Center'; $t2.Margin = '0,5,0,0'; [void]$sp.Children.Add($t2)
+        if ($C.status -eq 'loading') { $script:CamMsgText = $t2 }
+        if ($btns.Count) {
+            $row = New-Object System.Windows.Controls.StackPanel; $row.Orientation = 'Horizontal'; $row.HorizontalAlignment = 'Center'; $row.Margin = '0,10,0,0'
+            foreach ($bk in $btns) {
+                $b = New-CamButton $(if ($bk -eq 'pick') { 'Choose folder' } else { 'Look again' }) 10.5 $null $(if ($bk -eq 'pick') { '#FF49DF93' } else { '#FF333333' })
+                $b.Height = 26; $b.Padding = '10,0,10,0'; $b.Margin = '3,0,3,0'; $b.Tag = $bk
+                $b.Add_Click({ param($s9, $e9) try { if ([string]$s9.Tag -eq 'pick') { [void](Select-CamFolder ([string]$script:CamCfg.source)) } else { Start-CamScan -Load } } catch {} })
+                [void]$row.Children.Add($b)
+            }
+            [void]$sp.Children.Add($row)
+        }
+        [void]$ui.CamView.Children.Add($sp)
+    }
+    $ui.CamPlay.IsEnabled = ($C.n -gt 1); $ui.CamFs.IsEnabled = ($C.n -gt 0)
+    Update-CamBusy; Update-CamBars
+}
+function Set-CamEnabled {
+    param([bool]$On, [bool]$Save = $true)
+    $script:CamCfg.enabled = $On
+    if ($Save) { Save-CamCfg }
+    Add-CamLog $(if ($On) { 'panel ON' } else { 'panel OFF' })
+    if ($On) {
+        if (-not $SelfTest) { $script:CamRescan.Start() }
+        Render-Cam
+        if ($script:Cam.n -eq 0 -and $null -eq $script:CamJob) { if (Get-CamRoot) { Start-CamScan -Load } else { Set-CamStatus 'nofolder' '' } }
+        else { Start-CamPlay }
+    } else {
+        $script:CamRescan.Stop()
+        Close-CamFullscreen; Stop-CamJob 'replaced'; $script:CamPlayTimer.Stop()
+        $script:Cam.frames = @{}; $script:Cam.times = @{}; $script:Cam.n = 0; $script:Cam.cams = @(); $script:Cam.ev = $null; $script:Cam.evKey = $null; $script:Cam.status = 'off'
+        Clear-CamOwner 'widget'; $ui.CamView.Children.Clear()
+        Render-Cam
+    }
+    try { Update-CompactScale } catch {}
+}
+function Select-CamFolder {
+    param([string]$Kind = 'folder', [string]$TestPath = $null)
+    $p = $TestPath
+    if (-not $p) {
+        if ($SelfTest) { return $null }
+        $dlg = New-Object System.Windows.Forms.FolderBrowserDialog
+        $dlg.Description = $(if ($Kind -eq 'usb') { 'Pick the TeslaCam folder on your Wi-Fi USB drive (for example \\teslausb\TeslaCam or its drive letter)' } else { 'Pick the TeslaCam folder you copied from the car''s USB stick' })
+        $dlg.ShowNewFolderButton = $false
+        $cur = $(if ($Kind -eq 'usb') { [string]$script:CamCfg.usbPath } else { [string]$script:CamCfg.folderPath }); if ($cur -and (Test-Path -LiteralPath $cur)) { $dlg.SelectedPath = $cur }
+        if ($dlg.ShowDialog() -ne [System.Windows.Forms.DialogResult]::OK) { return $null }
+        $p = $dlg.SelectedPath
+    }
+    if ($Kind -eq 'usb') { $script:CamCfg.usbPath = $p } else { $script:CamCfg.folderPath = $p }
+    $script:CamCfg.source = $Kind
+    Save-CamCfg; Add-CamLog ('clip folder (' + $Kind + '): ' + $p)
+    Stop-CamJob 'replaced'; $script:CamPlayTimer.Stop()
+    $script:Cam.n = 0; $script:Cam.frames = @{}; $script:Cam.cams = @(); $script:Cam.ev = $null; $script:Cam.evKey = $null
+    Start-CamScan -Load
+    if ($ui.CamOptOverlay.Visibility -eq 'Visible') { Build-CamOptions }
+    return $p
+}
+
+# ---- capture: save the frame (PNG) + email it ----
+function Show-CamToast {
+    param([string]$Text, [bool]$Ok = $true)
+    $script:CamLastToast = $Text
+    if ($null -ne $script:CamFs) {
+        foreach ($w in $script:CamFs.windows) { try { $w.Tag.toastTxt.Text = $Text; $w.Tag.toast.BorderBrush = Get-CamBrush $(if ($Ok) { '#FF49DF93' } else { '#FFE82127' }); $w.Tag.toast.Visibility = 'Visible' } catch {} }
+        $script:CamFsToastTimer.Stop(); $script:CamFsToastTimer.Start()
+    } else { Show-TdToast $Text $Ok }
+}
+$script:CamFsToastTimer = New-Object System.Windows.Threading.DispatcherTimer
+$script:CamFsToastTimer.Interval = [TimeSpan]::FromSeconds(6)
+$script:CamFsToastTimer.Add_Tick({ $script:CamFsToastTimer.Stop(); try { foreach ($w in $script:CamFs.windows) { $w.Tag.toast.Visibility = 'Collapsed' } } catch {} })
+function Test-CamSmtp { try { return [bool](Test-RemSmtp) } catch { return $false } }
+function Get-CamCaptureDir {
+    if ([string]$script:CamCfg.captureDir) { return [string]$script:CamCfg.captureDir }
+    if ($SelfTest -and $script:SelfDir) { return (Join-Path $script:SelfDir 'captures') }
+    return (Join-Path ([Environment]::GetFolderPath('MyPictures')) 'TessDesk Captures')
+}
+function Save-CamCapturePng {
+    param([string]$Cam, [string]$Path)
+    $C = $script:Cam; $i = [math]::Min([int]$C.idx, @($C.frames[$Cam]).Count - 1)
+    $src = ConvertTo-CamImage $C.frames[$Cam][$i] 0
+    $w = $src.PixelWidth; $h = $src.PixelHeight; $t = [datetime]$C.times[$Cam][$i]
+    $dv = New-Object System.Windows.Media.DrawingVisual; $dc = $dv.RenderOpen()
+    $dc.DrawImage($src, [System.Windows.Rect]::new(0, 0, $w, $h))
+    $bh = [math]::Max(28, [int]($h * 0.045))
+    $dc.DrawRectangle((Get-CamBrush '#C0000000'), $null, [System.Windows.Rect]::new(0, $h - $bh, $w, $bh))
+    $cap = $CamNames[$Cam].ToUpper() + '   ' + $t.ToString('yyyy-MM-dd HH:mm:ss', $Inv) + '   ' + $(if ($C.ev.kind -eq 'SentryClips') { 'Sentry event' } else { 'Dashcam clip' }) + ' (saved clip, not live)   TessDesk'
+    $ft = New-Object System.Windows.Media.FormattedText ($cap, $Inv, [System.Windows.FlowDirection]::LeftToRight, (New-Object System.Windows.Media.Typeface 'Segoe UI'), ($bh * 0.5), (Get-CamBrush '#FFFFFFFF'))
+    $dc.DrawText($ft, [System.Windows.Point]::new(12, $h - $bh + ($bh - $ft.Height) / 2)); $dc.Close()
+    $rtb = New-Object System.Windows.Media.Imaging.RenderTargetBitmap $w, $h, 96, 96, ([System.Windows.Media.PixelFormats]::Pbgra32); $rtb.Render($dv)
+    $enc = New-Object System.Windows.Media.Imaging.PngBitmapEncoder; $enc.Frames.Add([System.Windows.Media.Imaging.BitmapFrame]::Create($rtb))
+    $fs = [System.IO.File]::Create($Path); try { $enc.Save($fs) } finally { $fs.Dispose() }
+    return [pscustomobject]@{ bmp = $rtb; time = $t; w = $w; h = $h }
+}
+function Invoke-CamCapture {
+    param([string]$Cam)
+    $C = $script:Cam
+    if (-not $C.frames.ContainsKey($Cam)) { Show-CamToast ('No ' + $CamNames[$Cam] + ' frame to capture') $false; return $null }
+    $dir = Get-CamCaptureDir; if (-not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+    $i = [math]::Min([int]$C.idx, @($C.frames[$Cam]).Count - 1); $t = [datetime]$C.times[$Cam][$i]
+    $name = 'TessDesk-' + ($CamNames[$Cam] -replace ' ', '-') + '-' + $t.ToString('yyyy-MM-dd-HHmmss', $Inv) + '.png'
+    $path = Join-Path $dir $name
+    $r = Save-CamCapturePng $Cam $path
+    $to = [string]$script:CamCfg.mailTo
+    $subj = 'TessDesk ' + $CamNames[$Cam] + ' camera ' + $t.ToString('MMM d, h:mm:ss tt', $Inv)
+    $body = $CamNames[$Cam] + ' camera, ' + $t.ToString('dddd MMM d yyyy, h:mm:ss tt', $Inv) + ' (' + $(if ($C.ev.kind -eq 'SentryClips') { 'Sentry event' } else { 'Dashcam clip' }) + ' ' + [string]$C.ev.name + '). From a saved clip, not live. Sent from TessDesk.'
+    $rec = [ordered]@{ cam = $Cam; file = $path; bytes = (Get-Item -LiteralPath $path).Length; size = ([string]$r.w + 'x' + [string]$r.h); frame = $t.ToString('s'); to = $to; via = $null; launched = $false; uri = $null }
+    if (Test-CamSmtp) {
+        $rec.via = 'your email account (SMTP)'
+        if ($SelfTest -or $CTL_DRYRUN) { $rec.via += ', DRY RUN (not sent)'; Show-CamToast ('Saved ' + $CamNames[$Cam] + ' · would email to ' + $to + ' (dry run)') $true }
+        else { Start-CamMail $to $subj $body $path $CamNames[$Cam]; Show-CamToast ('Saved ' + $CamNames[$Cam] + ' · emailing to ' + $to + '...') $true }
+    } else {
+        $rec.via = 'email app (mailto) + picture on the clipboard'
+        if (-not $SelfTest) { try { [System.Windows.Clipboard]::SetImage($r.bmp) } catch {} }
+        $rec.uri = 'mailto:' + $to + '?subject=' + [uri]::EscapeDataString($subj) + '&body=' + [uri]::EscapeDataString($body + "`r`n`r`nPicture: " + $path + "`r`n(It is also on the clipboard: paste it with Ctrl+V.)")
+        Open-ShareTarget 'camera-email' $rec.uri
+        $rec.launched = (-not $SelfTest)
+        Show-CamToast ('Saved ' + $CamNames[$Cam] + ' · your email app is opening to ' + $to + '. The picture is copied: paste it (Ctrl+V) or attach ' + $name + ' from Pictures\TessDesk Captures.') $true
+    }
+    $script:CamCaptures = @(@($script:CamCaptures) + @([pscustomobject]$rec) | Where-Object { $null -ne $_ } | Select-Object -Last 20)
+    Add-CamLog ('capture ' + $Cam + ' -> ' + $name + ' via ' + $rec.via)
+    return [pscustomobject]$rec
+}
+$script:CamMailBlock = {
+    param($HostN, $Port, $Ssl, $User, $From, $To, $SecFile, $Subject, $Body, $Att)
+    $ss = (Get-Content -LiteralPath $SecFile -Raw).Trim() | ConvertTo-SecureString
+    $cl = New-Object System.Net.Mail.SmtpClient([string]$HostN, [int]$Port); $cl.EnableSsl = [bool]$Ssl; $cl.Timeout = 60000
+    $cl.Credentials = New-Object System.Net.NetworkCredential([string]$User, $ss)
+    $mm = New-Object System.Net.Mail.MailMessage([string]$From, [string]$To); $mm.Subject = $Subject; $mm.Body = $Body
+    $mm.Attachments.Add((New-Object System.Net.Mail.Attachment([string]$Att)))
+    try { $cl.Send($mm); return 'sent' } finally { $mm.Dispose(); $cl.Dispose() }
+}
+function Start-CamMail {
+    param([string]$To, [string]$Subj, [string]$Body, [string]$Att, [string]$CamName)
+    $r = $script:RemCfg; $smtp = $r.smtp
+    $sec = Join-Path $scriptDir $(if ($r.smtpSecretFile) { [string]$r.smtpSecretFile } else { 'smtp.secret' })
+    $ps = [powershell]::Create()
+    [void]$ps.AddScript($script:CamMailBlock).AddArgument([string]$smtp.host).AddArgument([int]$smtp.port).AddArgument($(if ($null -ne $smtp.ssl) { [bool]$smtp.ssl } else { $true })).AddArgument([string]$smtp.user).AddArgument($(if ($smtp.from) { [string]$smtp.from } else { [string]$smtp.user })).AddArgument($To).AddArgument($sec).AddArgument($Subj).AddArgument($Body).AddArgument($Att)
+    $script:CamMail = [pscustomobject]@{ ps = $ps; async = $ps.BeginInvoke(); to = $To; cam = $CamName; started = (Get-Date) }
+    $script:CamTick.Start()
+}
+function Complete-CamMail {
+    $m = $script:CamMail; $script:CamMail = $null; $ok = $false; $err = $null
+    try { $o = @($m.ps.EndInvoke($m.async)); $ok = ($o -contains 'sent'); if (-not $ok -and $m.ps.Streams.Error.Count) { $err = $m.ps.Streams.Error[0].Exception.Message } } catch { $err = $_.Exception.Message }
+    try { $m.ps.Dispose() } catch {}
+    if ($ok) { Add-CamLog ('emailed ' + $m.cam + ' to ' + $m.to); Show-CamToast ('Saved ' + $m.cam + ' · emailed to ' + $m.to) $true }
+    else { Add-CamLog ('email failed: ' + $err); Show-CamToast ('Saved ' + $m.cam + ', but the email failed: ' + $err) $false }
+}
+
+# ---- save the selected clip (copy the event's files, with progress + Stop) ----
+$script:CamCopyBlock = {
+    param($Files, [string]$Dest, $Sync, [int]$SlowMs)
+    New-Item -ItemType Directory -Path $Dest -Force | Out-Null
+    $buf = New-Object byte[] (1MB)
+    foreach ($f in $Files) {
+        if ($Sync.cancel) { break }
+        $dst = Join-Path $Dest (Split-Path -Leaf $f); $tmp = $dst + '.part'
+        $in = $null; $out = $null
+        try {
+            $in = [System.IO.File]::OpenRead($f); $out = [System.IO.File]::Create($tmp)
+            while (($n = $in.Read($buf, 0, $buf.Length)) -gt 0) { if ($Sync.cancel) { break }; $out.Write($buf, 0, $n); $Sync.mb += $n / 1MB }
+        } catch { $Sync.err = $_.Exception.Message } finally { if ($out) { $out.Dispose() }; if ($in) { $in.Dispose() } }
+        if ($Sync.cancel -or $Sync.err) { Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue; break }
+        Move-Item -LiteralPath $tmp -Destination $dst -Force
+        $Sync.done++
+        if ($SlowMs -gt 0) { Start-Sleep -Milliseconds $SlowMs }   # self-test only (slow copy to test Stop)
+    }
+    return 'ok'
+}
+function Get-CamClipDir {
+    if ([string]$script:CamCfg.clipDir) { return [string]$script:CamCfg.clipDir }
+    if ($SelfTest -and $script:SelfDir) { return (Join-Path $script:SelfDir 'clips') }
+    return (Join-Path ([Environment]::GetFolderPath('MyVideos')) 'TessDesk Clips')
+}
+function Start-CamSaveClip {
+    param([int]$SlowMs = 0)
+    $ev = $script:Cam.ev
+    if ($null -eq $ev) { Show-CamToast 'Pick a clip first' $false; return $null }
+    if ($null -ne $script:CamSave) { return $null }
+    $files = @($ev.files | Where-Object { $_ })
+    $dest = Join-Path (Get-CamClipDir) ($(if ($ev.kind -eq 'Folder') { 'Clip' } else { [string]$ev.kind }) + '-' + [string]$ev.name)
+    $sync = [hashtable]::Synchronized(@{ done = 0; total = $files.Count; cancel = $false; err = $null; mb = 0.0 })
+    $ps = [powershell]::Create(); [void]$ps.AddScript($script:CamCopyBlock).AddArgument($files).AddArgument($dest).AddArgument($sync).AddArgument($(if ($SelfTest) { $SlowMs } else { 0 }))
+    $script:CamSave = [pscustomobject]@{ ps = $ps; async = $ps.BeginInvoke(); sync = $sync; dest = $dest; started = (Get-Date); ev = $ev }
+    Add-CamLog ('saving clip ' + $ev.kind + '/' + $ev.name + ' (' + $files.Count + ' files) to ' + $dest)
+    Update-CamBusy; $script:CamTick.Start()
+    return $dest
+}
+function Stop-CamSave { if ($null -ne $script:CamSave) { $script:CamSave.sync.cancel = $true } }
+function Complete-CamSave {
+    $s = $script:CamSave; $script:CamSave = $null
+    try { [void]$s.ps.EndInvoke($s.async) } catch { if (-not $s.sync.err) { $s.sync.err = $_.Exception.Message } }
+    try { $s.ps.Dispose() } catch {}
+    $y = $s.sync
+    $script:CamLastSave = [ordered]@{ dest = $s.dest; done = $y.done; total = $y.total; cancelled = [bool]$y.cancel; err = $y.err; mb = [math]::Round($y.mb, 2) }
+    if ($y.cancel) { Add-CamLog ('clip save stopped at ' + $y.done + ' / ' + $y.total); Show-CamToast ('Stopped: saved ' + $y.done + ' of ' + $y.total + ' files to ' + $s.dest) $false }
+    elseif ($y.err) { Add-CamLog ('clip save failed: ' + $y.err); Show-CamToast ('Saving the clip failed: ' + $y.err) $false }
+    else { Add-CamLog ('clip saved: ' + $y.done + ' files, ' + [math]::Round($y.mb, 1) + ' MB'); Show-CamToast ('Saved the clip (' + $y.done + ' files) to ' + $s.dest) $true }
+    Update-CamBusy
+}
+
+# ---- one 50 ms timer runs only while something is loading / scanning / saving / emailing ----
+$script:CamTick = New-Object System.Windows.Threading.DispatcherTimer
+$script:CamTick.Interval = [TimeSpan]::FromMilliseconds(50)
+$script:CamTick.Add_Tick({
+    try {
+        if ($null -ne $script:CamScan) { if ($script:CamScan.async.IsCompleted) { Complete-CamScan } elseif (((Get-Date) - $script:CamScan.started).TotalSeconds -gt 45) { try { $script:CamScan.ps.Stop() } catch {}; $script:CamScan = $null; Add-CamLog 'scan timed out'; if ($script:Cam.n -eq 0) { Set-CamStatus 'error' ('No answer from ' + (Get-CamRoot) + ' (a Wi-Fi drive may be asleep or away from home)') } } }
+        if ($null -ne $script:CamJob) { Step-CamJob }
+        if ($null -ne $script:CamSave) { if ($script:CamSave.async.IsCompleted) { Complete-CamSave } else { Update-CamBusy } }
+        if ($null -ne $script:CamMail -and $script:CamMail.async.IsCompleted) { Complete-CamMail }
+        if (-not (Test-CamBusy) -and $null -eq $script:CamMail) { $script:CamTick.Stop(); Update-CamBusy }
+    } catch { Write-WidgetLog ('camera tick: ' + $_.Exception.Message + ' @ ' + $_.InvocationInfo.ScriptLineNumber) }
+})
+# latest-event mode: look for a newer clip every 5 minutes while the panel is on (a Wi-Fi drive syncs new events home)
+$script:CamRescan = New-Object System.Windows.Threading.DispatcherTimer
+$script:CamRescan.Interval = [TimeSpan]::FromMinutes(5)
+$script:CamRescan.Add_Tick({ try { if (-not $SelfTest -and [bool]$script:CamCfg.enabled -and [string]$script:CamCfg.which -eq 'latest' -and -not (Test-CamBusy) -and $null -eq $script:CamFs -and (Get-CamRoot)) { Start-CamScan } } catch {} })
+
+# ---- options panel ----
+function New-CamSection { param([string]$T) $h = New-CamText $T 10 '#FF9A9A9A' 'Bold'; $h.Margin = '0,9,0,4'; return $h }
+function New-CamChoice {
+    param([string]$Label, [bool]$On, $Tag, [double]$Size = 10.5)
+    $b = New-CamButton $Label $Size $null $(if ($On) { '#FF49DF93' } else { '#FF333333' })
+    $b.Height = 26; $b.Margin = '2,0,2,0'; $b.Padding = '4,0,4,0'; $b.Tag = $Tag
+    if ($On) { $b.Foreground = Get-CamBrush '#FF49DF93'; $b.Background = Get-CamBrush '#1A49DF93' }
+    return $b
+}
+function Build-CamOptions {
+    $OB = $ui.CamOptBody; $OB.Children.Clear(); $cfg = $script:CamCfg
+    # on / off
+    $row = New-Object System.Windows.Controls.DockPanel
+    $tg = New-Object System.Windows.Controls.Primitives.ToggleButton; $tg.Style = $window.FindResource('SwitchStyle'); $tg.Tag = Get-CamBrush '#FF49DF93'; $tg.IsChecked = [bool]$cfg.enabled; $tg.VerticalAlignment = 'Center'
+    [System.Windows.Controls.DockPanel]::SetDock($tg, 'Right'); [void]$row.Children.Add($tg)
+    $tl = New-Object System.Windows.Controls.StackPanel
+    $on1 = New-CamText ('Show camera panel   ' + $(if ($cfg.enabled) { 'ON' } else { 'OFF' })) 11.5 '#FFFFFFFF' 'Bold'; [void]$tl.Children.Add($on1)
+    $ts = New-CamText 'Loops still frames from your saved Sentry / Dashcam clips. Not live. Off = the panel is hidden and TessDesk looks as before.' 9.5 '#FFAAAAAA' 'Normal'; $ts.TextWrapping = 'Wrap'; $ts.Margin = '0,0,8,0'; [void]$tl.Children.Add($ts)
+    [void]$row.Children.Add($tl)
+    $tg.Add_Click({ param($s9, $e9) try { Set-CamEnabled ([bool]$s9.IsChecked); Build-CamOptions } catch {} })
+    [void]$OB.Children.Add($row)
+    # clip source
+    [void]$OB.Children.Add((New-CamSection 'CLIP SOURCE'))
+    foreach ($src in @(@('usb', 'USB Wi-Fi drive', ' (auto sync, e.g. TeslaUSB)', [string]$cfg.usbPath, 'New Sentry / Dashcam clips copy home over Wi-Fi when the car parks.'),
+                       @('folder', 'Folder on this PC', '', [string]$cfg.folderPath, 'Copy the TeslaCam folder from the car''s USB stick, then point TessDesk at it.'))) {
+        $on = ([string]$cfg.source -eq $src[0])
+        $cb = New-Object System.Windows.Controls.Border; $cb.CornerRadius = [System.Windows.CornerRadius]::new(9); $cb.BorderThickness = '1.5'; $cb.Padding = '8,6,8,7'; $cb.Margin = '0,0,0,5'; $cb.Cursor = [System.Windows.Input.Cursors]::Hand
+        $cb.BorderBrush = Get-CamBrush $(if ($on) { '#FF49DF93' } else { '#FF333333' }); $cb.Background = Get-CamBrush $(if ($on) { '#1249DF93' } else { '#FF1A1A1A' })
+        $dp = New-Object System.Windows.Controls.DockPanel
+        $pick = New-CamButton 'Choose...' 9.5 'Pick the folder'; $pick.Height = 22; $pick.Padding = '6,0,6,0'; $pick.Tag = $src[0]; $pick.VerticalAlignment = 'Top'
+        $pick.Add_Click({ param($s9, $e9) try { $e9.Handled = $true; [void](Select-CamFolder ([string]$s9.Tag)) } catch {} })
+        [System.Windows.Controls.DockPanel]::SetDock($pick, 'Right'); [void]$dp.Children.Add($pick)
+        $sp = New-Object System.Windows.Controls.StackPanel
+        $t = New-Object System.Windows.Controls.TextBlock; $t.FontSize = 11; $t.Foreground = Get-CamBrush '#FFFFFFFF'; $t.TextWrapping = 'Wrap'
+        $r1 = [System.Windows.Documents.Run]::new($(if ($on) { [string][char]0x25C9 } else { [string][char]0x25CB }) + ' ' + $src[1]); $r1.FontWeight = 'Bold'; [void]$t.Inlines.Add($r1)
+        if ($src[2]) { [void]$t.Inlines.Add([System.Windows.Documents.Run]::new($src[2])) }
+        [void]$sp.Children.Add($t)
+        $d = New-CamText $(if ($src[3]) { $src[3] } else { $src[4] }) 9 $(if ($src[3]) { '#FF49DF93' } else { '#FFAAAAAA' }) 'Normal'; $d.TextWrapping = 'Wrap'; $d.Margin = '14,1,0,0'; [void]$sp.Children.Add($d)
+        [void]$dp.Children.Add($sp); $cb.Child = $dp; $cb.Tag = $src[0]
+        $cb.Add_MouseLeftButtonUp({ param($s9, $e9) try { $k = [string]$s9.Tag; $p = $(if ($k -eq 'usb') { [string]$script:CamCfg.usbPath } else { [string]$script:CamCfg.folderPath }); if (-not $p) { [void](Select-CamFolder $k) } elseif ($script:CamCfg.source -ne $k) { [void](Select-CamFolder $k $p) } } catch {} })
+        [void]$OB.Children.Add($cb)
+    }
+    $ph = New-Object System.Windows.Controls.Border; $ph.CornerRadius = [System.Windows.CornerRadius]::new(9); $ph.BorderThickness = '1.5'; $ph.Padding = '8,6,8,7'; $ph.BorderBrush = Get-CamBrush '#FF2A2A2A'; $ph.Background = Get-CamBrush '#FF151515'
+    $pps = New-Object System.Windows.Controls.StackPanel; [void]$pps.Children.Add((New-CamText ([string][char]0x25CB + ' Phone: pick a saved video') 11 '#FF8A8A8A' 'Bold'))
+    $pd = New-CamText 'In the TessDesk phone app: Cameras > Pick clip (Photos / Files).' 9 '#FF777777' 'Normal'; $pd.Margin = '14,1,0,0'; $pd.TextWrapping = 'Wrap'; [void]$pps.Children.Add($pd); $ph.Child = $pps
+    [void]$OB.Children.Add($ph)
+    $nt = New-CamText ([string][char]0x24D8 + ' The Tesla app can''t export Sentry / Dashcam clips to other apps, so clips have to come from the car''s USB drive.') 9.5 '#FFFFB547' 'Normal'; $nt.TextWrapping = 'Wrap'; $nt.Margin = '0,5,0,0'; [void]$OB.Children.Add($nt)
+    # speed
+    [void]$OB.Children.Add((New-CamSection 'PLAYBACK SPEED'))
+    $ug = New-Object System.Windows.Controls.Primitives.UniformGrid; $ug.Columns = 3
+    foreach ($f in 2, 4, 8) { $b = New-CamChoice ([string]$f + ' fps') ([int]$cfg.fps -eq $f) $f; $b.Add_Click({ param($s9, $e9) try { Set-CamFps ([int]$s9.Tag); Build-CamOptions } catch {} }); [void]$ug.Children.Add($b) }
+    [void]$OB.Children.Add($ug)
+    # which clips
+    [void]$OB.Children.Add((New-CamSection 'WHICH CLIPS'))
+    $ug = New-Object System.Windows.Controls.Primitives.UniformGrid; $ug.Columns = 2
+    foreach ($w in @(@('latest', 'Latest event'), @('all', 'All events'))) {
+        $b = New-CamChoice $w[1] ([string]$cfg.which -eq $w[0]) $w[0]
+        $b.Add_Click({ param($s9, $e9) try { $script:CamCfg.which = [string]$s9.Tag; Save-CamCfg; if ($script:CamCfg.which -eq 'latest' -and @($script:Cam.events).Count) { $n0 = @($script:Cam.events)[0]; if (([string]$n0.dir + '|' + [string]$n0.name) -ne $script:Cam.evKey) { Start-CamLoad $n0 } }; Build-CamOptions } catch {} })
+        [void]$ug.Children.Add($b)
+    }
+    [void]$OB.Children.Add($ug)
+    $script:CamOptList = New-Object System.Windows.Controls.StackPanel; $script:CamOptList.Margin = '0,5,0,0'
+    [void]$OB.Children.Add($script:CamOptList); Update-CamOptEvents
+    # default camera
+    [void]$OB.Children.Add((New-CamSection 'DEFAULT CAMERA'))
+    $ug = New-Object System.Windows.Controls.Primitives.UniformGrid; $ug.Columns = 5
+    foreach ($d in @(@('front', 'Front'), @('back', 'Rear'), @('left_repeater', 'Left'), @('right_repeater', 'Right'), @('grid', '4-up'))) { $b = New-CamChoice $d[1] ([string]$cfg.defaultCam -eq $d[0]) $d[0] 10; $b.Add_Click({ param($s9, $e9) try { $script:CamCfg.defaultCam = [string]$s9.Tag; Save-CamCfg; Set-CamView ([string]$s9.Tag); Build-CamOptions } catch {} }); [void]$ug.Children.Add($b) }
+    [void]$OB.Children.Add($ug)
+    # full screen
+    [void]$OB.Children.Add((New-CamSection 'FULL SCREEN'))
+    $scr = @(Get-CamScreens)
+    [void]$OB.Children.Add((New-CamText 'Full-screen layout' 9.5 '#FFAAAAAA' 'Normal'))
+    $cmb = New-Object System.Windows.Controls.ComboBox; $cmb.Margin = '0,3,0,0'; $cmb.FontSize = 10.5
+    foreach ($o in @(@('two', 'Two monitors: Front full screen on one monitor, other cameras grid on the other'), @('one', 'One screen: Front on top, others below'))) {
+        $ci = New-Object System.Windows.Controls.ComboBoxItem; $tb = New-CamText $o[1] 10.5 '#FF111111' 'SemiBold'; $tb.TextWrapping = 'Wrap'; $tb.MaxWidth = 250; $ci.Content = $tb; $ci.Tag = $o[0]; [void]$cmb.Items.Add($ci)
+        if ([string]$cfg.fsLayout -eq $o[0]) { $cmb.SelectedItem = $ci }
+    }
+    $cmb.Add_SelectionChanged({ param($s9, $e9) try { if ($null -ne $s9.SelectedItem -and [string]$s9.SelectedItem.Tag -ne $script:CamCfg.fsLayout) { $script:CamCfg.fsLayout = [string]$s9.SelectedItem.Tag; Save-CamCfg; $window.Dispatcher.BeginInvoke([Action]{ try { Build-CamOptions } catch {} }) | Out-Null } } catch {} })
+    [void]$OB.Children.Add($cmb); $script:CamOptLayoutCombo = $cmb; $script:CamOptMonCombo = $null
+    if ([string]$cfg.fsLayout -eq 'two') {
+        $l2 = New-CamText 'Which monitor gets Front (two-monitor layout)' 9.5 '#FFAAAAAA' 'Normal'; $l2.Margin = '0,6,0,0'; [void]$OB.Children.Add($l2)
+        $cm2 = New-Object System.Windows.Controls.ComboBox; $cm2.Margin = '0,3,0,0'; $cm2.FontSize = 10.5
+        foreach ($o in @(@('left', 'Left monitor'), @('right', 'Right monitor'))) { $ci = New-Object System.Windows.Controls.ComboBoxItem; $ci.Content = $o[1]; $ci.Tag = $o[0]; [void]$cm2.Items.Add($ci); if ([string]$cfg.fsFront -eq $o[0]) { $cm2.SelectedItem = $ci } }
+        $cm2.Add_SelectionChanged({ param($s9, $e9) try { if ($null -ne $s9.SelectedItem) { $script:CamCfg.fsFront = [string]$s9.SelectedItem.Tag; Save-CamCfg } } catch {} })
+        [void]$OB.Children.Add($cm2); $script:CamOptMonCombo = $cm2
+    }
+    $sn = New-CamText ([string]$scr.Count + ' monitor(s) found' + $(if ($scr.Count -lt 2 -and [string]$cfg.fsLayout -eq 'two') { ': the two-monitor layout uses one screen until a second monitor is connected.' } else { '.' }) + ' Esc or X closes full screen; TessDesk hides while it is open.') 9 '#FF8A8A8A' 'Normal'
+    $sn.TextWrapping = 'Wrap'; $sn.Margin = '0,5,0,0'; [void]$OB.Children.Add($sn)
+    # capture + save
+    [void]$OB.Children.Add((New-CamSection 'CAPTURE AND SAVE'))
+    $how = $(if (Test-CamSmtp) { 'Capture on any camera saves that frame and emails it to ' + $cfg.mailTo + ' from your own email account (Setup > Reminders).' } else { 'Capture on any camera saves that frame to Pictures\TessDesk Captures and opens your email app to ' + $cfg.mailTo + ' with the picture copied (paste it, or attach the file). To send it automatically, set up your email account in TessDesk Setup > Reminders.' })
+    $hw = New-CamText $how 9.5 '#FFCCCCCC' 'Normal'; $hw.TextWrapping = 'Wrap'; [void]$OB.Children.Add($hw)
+    $sv = New-CamText ('Save clip copies the selected Sentry / Dashcam clip to ' + (Get-CamClipDir) + '.') 9.5 '#FFCCCCCC' 'Normal'; $sv.TextWrapping = 'Wrap'; $sv.Margin = '0,4,0,2'; [void]$OB.Children.Add($sv)
+}
+function Update-CamOptEvents {
+    $L = $script:CamOptList; if ($null -eq $L) { return }
+    $L.Children.Clear()
+    $evs = @($script:Cam.events); if ([string]$script:CamCfg.which -eq 'latest') { $evs = @($evs | Select-Object -First 1) } else { $evs = @($evs | Select-Object -First 12) }
+    if ($evs.Count -eq 0) { [void]$L.Children.Add((New-CamText $(if (Get-CamRoot) { 'No clips found yet.' } else { 'Choose a clip folder above.' }) 9.5 '#FF8A8A8A' 'Normal')); return }
+    foreach ($e in $evs) {
+        $cur = (([string]$e.dir + '|' + [string]$e.name) -eq $script:Cam.evKey)
+        $t = [datetime]::Parse([string]$e.time, $Inv)
+        $b = New-Object System.Windows.Controls.Border; $b.Padding = '8,4,8,4'; $b.Margin = '0,0,0,1'; $b.CornerRadius = [System.Windows.CornerRadius]::new(4); $b.Cursor = [System.Windows.Input.Cursors]::Hand; $b.Tag = $e
+        $b.Background = Get-CamBrush $(if ($cur) { '#2249DF93' } else { '#FF1A1A1A' }); $b.ToolTip = [string]$e.dir
+        $dp = New-Object System.Windows.Controls.DockPanel
+        $r = New-CamText $t.ToString('ddd MMM d', $Inv) 9.5 '#FF8A8A8A' 'Normal'; [System.Windows.Controls.DockPanel]::SetDock($r, 'Right'); [void]$dp.Children.Add($r)
+        $kind = switch ([string]$e.kind) { 'SentryClips' { 'Sentry event · saved ' } 'SavedClips' { 'Dashcam clip · saved ' } 'RecentClips' { 'Recent dashcam · ' } default { 'Clip · ' } }
+        [void]$dp.Children.Add((New-CamText ($kind + $t.ToString('h:mm tt', $Inv)) 10 $(if ($cur) { '#FF49DF93' } else { '#FFE6E6E6' }) 'SemiBold'))
+        $b.Child = $dp
+        $b.Add_MouseLeftButtonUp({ param($s9, $e9) try { Start-CamLoad $s9.Tag; Update-CamOptEvents } catch {} })
+        [void]$L.Children.Add($b)
+    }
+}
+function Show-CamOptions { Build-CamOptions; $ui.CamOptScroll.MaxHeight = [math]::Max(300, $window.ActualHeight - 110); Set-Visible $ui.CamOptOverlay $true }
+function Close-CamOptions { Set-Visible $ui.CamOptOverlay $false }
+function Set-CamFps { param([int]$F) if (@(2, 4, 8) -notcontains $F) { return }; $script:CamCfg.fps = $F; Save-CamCfg; Start-CamPlay; Update-CamBars }
+
+# ---- full screen (two monitors or one screen); TessDesk hides while it is open ----
+function Get-CamScreens { try { return @([System.Windows.Forms.Screen]::AllScreens | Sort-Object { $_.Bounds.X }, { $_.Bounds.Y }) } catch { return @() } }
+function Get-CamDipRect {
+    param($Screen)
+    $sx = 1.0; $sy = 1.0
+    try { $m = [System.Windows.PresentationSource]::FromVisual($window).CompositionTarget.TransformFromDevice; $sx = $m.M11; $sy = $m.M22 } catch {}
+    $b = $Screen.Bounds
+    return [System.Windows.Rect]::new($b.X * $sx, $b.Y * $sy, $b.Width * $sx, $b.Height * $sy)
+}
+function New-CamFsWindow {
+    param([System.Windows.Rect]$Rect, [string]$Title, [string]$Kind, [string]$Note = $null)
+    $C = $script:Cam
+    $w = New-Object System.Windows.Window
+    $w.WindowStyle = 'None'; $w.ResizeMode = 'NoResize'; $w.Topmost = $true; $w.ShowInTaskbar = $false; $w.WindowStartupLocation = 'Manual'
+    $w.Background = Get-CamBrush '#FF0B0B0B'; $w.FontFamily = [System.Windows.Media.FontFamily]::new('Segoe UI'); $w.Title = 'TessDesk cameras'
+    try { $w.Icon = $window.Icon } catch {}
+    $off = $(if ($SelfTest) { -30000 } else { 0 })   # the self-test lays the windows out off screen (pictures only), never over the desktop
+    $w.Left = $Rect.X + $off; $w.Top = $Rect.Y; $w.Width = $Rect.Width; $w.Height = $Rect.Height
+    if ($SelfTest) { $w.ShowActivated = $false }
+    $own = 'fs' + $script:CamFs.windows.Count
+    $root = New-Object System.Windows.Controls.Grid
+    $dock = New-Object System.Windows.Controls.DockPanel; [void]$root.Children.Add($dock)
+    # top bar
+    $top = New-Object System.Windows.Controls.Border; $top.Background = Get-CamBrush '#FF141414'; $top.Height = 38; $top.Padding = '14,0,8,0'
+    [System.Windows.Controls.DockPanel]::SetDock($top, 'Top'); [void]$dock.Children.Add($top)
+    $tg = New-Object System.Windows.Controls.DockPanel; $top.Child = $tg
+    $x = New-CamButton (New-CamText ([string][char]0xE711) 11 '#FFE6E6E6' 'Normal' 'Segoe MDL2 Assets') 11 'Close full screen (Esc)'; $x.Width = 30; $x.Height = 26; $x.Padding = '0'
+    $x.Add_Click({ try { Close-CamFullscreen } catch {} }); [System.Windows.Controls.DockPanel]::SetDock($x, 'Right'); [void]$tg.Children.Add($x)
+    $esc = New-CamText 'Esc to close' 10 '#FF8A8A8A' 'SemiBold'; $esc.VerticalAlignment = 'Center'; $esc.Margin = '10,0,10,0'; [System.Windows.Controls.DockPanel]::SetDock($esc, 'Right'); [void]$tg.Children.Add($esc)
+    $pill = New-Object System.Windows.Controls.Border; $pill.CornerRadius = [System.Windows.CornerRadius]::new(9); $pill.BorderBrush = Get-CamBrush '#FFFFB547'; $pill.BorderThickness = '1.5'; $pill.Background = Get-CamBrush '#22FFB547'; $pill.Padding = '8,1,8,2'; $pill.VerticalAlignment = 'Center'
+    $pill.Child = (New-CamText 'NOT LIVE · FROM SAVED CLIPS' 9.5 '#FFFFB547' 'Bold'); [System.Windows.Controls.DockPanel]::SetDock($pill, 'Right'); [void]$tg.Children.Add($pill)
+    $ls = New-Object System.Windows.Controls.StackPanel; $ls.Orientation = 'Horizontal'; $ls.VerticalAlignment = 'Center'
+    $tt = New-CamText 'TESSDESK' 12 '#FFE82127' 'Bold'; $tt.Margin = '0,0,14,0'; [void]$ls.Children.Add($tt)
+    $t2 = New-CamText $Title 12 '#FFFFFFFF' 'Bold'; $t2.Margin = '0,0,14,0'; [void]$ls.Children.Add($t2)
+    [void]$ls.Children.Add((New-CamText (Get-CamEventLine $C.ev) 11 $(if ($C.ev.kind -eq 'SentryClips') { '#FFE82127' } else { '#FFCCCCCC' }) 'Bold'))
+    [void]$tg.Children.Add($ls)
+    # bottom bar (grid / one-screen windows)
+    if ($Kind -ne 'front') {
+        $bot = New-Object System.Windows.Controls.Border; $bot.Background = Get-CamBrush '#FF141414'; $bot.Height = 46; $bot.Padding = '12,0,14,0'
+        [System.Windows.Controls.DockPanel]::SetDock($bot, 'Bottom'); [void]$dock.Children.Add($bot)
+        $bg = New-Object System.Windows.Controls.DockPanel; $bot.Child = $bg
+        $pt = New-CamText '' 13 '#FF49DF93' 'Normal' 'Segoe MDL2 Assets'
+        $pb = New-CamButton $pt 12 'Play / pause (Space)' '#FF49DF93'; $pb.Width = 38; $pb.Height = 30; $pb.Padding = '0'
+        $pb.Add_Click({ try { Set-CamPlaying (-not $script:Cam.playing) } catch {} }); [System.Windows.Controls.DockPanel]::SetDock($pb, 'Left'); [void]$bg.Children.Add($pb); Register-CamBar 'play' $pt $own
+        foreach ($f in 2, 4, 8) { $fb = New-CamButton ([string]$f + ' fps') 10.5 ('Play at ' + $f + ' frames per second'); $fb.Height = 26; $fb.Margin = '6,0,0,0'; $fb.Padding = '8,0,8,0'; $fb.Tag = $f; $fb.Add_Click({ param($s9, $e9) try { Set-CamFps ([int]$s9.Tag) } catch {} }); [System.Windows.Controls.DockPanel]::SetDock($fb, 'Left'); [void]$bg.Children.Add($fb); Register-CamBar 'fps' $fb $own }
+        $dbv = New-Object System.Windows.Controls.StackPanel; $dbv.VerticalAlignment = 'Center'; $dbv.Margin = '16,0,0,0'
+        $dt = New-Object System.Windows.Controls.TextBlock; $dt.FontFamily = [System.Windows.Media.FontFamily]::new('Bahnschrift, Impact'); $dt.FontWeight = 'Bold'; $dt.FontSize = 13; $dt.Foreground = Get-CamBrush '#FFE6E6E6'
+        [void]$dt.Inlines.Add([System.Windows.Documents.Run]::new('DESIGN BY ')); $vr = [System.Windows.Documents.Run]::new('VAN'); $vr.Foreground = Get-CamBrush '#FFE82127'; [void]$dt.Inlines.Add($vr); [void]$dbv.Children.Add($dt)
+        [void]$dbv.Children.Add((New-CamText ('v' + $AppVersion + ' · ' + $AppDate) 9 '#FF6A6A6A' 'Normal'))
+        [System.Windows.Controls.DockPanel]::SetDock($dbv, 'Right'); [void]$bg.Children.Add($dbv)
+        $cnt = New-CamText '' 11 '#FF8A8A8A' 'SemiBold'; $cnt.VerticalAlignment = 'Center'; $cnt.Margin = '12,0,0,0'; [System.Windows.Controls.DockPanel]::SetDock($cnt, 'Right'); [void]$bg.Children.Add($cnt); Register-CamBar 'count' $cnt $own
+        $sl = New-Object System.Windows.Controls.Slider; $sl.Style = $window.FindResource('CamSlider'); $sl.Minimum = 0; $sl.Maximum = [math]::Max(0, $C.n - 1); $sl.IsSnapToTickEnabled = $true; $sl.TickFrequency = 1; $sl.SmallChange = 1; $sl.LargeChange = 1; $sl.Margin = '14,0,0,0'; $sl.VerticalAlignment = 'Center'
+        $sl.Add_ValueChanged({ param($s9, $e9) try { On-CamSlider $s9 } catch {} }); [void]$bg.Children.Add($sl); Register-CamBar 'slider' $sl $own
+    }
+    # cameras
+    $body = New-Object System.Windows.Controls.Grid; $body.Margin = '8'; [void]$dock.Children.Add($body)
+    $main = $(if ($C.cams -contains 'front') { 'front' } else { @($C.cams)[0] })
+    $others = @($C.cams | Where-Object { $_ -ne $main })
+    if ($Kind -eq 'front') { [void]$body.Children.Add((New-CamTile $main 0 2.0 $own $true $false)) }
+    elseif ($Kind -eq 'grid') {
+        $cells = $others.Count + $(if ($Note) { 1 } else { 0 })
+        $ug = New-Object System.Windows.Controls.Primitives.UniformGrid; $ug.Columns = $(if ($cells -le 4) { 2 } else { 3 })
+        foreach ($k in $others) { [void]$ug.Children.Add((New-CamTile $k 960 1.5 $own $true $false)) }
+        if ($Note) {
+            $nb = New-Object System.Windows.Controls.Border; $nb.Background = Get-CamBrush '#FF111111'; $nb.CornerRadius = [System.Windows.CornerRadius]::new(5); $nb.Margin = '1.5'
+            $ns = New-Object System.Windows.Controls.StackPanel; $ns.HorizontalAlignment = 'Center'; $ns.VerticalAlignment = 'Center'
+            $n1 = New-CamText $Note 16 '#FFFFFFFF' 'Bold'; $n1.HorizontalAlignment = 'Center'; [void]$ns.Children.Add($n1)
+            $n2 = New-CamText ('Change it in Camera options > Full screen') 11 '#FF8A8A8A' 'Normal'; $n2.HorizontalAlignment = 'Center'; $n2.Margin = '0,6,0,0'; [void]$ns.Children.Add($n2)
+            $nb.Child = $ns; [void]$ug.Children.Add($nb)
+        }
+        [void]$body.Children.Add($ug)
+    } else {
+        $r0 = New-Object System.Windows.Controls.RowDefinition; $r0.Height = [System.Windows.GridLength]::new(2.2, 'Star'); $r1 = New-Object System.Windows.Controls.RowDefinition; $r1.Height = [System.Windows.GridLength]::new(1, 'Star')
+        [void]$body.RowDefinitions.Add($r0); [void]$body.RowDefinitions.Add($r1)
+        [void]$body.Children.Add((New-CamTile $main 0 1.7 $own $true $false))
+        $ug = New-Object System.Windows.Controls.Primitives.UniformGrid; $ug.Rows = 1; $ug.Columns = [math]::Max(1, $others.Count); [System.Windows.Controls.Grid]::SetRow($ug, 1)
+        foreach ($k in $others) { [void]$ug.Children.Add((New-CamTile $k 640 1.1 $own $true $false)) }
+        [void]$body.Children.Add($ug)
+    }
+    # toast
+    $toast = New-Object System.Windows.Controls.Border; $toast.CornerRadius = [System.Windows.CornerRadius]::new(10); $toast.Background = Get-CamBrush '#F01A1A1A'; $toast.BorderBrush = Get-CamBrush '#FF49DF93'; $toast.BorderThickness = '1.5'
+    $toast.Padding = '16,10,16,10'; $toast.HorizontalAlignment = 'Center'; $toast.VerticalAlignment = 'Bottom'; $toast.Margin = '0,0,0,70'; $toast.MaxWidth = 720; $toast.Visibility = 'Collapsed'
+    $toastTxt = New-CamText '' 13 '#FFFFFFFF' 'SemiBold'; $toastTxt.TextWrapping = 'Wrap'; $toastTxt.TextAlignment = 'Center'; $toast.Child = $toastTxt; [void]$root.Children.Add($toast)
+    $w.Content = $root
+    $w.Tag = [pscustomobject]@{ kind = $Kind; owner = $own; toast = $toast; toastTxt = $toastTxt; close = $x; rect = $Rect }
+    $w.Add_KeyDown({ param($s9, $e9) try { if ($e9.Key -eq 'Escape') { $e9.Handled = $true; Close-CamFullscreen } elseif ($e9.Key -eq 'Space') { Set-CamPlaying (-not $script:Cam.playing) } } catch {} })
+    $w.Add_Closed({ try { if ($null -ne $script:CamFs -and -not $script:CamFs.closing) { Close-CamFullscreen } } catch {} })
+    return $w
+}
+function Open-CamFullscreen {
+    if ($script:Cam.n -eq 0) { Show-TdToast 'No clip loaded yet' $false; return $null }
+    if ($null -ne $script:CamFs) { return $script:CamFs }
+    Close-CamOptions
+    $scr = @(Get-CamScreens)
+    $mode = [string]$script:CamCfg.fsLayout
+    $me = $null; try { $me = [System.Windows.Forms.Screen]::FromHandle((Get-TdHwnd)) } catch {}
+    if ($null -eq $me -and $scr.Count) { $me = $scr[0] }
+    $script:CamFs = [pscustomobject]@{ windows = (New-Object System.Collections.ArrayList); closing = $false; mode = $mode; prev = [ordered]@{ opacity = $window.Opacity; topmost = $window.Topmost; hit = $window.IsHitTestVisible }; screens = $scr.Count; plan = @() }
+    if ($mode -eq 'two' -and $scr.Count -ge 2) {
+        $fi = $(if ([string]$script:CamCfg.fsFront -eq 'right') { $scr.Count - 1 } else { 0 })
+        $oi = $(if ($fi -eq 0) { 1 } else { $scr.Count - 2 })
+        $side = $(if ($fi -eq 0) { 'left' } else { 'right' })
+        [void]$script:CamFs.windows.Add((New-CamFsWindow (Get-CamDipRect $scr[$fi]) 'FRONT' 'front'))
+        [void]$script:CamFs.windows.Add((New-CamFsWindow (Get-CamDipRect $scr[$oi]) 'OTHER CAMERAS' 'grid' ('Front is on the ' + $side + ' monitor')))
+        $script:CamFs.plan = @(('front on ' + $scr[$fi].DeviceName + ' ' + [string]$scr[$fi].Bounds), ('others on ' + $scr[$oi].DeviceName + ' ' + [string]$scr[$oi].Bounds))
+    } else {
+        if ($mode -eq 'two') { $script:CamFs.mode = 'one (only ' + $scr.Count + ' monitor)' }
+        $r = $(if ($null -ne $me) { Get-CamDipRect $me } else { [System.Windows.SystemParameters]::WorkArea })
+        [void]$script:CamFs.windows.Add((New-CamFsWindow $r 'ALL CAMERAS' 'one'))
+        $script:CamFs.plan = @('all on ' + $(if ($me) { $me.DeviceName + ' ' + [string]$me.Bounds } else { 'work area' }))
+    }
+    # hide the always-on-top widget while full screen is open (Hide() would end TessDesk's window loop, so it goes fully transparent and click-through instead)
+    $window.Topmost = $false; $window.Opacity = 0; $window.IsHitTestVisible = $false
+    foreach ($w in $script:CamFs.windows) { $w.Show() }
+    if (-not $SelfTest) { try { $script:CamFs.windows[0].Activate(); [void]$script:CamFs.windows[0].Focus() } catch {} }
+    Add-CamLog ('full screen: ' + $script:CamFs.mode + ' (' + ($script:CamFs.plan -join '; ') + ')')
+    Show-CamFrame; Start-CamPlay
+    return $script:CamFs
+}
+function Close-CamFullscreen {
+    $f = $script:CamFs; if ($null -eq $f -or $f.closing) { return }
+    $f.closing = $true
+    foreach ($w in @($f.windows)) { try { Clear-CamOwner $w.Tag.owner } catch {}; try { $w.Close() } catch {} }
+    $script:CamFs = $null; $script:CamFsToastTimer.Stop()
+    $window.Opacity = $f.prev.opacity; $window.IsHitTestVisible = $f.prev.hit; $window.Topmost = $f.prev.topmost
+    if (-not $SelfTest) { try { $window.Activate() } catch {} }
+    Add-CamLog 'full screen closed'
+    Show-CamFrame
+}
+
+# ---- wiring ----
+$ui.CamToggle.Add_Click({ try { Set-CamEnabled ([bool]$ui.CamToggle.IsChecked) } catch { Write-WidgetLog ('camera toggle: ' + $_.Exception.Message) } })
+$ui.CamGear.Add_Click({ try { Show-CamOptions } catch { Write-WidgetLog ('camera options: ' + $_.Exception.Message) } })
+$ui.CamOptClose.Add_Click({ Close-CamOptions })
+$ui.CamOptOverlay.Add_MouseLeftButtonUp({ param($s9, $e9) if ($e9.OriginalSource -eq $ui.CamOptOverlay) { Close-CamOptions } })
+$ui.CamPlay.Add_Click({ try { Set-CamPlaying (-not $script:Cam.playing) } catch {} })
+$ui.CamFs.Add_Click({ try { [void](Open-CamFullscreen) } catch { Write-WidgetLog ('camera full screen: ' + $_.Exception.Message); Close-CamFullscreen; Show-TdToast ('Full screen failed: ' + $_.Exception.Message) $false } })
+$ui.CamSave.Add_Click({ try { [void](Start-CamSaveClip) } catch { Show-TdToast ('Save clip failed: ' + $_.Exception.Message) $false } })
+$ui.CamStop.Add_Click({ try { if ($null -ne $script:CamSave) { Stop-CamSave } elseif ($null -ne $script:CamJob) { Stop-CamJob } elseif ($null -ne $script:CamScan) { try { $script:CamScan.ps.Stop() } catch {}; $script:CamScan = $null; Update-CamBusy; if ($script:Cam.n -eq 0) { Set-CamStatus 'stopped' 'Stopped looking for clips' } } } catch {} })
+$ui.CamSlider.Add_ValueChanged({ param($s9, $e9) try { On-CamSlider $s9 } catch {} })
+try { Render-Cam } catch { Write-WidgetLog ('camera render: ' + $_.Exception.Message) }
+function Start-CamOnLaunch {
+    if ($SelfTest -or -not [bool]$script:CamCfg.enabled) { return }
+    $script:CamRescan.Start()
+    if (Get-CamRoot) { Start-CamScan -Load } else { Set-CamStatus 'nofolder' '' }
+}
+function Stop-CamAll {
+    try { $script:CamRescan.Stop(); $script:CamPlayTimer.Stop(); $script:CamTick.Stop(); $script:CamFsToastTimer.Stop() } catch {}
+    try { Close-CamFullscreen } catch {}
+    try { if ($null -ne $script:CamJob) { foreach ($it in $script:CamJob.items) { if ($null -ne $it.p) { Close-CamPlayer $it } } } } catch {}
+    try { if ($null -ne $script:CamSave) { $script:CamSave.sync.cancel = $true } } catch {}
+}
+
 # Show local/cached data immediately; the first Tessie call runs once the window is on screen.
 try {
     $script:View = Build-FallbackView (Read-LocalJson) 'Live: connecting…' 'starting'
@@ -5726,6 +6770,119 @@ function Start-SelfTest {
         Remove-Item -LiteralPath $ChgMarkPath -Force -ErrorAction SilentlyContinue
         $script:SelfRec.chargingStarted = $cs
     }
+    # ---- v4.3.9 CAMERAS (self-test TeslaCam clips next to the script; nothing is emailed, nothing opens, nothing is sent to the car) ----
+    $script:Shot439 = { param($n, [switch]$Full) $f = 'tessdesk-v439-' + $n + '.png'; if ($Full) { Save-RootPng (Join-Path $script:SelfDir $f) -Full } else { Save-RootPng (Join-Path $script:SelfDir $f) }; $script:SelfRec.shots += $f }
+    $script:SaveFsPng = { param($W, $n) $W.UpdateLayout(); $el = $W.Content; $el.UpdateLayout(); $bw = [int][math]::Max(1, $el.ActualWidth); $bh = [int][math]::Max(1, $el.ActualHeight)
+        $bmp = New-Object System.Windows.Media.Imaging.RenderTargetBitmap $bw, $bh, 96, 96, ([System.Windows.Media.PixelFormats]::Pbgra32); $bmp.Render($el)
+        $enc = New-Object System.Windows.Media.Imaging.PngBitmapEncoder; $enc.Frames.Add([System.Windows.Media.Imaging.BitmapFrame]::Create($bmp))
+        $f = 'tessdesk-v439-' + $n + '.png'; $fs = [System.IO.File]::Create((Join-Path $script:SelfDir $f)); try { $enc.Save($fs) } finally { $fs.Dispose() }; $script:SelfRec.shots += $f }
+    $script:CamTestDir = Join-Path $scriptDir 'selftest-teslacam'
+    $script:SelfRec.v439 = [ordered]@{ testClips = $script:CamTestDir; testClipsFound = (Test-Path -LiteralPath $script:CamTestDir); appVersion = $AppVersion; footer = $ui.FooterVersion.Text }
+    & $add 'v4.3.9 camera: OFF by default (panel hidden, header toggle off)' @() {
+        $r = $script:SelfRec.v439
+        $r.offByDefault = [ordered]@{ enabled = [bool]$script:CamCfg.enabled; cardVisible = [string]$ui.CamCard.Visibility; toggle = [bool]$ui.CamToggle.IsChecked }
+        $script:CamCfg.fsLayout = 'two'; $script:CamCfg.fsFront = 'left'; $script:CamCfg.fps = 4; $script:CamCfg.which = 'latest'; $script:CamCfg.defaultCam = 'grid'; $script:Cam.view = 'grid'
+        $script:CamCfg.usbPath = ''; $script:CamCfg.folderPath = ''; $script:CamCfg.source = 'folder'
+        & $script:Shot439 'off'
+    }
+    & $add 'v4.3.9 camera: ON with no folder yet (Choose folder)' @() {
+        Set-CamEnabled $true
+        $r = $script:SelfRec.v439; $r.onNoFolder = [ordered]@{ status = $script:Cam.status; cardVisible = [string]$ui.CamCard.Visibility; aboveChargingAmount = ([System.Windows.Controls.Grid]::GetRow($ui.CamCard.Parent) -eq 0 -and $ui.CamCard.TranslatePoint([System.Windows.Point]::new(0, 0), $ui.MainGrid).Y -lt $ui.HeroCost.TranslatePoint([System.Windows.Point]::new(0, 0), $ui.MainGrid).Y) }
+        $window.UpdateLayout(); & $script:Shot439 'nofolder'
+    }
+    & $add 'v4.3.9 camera: pick the test TeslaCam folder, scan, load the latest event' @() {
+        $script:CamBusySeen = New-Object System.Collections.ArrayList
+        [void](Select-CamFolder 'folder' $script:CamTestDir)
+    }
+    & $add 'v4.3.9 camera: 4-up grid loaded (progress counts, frame times)' @() {
+        $r = $script:SelfRec.v439; $C = $script:Cam
+        $r.scan = [ordered]@{ events = @($C.events | ForEach-Object { $_.kind + '/' + $_.name + ' @ ' + $_.time + ' cams=' + @($_.clips.PSObject.Properties).Count }) }
+        $r.load = $C.lastLoad; $r.status = $C.status; $r.cams = @($C.cams); $r.frames = [ordered]@{}; foreach ($k in $C.cams) { $r.frames[$k] = @($C.frames[$k]).Count }
+        $r.frameTimesFront = @($C.times['front'] | ForEach-Object { $_.ToString('HH:mm:ss.f') })
+        $r.frameBytesFront = @($C.frames['front'] | ForEach-Object { $_.Length })
+        $r.progressSeen = @($script:CamBusySeen | Select-Object -First 4) + @('...') + @($script:CamBusySeen | Select-Object -Last 3)
+        $r.eventLine = $ui.CamEvent.Text; $r.source = $ui.CamSrc.Text; $r.count = $ui.CamCount.Text
+        $Cam0 = $C.idx; $r.idxA = $Cam0
+        $window.UpdateLayout(); & $script:Shot439 'camera-grid'
+    }
+    & $add 'v4.3.9 camera: playback advances, then Front view (paused on frame 9)' @() {
+        $r = $script:SelfRec.v439; $r.idxB = $script:Cam.idx; $r.playing = $script:Cam.playing; $r.playAdvanced = ($r.idxB -ne $r.idxA)
+        Set-CamView 'front'; Set-CamPlaying $false; $script:Cam.idx = 8; Show-CamFrame
+        $r.frontView = [ordered]@{ count = $ui.CamCount.Text; ts = @($script:CamViews | Where-Object { $_.owner -eq 'widget' } | ForEach-Object { $_.ts.Text }) }
+        $window.UpdateLayout(); & $script:Shot439 'camera-front'
+    }
+    & $add 'v4.3.9 camera: capture Front (PNG saved; email path recorded, nothing opened or sent)' @() {
+        $r = $script:SelfRec.v439
+        $c = Invoke-CamCapture 'front'
+        $r.captureFront = $c; $r.captureFileOk = (Test-Path -LiteralPath $c.file); $r.captureToast = $ui.WToastTxt.Text
+        $r.shareLogLast = @($script:ShareLog | Select-Object -Last 1 | ForEach-Object { $_.kind + ' launched=' + $_.launched })
+        $window.UpdateLayout(); & $script:Shot439 'camera-capture'
+    }
+    & $add 'v4.3.9 camera: options panel' @() {
+        Set-CamView 'grid'; Show-CamOptions; $window.UpdateLayout()
+        $r = $script:SelfRec.v439; $r.options = [ordered]@{ layoutItems = @($script:CamOptLayoutCombo.Items | ForEach-Object { $_.Content.Text }); layout = [string]$script:CamOptLayoutCombo.SelectedItem.Tag; monitorItems = @($script:CamOptMonCombo.Items | ForEach-Object { [string]$_.Content }); monitors = @(Get-CamScreens).Count; events = @($script:CamOptList.Children).Count }
+        & $script:Shot439 'camera-options'
+        $ui.CamOptScroll.ScrollToBottom(); $window.UpdateLayout(); & $script:Shot439 'camera-options-bottom'
+        $ui.CamOptScroll.ScrollToTop(); Close-CamOptions
+    }
+    & $add 'v4.3.9 camera: full screen, two monitors (Front left, grid right), TessDesk hidden, capture, Esc' @() {
+        $r = $script:SelfRec.v439; $f = [ordered]@{}
+        $script:CamCfg.fsLayout = 'two'; $script:CamCfg.fsFront = 'left'; Set-CamPlaying $false; $script:Cam.idx = 8
+        $fs = Open-CamFullscreen
+        $f.mode = $fs.mode; $f.plan = $fs.plan; $f.windows = $fs.windows.Count; $f.rects = @($fs.windows | ForEach-Object { [string]$_.Tag.kind + ' ' + [string]$_.Tag.rect })
+        $f.mainHidden = [ordered]@{ opacity = $window.Opacity; topmost = $window.Topmost; hitTest = $window.IsHitTestVisible }
+        $f.views = @($script:CamViews | Where-Object { $_.owner -like 'fs*' }).Count
+        Show-CamFrame
+        $i = 0; foreach ($w in $fs.windows) { & $script:SaveFsPng $w $(if ($i -eq 0) { 'fs-front' } else { 'fs-others' }); $i++ }
+        $c = Invoke-CamCapture 'right_repeater'; $f.capture = $c.file; $f.toastInFs = $fs.windows[1].Tag.toastTxt.Text
+        & $script:SaveFsPng $fs.windows[1] 'fs-capture'
+        $w0 = $fs.windows[0]
+        $ka = New-Object System.Windows.Input.KeyEventArgs ([System.Windows.Input.Keyboard]::PrimaryDevice, [System.Windows.PresentationSource]::FromVisual($w0), 0, [System.Windows.Input.Key]::Escape)
+        $ka.RoutedEvent = [System.Windows.Input.Keyboard]::KeyDownEvent; $w0.RaiseEvent($ka)
+        $f.closedByEsc = ($null -eq $script:CamFs); $f.mainRestored = [ordered]@{ opacity = $window.Opacity; topmost = $window.Topmost; hitTest = $window.IsHitTestVisible }
+        $f.fsViewsLeft = @($script:CamViews | Where-Object { $_.owner -like 'fs*' }).Count
+        $r.fsTwo = $f
+    }
+    & $add 'v4.3.9 camera: full screen, one screen (Front on top, others below), X closes' @() {
+        $r = $script:SelfRec.v439; $f = [ordered]@{}
+        $script:CamCfg.fsLayout = 'one'
+        $fs = Open-CamFullscreen
+        $f.mode = $fs.mode; $f.plan = $fs.plan; $f.windows = $fs.windows.Count; $f.mainOpacity = $window.Opacity
+        Show-CamFrame; & $script:SaveFsPng $fs.windows[0] 'fs-one'
+        $fs.windows[0].Tag.close.RaiseEvent((New-Object System.Windows.RoutedEventArgs ([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent)))
+        $f.closedByX = ($null -eq $script:CamFs); $f.mainOpacityAfter = $window.Opacity; $f.topmostAfter = $window.Topmost
+        $script:CamCfg.fsLayout = 'two'
+        $r.fsOne = $f
+    }
+    & $add 'v4.3.9 camera: save the selected clip (copy with progress)' @() {
+        $script:CamBusySeen = New-Object System.Collections.ArrayList
+        $script:SelfRec.v439.saveDest = Start-CamSaveClip
+    }
+    & $add 'v4.3.9 camera: Stop while loading (6-camera event, stop at 40 frames)' @() {
+        $r = $script:SelfRec.v439
+        $r.save = $script:CamLastSave; $r.saveProgress = @($script:CamBusySeen); $r.savedFiles = @(Get-ChildItem -LiteralPath $script:CamLastSave.dest -File | ForEach-Object { $_.Name })
+        $ev2 = @($script:Cam.events | Where-Object { $_.kind -eq 'SavedClips' })[0]
+        $script:CamStopAt = 40; $script:CamBusySeen = New-Object System.Collections.ArrayList
+        Start-CamLoad $ev2
+    }
+    & $add 'v4.3.9 camera: stopped load shows what it got (6-up), then Stop while saving a clip' @() {
+        $r = $script:SelfRec.v439; $C = $script:Cam
+        $r.stopLoad = [ordered]@{ lastLoad = $C.lastLoad; msg = $C.msg; cams = @($C.cams); n = $C.n; progressSeen = @($script:CamBusySeen | Select-Object -Last 3) }
+        $C.idx = 0; Set-CamView 'grid'; $window.UpdateLayout(); & $script:Shot439 'camera-6up-stopped'
+        [void](Start-CamSaveClip -SlowMs 700)
+        $t0 = Get-Date; while (((Get-Date) - $t0).TotalMilliseconds -lt 1000) { Start-Sleep -Milliseconds 100 }
+        Update-CamBusy; $r.saveBusyText = $ui.CamBusyTxt.Text; $window.UpdateLayout(); & $script:Shot439 'camera-saving'
+        Stop-CamSave
+    }
+    & $add 'v4.3.9 camera: OFF again (panel hidden, frames freed)' @() {
+        $r = $script:SelfRec.v439
+        $r.saveStopped = $script:CamLastSave
+        Set-CamEnabled $false
+        $r.offAgain = [ordered]@{ cardVisible = [string]$ui.CamCard.Visibility; frames = $script:Cam.frames.Count; views = $script:CamViews.Count; playTimer = $script:CamPlayTimer.IsEnabled }
+        $r.log = @($script:CamLog); $r.captures = @($script:CamCaptures | ForEach-Object { $_.cam + ' ' + $_.size + ' ' + $_.bytes + ' B via ' + $_.via })
+        $r.cfgSaved = (Get-Content -LiteralPath $ConfigPath -Raw | ConvertFrom-Json).camera
+        $r.footer = $ui.FooterVersion.Text
+    }
     & $add 'live refresh status' @() { $script:SelfRec.live = (Get-LiveStatus); $script:SelfRec.liveBadge = $ui.UpdBadge.Text; $script:SelfRec.tiresHeader = [ordered]@{ hdr = $ui.TiresHdr.Text; rec = $ui.TiresRec.Text; asOf = $ui.TiresAsOf.Text } }
     & $add 'theme snapshots' @() { Save-Snapshots $script:SelfDir; $script:SelfRec.shots += @($script:LastSnapshot.files | ForEach-Object { Split-Path -Leaf $_ }) }
     Start-SelfTimer
@@ -5736,7 +6893,7 @@ function Start-SelfTimer {
     $script:SelfTimer.Add_Tick({
         try {
             if ($null -ne $script:FlashWaitFor -and $script:FlashWaitFor -lt 99) { if ($script:Flash.running -and $script:Flash.done -lt $script:FlashWaitFor) { return } }
-            elseif ($null -ne $script:UpdJob -or $script:CtlBusy -or $script:TempTimer.IsEnabled -or $script:SeatTimer.IsEnabled -or $script:WheelTimer.IsEnabled) { return }
+            elseif ($null -ne $script:UpdJob -or (Test-CamBusy) -or $script:CtlBusy -or $script:TempTimer.IsEnabled -or $script:SeatTimer.IsEnabled -or $script:WheelTimer.IsEnabled) { return }
             if ($null -ne $script:FlashWaitFor -and $script:FlashWaitFor -ge 99 -and $script:Flash.running) { return }
             if ($script:SelfSteps.Count -eq 0) {
                 $script:SelfTimer.Stop()
@@ -5770,6 +6927,8 @@ $window.Add_ContentRendered({
     if (-not $SelfTest) {
         # v4.3.8: check for updates right away every time TessDesk opens (auto-start at boot too), then watch for wake-ups
         $window.Dispatcher.BeginInvoke([System.Windows.Threading.DispatcherPriority]::Background, [Action]{ try { [void](Request-UpdateCheck 'launch') } catch { Write-WidgetLog ('update launch check: ' + $_.Exception.Message) }; try { Start-UpdResumeWatch } catch {} }) | Out-Null
+        # v4.3.9: camera panel (only when it is On): find the latest saved clip and load its frames
+        $window.Dispatcher.BeginInvoke([System.Windows.Threading.DispatcherPriority]::ApplicationIdle, [Action]{ try { Start-CamOnLaunch } catch { Write-WidgetLog ('camera start: ' + $_.Exception.Message) } }) | Out-Null
     }
     if (-not $SelfTest -and -not [bool]$script:ReadAllowed) {
         # First run after the update: show the notice; nothing is fetched from Tessie until it is accepted.
@@ -5813,6 +6972,7 @@ $snapTimer.Add_Tick({
 $snapTimer.Start()
 
 $window.Add_Closed({
+    try { Stop-CamAll } catch {}
     try { $script:UpdRetryTimer.Stop(); if ($script:PwTimer) { $script:PwTimer.Stop() }; if ('TdPowerWatch' -as [type]) { [TdPowerWatch]::Stop() } } catch {}
     try { $timer.Stop(); $script:LiveTimer.Stop(); $snapTimer.Stop(); $script:CtlTimer.Stop(); $script:TempTimer.Stop(); $script:SeatTimer.Stop(); $script:AnnTimer.Stop(); $script:WheelTimer.Stop(); $script:WToastTimer.Stop(); $script:FlashTimer.Stop() } catch {}
     try { $script:Mutex.ReleaseMutex() } catch {}

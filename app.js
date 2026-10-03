@@ -5,7 +5,7 @@
   var CFG = window.TD_CONFIG || {};
   var VARIANT = CFG.variant || 'main';
   var P = CFG.storagePrefix || 'td:';
-  var VERSION = 'v4.3.7';
+  var VERSION = 'v4.3.9';
   var VERSION_DATE = 'Oct 3, 2026';
   var TZ = 'America/Chicago';
   var DEFAULT_API = 'https://api.tessie.com';
@@ -478,8 +478,9 @@
 
     var h = '<div class="wrap">' + testBanner() + updBanner() +
       '<div class="hdr"><div class="brand">TESSDESK</div><div class="who">' + layoutChip() + 'Logged in as <b>' + esc(cfg.name) + '</b></div></div>' +
-      '<div class="toolbar">' + note + '<div class="tools">' + alexaChip() + '<button class="icon-btn" id="btnRefresh" aria-label="Refresh">' + ICON_REFRESH +
-      '</button><button class="icon-btn" id="btnSettings" aria-label="Settings">' + ICON_GEAR + '</button></div></div>';
+      '<div class="toolbar">' + note + '<div class="tools">' + camChip() + alexaChip() + '<button class="icon-btn" id="btnRefresh" aria-label="Refresh">' + ICON_REFRESH +
+      '</button><button class="icon-btn" id="btnSettings" aria-label="Settings">' + ICON_GEAR + '</button></div></div>' +
+      (camOn() ? '<div id="camSlot"></div>' : '');  // v4.3.9: camera panel sits at the top, above the charging amount
 
     if (!v) { h += '<div class="hero"><div class="money red">$--.--</div><div class="sub">Waiting for Tessie\u2026</div></div>' + footer() + '</div>'; $app.innerHTML = h; bind(); return; }
 
@@ -1223,6 +1224,7 @@
     on('cTdn', function () { onTemp(-1); }); on('cTup', function () { onTemp(1); });
     on('bRemind', openReminder); on('bRemSetup', openRemSetup); on('btnLayout', function () { setLayout(layoutMode() === 'compact' ? 'full' : 'compact'); });
     on('cChgStart', onChgStart); on('cChgStop', onChgStop); on('cHeat', onHeat); on('cDefrost', onDefrost); on('cCop', onCop); on('sWheel', onWheel);
+    on('btnCam', function () { camSetOn(!camOn()); }); camMount();
     on('btnAlexa', function () { setAlexa(!alexaOn()); }); on('btnSched', function () { screen = 'settings'; render(); var e = document.getElementById('apps'); if (e) e.scrollIntoView(); });
     Array.prototype.forEach.call(document.querySelectorAll('[data-seat]'), function (g) { g.onclick = function () { if (!g.classList.contains('dis')) onSeat(g.getAttribute('data-seat')); }; });
     bindVSlider(); bindAmps();
@@ -1789,6 +1791,316 @@
       live = keepLive; cache.charges = keepCh; save('live', live); render();
       return res;
     } };
+  // ---------- v4.3.9: CAMERAS (not live: frames looped from saved Sentry / Dashcam clips picked on this phone) ----------
+  // Tesla / Tessie give no live camera feed. Pick the clip files (TeslaCam ...-front.mp4, -back.mp4, -left_repeater.mp4, ...)
+  // and TessDesk pulls 16 stills per camera with a <video> + <canvas>, loops them, and lets you capture or save.
+  var CAM_KEYS = ['front', 'back', 'left_repeater', 'right_repeater', 'left_pillar', 'right_pillar'];
+  var CAM_NAMES = { front: 'Front', back: 'Rear', left_repeater: 'Left repeater', right_repeater: 'Right repeater', left_pillar: 'Left pillar', right_pillar: 'Right pillar' };
+  var CAM_TABS = [['front', 'Front'], ['back', 'Rear'], ['left_repeater', 'Left rep.'], ['right_repeater', 'Right rep.'], ['grid', '4-up']];
+  var CAM_MAIL = 'vanwidick@gmail.com', CAM_FRAMES = 16;
+  var cam = { el: null, files: {}, frames: {}, n: 0, idx: 0, playing: true, timer: null, job: null, tab: load('camTab', 'grid'), label: '', when: null,
+    msg: '', fs: null, fsLayout: load('camFsLayout', 'one'), log: [] };
+  function camOn() { return !!load('camOn', false); }
+  function camFps() { var f = +load('camFps', 4); return f === 2 || f === 8 ? f : 4; }
+  function camChip() {
+    return '<button class="alexa camchip' + (camOn() ? ' on' : '') + '" id="btnCam" aria-pressed="' + camOn() + '" title="Camera panel On / Off (frames from your saved clips, not live)">' +
+      '<svg viewBox="0 0 24 24"><path d="M4 8h3l2-2h6l2 2h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><i></i></button>';
+  }
+  function camSetOn(on) {
+    save('camOn', !!on);
+    if (!on) { camStop(); camStopPlay(); cam.frames = {}; cam.files = {}; cam.n = 0; cam.idx = 0; cam.msg = ''; camCloseFs(); }
+    render();
+    if (on) camPlay();
+  }
+  function camKeyOf(name, i) {
+    var n = String(name || '').toLowerCase();
+    for (var k = CAM_KEYS.length - 1; k >= 0; k--) { if (n.indexOf(CAM_KEYS[k]) >= 0) return CAM_KEYS[k]; }
+    if (/(^|[-_])rear([-_.]|$)/.test(n)) return 'back';
+    return CAM_KEYS[i] || null;
+  }
+  function camWhenOf(name) {
+    var m = /(\d{4})-(\d{2})-(\d{2})_(\d{2})-(\d{2})-(\d{2})/.exec(String(name || ''));
+    return m ? new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]) : null;
+  }
+  function camStamp(t) {
+    var p = function (x) { return (x < 10 ? '0' : '') + x; };
+    return t.getFullYear() + '-' + p(t.getMonth() + 1) + '-' + p(t.getDate()) + ' ' + p(t.getHours()) + ':' + p(t.getMinutes()) + ':' + p(t.getSeconds());
+  }
+  function camHave() { return CAM_KEYS.filter(function (k) { return cam.frames[k] && cam.frames[k].length; }); }
+  function camPick() {
+    var inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'video/*,.mp4'; inp.multiple = true;
+    inp.onchange = function () { camUseFiles(Array.prototype.slice.call(inp.files || [])); };
+    inp.click();
+  }
+  function camUseFiles(list) {
+    var vids = list.filter(function (f) { return /\.mp4$|\.mov$|\.m4v$/i.test(f.name) || /^video\//.test(f.type || ''); });
+    if (!vids.length) { cam.msg = 'No video files picked. Pick the clip files from your TeslaCam folder.'; camPaint(); return; }
+    camStop(); cam.files = {}; cam.frames = {}; cam.n = 0; cam.idx = 0;
+    vids.sort(function (a, b) { return a.name < b.name ? -1 : 1; });
+    // keep the newest clip per camera (Sentry events are often several 1-minute files)
+    vids.forEach(function (f, i) { var k = camKeyOf(f.name, i); if (k) cam.files[k] = f; });
+    var any = cam.files.front || cam.files[Object.keys(cam.files)[0]];
+    cam.when = camWhenOf(any && any.name) || (any && any.lastModified ? new Date(any.lastModified) : null);
+    var sentry = list.some(function (f) { return /sentry/i.test((f.webkitRelativePath || '') + f.name); });
+    cam.label = (sentry ? 'SENTRY EVENT' : 'SAVED CLIP') + (cam.when ? ' \u00b7 ' + esc(dayLabel(cam.when / 1000)) + ', ' + clock(cam.when / 1000) : '');
+    cam.msg = ''; camLoad();
+  }
+  // frame extraction: one camera at a time, progress counts, Stop cancels
+  function camLoad() {
+    var keys = CAM_KEYS.filter(function (k) { return cam.files[k]; });
+    var job = { cancel: false, done: 0, total: keys.length * CAM_FRAMES, t0: Date.now() };
+    cam.job = job; camPaint();
+    var W = 640, ki = 0;
+    function nextCam() {
+      if (job.cancel) return finish(true);
+      if (ki >= keys.length) return finish(false);
+      var k = keys[ki++], f = cam.files[k], url = URL.createObjectURL(f);
+      var v = document.createElement('video'); v.muted = true; v.playsInline = true; v.preload = 'auto'; v.src = url;
+      var out = [], i = 0, dur = 0, cv = document.createElement('canvas'), done = false;
+      function end() { if (done) return; done = true; URL.revokeObjectURL(url); v.removeAttribute('src'); try { v.load(); } catch (e) {} if (out.length) cam.frames[k] = out; nextCam(); }
+      function seekNext() {
+        if (job.cancel || i >= CAM_FRAMES) return end();
+        // 16 stills spread over the clip (skip the very first and last 0.2 s)
+        var t = Math.min(Math.max(0.2, dur - 0.2), 0.2 + (Math.max(0, dur - 0.4)) * (i / (CAM_FRAMES - 1)));
+        v.currentTime = t;
+      }
+      v.onloadedmetadata = function () {
+        dur = isFinite(v.duration) ? v.duration : 0;
+        var w = v.videoWidth || 1280, h = v.videoHeight || 960, s = Math.min(1, W / w);
+        cv.width = Math.round(w * s); cv.height = Math.round(h * s); seekNext();
+      };
+      v.onseeked = function () {
+        try {
+          cv.getContext('2d').drawImage(v, 0, 0, cv.width, cv.height);
+          var at = cam.when ? new Date(+cam.when + v.currentTime * 1000) : null;
+          out.push({ src: cv.toDataURL('image/jpeg', 0.82), at: at, t: v.currentTime });
+        } catch (e) {}
+        i++; job.done++; if (!cam.n || out.length > cam.n) cam.n = Math.max(cam.n, out.length);
+        if (!cam.frames[k] || cam.frames[k] !== out) cam.frames[k] = out;
+        camPaint(); seekNext();
+      };
+      v.onerror = function () { job.done += CAM_FRAMES - i; cam.msg = 'Could not read ' + f.name + ' (skipped).'; end(); };
+    }
+    function finish(stopped) {
+      cam.job = null;
+      cam.n = 0; camHave().forEach(function (k) { cam.n = Math.max(cam.n, cam.frames[k].length); });
+      if (stopped) cam.msg = 'Stopped at ' + job.done + ' / ' + job.total + ' frames \u00b7 showing what loaded.';
+      else if (!camHave().length) cam.msg = cam.msg || 'No frames could be read from these files.';
+      cam.log.push({ ev: stopped ? 'stopped' : 'loaded', done: job.done, total: job.total, ms: Date.now() - job.t0 });
+      if (cam.idx >= cam.n) cam.idx = 0;
+      camPaint(); camPlay();
+    }
+    nextCam();
+  }
+  function camStop() { if (cam.job) cam.job.cancel = true; }
+  function camStopPlay() { if (cam.timer) { clearInterval(cam.timer); cam.timer = null; } }
+  function camPlay() {
+    camStopPlay();
+    if (!camOn() || !cam.playing) return;
+    cam.timer = setInterval(function () {
+      if (!cam.n || document.visibilityState !== 'visible') return;
+      cam.idx = (cam.idx + 1) % cam.n; camPaintFrames();
+    }, Math.round(1000 / camFps()));
+  }
+  function camFrame(k) { var a = cam.frames[k]; if (!a || !a.length) return null; return a[Math.min(cam.idx, a.length - 1)]; }
+  var CAM_ICON = '<svg viewBox="0 0 24 24"><path d="M4 8h3l2-2h6l2 2h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>';
+  function camTileHtml(k, big) {
+    var f = camFrame(k);
+    return '<div class="cam-tile' + (big ? ' big' : '') + '" data-k="' + k + '">' + (f ? '<img alt="" data-k="' + k + '" src="' + f.src + '">' : '<div class="cam-none">No ' + esc(CAM_NAMES[k]) + ' clip</div>') +
+      '<span class="lbl">' + esc(CAM_NAMES[k].toUpperCase()) + '</span>' + (f && f.at ? '<span class="ts" data-ts="' + k + '">' + camStamp(f.at) + '</span>' : '') +
+      (f ? '<button class="cap" type="button" data-cap="' + k + '" title="Capture this camera and email it">' + CAM_ICON + 'Capture</button>' : '') + '</div>';
+  }
+  function camViewKeys() {
+    if (cam.tab !== 'grid') return [cam.tab];
+    var four = ['front', 'back', 'left_repeater', 'right_repeater'];
+    return four.some(function (k) { return cam.frames[k]; }) ? four : camHave().slice(0, 4);
+  }
+  function camCountTxt() { return (cam.n ? (cam.idx + 1) + ' / ' + cam.n : '0 / 0') + ' \u00b7 ' + camFps() + ' fps'; }
+  function camPaint() {
+    if (!cam.el) return;
+    var have = camHave(), j = cam.job, h = '';
+    h += '<div class="cam-h"><h3>Cameras</h3><span class="cam-pill">NOT LIVE \u00b7 FROM SAVED CLIPS</span><button class="icon-btn sm" type="button" data-cam="opts" aria-label="Camera options">' + ICON_GEAR + '</button></div>';
+    h += '<div class="cam-tabs">' + CAM_TABS.map(function (t) { return '<button type="button" data-tab="' + t[0] + '"' + (cam.tab === t[0] ? ' class="on"' : '') + '>' + t[1] + '</button>'; }).join('') + '</div>';
+    if (cam.label) h += '<div class="cam-ev"><span class="ev">\u25cf ' + cam.label + '</span><span class="src">Phone \u00b7 picked clips</span></div>';
+    if (cam.opts) {
+      h += '<div class="cam-opts"><div class="row"><span>Speed</span>' + [2, 4, 8].map(function (f) { return '<button type="button" data-fps="' + f + '"' + (camFps() === f ? ' class="on"' : '') + '>' + f + ' fps</button>'; }).join('') + '</div>' +
+        '<div class="row"><span>Full screen</span><select id="camFsSel">' + camFsOptions() + '</select></div>' +
+        '<div class="row"><span>Clips</span><button type="button" data-cam="pick">Pick other clips</button></div>' +
+        '<small>TessDesk cannot see your cameras live (Tesla and Tessie do not offer that). It loops stills from Sentry / Dashcam clips you pick. Captures go to ' + CAM_MAIL + ' through your share sheet or mail app.</small></div>';
+    }
+    if (!have.length && !j) {
+      h += '<div class="cam-empty"><b>Pick saved Sentry or Dashcam clips</b><small>From the TeslaCam folder (Files app or a Wi-Fi USB drive): SentryClips or SavedClips, pick the -front, -back, -left_repeater and -right_repeater .mp4 files of one event.</small>' +
+        '<button class="cam-go" type="button" data-cam="pick">' + CAM_ICON + 'Pick clips</button></div>';
+    } else {
+      var keys = camViewKeys();
+      h += '<div class="cam-view ' + (cam.tab === 'grid' ? 'grid' : 'single') + '">' + keys.map(function (k) { return camTileHtml(k, false); }).join('') + '</div>';
+    }
+    if (j) h += '<div class="cam-busy"><span>Loading frames ' + j.done + ' / ' + j.total + '</span><button type="button" data-cam="stop">Stop</button></div>';
+    if (cam.save) h += '<div class="cam-busy"><span>Saving clip ' + cam.save.done + ' / ' + cam.save.total + '</span><button type="button" data-cam="stopsave">Stop</button></div>';
+    if (have.length) {
+      h += '<div class="cam-ctl"><button type="button" class="pp' + (cam.playing ? ' on' : '') + '" data-cam="play" aria-label="Play / pause">' + (cam.playing ? '<b>II</b>' : '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>') + '</button>' +
+        '<input type="range" id="camSl" min="0" max="' + Math.max(0, cam.n - 1) + '" value="' + cam.idx + '"><span class="cnt" id="camCnt">' + camCountTxt() + '</span>' +
+        '<button type="button" data-cam="save" title="Save this Sentry clip" aria-label="Save clip"><svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></button>' +
+        '<button type="button" class="fsb" data-cam="fs" aria-label="Full screen">\u2922<span> Full screen</span></button></div>';
+    }
+    if (cam.msg) h += '<div class="cam-msg">' + esc(cam.msg) + '</div>';
+    cam.el.innerHTML = h;
+    var sl = cam.el.querySelector('#camSl');
+    if (sl) sl.oninput = function () { cam.idx = +sl.value; cam.playing = false; camStopPlay(); camPaintFrames(); var b = cam.el.querySelector('[data-cam=play]'); if (b) { b.classList.remove('on'); b.innerHTML = '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>'; } };
+    var fsSel = cam.el.querySelector('#camFsSel'); if (fsSel) fsSel.onchange = function () { cam.fsLayout = fsSel.value; save('camFsLayout', cam.fsLayout); };
+  }
+  function camPaintFrames() {
+    [cam.el, cam.fs].forEach(function (root) {
+      if (!root) return;
+      Array.prototype.forEach.call(root.querySelectorAll('img[data-k]'), function (im) { var f = camFrame(im.getAttribute('data-k')); if (f && im.src !== f.src) im.src = f.src; });
+      Array.prototype.forEach.call(root.querySelectorAll('[data-ts]'), function (s) { var f = camFrame(s.getAttribute('data-ts')); if (f && f.at) s.textContent = camStamp(f.at); });
+      var sl = root.querySelector('#camSl, #camFsSl'); if (sl) { sl.max = Math.max(0, cam.n - 1); sl.value = cam.idx; }
+      var c = root.querySelector('#camCnt, #camFsCnt'); if (c) c.textContent = camCountTxt();
+    });
+  }
+  function camMount() {
+    var slot = document.getElementById('camSlot');
+    if (!slot) return;
+    if (!cam.el) {
+      cam.el = document.createElement('div'); cam.el.className = 'card cam'; cam.el.id = 'camCard';
+      cam.el.addEventListener('click', camClick);
+      camPaint();
+    }
+    slot.appendChild(cam.el);
+    if (!cam.timer && cam.playing) camPlay();
+  }
+  function camClick(e) {
+    var b = e.target.closest ? e.target.closest('button') : null; if (!b) return;
+    var t = b.getAttribute('data-tab'), a = b.getAttribute('data-cam'), cp = b.getAttribute('data-cap'), fp = b.getAttribute('data-fps');
+    if (t) { cam.tab = t; save('camTab', t); camPaint(); return; }
+    if (cp) { camCapture(cp); return; }
+    if (fp) { save('camFps', +fp); camPaint(); camPlay(); camFsPaint(); return; }
+    if (a === 'pick') camPick();
+    else if (a === 'stop') camStop();
+    else if (a === 'opts') { cam.opts = !cam.opts; camPaint(); }
+    else if (a === 'play') { cam.playing = !cam.playing; if (cam.playing) camPlay(); else camStopPlay(); camPaint(); camFsPaint(); }
+    else if (a === 'save') camSaveClip();
+    else if (a === 'stopsave') { if (cam.save) cam.save.cancel = true; }
+    else if (a === 'fs') camOpenFs();
+    else if (a === 'fsclose') camCloseFs();
+  }
+  function camToast(txt) {
+    var t = document.getElementById('camToast');
+    if (!t) { t = document.createElement('div'); t.id = 'camToast'; t.className = 'cam-toast'; document.body.appendChild(t); }
+    t.innerHTML = txt; t.classList.add('show'); clearTimeout(camToast.h);
+    camToast.h = setTimeout(function () { t.classList.remove('show'); }, 4200);
+  }
+  function camFileStamp(d) { return camStamp(d || new Date()).replace(' ', '-').replace(/:/g, ''); }
+  function camShareOrSave(files, title, text, mail) {
+    // 1) the phone share sheet (pick Mail / Gmail, the image is attached)  2) download + open a mailto draft
+    var canFiles = false;
+    try { canFiles = !!(navigator.canShare && navigator.share && navigator.canShare({ files: files })); } catch (e) {}
+    if (window.__camDry) { cam.log.push({ ev: 'share', files: files.map(function (f) { return f.name + ':' + f.size; }), via: canFiles ? 'share' : 'download+mailto', mail: mail || '' }); return Promise.resolve(canFiles ? 'share' : 'download'); }
+    if (canFiles) return navigator.share({ files: files, title: title, text: text }).then(function () { return 'share'; }, function (e) { return e && e.name === 'AbortError' ? 'cancel' : dl(); });
+    return Promise.resolve(dl());
+    function dl() {
+      files.forEach(function (f) { var u = URL.createObjectURL(f), a = document.createElement('a'); a.href = u; a.download = f.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(u); }, 60000); });
+      if (mail) setTimeout(function () { location.href = mail; }, 600);
+      return 'download';
+    }
+  }
+  function camCapture(k) {
+    var f = camFrame(k); if (!f) return;
+    var im = new Image();
+    im.onload = function () {
+      var bar = Math.max(28, Math.round(im.height * 0.06)), cv = document.createElement('canvas');
+      cv.width = im.width; cv.height = im.height + bar;
+      var g = cv.getContext('2d'); g.drawImage(im, 0, 0);
+      g.fillStyle = '#111'; g.fillRect(0, im.height, cv.width, bar);
+      g.fillStyle = '#fff'; g.font = '600 ' + Math.round(bar * 0.48) + 'px system-ui, sans-serif'; g.textBaseline = 'middle';
+      var cap = 'TessDesk \u00b7 ' + CAM_NAMES[k] + (f.at ? ' \u00b7 ' + camStamp(f.at) : '') + ' \u00b7 from a saved clip, not live';
+      g.fillText(cap, Math.round(bar * 0.4), im.height + bar / 2);
+      cv.toBlob(function (blob) {
+        var name = 'TessDesk-' + CAM_NAMES[k].replace(/ /g, '') + '-' + camFileStamp(f.at) + '.png';
+        var file = new File([blob], name, { type: 'image/png' });
+        var subj = 'TessDesk capture: ' + CAM_NAMES[k] + (f.at ? ' ' + camStamp(f.at) : '');
+        var body = 'TessDesk capture from a saved clip (not live).\nCamera: ' + CAM_NAMES[k] + (f.at ? '\nTime: ' + camStamp(f.at) : '') + '\nThe image ' + name + ' is in your Downloads; attach it to this email.';
+        var mail = 'mailto:' + CAM_MAIL + '?subject=' + encodeURIComponent(subj) + '&body=' + encodeURIComponent(body);
+        cam.last = { name: name, size: blob.size, w: cv.width, h: cv.height, cam: k };
+        camShareOrSave([file], subj, 'For ' + CAM_MAIL + ': ' + cap, mail).then(function (via) {
+          cam.last.via = via;
+          camToast('<b>' + CAM_ICON + ' Captured ' + esc(CAM_NAMES[k]) + '</b><small>' + (via === 'share' ? 'Share sheet opened, pick Mail to send to ' + CAM_MAIL : via === 'cancel' ? 'Share cancelled' : 'Saved ' + esc(name) + ', email draft to ' + CAM_MAIL + ' opened') + '</small>');
+        });
+      }, 'image/png');
+    };
+    im.src = f.src;
+  }
+  function camSaveClip() {
+    if (cam.save) return;
+    var keys = cam.tab === 'grid' ? CAM_KEYS.filter(function (k) { return cam.files[k]; }) : [cam.tab].filter(function (k) { return cam.files[k]; });
+    if (!keys.length) { cam.msg = 'No clip file for this camera.'; camPaint(); return; }
+    var files = keys.map(function (k) { return cam.files[k]; });
+    cam.save = { done: 0, total: files.length, cancel: false }; camPaint();
+    var canFiles = false; try { canFiles = !!(navigator.canShare && navigator.canShare({ files: files })); } catch (e) {}
+    if (canFiles || window.__camDry) {
+      camShareOrSave(files, 'TessDesk Sentry clip', cam.label.replace(/<[^>]+>/g, ''), '').then(function (via) { cam.save.done = files.length; camSaveDone(via); });
+      return;
+    }
+    var i = 0;
+    (function step() {
+      if (cam.save.cancel) return camSaveDone('stopped');
+      if (i >= files.length) return camSaveDone('download');
+      var f = files[i++], u = URL.createObjectURL(f), a = document.createElement('a'); a.href = u; a.download = f.name; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(u); }, 60000);
+      cam.save.done = i; camPaint(); setTimeout(step, 700);
+    })();
+  }
+  function camSaveDone(via) {
+    var s = cam.save; cam.save = null;
+    cam.msg = via === 'stopped' ? 'Stopped, saved ' + s.done + ' of ' + s.total + ' clip files.' : via === 'cancel' ? 'Save cancelled.' : 'Clip ready: ' + s.done + ' of ' + s.total + ' files ' + (via === 'share' ? 'sent to the share sheet.' : 'saved to Downloads.');
+    cam.log.push({ ev: 'save', via: via, done: s.done, total: s.total }); camPaint();
+  }
+  // full screen: the app hides underneath; layout dropdown; Esc or X closes
+  function camFsOptions() {
+    return [['one', 'One screen: Front large'], ['grid', 'One screen: grid'], ['two', 'Two monitors (desktop app only)']].map(function (o) {
+      return '<option value="' + o[0] + '"' + (cam.fsLayout === o[0] ? ' selected' : '') + (o[0] === 'two' ? ' disabled' : '') + '>' + o[1] + '</option>';
+    }).join('');
+  }
+  function camOpenFs() {
+    if (cam.fs) return;
+    cam.fs = document.createElement('div'); cam.fs.className = 'cam-fs'; cam.fs.id = 'camFs';
+    cam.fs.addEventListener('click', camClick);
+    document.body.appendChild(cam.fs); document.body.classList.add('cam-fs-open');
+    camFsPaint();
+    document.addEventListener('keydown', camFsKey);
+    try { if (cam.fs.requestFullscreen && !window.__camDry) cam.fs.requestFullscreen().catch(function () {}); } catch (e) {}
+    cam.log.push({ ev: 'fs-open', layout: cam.fsLayout });
+  }
+  function camFsKey(e) { if (e.key === 'Escape') camCloseFs(); }
+  function camCloseFs() {
+    if (!cam.fs) return;
+    document.removeEventListener('keydown', camFsKey);
+    try { if (document.fullscreenElement) document.exitFullscreen(); } catch (e) {}
+    cam.fs.remove(); cam.fs = null; document.body.classList.remove('cam-fs-open');
+    cam.log.push({ ev: 'fs-close' });
+  }
+  function camFsPaint() {
+    if (!cam.fs) return;
+    var lay = cam.fsLayout === 'grid' ? 'grid' : 'one', have = camHave();
+    var main = have.indexOf('front') >= 0 ? 'front' : have[0], others = have.filter(function (k) { return k !== main; });
+    var body = lay === 'one' ? '<div class="fs-main">' + (main ? camTileHtml(main, true) : '') + '</div><div class="fs-row">' + others.map(function (k) { return camTileHtml(k, false); }).join('') + '</div>'
+      : '<div class="fs-grid n' + Math.min(6, Math.max(1, have.length)) + '">' + have.map(function (k) { return camTileHtml(k, false); }).join('') + '</div>';
+    cam.fs.innerHTML = '<div class="fs-top"><b class="brand">TESSDESK</b><span class="ev">\u25cf ' + (cam.label || 'SAVED CLIP') + '</span>' +
+      '<select id="camFsLay" aria-label="Layout">' + camFsOptions() + '</select><span class="cam-pill">NOT LIVE \u00b7 FROM SAVED CLIPS</span><span class="esc">Esc to close</span>' +
+      '<button type="button" class="fs-x" data-cam="fsclose" aria-label="Close full screen">\u2715</button></div>' +
+      '<div class="fs-body ' + lay + '">' + body + '</div>' +
+      '<div class="fs-bot"><button type="button" class="pp' + (cam.playing ? ' on' : '') + '" data-cam="play">' + (cam.playing ? '<b>II</b>' : '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>') + '</button>' +
+      [2, 4, 8].map(function (f) { return '<button type="button" data-fps="' + f + '"' + (camFps() === f ? ' class="on"' : '') + '>' + f + ' fps</button>'; }).join('') +
+      '<input type="range" id="camFsSl" min="0" max="' + Math.max(0, cam.n - 1) + '" value="' + cam.idx + '"><span class="cnt" id="camFsCnt">' + camCountTxt() + '</span>' +
+      '<span class="dbv">DESIGN BY <span>VAN</span><small>' + VERSION + ' \u00b7 ' + VERSION_DATE + '</small></span></div>';
+    var sel = cam.fs.querySelector('#camFsLay'); sel.onchange = function () { cam.fsLayout = sel.value; save('camFsLayout', cam.fsLayout); camFsPaint(); };
+    var sl = cam.fs.querySelector('#camFsSl'); sl.oninput = function () { cam.idx = +sl.value; cam.playing = false; camStopPlay(); camPaintFrames(); };
+  }
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible' && camOn() && cam.playing && !cam.timer) camPlay(); });
+  window.TessDesk439 = { cam: function () { return { on: camOn(), n: cam.n, idx: cam.idx, have: camHave(), frames: camHave().map(function (k) { return k + ':' + cam.frames[k].length; }), tab: cam.tab, fps: camFps(),
+    busy: cam.job ? { done: cam.job.done, total: cam.job.total } : null, saving: cam.save ? { done: cam.save.done, total: cam.save.total } : null, fs: !!cam.fs, fsLayout: cam.fsLayout, last: cam.last || null, msg: cam.msg, label: cam.label, log: cam.log }; },
+    useFiles: camUseFiles, stop: camStop, capture: camCapture, openFs: camOpenFs, closeFs: camCloseFs, setOn: camSetOn };
+
   window.TessDesk437 = { share: function () { return shareLog; }, open: showShare };
   window.TessDesk435 = { sessions: function () { var c = getCfg(); var v = c && compute(c); return v ? windowSessions(c, v.win) : null; } };
   window.TessDesk432 = { glow: glowState, flash: function () { return flash; }, setGlow: function (g) { window.__glowForce = g || null; render(); }, lastWindow: function () { var c = getCfg(); var v = c && compute(c); return v && v.hero && v.hero.src === 'window' ? { cost: v.heroCost, sessions: v.hero.sessions, start: v.hero.start, end: v.hero.end, added: v.hero.added, kwhAfter6: v.hero.kwhAfter6, costAfter6: v.hero.costAfter6, home: v.hero.home } : null; } };

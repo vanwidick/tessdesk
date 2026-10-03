@@ -530,3 +530,76 @@ body.compact .cbtn.flash { min-height: 0; }
 /* v4.3.7 share */
 .share-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0 4px; }
 .share-grid #shNative { grid-column: 1 / -1; }
+
+/* v4.3.9: CAMERAS panel (frames from saved clips, not live) */
+.alexa.camchip { padding: 0 8px 0 9px; }
+.alexa.camchip svg { width: 15px; height: 15px; fill: none; stroke: var(--muted); stroke-width: 2; stroke-linejoin: round; }
+.alexa.camchip.on { border-color: var(--green); } .alexa.camchip.on svg { stroke: var(--green); } .alexa.camchip.on i { background: var(--green); }
+.card.cam { padding: 12px; margin: 8px 0 6px; }
+.cam-h { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.cam-h h3 { margin: 0; flex: 1; }
+.cam-pill { font-size: 9.5px; font-weight: 800; letter-spacing: .06em; color: #ffb547; border: 1.5px solid #ffb547; border-radius: 99px; padding: 2px 8px; white-space: nowrap; }
+.icon-btn.sm { width: 28px; height: 28px; }
+.cam-tabs { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; margin-bottom: 7px; }
+.cam-tabs button { background: var(--chip); color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 7px 2px; font: 600 12px var(--font); cursor: pointer; white-space: nowrap; }
+.cam-tabs button.on { border: 1.5px solid var(--green); color: var(--green); }
+.cam-ev { display: flex; justify-content: space-between; gap: 6px; font-size: 11px; margin-bottom: 6px; }
+.cam-ev .ev { color: var(--red); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cam-ev .src { color: var(--muted); white-space: nowrap; }
+.cam-view { display: grid; gap: 4px; border-radius: 10px; overflow: hidden; background: #000; }
+.cam-view.grid { grid-template-columns: 1fr 1fr; }
+.cam-tile { position: relative; background: #000; aspect-ratio: 4 / 3; overflow: hidden; }
+.cam-tile img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.cam-tile .lbl { position: absolute; left: 5px; top: 5px; font: 800 9.5px var(--font); letter-spacing: .06em; color: #fff; background: rgba(0,0,0,.6); padding: 2px 5px; border-radius: 4px; }
+.cam-tile .ts { position: absolute; left: 5px; bottom: 5px; font: 700 9px ui-monospace, Consolas, monospace; color: #fff; background: rgba(0,0,0,.6); padding: 2px 4px; border-radius: 4px; }
+.cam-tile .cap { position: absolute; right: 5px; bottom: 5px; display: flex; align-items: center; gap: 4px; font: 700 10.5px var(--font); color: #fff; background: rgba(0,0,0,.65); border: 1px solid rgba(255,255,255,.45); border-radius: 6px; padding: 3px 6px; cursor: pointer; }
+.cam-tile .cap svg, .cam-go svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2; }
+.cam-none { display: grid; place-items: center; height: 100%; color: var(--muted); font-size: 11px; }
+.cam-empty { text-align: center; padding: 16px 10px; border: 1px dashed var(--line); border-radius: 12px; }
+.cam-empty b { display: block; font-size: 14px; } .cam-empty small { display: block; color: var(--muted); font-size: 11.5px; margin: 5px 0 10px; line-height: 1.4; }
+.cam-go { display: inline-flex; align-items: center; gap: 6px; background: var(--green); color: #04130b; border: 0; border-radius: 10px; padding: 9px 16px; font: 800 13px var(--font); cursor: pointer; }
+.cam-busy { display: flex; align-items: center; justify-content: space-between; margin-top: 7px; font-size: 12.5px; color: var(--text); }
+.cam-busy button { background: transparent; color: var(--red); border: 1.5px solid var(--red); border-radius: 8px; padding: 4px 12px; font: 700 12px var(--font); cursor: pointer; }
+.cam-ctl { display: flex; align-items: center; gap: 7px; margin-top: 8px; }
+.cam-ctl button { background: var(--chip); color: var(--text); border: 1px solid var(--line); border-radius: 9px; height: 32px; min-width: 32px; display: grid; place-items: center; cursor: pointer; font: 700 12px var(--font); }
+.cam-ctl button svg, .fs-bot .pp svg { width: 15px; height: 15px; fill: currentColor; stroke: currentColor; stroke-width: 1.5; }
+.cam-ctl button[data-cam=save] svg { fill: none; stroke-width: 2.2; }
+.cam-ctl .pp.on, .fs-bot .pp.on { border: 1.5px solid var(--green); color: var(--green); }
+.cam-ctl .fsb { padding: 0 9px; white-space: nowrap; }
+.cam-ctl input[type=range] { flex: 1; min-width: 40px; accent-color: var(--green); }
+.cam-ctl .cnt { font-size: 11px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.cam-opts { background: var(--chip); border: 1px solid var(--line); border-radius: 10px; padding: 9px; margin-bottom: 8px; font-size: 12px; }
+.cam-opts .row { display: flex; align-items: center; gap: 6px; margin-bottom: 7px; }
+.cam-opts .row > span { width: 74px; color: var(--muted); font-weight: 700; }
+.cam-opts select { width: auto; }
+.cam-opts button, .cam-opts select { background: var(--card); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 5px 9px; font: 600 12px var(--font); }
+.cam-opts button.on { border-color: var(--green); color: var(--green); }
+.cam-opts small { color: var(--muted); line-height: 1.4; display: block; }
+.cam-msg { margin-top: 7px; font-size: 11.5px; color: var(--muted); }
+.cam-toast { position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 30px); opacity: 0; transition: all .25s; z-index: 10001; background: #101a14; border: 1.5px solid var(--green); color: #fff; border-radius: 12px; padding: 9px 14px; max-width: 92vw; pointer-events: none; }
+.cam-toast.show { opacity: 1; transform: translate(-50%, 0); }
+.cam-toast b { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--green); } .cam-toast b svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; }
+.cam-toast small { display: block; font-size: 11.5px; color: #ddd; margin-top: 2px; }
+body.cam-fs-open > *:not(.cam-fs):not(.cam-toast) { visibility: hidden; }
+body.cam-fs-open { overflow: hidden; }
+.cam-fs { position: fixed; inset: 0; z-index: 10000; background: #050505; display: flex; flex-direction: column; color: #fff; font-family: var(--font); }
+.fs-top, .fs-bot { display: flex; align-items: center; gap: 8px; padding: 7px 10px; background: #111; flex-wrap: wrap; }
+.fs-top .brand { color: #E82127; font-size: 12px; letter-spacing: .1em; }
+.fs-top .ev { color: #ff5a5f; font-size: 11px; font-weight: 700; flex: 1; min-width: 80px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fs-top select { width: auto; max-width: 62vw; background: #1b1b1b; color: #fff; border: 1px solid #333; border-radius: 7px; padding: 4px 6px; font: 600 12px var(--font); }
+.fs-top .esc { color: #888; font-size: 11px; }
+.fs-x { background: #222; color: #fff; border: 0; border-radius: 8px; width: 32px; height: 32px; font-size: 15px; cursor: pointer; }
+.fs-body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 4px; padding: 4px; }
+.fs-body .cam-tile { aspect-ratio: auto; border-radius: 6px; }
+.fs-main { flex: 2.2; min-height: 0; display: flex; } .fs-main .cam-tile { flex: 1; }
+.fs-row { flex: 1; min-height: 0; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; }
+.fs-grid { flex: 1; min-height: 0; display: grid; gap: 4px; grid-template-columns: 1fr 1fr; grid-auto-rows: 1fr; }
+.fs-grid.n5, .fs-grid.n6 { grid-template-columns: 1fr 1fr 1fr; }
+@media (orientation: portrait) { .fs-grid.n5, .fs-grid.n6 { grid-template-columns: 1fr 1fr; } }
+.fs-bot button { background: #1b1b1b; color: #fff; border: 1px solid #333; border-radius: 8px; height: 30px; min-width: 30px; padding: 0 8px; font: 700 11px var(--font); cursor: pointer; }
+.fs-bot button.on { border-color: #49df93; color: #49df93; }
+.fs-bot input[type=range] { flex: 1; min-width: 60px; accent-color: #49df93; }
+.fs-bot .cnt { font-size: 11px; color: #aaa; }
+.fs-bot .dbv { font-size: 11px; font-weight: 900; letter-spacing: .08em; } .fs-bot .dbv span { color: #E82127; } .fs-bot .dbv small { display: block; font-weight: 500; color: #888; font-size: 9.5px; letter-spacing: 0; }
+@media (max-width: 460px) { .cam-ctl .fsb span { display: none; } .cam-ctl .fsb { padding: 0; width: 34px; font-size: 15px; } .cam-ctl { gap: 6px; } }
+@media (max-width: 600px) { .fs-bot [data-fps] { display: none; } }
