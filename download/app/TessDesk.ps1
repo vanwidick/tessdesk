@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-# TessDesk v4.3.3 - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
+# TessDesk v4.3.4 - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
 param(
     [string]$ConfigPath,
     [string]$Snapshot,    # optional: folder to write PNG snapshots of both themes
@@ -14,7 +14,7 @@ Add-Type -AssemblyName System.Xaml
 
 $ErrorActionPreference = 'Stop'
 $AppName    = 'TessDesk'
-$AppVersion = '4.3.3'
+$AppVersion = '4.3.4'
 $AppDate    = 'Oct 3, 2026'
 
 $scriptDir  = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -1445,7 +1445,7 @@ function Open-Url433 {
                   </StackPanel>
                 </Grid>
               </Button>
-              <Border x:Name="FlashBox" Height="56" Margin="3,0,3,0" CornerRadius="10" BorderThickness="1.5" BorderBrush="#FF49DF93" Background="#2649DF93" Padding="5,3,5,3" ToolTip="Flash the headlights (Tessie flash_lights), 1-20 times about 2.5 s apart. Asks first; Stop ends early.">
+              <Border x:Name="FlashBox" Height="56" Margin="3,0,3,0" CornerRadius="10" BorderThickness="1.5" BorderBrush="#FF49DF93" Background="#2649DF93" Padding="5,3,5,3" ToolTip="Flash the headlights (Tessie flash), 1-20 times about 2.5 s apart. Asks first; Stop ends early.">
                 <StackPanel VerticalAlignment="Center">
                   <Viewbox StretchDirection="DownOnly" HorizontalAlignment="Center"><TextBlock x:Name="FlashTxt" Text="FLASH LIGHTS" FontSize="11" FontWeight="Bold"/></Viewbox>
                   <Grid Margin="0,2,0,1">
@@ -2687,7 +2687,7 @@ function Complete-TessieCommand {
     $next = $null
     if ($ok -and $script:CtlQueue.Count -gt 0) { $next = $script:CtlQueue.Dequeue() } else {
         $script:CtlQueue.Clear()
-        if ([bool]$script:AlexaOn -and $j.cmd -ne 'flash_lights') { try { $ar = Send-Announcement (Get-ActionSpeech $j $ok $(if ($ok) { '' } else { $why })) 'action'; Write-WidgetLog ('announce text: ' + $ar.text + ' -> ' + $ar.result) } catch { Write-WidgetLog ('announce failed: ' + $_.Exception.Message) } }
+        if ([bool]$script:AlexaOn -and $j.cmd -ne 'flash') { try { $ar = Send-Announcement (Get-ActionSpeech $j $ok $(if ($ok) { '' } else { $why })) 'action'; Write-WidgetLog ('announce text: ' + $ar.text + ' -> ' + $ar.result) } catch { Write-WidgetLog ('announce failed: ' + $_.Exception.Message) } }
     }
     $script:CtlLog = @(@($script:CtlLog) + [ordered]@{ at = (Get-LocalNow).ToString('s'); cmd = $j.cmd; query = $j.query; url = $j.url
         dryRun = [bool]$CTL_DRYRUN; ok = $ok; seconds = $secs; result = $script:CtlResultText }) | Select-Object -Last 12
@@ -2821,7 +2821,7 @@ function Step-FlashLights {
     if ($script:CtlBusy) { return }          # the last flash is still being sent: try again on the next tick
     if ($F.done -ge $F.total) { Stop-FlashLights 'Done'; return }
     $i = $F.done + 1
-    $ok = Start-TessieCommand 'flash_lights' @{} ('Flashing {0} of {1}' -f $i, $F.total) ('Flashed {0} of {1}' -f $i, $F.total) $null
+    $ok = Start-TessieCommand 'flash' @{} ('Flashing {0} of {1}' -f $i, $F.total) ('Flashed {0} of {1}' -f $i, $F.total) $null
     if (-not $ok) { Stop-FlashLights 'Could not send'; return }
     $F.done = $i
     $script:FlashTimer.Stop(); $script:FlashTimer.Start()
@@ -4938,7 +4938,7 @@ function Start-SelfTest {
     & $add 'v4.3.2 flash lights x5: answer YES (DRY RUN)' @($true) { $ui.FlashCount.Text = '5'; Invoke-FlashLights; $script:FlashWaitFor = 2 }
     & $add 'v4.3.2 flash progress snapshot (Flashing 2 of 5) + Stop' @() { $script:FlashWaitFor = $null; $window.UpdateLayout(); $script:SelfRec.v432.flashProgress = ($ui.FlashSub.Text + ' | ' + $ui.FlashBtnTxt.Text); & $script:Shot432 'flash-progress'; Invoke-FlashLights; $script:SelfRec.v432.flashStopped = [ordered]@{ done = $script:Flash.done; total = $script:Flash.total; running = $script:Flash.running } }
     & $add 'v4.3.2 flash lights x2 full run: answer YES (DRY RUN)' @($true) { $ui.FlashCount.Text = '2'; Invoke-FlashLights; $script:FlashWaitFor = 99 }
-    & $add 'v4.3.2 flash result + glow back to live state' @() { $script:SelfRec.v432.flashFull = [ordered]@{ done = $script:Flash.done; result = $script:CtlResultText; flashCommands = @($script:CtlLog | Where-Object { $_.cmd -eq 'flash_lights' }).Count }; $script:GlowForce = $null; Render-View; & $script:Shot432 'controls'; $script:SelfRec.v432.liveGlow = $script:GlowMode }
+    & $add 'v4.3.2 flash result + glow back to live state' @() { $script:SelfRec.v432.flashFull = [ordered]@{ done = $script:Flash.done; result = $script:CtlResultText; flashCommands = @($script:CtlLog | Where-Object { $_.cmd -eq 'flash' }).Count }; $script:GlowForce = $null; Render-View; & $script:Shot432 'controls'; $script:SelfRec.v432.liveGlow = $script:GlowMode }
     if ($Quick432) { return (Start-SelfTimer) }
     & $add 'snapshot ready' @() { Save-RootPng (Join-Path $script:SelfDir 'tessdesk-v43-controls-ready.png'); $script:SelfRec.shots += 'tessdesk-v43-controls-ready.png' }
     & $add 'ALEXA toggle on (self-test: Voice Monkey mocked, every announcement DRY RUN)' @() { Set-AlexaToggle $true $false }

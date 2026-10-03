@@ -5,7 +5,7 @@
   var CFG = window.TD_CONFIG || {};
   var VARIANT = CFG.variant || 'main';
   var P = CFG.storagePrefix || 'td:';
-  var VERSION = 'v4.3.3';
+  var VERSION = 'v4.3.4';
   var VERSION_DATE = 'Oct 3, 2026';
   var TZ = 'America/Chicago';
   var DEFAULT_API = 'https://api.tessie.com';
@@ -655,7 +655,7 @@
     if (flash.done >= flash.total) { stopFlash(false); return; }
     if (ctlBusy) { flash.timer = setTimeout(flashStep, 300); return; }
     var i = flash.done + 1; flash.done = i;
-    runCmd('flash_lights', {}, 'Flashing ' + i + ' of ' + flash.total + '\u2026', 'Flashed ' + i + ' of ' + flash.total, null, null);
+    runCmd('flash', {}, 'Flashing ' + i + ' of ' + flash.total + '\u2026', 'Flashed ' + i + ' of ' + flash.total, null, null);
     flash.timer = setTimeout(flashStep, 2500);
   }
   function stopFlash(early) {
@@ -683,12 +683,12 @@
       okd = true; if (onOk) onOk();
       ctlMsg = { kind: 'ok', text: '\u2713 ' + okTxt + ' \u00b7 ' + clock(nowSec()) + (j && j.dryRun ? ' (dry run, not sent)' : '') };
       if (!(j && j.dryRun)) setTimeout(function () { refresh(true); }, 6000);
-    }, function (e) { why = String(e.message || e); ctlMsg = { kind: 'err', text: '\u2715 ' + name + ' failed: ' + why.slice(0, 90) }; if (name === 'flash_lights') { flash.running = false; clearTimeout(flash.timer); } })
+    }, function (e) { why = String(e.message || e); ctlMsg = { kind: 'err', text: '\u2715 ' + name + ' failed: ' + why.slice(0, 90) }; if (name === 'flash') { flash.running = false; clearTimeout(flash.timer); } })
       .then(function () {
         ctlBusy = false; if (name === 'set_temperatures') pendTemp = null;
         if (okd) liveInfo.lastCmd = nowSec();
         if (okd && next) { render(); next(); return; }
-        if (alexaOn() && name !== 'flash_lights') announce(okd ? (ann || defaultSpeech(name, query, okTxt)) : failSpeech(name, why), okd ? 'action' : 'action-failed');
+        if (alexaOn() && name !== 'flash') announce(okd ? (ann || defaultSpeech(name, query, okTxt)) : failSpeech(name, why), okd ? 'action' : 'action-failed');
         render();
       });
   }
