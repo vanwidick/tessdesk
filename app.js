@@ -5,8 +5,8 @@
   var CFG = window.TD_CONFIG || {};
   var VARIANT = CFG.variant || 'main';
   var P = CFG.storagePrefix || 'td:';
-  var VERSION = 'v4.3.1';
-  var VERSION_DATE = 'Oct 2, 2026';
+  var VERSION = 'v4.3.2';
+  var VERSION_DATE = 'Oct 3, 2026';
   var TZ = 'America/Chicago';
   var DEFAULT_API = 'https://api.tessie.com';
   var REFRESH_MS = 60000, CHARGES_EVERY_S = 15 * 60, HTTP_TIMEOUT_MS = 15000, CMD_TIMEOUT_MS = 90000;
@@ -108,7 +108,8 @@
   function fromCharge(c) {
     var added = c.energy_added != null ? +c.energy_added : null;
     return { src: 'tessie', start: +c.started_at, end: +c.ended_at, added: added, used: c.energy_used,
-             socStart: c.starting_battery, socEnd: c.ending_battery, segs: [[+c.started_at, +c.ended_at, added]] };
+             socStart: c.starting_battery, socEnd: c.ending_battery, segs: [[+c.started_at, +c.ended_at, added]],
+             home: c.saved_location || c.location || null, fast: !!(c.is_supercharger || c.is_fast_charger || (c.max_charger_power > 25)) };
   }
   // Same as desktop v4: a completed Tessie charge uses Tessie's measured wall kWh (energy_used) when present;
   // otherwise (and for the live charge) wall kWh = kWh added / efficiency.
@@ -228,6 +229,34 @@
     }).catch(function (e) { lastErr = e; }).then(function () { busy = false; setSpin(false); try { render(); } catch (e) { console.error(e); } if (getCfg() && consentOk()) scheduleNext(nextDelay() * 1000); });
   }
 
+  // ---------- v4.3.2: LAST CHARGE = the whole 11 PM -> 11 AM home window ----------
+  // Every home session in one overnight window is ONE charge (unplug 30 min, plug back in: same charge). Each part keeps
+  // its own per-minute pricing, so kWh after 6 AM are priced at the day rate.
+  function winStartOf(cfg, sec) {
+    var sh = cfg.rates.onStart != null ? cfg.rates.onStart : 23, c = ct(sec);
+    if (c.h >= sh) return ctEpoch(c.y, c.mo, c.d, sh);
+    if (c.h < 11) { var b = ct(sec - 13 * 3600); return ctEpoch(b.y, b.mo, b.d, sh); }
+    return null;
+  }
+  function homeWindow(cfg, sessions) {
+    var cnt = {}, best = null;
+    sessions.forEach(function (s) { if (s.home && !s.fast) { cnt[s.home] = (cnt[s.home] || 0) + 1; if (!best || cnt[s.home] > cnt[best]) best = s.home; } });
+    var items = [];
+    sessions.forEach(function (s) {
+      if (s.fast || (s.home && best && s.home !== best)) return;
+      var w = winStartOf(cfg, s.start); if (w == null) w = winStartOf(cfg, s.end);
+      if (w != null) items.push({ w: w, s: s });
+    });
+    if (!items.length) return null;
+    var wl = Math.max.apply(null, items.map(function (i) { return i.w; }));
+    var parts = items.filter(function (i) { return i.w === wl; }).map(function (i) { return i.s; }).sort(function (a, b) { return a.start - b.start; });
+    var cost = 0, k = 0, wall = 0, a6 = 0, a6c = 0, offEnd = wl + ((24 - (cfg.rates.onStart != null ? cfg.rates.onStart : 23)) + (cfg.rates.onEnd != null ? cfg.rates.onEnd : 6)) * 3600;
+    parts.forEach(function (s) { var r = sessionCost(cfg, s); cost += r.cost; k += (s.added || 0); wall += r.wall; var q = sessionCost(cfg, s, offEnd, wl + 12 * 3600); a6 += q.kwh; a6c += q.cost; });
+    var first = parts[0], last = parts[parts.length - 1];
+    return { src: 'window', start: first.start, end: last.end, added: k, socStart: first.socStart, socEnd: last.socEnd, parts: parts, sessions: parts.length,
+      windowStart: wl, home: best, kwhAfter6: a6, costAfter6: a6c, cost: { cost: cost, kwh: k, wall: wall } };
+  }
+
   // ---------- compute view model ----------
   function compute(cfg) {
     var st = cache.state, t = nowSec();
@@ -246,9 +275,14 @@
     }
     // hero
     var hero;
-    if (charging && lv && !lv.done) hero = lv;
-    else hero = sessions.filter(function (s) { return (s.added || 0) >= 0.1; })[0] || sessions[0] || null;
-    var hc = hero ? sessionCost(cfg, hero) : null;
+    if (lv && cs.fast_charger_present && charging) lv.fast = true;
+    var agg = homeWindow(cfg, sessions);
+    if (charging && lv && !lv.done) { hero = lv; if (agg && agg.parts.indexOf(lv) >= 0 && agg.parts.length > 1) hero = agg; }
+    else {
+      hero = sessions.filter(function (s) { return (s.added || 0) >= 0.1; })[0] || sessions[0] || null;
+      if (agg && (!hero || agg.parts.indexOf(hero) >= 0 || hero.start <= agg.end)) hero = agg;
+    }
+    var hc = hero ? (hero.src === 'window' ? hero.cost : sessionCost(cfg, hero)) : null;
 
     // tonight / last night window (11 PM - 11 AM Central)
     var c = ct(t), startH = cfg.rates.onStart != null ? cfg.rates.onStart : 23, w0, w1, label;
@@ -331,12 +365,22 @@
 
   // v4.1: the Tessie look is always on: green palette while charging, red-tinted when not.
   function isCharging() { var s = cache && cache.state; return !!(s && s.charge_state && s.charge_state.charging_state === 'Charging'); }
+  // v4.3.2 whole-window glow: red = not plugged in, solid green = plugged in (complete / limit reached / stopped), slow green pulse = charging
+  function glowState() {
+    if (window.__glowForce) return window.__glowForce;
+    var s = cache && cache.state, cs = s && s.charge_state;
+    var st = cs ? ctlVal('chargingState', cs.charging_state) : null;
+    if (st === 'Charging' || st === 'Starting') return 'pulse';
+    if (st && st !== 'Disconnected') return 'green';
+    return 'red';
+  }
   function applyTheme() {
-    var tessie = true, chg = isCharging();
+    var tessie = true, g = glowState(), red = g === 'red';
     document.body.classList.toggle('tessie', tessie);
-    document.body.classList.toggle('idle', tessie && !chg);
+    document.body.classList.toggle('idle', tessie && red);
+    document.body.classList.toggle('glow-red', g === 'red'); document.body.classList.toggle('glow-green', g === 'green'); document.body.classList.toggle('glow-pulse', g === 'pulse');
     var m = document.querySelector('meta[name=theme-color]');
-    if (m) m.setAttribute('content', tessie ? (chg ? '#081426' : '#170a0d') : '#0b0b0b');
+    if (m) m.setAttribute('content', tessie ? (!red ? '#081426' : '#170a0d') : '#0b0b0b');
   }
   function setSpin(on) { var b = document.getElementById('btnRefresh'); if (b) b.classList.toggle('spin', on); }
   var screen = 'main';
@@ -368,7 +412,7 @@
 
     if (!v) { h += '<div class="hero"><div class="money red">$--.--</div><div class="sub">Waiting for Tessie\u2026</div></div>' + footer() + '</div>'; $app.innerHTML = h; bind(); return; }
 
-    var col = v.charging ? 'green' : 'red';
+    var col = (v.charging || glowState() !== 'red') ? 'green' : 'red';
     var hc = v.heroCost, hero = v.hero;
     var rate = hc ? cents(hc.cost, hc.wall) : null;
     var meta = '';
@@ -378,7 +422,7 @@
     }
     h += '<div class="hero"><span class="badge' + (v.charging ? ' on' : '') + '">' + (v.charging ? '\u25cf CHARGING' : esc((v.cs.charging_state || 'IDLE').toUpperCase())) + '</span>' +
       '<div class="money ' + col + '">' + (hc ? money(hc.cost) : '$--.--') + '</div>' +
-      '<div class="sub">' + (v.charging ? 'This charge' : 'Last charge') + (rate ? ' \u00b7 ' + rate : '') + '</div>' +
+      '<div class="sub">' + (v.charging ? 'This charge' : 'Last charge') + (hero && hero.src === 'window' && hero.sessions > 1 ? ' \u00b7 ' + hero.sessions + ' sessions since ' + clock(hero.start) : '') + (rate ? ' \u00b7 ' + rate : '') + '</div>' +
       '<div class="meta">' + meta + '</div></div>';
     // v4.3: RATE STATUS (peak/day pill + Stop, off-peak pill, or a neutral line)
     h += peakBanner(rateStatus(v, cfg));
@@ -429,14 +473,13 @@
     // tires
     var rec = v.tires.recF == null ? '' : (v.tires.recR != null && Math.abs(v.tires.recR - v.tires.recF) >= 0.5 ? 'Recommended ' + Math.round(v.tires.recF) + ' PSI front \u00b7 ' + Math.round(v.tires.recR) + ' PSI rear' : 'Recommended ' + Math.round(v.tires.recF) + ' PSI (all four)');
     h += controlsCard(v.car);
+    // v4.3.2: HEATED SEATS above the tires
+    h += seatsCard(v.car);
     var remOk = !!(cfg.consent && cfg.consent.reminders);
     h += '<div class="card tires"><div class="sec-hd"><h3>Tires</h3>' + (v.tires.asOf ? '<span class="pill">Updated ' + clock(v.tires.asOf) + ' \u00b7 ' + monDay(v.tires.asOf) + '</span>' : '') + '</div>' +
       (rec ? '<div class="recline">' + rec + '</div>' : '') + tireSvg(v.tires) +
       '<button class="cbtn remind" id="bRemind"' + (remOk ? '' : ' disabled') + '><b>REMIND ME TO GET AIR</b><small>' + (remOk ? 'calendar alert, text, email or Alexa' : 'reminders are off (Settings)') + '</small></button>' +
       '<button class="linkbtn" id="bRemSetup" type="button">Setup: how reminders reach you</button></div>';
-
-    // v4.2 HEATED SEATS (drawn like the tires)
-    h += seatsCard(v.car);
 
     h += footer() + '</div>';
     $app.innerHTML = h; bind(); fitCompact();
@@ -467,8 +510,12 @@
     var ICON_UNLOCK = '<svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.6-1.7"/></svg>';
     var ICON_SNOW = '<svg viewBox="0 0 24 24"><path d="M12 2v20M4.9 6.5l14.2 11M4.9 17.5l14.2-11M9 4l3 2 3-2M9 20l3-2 3 2"/></svg>';
     var r = '<div class="card ctl' + (cmdOk ? '' : ' off') + '"><div class="ctl-hd"><h3>Tesla controls</h3>' + (!cmdOk ? '<span class="dry">OFF</span>' : (dry ? '<span class="dry">DRY RUN</span>' : '')) + '</div>' +
-      '<div class="ctl-row2">' +
+      '<div class="ctl-row2 three">' +
       '<button class="cbtn big' + lockCls + '" id="cLock"' + dis + '>' + (locked === false ? ICON_UNLOCK : ICON_LOCK) + '<span><b>' + lockTxt + '</b><small>' + lockSub + '</small></span></button>' +
+      '<div class="cbtn flash' + (flash.running ? ' running' : '') + '" id="cFlashBox"><b>FLASH LIGHTS</b><div class="fl-row">' +
+      '<input id="cFlashN" type="number" inputmode="numeric" min="1" max="20" step="1" value="' + flash.n + '" aria-label="How many flashes (1-20)"' + (flash.running || dis ? ' disabled' : '') + '>' +
+      '<button class="fl-go" id="cFlash"' + (flash.running ? '' : dis) + '>' + (flash.running ? 'STOP' : 'FLASH') + '</button></div>' +
+      '<small>' + (flash.running ? 'Flashing ' + Math.max(1, flash.done) + ' of ' + flash.total : 'how many flashes') + '</small></div>' +
       '<button class="cbtn big' + (clim ? ' on' : '') + '" id="cClim"' + dis + '>' + ICON_SNOW + '<span><b>' + (clim ? (heatOn(car) ? 'CLIMATE ON' : 'A/C ON') : 'A/C OFF') + '</b><small>' + ins + (clim ? 'tap off' : 'tap on') + '</small></span></button></div>' +
       climateRow(car, dis) +
       '<div class="ctl-row3">' +
@@ -481,6 +528,33 @@
       '<button class="cbtn gear" id="cAnnSetup" aria-label="Announce on Alexa setup" title="Setup: what the rundown includes">' + ICON_GEAR + '<small>SETUP</small></button></div>' +
       '<div class="ctl-msg ' + ctlMsg.kind + '">' + (ctlMsg.kind === 'busy' ? '<span class="spin"></span>' : '') + '<span>' + esc(!cmdOk ? 'Commands are off: you did not allow TessDesk to send vehicle commands (Settings \u2192 Permissions).' : (ctlMsg.text || (dry ? 'Dry run: buttons are simulated, nothing is sent' : 'Ready'))) + '</span></div></div>';
     return r;
+  }
+  // ---------- v4.3.2 FLASH LIGHTS: 1-20 flashes ~2.5 s apart, asks first, Stop ends early ----------
+  var flash = { n: 3, running: false, done: 0, total: 0, timer: null };
+  function clampFlash(v) { v = parseInt(v, 10); if (!(v >= 1)) v = 1; if (v > 20) v = 20; return v; }
+  function onFlash() {
+    if (flash.running) { stopFlash(true); return; }
+    if (ctlBusy || !cmdAllowed()) return;
+    var el = document.getElementById('cFlashN'); var n = clampFlash(el ? el.value : flash.n); flash.n = n;
+    confirmBox('Flash the lights ' + n + ' time' + (n === 1 ? '' : 's') + '?', 'Flash', n + ' flash' + (n === 1 ? '' : 'es') + ', about 2.5 seconds apart. Tap Stop to end early.').then(function (ok) {
+      if (!ok) { ctlMsg = { kind: 'idle', text: 'Flash lights cancelled' }; render(); return; }
+      flash.running = true; flash.done = 0; flash.total = n; flashStep();
+    });
+  }
+  function flashStep() {
+    clearTimeout(flash.timer);
+    if (!flash.running) return;
+    if (flash.done >= flash.total) { stopFlash(false); return; }
+    if (ctlBusy) { flash.timer = setTimeout(flashStep, 300); return; }
+    var i = flash.done + 1; flash.done = i;
+    runCmd('flash_lights', {}, 'Flashing ' + i + ' of ' + flash.total + '\u2026', 'Flashed ' + i + ' of ' + flash.total, null, null);
+    flash.timer = setTimeout(flashStep, 2500);
+  }
+  function stopFlash(early) {
+    clearTimeout(flash.timer); var was = flash.running; flash.running = false;
+    if (was && early && !ctlBusy) ctlMsg = { kind: 'idle', text: 'Flash lights stopped after ' + flash.done + ' of ' + flash.total };
+    if (was && !early && !ctlBusy) ctlMsg = { kind: 'ok', text: '\u2713 Flashed the lights ' + flash.done + ' time' + (flash.done === 1 ? '' : 's') + (load('dryRun', false) ? ' (dry run, not sent)' : '') };
+    render();
   }
   function confirmBox(msg, yes, sub) {
     return new Promise(function (res) {
@@ -501,12 +575,12 @@
       okd = true; if (onOk) onOk();
       ctlMsg = { kind: 'ok', text: '\u2713 ' + okTxt + ' \u00b7 ' + clock(nowSec()) + (j && j.dryRun ? ' (dry run, not sent)' : '') };
       if (!(j && j.dryRun)) setTimeout(function () { refresh(true); }, 6000);
-    }, function (e) { why = String(e.message || e); ctlMsg = { kind: 'err', text: '\u2715 ' + name + ' failed: ' + why.slice(0, 90) }; })
+    }, function (e) { why = String(e.message || e); ctlMsg = { kind: 'err', text: '\u2715 ' + name + ' failed: ' + why.slice(0, 90) }; if (name === 'flash_lights') { flash.running = false; clearTimeout(flash.timer); } })
       .then(function () {
         ctlBusy = false; if (name === 'set_temperatures') pendTemp = null;
         if (okd) liveInfo.lastCmd = nowSec();
         if (okd && next) { render(); next(); return; }
-        if (alexaOn()) announce(okd ? (ann || defaultSpeech(name, query, okTxt)) : failSpeech(name, why), okd ? 'action' : 'action-failed');
+        if (alexaOn() && name !== 'flash_lights') announce(okd ? (ann || defaultSpeech(name, query, okTxt)) : failSpeech(name, why), okd ? 'action' : 'action-failed');
         render();
       });
   }
@@ -963,6 +1037,8 @@
     var r = document.getElementById('btnRefresh'); if (r) r.onclick = function () { refresh(true); };
     var s = document.getElementById('btnSettings'); if (s) s.onclick = function () { screen = 'settings'; render(); window.scrollTo(0, 0); };
     var on = function (id, f) { var el = document.getElementById(id); if (el) el.onclick = f; };
+    on('cFlash', onFlash);
+    var fN = document.getElementById('cFlashN'); if (fN) { fN.oninput = function () { if (fN.value !== '') flash.n = clampFlash(fN.value); }; fN.onchange = function () { fN.value = flash.n = clampFlash(fN.value); }; }
     on('cLock', onLock); on('cVent', onVent); on('cClose', onClose); on('cClim', onClim);
     on('cTdn', function () { onTemp(-1); }); on('cTup', function () { onTemp(1); });
     on('bRemind', openReminder); on('bRemSetup', openRemSetup); on('btnLayout', function () { setLayout(layoutMode() === 'compact' ? 'full' : 'compact'); });
@@ -1499,6 +1575,7 @@
   })();
 
   // test hooks for headless checks (no secrets)
+  window.TessDesk432 = { glow: glowState, flash: function () { return flash; }, setGlow: function (g) { window.__glowForce = g || null; render(); }, lastWindow: function () { var c = getCfg(); var v = c && compute(c); return v && v.hero && v.hero.src === 'window' ? { cost: v.heroCost, sessions: v.hero.sessions, start: v.hero.start, end: v.hero.end, added: v.hero.added, kwhAfter6: v.hero.kwhAfter6, costAfter6: v.hero.costAfter6, home: v.hero.home } : null; } };
   window.TessDesk = { cmdLog: cmdLog, annLog: function () { return annLog; }, lastError: function () { return lastErr ? String(lastErr.message || lastErr) : null; }, live: function () { return liveInfo; }, layout: function () { return { mode: layoutMode(), zoom: curZoom }; }, seatPend: function () { return seatPend; }, tireFlag: tireFlag, buildIcs: buildIcs, priceSpan: function (t0, t1, wall) { var c = getCfg(); return priceSpan(c ? c.rates : PRESETS.pso, t0, t1, wall); }, PRESETS: PRESETS, ctEpoch: ctEpoch, refresh: refresh, rundown: function (o) { return buildRundown(o); }, peak: function () { var c = getCfg(); return c ? peakState(compute(c), c) : null; }, rate: function () { var c = getCfg(); return c ? rateStatus(compute(c), c) : null; }, version: VERSION };
 
   render();

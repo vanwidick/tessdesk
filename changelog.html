@@ -31,10 +31,21 @@
   <p class="lead">Every TessDesk version (desktop widget and phone app), newest first.</p>
 
   <!-- Add each new version at the top: <section class="rel new"> ... -->
-  <section class="rel new" id="v4.3.1">
-    <h2>v4.3.1 <small>Oct 2, 2026</small></h2>
+  <section class="rel new" id="v4.3.2">
+    <h2>v4.3.2 <small>Oct 3, 2026</small></h2>
     <span class="tag">LATEST</span>
     <ul>
+      <li><b>Last charge = the whole night.</b> Every home charging session from 11 PM to 11 AM the next morning now counts as ONE charge, even if you unplug for 30 minutes and plug back in. The amount, kWh and duration add up across the sessions, and any kWh after 6 AM are priced at the day rate.</li>
+      <li><b>The whole window glows.</b> Solid red when the car is not plugged in, solid green when it is plugged in (charge complete or limit reached included), and a slow green pulse (about 3.5 s, dimming down and back up) while it is actively charging. The pulse stops the moment charging stops.</li>
+      <li><b>Flash Lights.</b> New control between Locked and A/C: type how many flashes (1&ndash;20, default 3) and tap Flash. It asks first, flashes about 2.5 seconds apart, shows &ldquo;Flashing 2 of 5&rdquo; and has a Stop button.</li>
+      <li><b>Green outlines everywhere.</b> Every control gets the off-peak box&rsquo;s green outline: Lock, A/C, Heat, Defrost, Overheat, Vent, Close, temperature &minus; and +, Announce on Alexa and each heated seat.</li>
+      <li><b>Heated seats</b> moved above Tires, and a seat turns solid <b>red</b> while its heat is on (each seat on its own).</li>
+      <li>Desktop and phone. Version v4.3.2, new offline cache (tessdesk-v4.3.2). Windows download: TessDesk Setup 4.4.2 (installs widget v4.3.2).</li>
+    </ul>
+  </section>
+  <section class="rel" id="v4.3.1">
+    <h2>v4.3.1 <small>Oct 2, 2026</small></h2>
+        <ul>
       <li><b>Pick your Echos from a list.</b> Announce Setup &rarr; <b>Speakers (Echos)</b> now has a dropdown with every speaker on your Voice Monkey account. Tick a speaker to include it in announcements, or keep <b>All Echos</b> on. Each speaker has a <b>&#9654; Test</b> button that plays one short line on that Echo only, and only when you click it.</li>
       <li><b>+ Add speaker.</b> Type a name (for example Kitchen Echo) and tap <b>Open Voice Monkey &middot; Add New Speaker</b>. It opens app.voicemonkey.io/speakers and copies the name. Short steps on screen cover the one step in the Alexa app (a Routine: <i>When this happens &rarr; Smart Home &rarr; Alexa Voice Monkey v3 &rarr; VM Speakers &rarr; your speaker</i>, action <i>Voice Monkey</i>, <i>From</i> your Echo). Then <b>Refresh list</b> picks up the new speaker, marked NEW and already ticked. Voice Monkey&rsquo;s API can list speakers but can&rsquo;t create them, so the speaker itself is made on the Voice Monkey page.</li>
       <li><b>Fixed:</b> the Announce button read &ldquo;ALL 1 ECHO&rdquo;. It now reads <b>ALL ECHOS (1)</b>.</li>
