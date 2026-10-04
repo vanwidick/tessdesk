@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-# TessDesk v4.3.11 (Restore / Remember buttons styled like Paycheck Live; TOTALS pop-up: week / month / year running totals; CAMERAS panel from saved Sentry / Dashcam clips; checks for updates on open / wake; compact-when-OFF via cb_compact_addon.ps1) - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
+# TessDesk v4.3.12 (Restore / Remember at the top right with fade-in, like Paycheck Live; TOTALS pop-up: week / month / year running totals; CAMERAS panel from saved Sentry / Dashcam clips; checks for updates on open / wake; compact-when-OFF via cb_compact_addon.ps1) - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
 param(
     [string]$ConfigPath,
     [string]$Snapshot,    # optional: folder to write PNG snapshots of both themes
@@ -14,7 +14,7 @@ Add-Type -AssemblyName System.Xaml
 
 $ErrorActionPreference = 'Stop'
 $AppName    = 'TessDesk'
-$AppVersion = '4.3.11'
+$AppVersion = '4.3.12'
 $AppDate    = 'Oct 4, 2026'
 
 $scriptDir  = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -1406,13 +1406,16 @@ function Open-Url433 {
               </DockPanel>
             </StackPanel>
           </Border>
-        <DockPanel LastChildFill="True" Margin="0,0,0,2">
-          <TextBlock x:Name="UpdBadge" DockPanel.Dock="Right" Text="" Foreground="#FF888888" FontSize="10" FontWeight="SemiBold" Margin="6,1,0,0" VerticalAlignment="Top"
-                     ToolTip="How old the car data is (Tessie's cached data; TessDesk never wakes the car)"/>
-          <TextBlock x:Name="LiveBadge" DockPanel.Dock="Right" Text="" Foreground="#FF2ECC40" FontSize="10"
-                     FontWeight="SemiBold" Margin="6,1,0,0" VerticalAlignment="Top" Visibility="Collapsed"/>
-          <TextBlock x:Name="DateLabel" Text="—" Foreground="#FF888888" FontSize="11" TextTrimming="CharacterEllipsis"/>
-        </DockPanel>
+        <!-- v4.3.12: date on the first line (kept clear of the top-right Restore / Remember buttons), status on its own line below them -->
+        <StackPanel Margin="0,0,0,2">
+          <TextBlock x:Name="DateLabel" Text="—" Foreground="#FF888888" FontSize="11" TextTrimming="CharacterEllipsis" Margin="0,0,116,0"/>
+          <StackPanel x:Name="StatusLine" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,2,0,0">
+            <TextBlock x:Name="LiveBadge" Text="" Foreground="#FF2ECC40" FontSize="10"
+                       FontWeight="SemiBold" Margin="0,0,6,0" VerticalAlignment="Center" Visibility="Collapsed"/>
+            <TextBlock x:Name="UpdBadge" Text="" Foreground="#FF888888" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center"
+                       ToolTip="How old the car data is (Tessie's cached data; TessDesk never wakes the car)"/>
+          </StackPanel>
+        </StackPanel>
         </StackPanel>
 
         <StackPanel Grid.Row="1" Margin="0,0,0,2">
@@ -1930,18 +1933,10 @@ function Open-Url433 {
             <TextBlock x:Name="FooterSep" Text="  ·  " FontSize="9" Foreground="#FF6A6A6A"/>
             <TextBlock x:Name="FooterAbout" Text="About / Privacy" FontSize="9" Foreground="#FF6A6A6A"/>
           </StackPanel>
-          <!-- v4.3.11: Restore / Remember look like Paycheck Live's (Segoe UI 9 SemiBold, #FF444444 pill, 4 px corners, 16 px high, hover #FF666666 + white text, Restore first) -->
+          <!-- v4.3.12: Restore / Remember moved to the top right (fade in on mouse move, like Paycheck Live); SHARE stays here -->
           <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,5,0,0">
-            <Border x:Name="RestoreBtn" CornerRadius="4" Background="#FF444444" Padding="6,0,6,0" Height="16" Opacity="0.95" Cursor="Hand" VerticalAlignment="Center"
-                    ToolTip="Restore TessDesk to its saved size and place">
-              <TextBlock x:Name="RestoreTxt" Text="&#x27F2; Restore" FontFamily="Segoe UI" FontSize="9" FontWeight="SemiBold" Foreground="#FFDDDDDD" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-            </Border>
-            <Border x:Name="KeepBtn" CornerRadius="4" Background="#FF444444" Padding="6,0,6,0" Height="16" Opacity="0.95" Margin="3,0,0,0" Cursor="Hand" VerticalAlignment="Center"
-                    ToolTip="Remember TessDesk's current size and place (used by Restore and startup)">
-              <TextBlock x:Name="KeepTxt" Text="Remember" FontFamily="Segoe UI" FontSize="9" FontWeight="SemiBold" Foreground="#FFDDDDDD" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-            </Border>
             <!-- v4.3.7: SHARE the TessDesk links (Messenger, text, email, copy, send to phone); never a token, never sent automatically -->
-            <Border x:Name="ShareBtn" CornerRadius="8" BorderBrush="#FF49DF93" BorderThickness="1.5" Background="#1A49DF93" Padding="9,1,9,2" Margin="5,0,0,0" Cursor="Hand" VerticalAlignment="Center"
+            <Border x:Name="ShareBtn" CornerRadius="8" BorderBrush="#FF49DF93" BorderThickness="1.5" Background="#1A49DF93" Padding="9,1,9,2" Margin="0,0,0,0" Cursor="Hand" VerticalAlignment="Center"
                     ToolTip="SHARE: send the TessDesk phone / download link to someone (only the link, never your token)">
               <TextBlock x:Name="ShareTxt" Text="SHARE" FontSize="9.5" FontWeight="Bold" Foreground="#FFFFFFFF"/>
             </Border>
@@ -2033,6 +2028,17 @@ function Open-Url433 {
       <Border.Effect><DropShadowEffect ShadowDepth="0" BlurRadius="26" Color="#FF49DF93" Opacity="1"/></Border.Effect>
       <Border x:Name="GlowInner" BorderThickness="7" CornerRadius="16" BorderBrush="#2E49DF93"/>
     </Border>
+    <!-- v4.3.12: Restore / Remember at the top right under the title bar, exactly like Paycheck Live (Margin 0,34,14,0; fade in on mouse move, hide 2.2 s after the mouse stops) -->
+    <StackPanel x:Name="DwRow" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,34,14,0" Opacity="0" IsHitTestVisible="False" Panel.ZIndex="50">
+      <Border x:Name="RestoreBtn" CornerRadius="4" Background="#FF444444" Padding="6,0,6,0" Height="16" Cursor="Hand" VerticalAlignment="Center"
+              ToolTip="Restore TessDesk to its saved size and place">
+        <TextBlock x:Name="RestoreTxt" Text="&#x27F2; Restore" FontFamily="Segoe UI" FontSize="9" FontWeight="SemiBold" Foreground="#FFDDDDDD" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+      </Border>
+      <Border x:Name="KeepBtn" CornerRadius="4" Background="#FF444444" Padding="6,0,6,0" Height="16" Margin="3,0,0,0" Cursor="Hand" VerticalAlignment="Center"
+              ToolTip="Remember TessDesk's current size and place (used by Restore and startup)">
+        <TextBlock x:Name="KeepTxt" Text="Remember" FontFamily="Segoe UI" FontSize="9" FontWeight="SemiBold" Foreground="#FFDDDDDD" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+      </Border>
+    </StackPanel>
    </Grid>
   </Border>
 </Window>
@@ -5046,6 +5052,29 @@ foreach ($dwb in @($ui.RestoreBtn, $ui.KeepBtn)) {
     $dwb.Add_MouseLeave({ param($s, $e) try { Set-DwHover $s $false } catch {} })
 }
 function Set-DwTip { param($Btn, [string]$Act, $R, [string]$Err) try { $Btn.ToolTip = $(if ($null -ne $R) { $Act + ': ' + [int]$R.x + ',' + [int]$R.y + ' ' + [int]$R.w + 'x' + [int]$R.h + $(if ($Err) { ' (' + $Err + ')' } else { '' }) } elseif ($Err) { $Err } else { 'failed' }) } catch {} }
+# ---------------- v4.3.12: Restore / Remember row fades in like Paycheck Live ----------------
+# Same as Paycheck Live's DeskWin-Fade / DeskWin-Show: 150 ms opacity animation to 0.95 (shown) or 0 (hidden), shown on any mouse move or
+# click over the window, hidden 2.2 s after the mouse stops (not while the mouse is over the buttons). Kept hidden while a pop-up is open.
+function Test-DwBlocked { foreach ($n in 'ConfirmOverlay', 'ShareOverlay', 'TotOverlay', 'CamOptOverlay') { try { if ($ui[$n].Visibility -eq 'Visible') { return $true } } catch {} }; return $false }
+function Set-DwFade {
+    param([double]$To)
+    $a = New-Object System.Windows.Media.Animation.DoubleAnimation
+    $a.To = $To; $a.Duration = [System.Windows.Duration]::new([TimeSpan]::FromMilliseconds(150))
+    $ui.DwRow.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $a)
+    $ui.DwRow.IsHitTestVisible = ($To -gt 0)
+}
+function Show-DwRow {
+    try {
+        if (Test-DwBlocked) { if ($ui.DwRow.IsHitTestVisible) { $script:DwHide.Stop(); Set-DwFade 0 }; return }
+        if (-not $ui.DwRow.IsHitTestVisible) { Set-DwFade 0.95 }
+        $script:DwHide.Stop(); $script:DwHide.Start()
+    } catch {}
+}
+$script:DwHide = New-Object System.Windows.Threading.DispatcherTimer
+$script:DwHide.Interval = [TimeSpan]::FromMilliseconds(2200)
+$script:DwHide.Add_Tick({ try { if ($ui.DwRow.IsMouseOver -and -not (Test-DwBlocked)) { return }; $script:DwHide.Stop(); Set-DwFade 0 } catch {} })
+$window.Add_PreviewMouseMove({ Show-DwRow })
+$window.Add_PreviewMouseDown({ Show-DwRow })
 # ---------------- v4.3.5: KEEP / RESTORE (window spot) ----------------
 try { Add-Type -AssemblyName System.Windows.Forms -ErrorAction Stop } catch {}
 if (-not ('TdWinRect' -as [type])) {
@@ -5129,6 +5158,7 @@ function Set-SpotBtnFeedback {
     param($Tb, [string]$Text, [string]$Orig)
     $Tb.Text = $Text
     try { $Tb.Parent.IsEnabled = $false } catch {}
+    Show-DwRow
     $t = New-Object System.Windows.Threading.DispatcherTimer; $t.Interval = [TimeSpan]::FromMilliseconds(1400); $t.Tag = @($Tb, $Orig)
     $t.Add_Tick({ param($sx, $ex) try { $sx.Stop(); $sx.Tag[0].Text = $sx.Tag[1]; $sx.Tag[0].Parent.IsEnabled = $true; Set-DwHover $sx.Tag[0].Parent ([bool]$sx.Tag[0].Parent.IsMouseOver) } catch {} })
     $t.Start()
@@ -7395,6 +7425,48 @@ function Start-SelfTest {
         $r = $script:SelfRec.v4311
         $r.after = [ordered]@{ restore = $ui.RestoreTxt.Text; remember = $ui.KeepTxt.Text; restoreEnabled = $ui.RestoreBtn.IsEnabled; rememberEnabled = $ui.KeepBtn.IsEnabled }
     }
+    # ---- v4.3.12: Restore / Remember at the top right, fade in / out like Paycheck Live ----
+    $script:Shot4312 = { param($n) $f = 'tessdesk-v4312-' + $n + '.png'; Save-RootPng (Join-Path $script:SelfDir $f); $script:SelfRec.shots += $f }
+    $script:DwRect = { param($el) try { $p = $el.TranslatePoint([System.Windows.Point]::new(0, 0), $ui.RootBorder); return [ordered]@{ x = [math]::Round($p.X, 1); y = [math]::Round($p.Y, 1); w = [math]::Round($el.ActualWidth, 1); h = [math]::Round($el.ActualHeight, 1) } } catch { return $null } }
+    $script:DwOverlap = { param($a, $b) if ($null -eq $a -or $null -eq $b -or $a.w -le 0 -or $b.w -le 0) { return $false }; return (($a.x -lt $b.x + $b.w) -and ($b.x -lt $a.x + $a.w) -and ($a.y -lt $b.y + $b.h) -and ($b.y -lt $a.y + $a.h)) }
+    $script:DwMouse = { $ev = New-Object System.Windows.Input.MouseEventArgs([System.Windows.Input.Mouse]::PrimaryDevice, 0) -Property @{ RoutedEvent = [System.Windows.UIElement]::PreviewMouseMoveEvent }; $ui.MainGrid.RaiseEvent($ev) }
+    & $add 'v4.3.12 Restore / Remember: top right (Paycheck Live spot), hidden until the mouse moves; footer keeps SHARE only' @() {
+        $script:SelfRec.v4312 = [ordered]@{ appVersion = $AppVersion; footer = $ui.FooterVersion.Text }
+        $r = $script:SelfRec.v4312
+        $r.row = [ordered]@{ parent = [string]$ui.DwRow.Parent.Name; margin = [string]$ui.DwRow.Margin; hAlign = [string]$ui.DwRow.HorizontalAlignment; vAlign = [string]$ui.DwRow.VerticalAlignment; zIndex = [System.Windows.Controls.Panel]::GetZIndex($ui.DwRow)
+            order = @($ui.DwRow.Children | ForEach-Object { [string]$_.Name }); opacityAtStart = $ui.DwRow.Opacity; hitTestAtStart = $ui.DwRow.IsHitTestVisible; hideMs = $script:DwHide.Interval.TotalMilliseconds }
+        $r.footerButtons = @($ui.ShareBtn.Parent.Children | ForEach-Object { [string]$_.Name })
+        $r.restoreStyle = [ordered]@{ bg = [string]$ui.RestoreBtn.Background; corner = [string]$ui.RestoreBtn.CornerRadius; padding = [string]$ui.RestoreBtn.Padding; height = $ui.RestoreBtn.Height; font = [string]$ui.RestoreTxt.FontFamily; size = $ui.RestoreTxt.FontSize; weight = [string]$ui.RestoreTxt.FontWeight; fg = [string]$ui.RestoreTxt.Foreground; text = $ui.RestoreTxt.Text }
+        $ui.BodyScroll.ScrollToVerticalOffset(0); $window.UpdateLayout(); & $script:Shot4312 'hidden'
+        & $script:DwMouse
+        $r.afterMouseMove = [ordered]@{ hitTest = $ui.DwRow.IsHitTestVisible; hideTimerRunning = $script:DwHide.IsEnabled }
+    }
+    & $add 'v4.3.12 shown: 0.95 opacity, nothing overlaps the date or the Updated status' @() {
+        $r = $script:SelfRec.v4312; $window.UpdateLayout()
+        $row = & $script:DwRect $ui.DwRow; $dt = & $script:DwRect $ui.DateLabel; $st = & $script:DwRect $ui.StatusLine
+        $ft = New-Object System.Windows.Media.FormattedText($ui.DateLabel.Text, [Globalization.CultureInfo]::CurrentCulture, [System.Windows.FlowDirection]::LeftToRight, (New-Object System.Windows.Media.Typeface($ui.DateLabel.FontFamily, $ui.DateLabel.FontStyle, $ui.DateLabel.FontWeight, $ui.DateLabel.FontStretch)), $ui.DateLabel.FontSize, [System.Windows.Media.Brushes]::White, 1.0)
+        $dtText = [ordered]@{ x = $dt.x; y = $dt.y; w = [math]::Round([math]::Min($ft.WidthIncludingTrailingWhitespace, $dt.w), 1); h = $dt.h }
+        $r.shown = [ordered]@{ opacity = [math]::Round($ui.DwRow.Opacity, 2); hitTest = $ui.DwRow.IsHitTestVisible; rowRect = $row; dateRect = $dt; dateText = $ui.DateLabel.Text; dateTextFull = ($ft.WidthIncludingTrailingWhitespace -le $dt.w + 0.5); statusRect = $st
+            status = ($ui.LiveBadge.Text + ' ' + $ui.UpdBadge.Text).Trim(); overlapsDate = (& $script:DwOverlap $row $dtText); overlapsStatus = (& $script:DwOverlap $row $st); statusBelowRow = ($st.y -ge $row.y + $row.h) }
+        & $script:Shot4312 'shown'
+        $script:DwShownAt = [DateTime]::UtcNow
+    }
+    foreach ($k in 1..6) { & $add 'v4.3.12 (mouse still: waiting for the 2.2 s hide)' @() { } }
+    & $add 'v4.3.12 hidden again 2.2 s after the mouse stopped' @() {
+        $r = $script:SelfRec.v4312
+        $r.hiddenAgain = [ordered]@{ afterMs = [int]([DateTime]::UtcNow - $script:DwShownAt).TotalMilliseconds; opacity = [math]::Round($ui.DwRow.Opacity, 2); hitTest = $ui.DwRow.IsHitTestVisible; timerRunning = $script:DwHide.IsEnabled }
+    }
+    & $add 'v4.3.12 kept hidden while a pop-up is open' @() {
+        $r = $script:SelfRec.v4312
+        $ui.ShareOverlay.Visibility = 'Visible'; & $script:DwMouse; $r.blockedByPopup = [ordered]@{ hitTest = $ui.DwRow.IsHitTestVisible }
+        $ui.ShareOverlay.Visibility = 'Collapsed'; & $script:DwMouse; $r.afterPopupClosed = [ordered]@{ hitTest = $ui.DwRow.IsHitTestVisible }
+    }
+    & $add 'v4.3.12 Remember from the top-right row (test copy of the layout file)' @() {
+        $r = $script:SelfRec.v4312
+        Invoke-KeepSpot; $window.UpdateLayout()
+        $r.remember = [ordered]@{ label = $ui.KeepTxt.Text; rowShown = $ui.DwRow.IsHitTestVisible; realFileUntouched = ((Get-DeskLayoutPath) -ne $DeskLayoutPath); tip = [string]$ui.KeepBtn.ToolTip }
+    }
+    & $add 'v4.3.12 (wait for the label)' @() { & $script:Shot4312 'saved' }
     & $add 'live refresh status' @() { $script:SelfRec.live = (Get-LiveStatus); $script:SelfRec.liveBadge = $ui.UpdBadge.Text; $script:SelfRec.tiresHeader = [ordered]@{ hdr = $ui.TiresHdr.Text; rec = $ui.TiresRec.Text; asOf = $ui.TiresAsOf.Text } }
     & $add 'theme snapshots' @() { Save-Snapshots $script:SelfDir; $script:SelfRec.shots += @($script:LastSnapshot.files | ForEach-Object { Split-Path -Leaf $_ }) }
     Start-SelfTimer
