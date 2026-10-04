@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-# TessDesk v4.3.9 (CAMERAS panel from saved Sentry / Dashcam clips; checks for updates on open / wake; compact-when-OFF via cb_compact_addon.ps1) - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
+# TessDesk v4.3.10 (TOTALS pop-up: week / month / year running totals; CAMERAS panel from saved Sentry / Dashcam clips; checks for updates on open / wake; compact-when-OFF via cb_compact_addon.ps1) - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
 param(
     [string]$ConfigPath,
     [string]$Snapshot,    # optional: folder to write PNG snapshots of both themes
@@ -14,7 +14,7 @@ Add-Type -AssemblyName System.Xaml
 
 $ErrorActionPreference = 'Stop'
 $AppName    = 'TessDesk'
-$AppVersion = '4.3.9'
+$AppVersion = '4.3.10'
 $AppDate    = 'Oct 3, 2026'
 
 $scriptDir  = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -469,6 +469,7 @@ function Get-ChargeSessions {
             socStartPct = $c.starting_battery; socEndPct = $c.ending_battery
             costUsdAllIn = [math]::Round($cost, 4); home = $loc
             fast = ([bool]$c.is_supercharger -or [bool]$c.is_fast_charger -or ($null -ne $c.max_charger_power -and [double]$c.max_charger_power -gt 25))
+            paidUsd = $(if (([bool]$c.is_supercharger -or [bool]$c.is_fast_charger -or ($null -ne $c.max_charger_power -and [double]$c.max_charger_power -gt 25)) -and $null -ne $c.cost -and [double]$c.cost -gt 0) { [double]$c.cost } else { $null })
         }
     }
     return @($out | Sort-Object { - [int64]$_.endEpoch })
@@ -564,7 +565,8 @@ function Get-PeriodTotal {
     $cost = 0.0; $kwh = 0.0; $n = 0
     foreach ($s in (Get-CompletedForTotals $St)) {
         if ([int64]$s.startEpoch -lt $cut) { continue }
-        if ($null -ne $s.costUsdAllIn) { $cost += [double]$s.costUsdAllIn }
+        # v4.3.10 shared rule (same as the phone): whole charges that started in the period; a Supercharger counts what Tessie says was paid
+        if ($null -ne $s.paidUsd -and [double]$s.paidUsd -gt 0) { $cost += [double]$s.paidUsd } elseif ($null -ne $s.costUsdAllIn) { $cost += [double]$s.costUsdAllIn }
         if ($null -ne $s.kwhAdded) { $kwh += [double]$s.kwhAdded }
         $n++
     }
@@ -1295,6 +1297,28 @@ function Open-Url433 {
         </Setter.Value>
       </Setter>
     </Style>
+    <!-- v4.3.10: full-width row button (TOTALS button, month rows) -->
+    <Style x:Key="TotRowBtn" TargetType="Button">
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Focusable" Value="False"/>
+      <Setter Property="Foreground" Value="#FFE6E6E6"/>
+      <Setter Property="Background" Value="#FF1A1A1A"/>
+      <Setter Property="BorderBrush" Value="#FF333333"/>
+      <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1.2" CornerRadius="7" Padding="{TemplateBinding Padding}">
+              <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Bd" Property="Opacity" Value="0.85"/></Trigger>
+              <Trigger Property="IsPressed" Value="True"><Setter TargetName="Bd" Property="Opacity" Value="0.6"/></Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
   </Window.Resources>
   <Border x:Name="RootBorder" Background="#FF0B0B0B" BorderBrush="#FF333333" BorderThickness="1" CornerRadius="10">
    <Grid x:Name="RootGrid">
@@ -1446,6 +1470,19 @@ function Open-Url433 {
               <TextBlock x:Name="D30Kwh" Grid.Column="1" Text="— kWh" FontSize="9.5" Foreground="#FF666666" VerticalAlignment="Center" Margin="4,1,0,0"/>
               <TextBlock x:Name="D30Cost" Grid.Column="2" Text="$—" FontSize="13" FontWeight="Bold" Foreground="#FFFFFFFF" HorizontalAlignment="Right" VerticalAlignment="Center"/>
             </Grid>
+            <!-- v4.3.10: TOTALS pop-up (running totals for this week / month / year, month by month) -->
+            <Border x:Name="RowSep3" Height="1" Background="#FF222222" Margin="0,1,0,2"/>
+            <Button x:Name="TotBtn" Style="{StaticResource TotRowBtn}" Height="22" Margin="0,0,0,2" Padding="8,0,8,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Cursor="Hand" ToolTip="Charging totals: this week, this month, this year, month by month">
+              <DockPanel>
+                <TextBlock DockPanel.Dock="Right" Text="&#xE76C;" FontFamily="Segoe MDL2 Assets" FontSize="9" VerticalAlignment="Center" Foreground="#FF888888"/>
+                <TextBlock x:Name="TotBtnSum" DockPanel.Dock="Right" Text="" FontSize="9.5" Foreground="#FF888888" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                  <Border Width="15" Height="15" CornerRadius="8" Background="#FF49DF93" Margin="0,0,6,0"><TextBlock Text="&#x24;" FontSize="10" FontWeight="Bold" Foreground="#FF06140C" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+                  <TextBlock Text="TOTALS" FontSize="10.5" FontWeight="Bold" Foreground="#FFFFFFFF" VerticalAlignment="Center"/>
+                  <TextBlock Text="week · month · year" FontSize="9.5" Foreground="#FF888888" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                </StackPanel>
+              </DockPanel>
+            </Button>
           </StackPanel>
         </Border>
 
@@ -1948,6 +1985,31 @@ function Open-Url433 {
             </StackPanel>
           </Border>
         </Grid>
+        <!-- v4.3.10: TOTALS pop-up -->
+        <Grid x:Name="TotOverlay" Grid.Row="0" Grid.RowSpan="6" Visibility="Collapsed" Background="#B0000000" Margin="-16,-8,-16,-10">
+          <Border x:Name="TotBox" Width="330" CornerRadius="14" Background="#FF161616" BorderBrush="#FF49DF93" BorderThickness="1.5" Padding="12,10,8,10" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,10,0,10">
+            <DockPanel>
+              <DockPanel DockPanel.Dock="Top" Margin="0,0,4,4">
+                <Button x:Name="TotClose" DockPanel.Dock="Right" Style="{StaticResource CamBtn}" Width="24" Height="22" Padding="0" Background="Transparent" BorderBrush="Transparent" ToolTip="Close (Esc)">
+                  <TextBlock Text="&#xE711;" FontFamily="Segoe MDL2 Assets" FontSize="10"/>
+                </Button>
+                <Button x:Name="TotRefresh" DockPanel.Dock="Right" Style="{StaticResource CamBtn}" Height="22" Padding="7,0,7,0" Margin="0,0,6,0" ToolTip="Load the charge history again from Tessie">
+                  <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="9.5" VerticalAlignment="Center" Margin="0,0,5,0"/><TextBlock Text="Refresh" FontSize="10.5" VerticalAlignment="Center"/></StackPanel>
+                </Button>
+                <TextBlock Text="Charging totals" FontSize="14" FontWeight="Bold" Foreground="#FFFFFFFF" VerticalAlignment="Center"/>
+              </DockPanel>
+              <DockPanel DockPanel.Dock="Top" Margin="0,0,4,6">
+                <Button x:Name="TotStop" DockPanel.Dock="Right" Style="{StaticResource CamBtn}" Height="20" Padding="8,0,8,0" Visibility="Collapsed" BorderBrush="#FFE82127" Foreground="#FFFF5A5F" ToolTip="Stop loading">
+                  <TextBlock Text="Stop" FontSize="10" FontWeight="Bold"/>
+                </Button>
+                <TextBlock x:Name="TotStatus" Text="" FontSize="10" Foreground="#FF888888" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+              </DockPanel>
+              <ScrollViewer x:Name="TotScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel x:Name="TotBody" Margin="0,0,6,0"/>
+              </ScrollViewer>
+            </DockPanel>
+          </Border>
+        </Grid>
         <!-- v4.3.9: Camera options (clip source, speed, which clips, default camera, full-screen layout, captures) -->
         <Grid x:Name="CamOptOverlay" Grid.Row="0" Grid.RowSpan="6" Visibility="Collapsed" Background="#B0000000" Margin="-16,-8,-16,-10">
           <Border x:Name="CamOptBox" Width="318" CornerRadius="14" Background="#FF161616" BorderBrush="#FF49DF93" BorderThickness="1.5" Padding="12,10,8,10" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,10,0,10">
@@ -2062,7 +2124,7 @@ function Apply-Theme {
         $ui['Tile' + $i].CornerRadius = [System.Windows.CornerRadius]::new($th.TileRadius)
         $ui['TileLbl' + $i].Foreground = T 'Caption'
     }
-    foreach ($n in 'RowSep1', 'RowSep2') { $ui[$n].Background = T 'Sep' }
+    foreach ($n in 'RowSep1', 'RowSep2', 'RowSep3') { $ui[$n].Background = T 'Sep' }
     foreach ($n in 'NightLbl', 'D7Lbl', 'D30Lbl') { $ui[$n].Foreground = T 'TextSoft' }
     foreach ($n in 'NightCap', 'D7Cap', 'D30Cap', 'NightKwh', 'D7Kwh', 'D30Kwh') { $ui[$n].Foreground = T 'Caption2' }
     $ui.TiresAsOf.Foreground = T 'TextSoft'; $ui.TiresRec.Foreground = T 'Caption'; $ui.RemindSetup.Foreground = T 'Caption'
@@ -6309,6 +6371,349 @@ function Stop-CamAll {
     try { if ($null -ne $script:CamSave) { $script:CamSave.sync.cancel = $true } } catch {}
 }
 
+# ---------------- v4.3.10: TOTALS pop-up (running totals for this week / month / year + month by month) ----------------
+# SHARED TOTALS RULE (the phone app uses the exact same rule, so both show the same numbers):
+#  * Charges come from Tessie's charge history (/charges), fetched one month at a time and cached in totals-cache.json.
+#    The charge in progress (if any) is added from the live tracker until Tessie lists it.
+#  * Home = saved location '3515 W 41st Pl' (config homeLocation). Home cost = wall kWh (Tessie energy_used, else
+#    kWh added / efficiency) spread evenly over the charging minutes, each minute at its all-in PSO rate (energy + FCA:
+#    6.2323 c/kWh overnight 11 PM to 6 AM, the day / peak rate other hours). Same per-minute math as everywhere in TessDesk.
+#  * Away from home: a Supercharger / fast charge uses the amount Tessie reports (what was paid); anything else away is
+#    priced like home (estimate). Away is listed separately and included in the grand total.
+#  * A charge belongs to the night it started in: between 11 PM and 11 AM that is the date the night began (a 12:30 AM
+#    charge on Oct 1 is the night of Sep 30); outside that window it is the day it started. Weeks run Monday to Sunday.
+#  * Nights = number of different home charging nights. Avg c/kWh = home cost / home wall kWh.
+#  * Last 7 / 30 days rows: every charge that STARTED in the last 7 / 30 days, counted whole, home + away (paid).
+$TotHome = '3515 W 41st Pl'; try { if ($null -ne $script:Cfg -and $script:Cfg.homeLocation) { $TotHome = [string]$script:Cfg.homeLocation } } catch {}
+$totCachePath = Join-Path $scriptDir 'totals-cache.json'
+$script:Tot = [ordered]@{ months = @{}; job = $null; shared = $null; status = ''; open = @{}; loadedAt = 0; lastLoad = $null; view = $null; rowsKey = ''; rows = @() }
+$script:TotFixtureDir = $null; $script:TotStopAt = 0; $script:TotBusySeen = $null
+$script:TotPriced = @{}; $script:TotPricedDirty = $false   # priced cost per charge (saved with the cache, so the pop-up opens fast)
+function Get-TotRateSig { return ('{0}|{1}|{2}|{3}|{4}|{5}|{6}|{7}|{8}|{9}|{10}' -f $R_ON, $R_DAY, $R_SEAS, $R_PEAK, $FCA, $ON_START, $ON_END, $PK_S, $PK_E, $PEAK_EN, $EFFICIENCY) }
+function Test-TotBusy { return ($null -ne $script:Tot.job) }
+function Get-TotMonthKeys {
+    param([datetime]$Now)
+    $keys = @(); for ($m = 1; $m -le $Now.Month; $m++) { $keys += ('{0:0000}-{1:00}' -f $Now.Year, $m) }; return $keys
+}
+function Get-TotMonthRange {
+    param([string]$Key)
+    $y = [int]$Key.Substring(0, 4); $m = [int]$Key.Substring(5, 2); $a = New-Object DateTime $y, $m, 1
+    return @((ConvertTo-EpochLocal $a), (ConvertTo-EpochLocal $a.AddMonths(1)))
+}
+function Load-TotCache {
+    $script:Tot.months = @{}
+    try {
+        if (Test-Path -LiteralPath $totCachePath) {
+            $j = Get-Content -LiteralPath $totCachePath -Raw -Encoding UTF8 | ConvertFrom-Json
+            foreach ($p in @($j.months.PSObject.Properties)) { $script:Tot.months[[string]$p.Name] = [pscustomobject]@{ at = [int64]$p.Value.at; rows = @($p.Value.rows | Where-Object { $null -ne $_ }) } }
+            $script:Tot.loadedAt = [int64](Get-Val $j.savedAt 0)
+            $script:TotPriced = @{}; if ([string]$j.rateSig -eq (Get-TotRateSig) -and $null -ne $j.priced) { foreach ($q in @($j.priced.PSObject.Properties)) { $script:TotPriced[[string]$q.Name] = [double]$q.Value } }
+        }
+    } catch { Write-WidgetLog ('totals cache: ' + $_.Exception.Message) }
+}
+function Save-TotCache {
+    try {
+        $m = [ordered]@{}; foreach ($k in ($script:Tot.months.Keys | Sort-Object)) { $m[$k] = $script:Tot.months[$k] }
+        $tmp = $totCachePath + '.tmp'
+        [ordered]@{ app = 'TessDesk'; version = $AppVersion; savedAt = $(if ($script:Tot.loadedAt -gt 0) { $script:Tot.loadedAt } else { Get-EpochNow }); home = $TotHome; months = $m; rateSig = (Get-TotRateSig); priced = $script:TotPriced } | ConvertTo-Json -Depth 6 -Compress | Set-Content -LiteralPath $tmp -Encoding UTF8
+        Move-Item -LiteralPath $tmp -Destination $totCachePath -Force; $script:TotPricedDirty = $false
+    } catch { Write-WidgetLog ('totals cache save: ' + $_.Exception.Message) }
+}
+# Background fetch (one Tessie /charges call per month). Never logs or returns the token.
+$script:TotFetchBlock = {
+    param($Items, $Tok, $Api, $Vin, $Fixture, $Ua, $Sh)
+    $out = @()
+    foreach ($it in $Items) {
+        if ($Sh.cancel) { break }
+        $res = [pscustomobject]@{ key = $it.key; ok = $false; rows = @(); err = $null }
+        try {
+            if ($Fixture) {
+                Start-Sleep -Milliseconds 120
+                $f = Join-Path $Fixture ($it.key + '.json'); $txt = $(if (Test-Path -LiteralPath $f) { [System.IO.File]::ReadAllText($f) } else { '{"results":[]}' })
+            } else {
+                $wc = New-Object System.Net.WebClient
+                try {
+                    $wc.Headers['Authorization'] = 'Bearer ' + $Tok; $wc.Headers['Accept'] = 'application/json'; $wc.Headers['User-Agent'] = $Ua; $wc.Encoding = [System.Text.Encoding]::UTF8
+                    $txt = $wc.DownloadString($Api + '/' + $Vin + '/charges?from=' + $it.from + '&to=' + $it.to + '&distance_format=mi&format=json')
+                } finally { $wc.Dispose() }
+            }
+            $j = $txt | ConvertFrom-Json
+            $rows = @()
+            foreach ($c in @($j.results)) {
+                if ($null -eq $c -or $null -eq $c.started_at -or $null -eq $c.ended_at) { continue }
+                $loc = $(if ($c.saved_location) { [string]$c.saved_location } elseif ($c.location) { [string]$c.location } else { '' })
+                $rows += [pscustomobject]@{ id = $c.id; s = [int64]$c.started_at; e = [int64]$c.ended_at; add = $c.energy_added; used = $c.energy_used; cost = $c.cost
+                    sc = [bool]$c.is_supercharger; fc = [bool]$c.is_fast_charger; kw = $c.max_charger_power; loc = $loc }
+            }
+            $res.rows = $rows; $res.ok = $true
+        } catch { $res.err = $_.Exception.Message -replace 'Bearer\s+\S+', 'Bearer ***' }
+        $out += $res
+        $Sh.done = [int]$Sh.done + 1
+    }
+    return , $out
+}
+function Start-TotLoad {
+    param([switch]$All)
+    if (Test-TotBusy) { return $false }
+    if (-not $script:TotFixtureDir -and -not [bool]$script:ReadAllowed) { return $false }
+    $nowE = Get-EpochNow; $now = ConvertFrom-Epoch $nowE
+    $need = @()
+    foreach ($k in (Get-TotMonthKeys $now)) {
+        $r = Get-TotMonthRange $k; $c = $script:Tot.months[$k]
+        $go = [bool]$All -or $null -eq $c
+        if (-not $go -and $nowE -lt $r[1]) { $go = ($nowE - [int64]$c.at) -gt 600 }               # this month: again after 10 min
+        if (-not $go -and $nowE -ge $r[1] -and [int64]$c.at -lt $r[1] + 2 * 86400) { $go = $true }   # a closed month: once more 2 days after it ended
+        if ($go) { $need += [pscustomobject]@{ key = $k; from = $r[0]; to = [math]::Min($r[1], $nowE) } }
+    }
+    if ($need.Count -eq 0) { return $false }
+    $tok = $null
+    if (-not $script:TotFixtureDir) { try { $tok = [string](Get-TessieToken) } catch {}; if (-not $tok) { $script:Tot.status = 'No Tessie token: showing what is saved'; Render-TotStatus; return $false } }
+    $sh = [hashtable]::Synchronized(@{ done = 0; total = $need.Count; cancel = $false })
+    $ps = [powershell]::Create()
+    [void]$ps.AddScript($script:TotFetchBlock).AddArgument($need).AddArgument($tok).AddArgument($ApiBase).AddArgument([string]$script:VIN).AddArgument($script:TotFixtureDir).AddArgument('TessDesk/' + $AppVersion + ' (totals)').AddArgument($sh)
+    $tok = $null
+    $script:Tot.shared = $sh
+    $script:Tot.job = [pscustomobject]@{ ps = $ps; async = $ps.BeginInvoke(); started = Get-Date; total = $need.Count; all = [bool]$All }
+    $script:TotTick.Start(); Render-TotStatus
+    return $true
+}
+function Stop-TotLoad { if ($null -ne $script:Tot.shared) { $script:Tot.shared.cancel = $true } }
+function Complete-TotLoad {
+    $j = $script:Tot.job; $res = @(); $err = $null
+    try { $res = @(@($j.ps.EndInvoke($j.async))[0]) } catch { $err = $_.Exception.Message }
+    try { $j.ps.Dispose() } catch {}
+    $sh = $script:Tot.shared; $script:Tot.job = $null; $script:Tot.shared = $null
+    $nowE = Get-EpochNow; $ok = 0; $bad = @()
+    foreach ($r in $res) { if ($null -eq $r) { continue }; if ($r.ok) { $script:Tot.months[[string]$r.key] = [pscustomobject]@{ at = $nowE; rows = @($r.rows) }; $ok++ } else { $bad += [string]$r.key } }
+    if ($ok -gt 0) { $script:Tot.loadedAt = $nowE; Save-TotCache }
+    $secs = [math]::Round(((Get-Date) - $j.started).TotalSeconds, 1)
+    $script:Tot.lastLoad = [ordered]@{ months = $j.total; ok = $ok; failed = $bad; stopped = [bool]$sh.cancel; seconds = $secs; err = $err }
+    if ($sh.cancel) { $script:Tot.status = ('Stopped at {0} / {1} months, showing what is saved' -f $ok, $j.total) }
+    elseif ($bad.Count -gt 0 -or $err) { $script:Tot.status = ('Could not load {0} month(s), showing what is saved' -f [math]::Max(1, $bad.Count)) }
+    else { $script:Tot.status = '' }
+    Write-WidgetLog ('totals: loaded ' + $ok + ' / ' + $j.total + ' months in ' + $secs + ' s' + $(if ($sh.cancel) { ' (stopped)' } else { '' }))
+    $script:Tot.rowsKey = ''
+    try { Update-TotBtnSum } catch {}
+    if ($script:TotPricedDirty) { Save-TotCache }
+    if ($ui.TotOverlay.Visibility -eq 'Visible') { Render-Totals } else { Render-TotStatus }
+}
+$script:TotTick = New-Object System.Windows.Threading.DispatcherTimer
+$script:TotTick.Interval = [TimeSpan]::FromMilliseconds(150)
+$script:TotTick.Add_Tick({
+    try {
+        $j = $script:Tot.job
+        if ($null -eq $j) { $script:TotTick.Stop(); return }
+        if ($script:TotStopAt -gt 0 -and [int]$script:Tot.shared.done -ge $script:TotStopAt) { $script:TotStopAt = 0; Stop-TotLoad }
+        if ($j.async.IsCompleted) { $script:TotTick.Stop(); Complete-TotLoad } else { Render-TotStatus }
+    } catch { $script:TotTick.Stop(); $script:Tot.job = $null; Write-WidgetLog ('totals tick: ' + $_.Exception.Message) }
+})
+function Get-TotNight {
+    param([int64]$Epoch)
+    $t = ConvertFrom-Epoch $Epoch
+    if ((Test-HourIn $t.Hour $NW_START $NW_END) -and $t.Hour -lt $NW_START) { return $t.Date.AddDays(-1) }
+    return $t.Date
+}
+function Test-TotHomeLoc { param([string]$Loc) return ($Loc -and $Loc.Trim().StartsWith($TotHome, [System.StringComparison]::OrdinalIgnoreCase)) }
+function Get-TotRows {
+    # every cached charge, normalized and priced once per cache change (+ the live charge in progress)
+    $nowE = Get-EpochNow
+    $cur = $null; try { $cur = Get-CurrentLive $script:State } catch {}
+    $key = [string]$script:Tot.loadedAt + '|' + @($script:Tot.months.Keys).Count + '|' + $(if ($null -ne $cur) { [string]$cur.startEpoch + ':' + [string]$cur.kwhAdded } else { '-' })
+    if ($key -eq $script:Tot.rowsKey) { return $script:Tot.rows }
+    $seen = @{}; $rows = New-Object System.Collections.ArrayList
+    foreach ($k in ($script:Tot.months.Keys | Sort-Object)) {
+        foreach ($c in @($script:Tot.months[$k].rows)) {
+            if ($null -eq $c) { continue }
+            $id = $(if ($null -ne $c.id) { [string]$c.id } else { [string]$c.s }); if ($seen.ContainsKey($id)) { continue }; $seen[$id] = $true
+            $s = [int64]$c.s; $e = [int64]$c.e; if ($s -gt $nowE) { continue }
+            $add = [double](Get-Val $c.add 0.0); $used = [double](Get-Val $c.used 0.0)
+            $wall = $(if ($used -gt 0) { $used } else { $add / $EFFICIENCY })
+            $fast = ([bool]$c.sc -or [bool]$c.fc -or ($null -ne $c.kw -and [double]$c.kw -gt 25))
+            $isHome = (Test-TotHomeLoc ([string]$c.loc)) -and -not $fast
+            $paid = $null; if (-not $isHome -and $fast -and $null -ne $c.cost -and [double]$c.cost -gt 0) { $paid = [double]$c.cost }
+            $pk = $id + ':' + $s + ':' + $e + ':' + $wall
+            if ($null -ne $paid) { $cost = $paid } elseif ($script:TotPriced.ContainsKey($pk)) { $cost = [double]$script:TotPriced[$pk] } else { $cost = (Get-SpreadCost $s $e $wall)[0]; $script:TotPriced[$pk] = $cost; $script:TotPricedDirty = $true }
+            [void]$rows.Add([pscustomobject]@{ s = $s; e = $e; add = $add; wall = $wall; cost = $cost; home = $isHome; fast = $fast; paid = ($null -ne $paid); day = (Get-TotNight $s); loc = [string]$c.loc; live = $false })
+        }
+    }
+    if ($null -ne $cur) {
+        $cs = [int64]$cur.startEpoch; $ce = [int64](Get-Val $cur.lastEpoch $nowE)
+        $dup = $false; foreach ($r in $rows) { if ($r.s -lt $ce + 300 -and $cs -lt $r.e + 300) { $dup = $true; break } }
+        $fastNow = ($null -ne $script:State.lastCar -and [bool]$script:State.lastCar.fastCharger)
+        if (-not $dup) {
+            $add = [double](Get-Val $cur.kwhAdded 0.0); $wall = [double](Get-Val $cur.kwhWall ($add / $EFFICIENCY))
+            [void]$rows.Add([pscustomobject]@{ s = $cs; e = $ce; add = $add; wall = $wall; cost = [double](Get-Val $cur.costUsdAllIn 0.0); home = (-not $fastNow); fast = $fastNow; paid = $false; day = (Get-TotNight $cs); loc = 'live'; live = $true })
+        }
+    }
+    $script:Tot.rows = @($rows | Sort-Object s); $script:Tot.rowsKey = $key
+    return $script:Tot.rows
+}
+function Get-TotAgg {
+    param($Rows)
+    $hk = 0.0; $hc = 0.0; $hw = 0.0; $nights = @{}; $an = 0; $ak = 0.0; $ac = 0.0; $live = $false
+    foreach ($r in @($Rows)) {
+        if ($null -eq $r) { continue }
+        if ($r.live) { $live = $true }
+        if ($r.home) { $hk += $r.add; $hc += $r.cost; $hw += $r.wall; $nights[$r.day.ToString('yyyy-MM-dd')] = $true }
+        else { $an++; $ak += $r.add; $ac += $r.cost }
+    }
+    return [pscustomobject]@{ kwh = [math]::Round($hk, 1); cost = [math]::Round($hc, 2); nights = $nights.Count; cpk = $(if ($hw -gt 0) { [math]::Round(100 * $hc / $hw, 1) } else { $null })
+        awayN = $an; awayKwh = [math]::Round($ak, 1); awayCost = [math]::Round($ac, 2); grand = [math]::Round($hc + $ac, 2); live = $live }
+}
+function Get-TotView {
+    $rows = @(Get-TotRows); $now = (ConvertFrom-Epoch (Get-EpochNow)).Date
+    $wk0 = $now.AddDays(-(([int]$now.DayOfWeek + 6) % 7)); $mo0 = New-Object DateTime $now.Year, $now.Month, 1; $yr0 = New-Object DateTime $now.Year, 1, 1
+    $inR = { param($a, $z) @($rows | Where-Object { $_.day -ge $a -and $_.day -le $z }) }
+    $months = @()
+    for ($m = 1; $m -le $now.Month; $m++) {
+        $a = New-Object DateTime $now.Year, $m, 1; $z = $a.AddMonths(1).AddDays(-1)
+        $mr = & $inR $a $z
+        $months += [pscustomobject]@{ key = $a.ToString('yyyy-MM'); name = $a.ToString('MMMM', $Inv); short = $a.ToString('MMM', $Inv); current = ($m -eq $now.Month); agg = (Get-TotAgg $mr); rows = $mr; cached = $script:Tot.months.ContainsKey($a.ToString('yyyy-MM')) }
+    }
+    return [pscustomobject]@{ now = $now; weekStart = $wk0; weekEnd = $wk0.AddDays(6)
+        week = (Get-TotAgg (& $inR $wk0 $now)); month = (Get-TotAgg (& $inR $mo0 $now)); year = (Get-TotAgg (& $inR $yr0 $now)); months = $months; count = $rows.Count
+        first = $(if ($rows.Count) { $rows[0].day } else { $null }) }
+}
+function New-TotTb {
+    param([string]$Text, [double]$Size = 11, [string]$Col = '#FFE6E6E6', [bool]$Bold = $false, [string]$Align = 'Left')
+    $t = New-Object System.Windows.Controls.TextBlock; $t.Text = $Text; $t.FontSize = $Size
+    $t.Foreground = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.ColorConverter]::ConvertFromString($Col))
+    if ($Bold) { $t.FontWeight = [System.Windows.FontWeights]::Bold }
+    $t.HorizontalAlignment = $Align; $t.VerticalAlignment = 'Center'; $t.TextTrimming = 'CharacterEllipsis'; return $t
+}
+function Format-TotCents { param($v) if ($null -eq $v) { return '--' }; return ([double]$v).ToString('0.0', $Inv) + [char]0x00A2 }
+function Format-TotKwh { param([double]$v) if ($v -ge 1000) { return $v.ToString('#,0', $Inv) + ' kWh' }; return $v.ToString('0.0', $Inv) + ' kWh' }
+function New-TotGrid {
+    param([double[]]$Cols)
+    $g = New-Object System.Windows.Controls.Grid
+    foreach ($w in $Cols) { $cd = New-Object System.Windows.Controls.ColumnDefinition; $cd.Width = $(if ($w -le 0) { New-Object System.Windows.GridLength 1, ([System.Windows.GridUnitType]::Star) } else { New-Object System.Windows.GridLength $w }); [void]$g.ColumnDefinitions.Add($cd) }
+    return $g
+}
+function Add-TotCell { param($G, $El, [int]$Col) [System.Windows.Controls.Grid]::SetColumn($El, $Col); [void]$G.Children.Add($El) }
+function Render-TotStatus {
+    $j = $script:Tot.job
+    if ($null -ne $j) {
+        $d = [int]$script:Tot.shared.done; $ui.TotStatus.Text = ('Loading charge history {0} / {1} months' -f $d, $j.total)
+        $ui.TotStatus.Foreground = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.ColorConverter]::ConvertFromString('#FFFFD27A'))
+        Set-Visible $ui.TotStop $true; $ui.TotRefresh.IsEnabled = $false
+        if ($null -ne $script:TotBusySeen) { $t = $ui.TotStatus.Text; if ($script:TotBusySeen.Count -eq 0 -or $script:TotBusySeen[-1] -ne $t) { [void]$script:TotBusySeen.Add($t) } }
+    } else {
+        Set-Visible $ui.TotStop $false; $ui.TotRefresh.IsEnabled = $true
+        $v = $script:Tot.view; $n = $(if ($null -ne $v) { $v.count } else { 0 })
+        $txt = $script:Tot.status
+        if (-not $txt) { $txt = $(if ($script:Tot.loadedAt -gt 0) { 'Updated ' + (ConvertFrom-Epoch $script:Tot.loadedAt).ToString('ddd h:mm tt', $Inv) + ' · ' + $n + ' charges from Tessie' } else { 'Not loaded yet' }) }
+        $ui.TotStatus.Text = $txt
+        $ui.TotStatus.Foreground = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.ColorConverter]::ConvertFromString($(if ($script:Tot.status) { '#FFFFD27A' } else { '#FF888888' })))
+    }
+}
+function New-TotPeriod {
+    param([string]$Label, [string]$Sub, $A)
+    $bd = New-Object System.Windows.Controls.Border; $bd.CornerRadius = 9; $bd.Padding = '7,5,6,6'; $bd.Margin = '0,0,4,0'
+    $bd.Background = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.ColorConverter]::ConvertFromString('#FF1E1E1E'))
+    $sp = New-Object System.Windows.Controls.StackPanel
+    [void]$sp.Children.Add((New-TotTb $Label 9 '#FF49DF93' $true))
+    [void]$sp.Children.Add((New-TotTb $Sub 8.5 '#FF888888'))
+    [void]$sp.Children.Add((New-TotTb (Format-Money $A.cost) 17 '#FFFFFFFF' $true))
+    [void]$sp.Children.Add((New-TotTb (Format-TotKwh $A.kwh) 10 '#FFCCCCCC'))
+    [void]$sp.Children.Add((New-TotTb ('{0} night{1}' -f $A.nights, $(if ($A.nights -eq 1) { '' } else { 's' })) 9.5 '#FFAAAAAA'))
+    [void]$sp.Children.Add((New-TotTb ('avg ' + (Format-TotCents $A.cpk) + '/kWh') 9.5 '#FFAAAAAA'))
+    if ($A.awayN -gt 0) { [void]$sp.Children.Add((New-TotTb ('+ ' + (Format-Money $A.awayCost) + ' away') 9 '#FFFFB547')); [void]$sp.Children.Add((New-TotTb ('Total ' + (Format-Money $A.grand)) 9.5 '#FFFFFFFF' $true)) }
+    $bd.Child = $sp; return $bd
+}
+function New-TotNightLines {
+    param($Rows)
+    $sp = New-Object System.Windows.Controls.StackPanel; $sp.Margin = '10,2,4,6'
+    $g = @($Rows | Where-Object { $_.home } | Group-Object { $_.day.ToString('yyyy-MM-dd') } | Sort-Object Name)
+    foreach ($x in $g) {
+        $d = [datetime]::ParseExact($x.Name, 'yyyy-MM-dd', $Inv); $k = 0.0; $c = 0.0; foreach ($r in $x.Group) { $k += $r.add; $c += $r.cost }
+        $ln = New-TotGrid @(0, 62, 52)
+        Add-TotCell $ln (New-TotTb ($d.ToString('ddd MMM d', $Inv) + $(if ($x.Count -gt 1) { ' · ' + $x.Count + ' charges' } else { '' }) + $(if (@($x.Group | Where-Object { $_.live }).Count) { ' · live' } else { '' })) 9.5 '#FFBBBBBB') 0
+        Add-TotCell $ln (New-TotTb (Format-TotKwh $k) 9.5 '#FF999999' $false 'Right') 1
+        Add-TotCell $ln (New-TotTb (Format-Money $c) 9.5 '#FFE6E6E6' $true 'Right') 2
+        [void]$sp.Children.Add($ln)
+    }
+    foreach ($r in @($Rows | Where-Object { -not $_.home } | Sort-Object s)) {
+        $ln = New-TotGrid @(0, 62, 52)
+        $place = ([string]$r.loc -split ',')[0]; if ($place.Length -gt 22) { $place = $place.Substring(0, 22) }
+        Add-TotCell $ln (New-TotTb ((ConvertFrom-Epoch $r.s).ToString('ddd MMM d', $Inv) + ' · ' + $(if ($r.fast) { 'Supercharger' } else { 'Away' }) + ' · ' + $place) 9.5 '#FFFFB547') 0
+        Add-TotCell $ln (New-TotTb (Format-TotKwh $r.add) 9.5 '#FF999999' $false 'Right') 1
+        Add-TotCell $ln (New-TotTb ((Format-Money $r.cost) + $(if ($r.paid) { ' paid' } else { ' est.' })) 9.5 '#FFFFB547' $true 'Right') 2
+        [void]$sp.Children.Add($ln)
+    }
+    if ($sp.Children.Count -eq 0) { [void]$sp.Children.Add((New-TotTb 'No charges this month' 9.5 '#FF777777')) }
+    return $sp
+}
+function Render-Totals {
+    $v = Get-TotView; $script:Tot.view = $v
+    $B0 = $ui.TotBody; $B0.Children.Clear()
+    # 1) running totals
+    $pg = New-TotGrid @(0, 0, 0)
+    Add-TotCell $pg (New-TotPeriod 'THIS WEEK' ($v.weekStart.ToString('MMM d', $Inv) + ' to ' + $v.weekEnd.ToString('MMM d', $Inv)) $v.week) 0
+    Add-TotCell $pg (New-TotPeriod 'THIS MONTH' ($v.now.ToString('MMMM', $Inv) + ' so far') $v.month) 1
+    Add-TotCell $pg (New-TotPeriod 'THIS YEAR' ([string]$v.now.Year + ' so far') $v.year) 2
+    [void]$B0.Children.Add($pg)
+    $note = New-TotTb ('Home at ' + $TotHome + ' · what you paid at the all-in PSO rate') 9 '#FF888888'; $note.Margin = '2,5,0,8'; $note.TextWrapping = 'Wrap'; [void]$B0.Children.Add($note)
+    # 2) month by month
+    $hd = New-TotGrid @(0, 70, 58, 40, 14); $hd.Margin = '8,0,8,3'
+    Add-TotCell $hd (New-TotTb 'MONTH BY MONTH' 9 '#FF49DF93' $true) 0
+    Add-TotCell $hd (New-TotTb 'kWh' 9 '#FF888888' $false 'Right') 1; Add-TotCell $hd (New-TotTb 'Cost' 9 '#FF888888' $false 'Right') 2; Add-TotCell $hd (New-TotTb 'Nights' 9 '#FF888888' $false 'Right') 3
+    [void]$B0.Children.Add($hd)
+    foreach ($mo in @($v.months | Sort-Object key -Descending)) {
+        $a = $mo.agg; $isOpen = [bool]$script:Tot.open[$mo.key]
+        $btn = New-Object System.Windows.Controls.Button; $btn.Style = $window.FindResource('TotRowBtn'); $btn.Padding = '8,4,6,4'; $btn.Margin = '0,0,0,3'; $btn.Tag = $mo.key
+        if ($mo.current) { $btn.BorderBrush = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.ColorConverter]::ConvertFromString('#FF49DF93')) }
+        $rg = New-TotGrid @(0, 70, 58, 40, 14)
+        $nm = $mo.name + $(if ($mo.current) { ' so far' } else { '' })
+        $empty = ($a.kwh -le 0 -and $a.awayN -eq 0)
+        Add-TotCell $rg (New-TotTb $nm 11 $(if ($empty) { '#FF777777' } else { '#FFFFFFFF' }) $true) 0
+        if ($empty) { Add-TotCell $rg (New-TotTb $(if ($mo.cached) { 'no charges' } else { 'not loaded' }) 9.5 '#FF666666' $false 'Right') 2 }
+        else {
+            Add-TotCell $rg (New-TotTb (Format-TotKwh $a.kwh) 10 '#FFBBBBBB' $false 'Right') 1
+            Add-TotCell $rg (New-TotTb (Format-Money $a.grand) 11 '#FFFFFFFF' $true 'Right') 2
+            Add-TotCell $rg (New-TotTb ([string]$a.nights) 10 '#FFBBBBBB' $false 'Right') 3
+            Add-TotCell $rg (New-TotTb $(if ($isOpen) { [string][char]0xE70E } else { [string][char]0xE70D }) 8 '#FF888888' $false 'Right') 4
+            $rg.Children[$rg.Children.Count - 1].FontFamily = New-Object System.Windows.Media.FontFamily 'Segoe MDL2 Assets'
+        }
+        $btn.Content = $rg
+        if (-not $empty) { $btn.Add_Click({ param($s9, $e9) $k9 = [string]$s9.Tag; $script:Tot.open[$k9] = -not [bool]$script:Tot.open[$k9]; Render-Totals }) }
+        [void]$B0.Children.Add($btn)
+        if ($isOpen -and -not $empty) {
+            if ($a.awayN -gt 0) { $al = New-TotTb ('Home ' + (Format-Money $a.cost) + ' + away ' + (Format-Money $a.awayCost) + ' (' + $a.awayN + ')') 9 '#FFFFB547'; $al.Margin = '10,0,0,1'; [void]$B0.Children.Add($al) }
+            [void]$B0.Children.Add((New-TotNightLines $mo.rows))
+        }
+    }
+    # 3) year line + the rule
+    $y = $v.year
+    $yl = New-TotTb ([string]$v.now.Year + ' total: ' + (Format-TotKwh $y.kwh) + ' at home, ' + (Format-Money $y.cost) + $(if ($y.awayN -gt 0) { ' + ' + (Format-Money $y.awayCost) + ' away = ' + (Format-Money $y.grand) } else { '' })) 10 '#FFFFFFFF' $true
+    $yl.Margin = '2,6,0,4'; $yl.TextWrapping = 'Wrap'; [void]$B0.Children.Add($yl)
+    $rule = New-TotTb ('Home = ' + $TotHome + '. Home cost is priced by the minute at the all-in PSO rate (energy + fuel charge): 6.23' + [char]0x00A2 + '/kWh from 11 PM to 6 AM, the day rate at other hours. Supercharger and away charges use the amount Tessie reports as paid. A charge counts on the night it started (weeks run Monday to Sunday). The phone app uses the same rule.') 9 '#FF777777'
+    $rule.TextWrapping = 'Wrap'; $rule.TextTrimming = 'None'; $rule.Margin = '2,2,0,4'; [void]$B0.Children.Add($rule)
+    Render-TotStatus
+}
+function Update-TotBtnSum {
+    if ($script:Tot.months.Count -eq 0) { $ui.TotBtnSum.Text = ''; return }
+    $v = Get-TotView; $script:Tot.view = $v
+    $ui.TotBtnSum.Text = ($v.now.ToString('MMM', $Inv) + ' ' + (Format-Money $v.month.grand) + ' · ' + [string]$v.now.Year + ' ' + (Format-Money $v.year.grand))
+}
+function Show-Totals {
+    $t0 = Get-Date
+    if ($script:Tot.months.Count -eq 0) { Load-TotCache }
+    $ui.TotScroll.MaxHeight = [math]::Max(300, $window.ActualHeight - 120)
+    Render-Totals; Set-Visible $ui.TotOverlay $true
+    $script:Tot.openMs = [math]::Round(((Get-Date) - $t0).TotalMilliseconds)
+    if ($script:TotPricedDirty) { Save-TotCache }
+    [void](Start-TotLoad)
+}
+function Close-Totals { Set-Visible $ui.TotOverlay $false; Stop-TotLoad }
+function Invoke-TotKey { param([string]$Key) if ($ui.TotOverlay.Visibility -eq 'Visible' -and $Key -eq 'Escape') { Close-Totals; return $true }; return $false }
+$ui.TotBtn.Add_Click({ try { Show-Totals } catch { Write-WidgetLog ('totals: ' + $_.Exception.Message) } })
+$ui.TotClose.Add_Click({ Close-Totals })
+$ui.TotStop.Add_Click({ Stop-TotLoad })
+$ui.TotRefresh.Add_Click({ try { $script:Tot.status = ''; [void](Start-TotLoad -All) } catch { Write-WidgetLog ('totals refresh: ' + $_.Exception.Message) } })
+$ui.TotOverlay.Add_MouseLeftButtonUp({ param($s9, $e9) if ($e9.OriginalSource -eq $ui.TotOverlay) { Close-Totals } })
+$window.Add_PreviewKeyDown({ param($s9, $e9) try { if (Invoke-TotKey ([string]$e9.Key)) { $e9.Handled = $true } } catch {} })
+try { Load-TotCache } catch {}
+
 # Show local/cached data immediately; the first Tessie call runs once the window is on screen.
 try {
     $script:View = Build-FallbackView (Read-LocalJson) 'Live: connecting…' 'starting'
@@ -6883,6 +7288,61 @@ function Start-SelfTest {
         $r.cfgSaved = (Get-Content -LiteralPath $ConfigPath -Raw | ConvertFrom-Json).camera
         $r.footer = $ui.FooterVersion.Text
     }
+    # ---- v4.3.10 TOTALS (charge history fixture next to the script; no Tessie call, nothing sent to the car) ----
+    $script:Shot4310 = { param($n, [switch]$Full) $f = 'tessdesk-v4310-' + $n + '.png'; if ($Full) { Save-RootPng (Join-Path $script:SelfDir $f) -Full } else { Save-RootPng (Join-Path $script:SelfDir $f) }; $script:SelfRec.shots += $f }
+    $script:TotView4310 = { param($V) $o = [ordered]@{}; foreach ($p in 'week', 'month', 'year') { $a = $V.$p; $o[$p] = [ordered]@{ kwh = $a.kwh; cost = $a.cost; nights = $a.nights; cpk = $a.cpk; awayN = $a.awayN; awayKwh = $a.awayKwh; awayCost = $a.awayCost; grand = $a.grand } }
+        $o.months = @($V.months | ForEach-Object { '{0}: {1} kWh, ${2}, {3} nights, away {4} ${5}{6}' -f $_.key, $_.agg.kwh, $_.agg.cost, $_.agg.nights, $_.agg.awayN, $_.agg.awayCost, $(if ($_.current) { ' (so far)' } else { '' }) })
+        $o.weekRange = $V.weekStart.ToString('yyyy-MM-dd') + '..' + $V.weekEnd.ToString('yyyy-MM-dd'); $o.charges = $V.count; return $o }
+    $script:SelfRec.v4310 = [ordered]@{ appVersion = $AppVersion; footer = $ui.FooterVersion.Text; home = $TotHome }
+    & $add 'v4.3.10 totals: open with no cache (loads the charge history month by month, progress count)' @() {
+        $r = $script:SelfRec.v4310
+        $script:TotFixtureDir = Join-Path $scriptDir 'selftest-charges'; $r.fixture = $script:TotFixtureDir; $r.fixtureFound = (Test-Path -LiteralPath $script:TotFixtureDir)
+        try { Remove-Item -LiteralPath $totCachePath -Force -ErrorAction SilentlyContinue } catch {}
+        $script:Tot.months = @{}; $script:Tot.loadedAt = 0; $script:Tot.rowsKey = ''; $script:Tot.open = @{}
+        $script:TotBusySeen = New-Object System.Collections.ArrayList
+        Show-Totals; $r.startedJob = (Test-TotBusy); $r.firstStatus = $ui.TotStatus.Text
+        $window.UpdateLayout(); & $script:Shot4310 'totals-loading'
+    }
+    & $add 'v4.3.10 totals: loaded (this week / month / year, month by month)' @() {
+        $r = $script:SelfRec.v4310
+        $r.nowEpoch = Get-EpochNow; $r.lastLoad = $script:Tot.lastLoad; $r.progressSeen = @($script:TotBusySeen)
+        $r.view = & $script:TotView4310 $script:Tot.view; $r.status = $ui.TotStatus.Text; $r.cacheFile = (Test-Path -LiteralPath $totCachePath)
+        $r.cacheBytes = $(if ($r.cacheFile) { (Get-Item -LiteralPath $totCachePath).Length } else { 0 })
+        $r.overlayVisible = [string]$ui.TotOverlay.Visibility
+        $ui.TotScroll.ScrollToTop(); $window.UpdateLayout(); & $script:Shot4310 'totals'
+    }
+    & $add 'v4.3.10 totals: expand October (nights) and July (Supercharger, paid)' @() {
+        $r = $script:SelfRec.v4310; $mk = (ConvertFrom-Epoch (Get-EpochNow)).ToString('yyyy-MM')
+        $script:Tot.open[$mk] = $true; $script:Tot.open['2026-07'] = $true; Render-Totals; $window.UpdateLayout()
+        $r.expanded = @($ui.TotBody.Children | Where-Object { $_ -is [System.Windows.Controls.StackPanel] } | ForEach-Object { @($_.Children | ForEach-Object { (@($_.Children | ForEach-Object { $_.Text }) -join ' | ') }) })
+        $ui.TotScroll.ScrollToVerticalOffset(150); $window.UpdateLayout(); & $script:Shot4310 'totals-months'
+        $ui.TotScroll.ScrollToVerticalOffset(700); $window.UpdateLayout(); & $script:Shot4310 'totals-july'
+    }
+    & $add 'v4.3.10 totals: X closes; reopening uses the cache (fast, nothing reloaded)' @() {
+        $r = $script:SelfRec.v4310
+        $ui.TotClose.RaiseEvent((New-Object System.Windows.RoutedEventArgs ([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent)))
+        $r.xClosed = ([string]$ui.TotOverlay.Visibility -ne 'Visible')
+        $script:Tot.months = @{}; $script:Tot.rowsKey = ''      # as after a restart: read the cache file
+        Show-Totals; $r.reopen = [ordered]@{ ms = $script:Tot.openMs; reloadStarted = (Test-TotBusy); week = $script:Tot.view.week.cost; month = $script:Tot.view.month.cost; year = $script:Tot.view.year.grand }
+    }
+    & $add 'v4.3.10 totals: Refresh, then Stop part way' @() {
+        $script:TotBusySeen = New-Object System.Collections.ArrayList; $script:TotStopAt = 3
+        $script:SelfRec.v4310.refreshStarted = (Start-TotLoad -All)
+    }
+    & $add 'v4.3.10 totals: stopped shows what is saved; Esc closes' @() {
+        $r = $script:SelfRec.v4310
+        $r.stop = [ordered]@{ lastLoad = $script:Tot.lastLoad; status = $ui.TotStatus.Text; progressSeen = @($script:TotBusySeen); yearStill = $script:Tot.view.year.grand }
+        $window.UpdateLayout(); & $script:Shot4310 'totals-stopped'
+        $r.escHandled = (Invoke-TotKey 'Escape'); $r.escClosed = ([string]$ui.TotOverlay.Visibility -ne 'Visible')
+    }
+    & $add 'v4.3.10 totals: TOTALS button + Last 7 / 30 days (shared rule)' @() {
+        $r = $script:SelfRec.v4310; $script:Tot.status = ''
+        Update-TotBtnSum; Render-View; $window.UpdateLayout()
+        $r.button = [ordered]@{ visible = [string]$ui.TotBtn.Visibility; sum = $ui.TotBtnSum.Text }
+        $r.rows = [ordered]@{ d7 = $ui.D7Cost.Text + ' ' + $ui.D7Kwh.Text + ' ' + $ui.D7Cap.Text; d30 = $ui.D30Cost.Text + ' ' + $ui.D30Kwh.Text + ' ' + $ui.D30Cap.Text }
+        $ui.RowsCard.BringIntoView(); $window.UpdateLayout(); & $script:Shot4310 'totals-button'
+        $script:TotFixtureDir = $null
+    }
     & $add 'live refresh status' @() { $script:SelfRec.live = (Get-LiveStatus); $script:SelfRec.liveBadge = $ui.UpdBadge.Text; $script:SelfRec.tiresHeader = [ordered]@{ hdr = $ui.TiresHdr.Text; rec = $ui.TiresRec.Text; asOf = $ui.TiresAsOf.Text } }
     & $add 'theme snapshots' @() { Save-Snapshots $script:SelfDir; $script:SelfRec.shots += @($script:LastSnapshot.files | ForEach-Object { Split-Path -Leaf $_ }) }
     Start-SelfTimer
@@ -6893,7 +7353,7 @@ function Start-SelfTimer {
     $script:SelfTimer.Add_Tick({
         try {
             if ($null -ne $script:FlashWaitFor -and $script:FlashWaitFor -lt 99) { if ($script:Flash.running -and $script:Flash.done -lt $script:FlashWaitFor) { return } }
-            elseif ($null -ne $script:UpdJob -or (Test-CamBusy) -or $script:CtlBusy -or $script:TempTimer.IsEnabled -or $script:SeatTimer.IsEnabled -or $script:WheelTimer.IsEnabled) { return }
+            elseif ($null -ne $script:UpdJob -or (Test-CamBusy) -or (Test-TotBusy) -or $script:CtlBusy -or $script:TempTimer.IsEnabled -or $script:SeatTimer.IsEnabled -or $script:WheelTimer.IsEnabled) { return }
             if ($null -ne $script:FlashWaitFor -and $script:FlashWaitFor -ge 99 -and $script:Flash.running) { return }
             if ($script:SelfSteps.Count -eq 0) {
                 $script:SelfTimer.Stop()
@@ -6929,6 +7389,8 @@ $window.Add_ContentRendered({
         $window.Dispatcher.BeginInvoke([System.Windows.Threading.DispatcherPriority]::Background, [Action]{ try { [void](Request-UpdateCheck 'launch') } catch { Write-WidgetLog ('update launch check: ' + $_.Exception.Message) }; try { Start-UpdResumeWatch } catch {} }) | Out-Null
         # v4.3.9: camera panel (only when it is On): find the latest saved clip and load its frames
         $window.Dispatcher.BeginInvoke([System.Windows.Threading.DispatcherPriority]::ApplicationIdle, [Action]{ try { Start-CamOnLaunch } catch { Write-WidgetLog ('camera start: ' + $_.Exception.Message) } }) | Out-Null
+        # v4.3.10: TOTALS button summary from the cache, then refresh this month's charge history in the background
+        $window.Dispatcher.BeginInvoke([System.Windows.Threading.DispatcherPriority]::ApplicationIdle, [Action]{ try { Update-TotBtnSum; [void](Start-TotLoad) } catch { Write-WidgetLog ('totals start: ' + $_.Exception.Message) } }) | Out-Null
     }
     if (-not $SelfTest -and -not [bool]$script:ReadAllowed) {
         # First run after the update: show the notice; nothing is fetched from Tessie until it is accepted.
@@ -6973,6 +7435,7 @@ $snapTimer.Start()
 
 $window.Add_Closed({
     try { Stop-CamAll } catch {}
+    try { Stop-TotLoad } catch {}
     try { $script:UpdRetryTimer.Stop(); if ($script:PwTimer) { $script:PwTimer.Stop() }; if ('TdPowerWatch' -as [type]) { [TdPowerWatch]::Stop() } } catch {}
     try { $timer.Stop(); $script:LiveTimer.Stop(); $snapTimer.Stop(); $script:CtlTimer.Stop(); $script:TempTimer.Stop(); $script:SeatTimer.Stop(); $script:AnnTimer.Stop(); $script:WheelTimer.Stop(); $script:WToastTimer.Stop(); $script:FlashTimer.Stop() } catch {}
     try { $script:Mutex.ReleaseMutex() } catch {}

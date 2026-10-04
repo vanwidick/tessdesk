@@ -5,7 +5,7 @@
   var CFG = window.TD_CONFIG || {};
   var VARIANT = CFG.variant || 'main';
   var P = CFG.storagePrefix || 'td:';
-  var VERSION = 'v4.3.9';
+  var VERSION = 'v4.3.10';
   var VERSION_DATE = 'Oct 3, 2026';
   var TZ = 'America/Chicago';
   var DEFAULT_API = 'https://api.tessie.com';
@@ -109,7 +109,8 @@
     var added = c.energy_added != null ? +c.energy_added : null;
     return { src: 'tessie', start: +c.started_at, end: +c.ended_at, added: added, used: c.energy_used,
              socStart: c.starting_battery, socEnd: c.ending_battery, segs: [[+c.started_at, +c.ended_at, added]],
-             home: c.saved_location || c.location || null, fast: !!(c.is_supercharger || c.is_fast_charger || (c.max_charger_power > 25)) };
+             home: c.saved_location || c.location || null, fast: !!(c.is_supercharger || c.is_fast_charger || (c.max_charger_power > 25)),
+             paid: (c.is_supercharger || c.is_fast_charger || (c.max_charger_power > 25)) && c.cost > 0 ? +c.cost : null };
   }
   // Same as desktop v4: a completed Tessie charge uses Tessie's measured wall kWh (energy_used) when present;
   // otherwise (and for the live charge) wall kWh = kWh added / efficiency.
@@ -314,7 +315,15 @@
       return { cost: cost, kwh: k };
     }
     var night = total(w0, w1);
-    var d7 = total(t - 7 * 86400, t + 1), d30 = total(t - 30 * 86400, t + 1);
+    // v4.3.10 shared rule (same as the desktop): whole charges that STARTED in the period; a Supercharger counts what Tessie says was paid.
+    // (Before, the phone counted only the minutes inside the 7 / 30 days and the desktop counted whole charges, so a charge that
+    // crossed the cut-off made the two differ by a few cents.)
+    function rolling(from) {
+      var cost = 0, k = 0, n = 0;
+      sessions.forEach(function (s) { if (s.start < from) return; cost += s.paid > 0 ? s.paid : sessionCost(cfg, s).cost; k += (s.added || 0); n++; });
+      return { cost: cost, kwh: k, n: n };
+    }
+    var d7 = rolling(t - 7 * 86400), d30 = rolling(t - 30 * 86400);
 
     // progress
     var soc = cs.battery_level, limit = cs.charge_limit_soc;
@@ -501,7 +510,7 @@
     // v4.2: money rows right under the hero, compact
     var nightSub = v.nightLabel === 'Tonight' ? 'since ' + clock(v.nightStart) : dayLabel(v.nightStart) + ', 11 PM \u2013 11 AM';
     h += '<div class="card rows compact">' +
-      row(v.nightLabel, nightSub, v.night, true) + sessionsBlock(cfg, v.win) + row('Last 7 days', null, v.d7) + row('Last 30 days', null, v.d30) + '</div>';
+      row(v.nightLabel, nightSub, v.night, true) + sessionsBlock(cfg, v.win) + row('Last 7 days', null, v.d7) + row('Last 30 days', null, v.d30) + totBtn() + '</div>';
 
     // battery: big % + range, 0-100% bar (ball = now, tick = where this charge started), draggable LIMIT handle
     var a = v.socStart, b = ctlVal('limit', v.limit), s = v.soc;
@@ -1224,7 +1233,7 @@
     on('cTdn', function () { onTemp(-1); }); on('cTup', function () { onTemp(1); });
     on('bRemind', openReminder); on('bRemSetup', openRemSetup); on('btnLayout', function () { setLayout(layoutMode() === 'compact' ? 'full' : 'compact'); });
     on('cChgStart', onChgStart); on('cChgStop', onChgStop); on('cHeat', onHeat); on('cDefrost', onDefrost); on('cCop', onCop); on('sWheel', onWheel);
-    on('btnCam', function () { camSetOn(!camOn()); }); camMount();
+    on('btnCam', function () { camSetOn(!camOn()); }); camMount(); on('btnTot', totOpen);
     on('btnAlexa', function () { setAlexa(!alexaOn()); }); on('btnSched', function () { screen = 'settings'; render(); var e = document.getElementById('apps'); if (e) e.scrollIntoView(); });
     Array.prototype.forEach.call(document.querySelectorAll('[data-seat]'), function (g) { g.onclick = function () { if (!g.classList.contains('dis')) onSeat(g.getAttribute('data-seat')); }; });
     bindVSlider(); bindAmps();
@@ -2100,6 +2109,176 @@
   window.TessDesk439 = { cam: function () { return { on: camOn(), n: cam.n, idx: cam.idx, have: camHave(), frames: camHave().map(function (k) { return k + ':' + cam.frames[k].length; }), tab: cam.tab, fps: camFps(),
     busy: cam.job ? { done: cam.job.done, total: cam.job.total } : null, saving: cam.save ? { done: cam.save.done, total: cam.save.total } : null, fs: !!cam.fs, fsLayout: cam.fsLayout, last: cam.last || null, msg: cam.msg, label: cam.label, log: cam.log }; },
     useFiles: camUseFiles, stop: camStop, capture: camCapture, openFs: camOpenFs, closeFs: camCloseFs, setOn: camSetOn };
+
+  // ---------- v4.3.10: TOTALS pop-up (running totals for this week / month / year + month by month) ----------
+  // SHARED TOTALS RULE (the desktop uses the exact same rule, so both show the same numbers):
+  //  * Charges come from Tessie's charge history, one month at a time, cached on this phone (localStorage 'totals').
+  //    The charge in progress is added from the live tracker until Tessie lists it.
+  //  * Home = saved location '3515 W 41st Pl'. Home cost = wall kWh (energy_used, else kWh added / efficiency) spread
+  //    evenly over the charging minutes, each minute at its all-in PSO rate (energy + FCA; 6.2323 c/kWh 11 PM to 6 AM).
+  //  * Away: a Supercharger / fast charge uses the amount Tessie reports (what was paid); other away charges are priced
+  //    like home (estimate). Listed separately and included in the grand total.
+  //  * A charge belongs to the night it started in (11 PM to 11 AM = the date the night began). Weeks run Monday to Sunday.
+  //  * Nights = different home charging nights. Avg c/kWh = home cost / home wall kWh.
+  //  * Last 7 / 30 days: every charge that STARTED in the last 7 / 30 days, counted whole, home + away (paid).
+  var TOT_HOME = '3515 W 41st Pl';
+  var tot = { months: load('totals', {}), job: null, open: {}, status: '', el: null, rowsKey: '', rows: [], view: null, log: [] };
+  function totBusy() { return !!tot.job; }
+  function dkey(y, mo, d) { var t = new Date(Date.UTC(y, mo - 1, d)); return t.getUTCFullYear() + '-' + ('0' + (t.getUTCMonth() + 1)).slice(-2) + '-' + ('0' + t.getUTCDate()).slice(-2); }
+  function totNight(sec) { var c = ct(sec), sh = 23; return inHours(c.h, sh, 11) && c.h < sh ? dkey(c.y, c.mo, c.d - 1) : dkey(c.y, c.mo, c.d); }
+  function totMonthKeys(t) { var c = ct(t), out = []; for (var m = 1; m <= c.mo; m++) out.push(c.y + '-' + ('0' + m).slice(-2)); return out; }
+  function totRange(key) { var y = +key.slice(0, 4), m = +key.slice(5, 7); return [ctEpoch(y, m, 1, 0), m === 12 ? ctEpoch(y + 1, 1, 1, 0) : ctEpoch(y, m + 1, 1, 0)]; }
+  function totHomeLoc(loc) { return !!loc && String(loc).trim().toLowerCase().indexOf(TOT_HOME.toLowerCase()) === 0; }
+  function totLoad(all) {
+    var cfg = getCfg(); if (totBusy() || !cfg || !consentOk()) return false;
+    var t = nowSec(), need = [];
+    totMonthKeys(t).forEach(function (k) {
+      var r = totRange(k), c = tot.months[k], go = !!all || !c;
+      if (!go && t < r[1]) go = (t - c.at) > 600;                 // this month: again after 10 min
+      if (!go && t >= r[1] && c.at < r[1] + 2 * 86400) go = true; // a closed month: once more 2 days after it ended
+      if (go) need.push({ key: k, from: r[0], to: Math.min(r[1], t) });
+    });
+    if (!need.length) return false;
+    var job = tot.job = { done: 0, total: need.length, cancel: false, ok: 0, bad: [], t0: Date.now(), all: !!all };
+    totPaint();
+    var i = 0;
+    (function next() {
+      if (tot.stopAt && job.done >= tot.stopAt) { tot.stopAt = 0; job.cancel = true; }
+      if (job.cancel || i >= need.length) return finish();
+      var it = need[i++];
+      api('/' + cfg.vin + '/charges?from=' + it.from + '&to=' + it.to + '&distance_format=mi&format=json').then(function (r) {
+        var rows = ((r && r.results) || []).filter(function (c) { return c && c.started_at && c.ended_at; }).map(function (c) {
+          return { id: c.id, s: +c.started_at, e: +c.ended_at, add: c.energy_added, used: c.energy_used, cost: c.cost, sc: !!c.is_supercharger, fc: !!c.is_fast_charger, kw: c.max_charger_power, loc: c.saved_location || c.location || '' };
+        });
+        tot.months[it.key] = { at: nowSec(), rows: rows }; job.ok++;
+      }, function () { job.bad.push(it.key); }).then(function () { job.done++; totPaint(); next(); });
+    })();
+    function finish() {
+      tot.job = null; tot.rowsKey = '';
+      if (job.ok) { tot.loadedAt = nowSec(); try { save('totals', tot.months); save('totalsAt', tot.loadedAt); } catch (e) {} }
+      tot.status = job.cancel ? 'Stopped at ' + job.ok + ' / ' + job.total + ' months, showing what is saved' : job.bad.length ? 'Could not load ' + job.bad.length + ' month(s), showing what is saved' : '';
+      tot.log.push({ ev: job.cancel ? 'stopped' : 'loaded', ok: job.ok, total: job.total, bad: job.bad, ms: Date.now() - job.t0 });
+      totPaint(); var b = document.getElementById('totSum'); if (b) b.textContent = totBtnSum();
+    }
+    return true;
+  }
+  tot.loadedAt = load('totalsAt', 0);
+  function totRows(cfg) {
+    var t = nowSec(), lv = null; try { lv = liveSession(); } catch (e) {}
+    var charging = !!(cache.state && cache.state.charge_state && cache.state.charge_state.charging_state === 'Charging');
+    var live = lv && lv.segs && lv.segs.length && charging && !lv.done ? lv : null;
+    var key = tot.loadedAt + '|' + Object.keys(tot.months).length + '|' + (live ? live.start + ':' + live.added : '-');
+    if (key === tot.rowsKey) return tot.rows;
+    var seen = {}, rows = [];
+    Object.keys(tot.months).sort().forEach(function (k) {
+      (tot.months[k].rows || []).forEach(function (c) {
+        var id = c.id != null ? String(c.id) : String(c.s); if (seen[id]) return; seen[id] = 1;
+        if (c.s > t) return;
+        var add = +(c.add || 0), used = +(c.used || 0), wall = used > 0 ? used : add / cfg.eff;
+        var fast = !!(c.sc || c.fc || (c.kw > 25)), home = totHomeLoc(c.loc) && !fast;
+        var paid = !home && fast && c.cost > 0 ? +c.cost : null;
+        rows.push({ s: c.s, e: c.e, add: add, wall: wall, cost: paid != null ? paid : priceSpan(cfg.rates, c.s, c.e, wall).cost, home: home, fast: fast, paid: paid != null, day: totNight(c.s), loc: c.loc, live: false });
+      });
+    });
+    if (live && !rows.some(function (r) { return r.s < live.end + 300 && live.start < r.e + 300; })) {
+      var sc = sessionCost(cfg, live);
+      rows.push({ s: live.start, e: live.end, add: live.added || 0, wall: sc.wall, cost: sc.cost, home: !live.fast, fast: !!live.fast, paid: false, day: totNight(live.start), loc: 'live', live: true });
+    }
+    rows.sort(function (a, b) { return a.s - b.s; });
+    tot.rowsKey = key; tot.rows = rows; return rows;
+  }
+  function totAgg(rows) {
+    var hk = 0, hc = 0, hw = 0, n = {}, an = 0, ak = 0, ac = 0;
+    rows.forEach(function (r) { if (r.home) { hk += r.add; hc += r.cost; hw += r.wall; n[r.day] = 1; } else { an++; ak += r.add; ac += r.cost; } });
+    var r2 = function (x) { return Math.round(x * 100) / 100; }, r1 = function (x) { return Math.round(x * 10) / 10; };
+    return { kwh: r1(hk), cost: r2(hc), nights: Object.keys(n).length, cpk: hw > 0 ? r1(100 * hc / hw) : null, awayN: an, awayKwh: r1(ak), awayCost: r2(ac), grand: r2(hc + ac) };
+  }
+  function totView() {
+    var cfg = getCfg(); if (!cfg) return null;
+    var rows = totRows(cfg), t = nowSec(), c = ct(t), today = dkey(c.y, c.mo, c.d);
+    var dow = new Date(Date.UTC(c.y, c.mo - 1, c.d)).getUTCDay(), wk0 = dkey(c.y, c.mo, c.d - (dow + 6) % 7), wk1 = dkey(c.y, c.mo, c.d - (dow + 6) % 7 + 6);
+    var mo0 = dkey(c.y, c.mo, 1), yr0 = dkey(c.y, 1, 1);
+    var inR = function (a, z) { return rows.filter(function (r) { return r.day >= a && r.day <= z; }); };
+    var months = [];
+    for (var m = 1; m <= c.mo; m++) {
+      var k = c.y + '-' + ('0' + m).slice(-2), mr = rows.filter(function (r) { return r.day.slice(0, 7) === k; });
+      months.push({ key: k, m: m, current: m === c.mo, agg: totAgg(mr), rows: mr, cached: !!tot.months[k] });
+    }
+    return { y: c.y, mo: c.mo, today: today, weekStart: wk0, weekEnd: wk1, week: totAgg(inR(wk0, today)), month: totAgg(inR(mo0, today)), year: totAgg(inR(yr0, today)), months: months, count: rows.length };
+  }
+  var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  function totFmtDay(k, wd) { var p = k.split('-'), d = new Date(Date.UTC(+p[0], +p[1] - 1, +p[2])); return (wd ? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getUTCDay()] + ' ' : '') + MONTHS[+p[1] - 1].slice(0, 3) + ' ' + (+p[2]); }
+  function totKwh(v) { return v >= 1000 ? Math.round(v).toLocaleString('en-US') + ' kWh' : (Math.round(v * 10) / 10).toFixed(1) + ' kWh'; }
+  function totCents(v) { return v == null ? '--' : v.toFixed(1) + '\u00a2'; }
+  function totBtnSum() { var v = Object.keys(tot.months).length ? totView() : null; return v ? MONTHS[v.mo - 1].slice(0, 3) + ' ' + money(v.month.grand) + ' \u00b7 ' + v.y + ' ' + money(v.year.grand) : ''; }
+  function totBtn() {
+    return '<button class="tot-btn" id="btnTot" type="button" title="Charging totals: this week, this month, this year"><i>$</i><b>TOTALS</b><span>week \u00b7 month \u00b7 year</span><em id="totSum">' + esc(totBtnSum()) + '</em><s>\u203a</s></button>';
+  }
+  function totPeriod(lbl, sub, a) {
+    return '<div class="tot-p"><div class="k">' + lbl + '</div><div class="s">' + esc(sub) + '</div><div class="v">' + money(a.cost) + '</div>' +
+      '<div class="m">' + totKwh(a.kwh) + '</div><div class="m">' + a.nights + ' night' + (a.nights === 1 ? '' : 's') + '</div><div class="m">avg ' + totCents(a.cpk) + '/kWh</div>' +
+      (a.awayN ? '<div class="aw">+ ' + money(a.awayCost) + ' away</div><div class="gt">Total ' + money(a.grand) + '</div>' : '') + '</div>';
+  }
+  function totNights(rows) {
+    var by = {}, h = '';
+    rows.forEach(function (r) { if (!r.home) return; var g = by[r.day] = by[r.day] || { n: 0, k: 0, c: 0, live: false }; g.n++; g.k += r.add; g.c += r.cost; if (r.live) g.live = true; });
+    Object.keys(by).sort().forEach(function (d) { var g = by[d]; h += '<div class="tn"><span>' + totFmtDay(d, true) + (g.n > 1 ? ' \u00b7 ' + g.n + ' charges' : '') + (g.live ? ' \u00b7 live' : '') + '</span><em>' + totKwh(g.k) + '</em><b>' + money(g.c) + '</b></div>'; });
+    rows.filter(function (r) { return !r.home; }).forEach(function (r) {
+      h += '<div class="tn aw"><span>' + totFmtDay(totNight(r.s), true) + ' \u00b7 ' + (r.fast ? 'Supercharger' : 'Away') + ' \u00b7 ' + esc(String(r.loc || '').split(',')[0].slice(0, 22)) + '</span><em>' + totKwh(r.add) + '</em><b>' + money(r.cost) + (r.paid ? ' paid' : ' est.') + '</b></div>';
+    });
+    return '<div class="tnl">' + (h || '<div class="tn"><span>No charges this month</span></div>') + '</div>';
+  }
+  function totStatus() {
+    if (tot.job) return '<span class="busy">Loading charge history ' + tot.job.done + ' / ' + tot.job.total + ' months</span><button type="button" class="tot-stop" data-tot="stop">Stop</button>';
+    return '<span' + (tot.status ? ' class="busy"' : '') + '>' + esc(tot.status || (tot.loadedAt ? 'Updated ' + dayLabel(tot.loadedAt) + ' ' + clock(tot.loadedAt) + ' \u00b7 ' + (tot.view ? tot.view.count : 0) + ' charges from Tessie' : 'Not loaded yet')) + '</span>';
+  }
+  function totPaint() {
+    if (!tot.el) return;
+    var st = tot.el.querySelector('.tot-st');
+    var v = tot.view = totView(); if (!v) return;
+    var h = '<div class="tot-box" role="dialog" aria-label="Charging totals"><div class="tot-h"><b>Charging totals</b><button type="button" class="tot-rf" data-tot="refresh"' + (tot.job ? ' disabled' : '') + '>\u21bb Refresh</button><button type="button" class="tot-x" data-tot="close" aria-label="Close">\u2715</button></div>' +
+      '<div class="tot-st">' + totStatus() + '</div><div class="tot-sc">' +
+      '<div class="tot-ps">' + totPeriod('THIS WEEK', totFmtDay(v.weekStart) + ' to ' + totFmtDay(v.weekEnd), v.week) + totPeriod('THIS MONTH', MONTHS[v.mo - 1] + ' so far', v.month) + totPeriod('THIS YEAR', v.y + ' so far', v.year) + '</div>' +
+      '<div class="tot-note">Home at ' + esc(TOT_HOME) + ' \u00b7 what you paid at the all-in PSO rate</div>' +
+      '<div class="tot-mh"><b>MONTH BY MONTH</b><span>kWh</span><span>Cost</span><span>Nights</span><i></i></div>';
+    v.months.slice().reverse().forEach(function (m) {
+      var a = m.agg, empty = a.kwh <= 0 && !a.awayN, open = !!tot.open[m.key];
+      h += '<button type="button" class="tot-m' + (m.current ? ' cur' : '') + (empty ? ' empty' : '') + '" data-month="' + m.key + '"' + (empty ? ' disabled' : '') + '><b>' + MONTHS[m.m - 1] + (m.current ? ' so far' : '') + '</b>' +
+        (empty ? '<span class="na">' + (m.cached ? 'no charges' : 'not loaded') + '</span>' : '<span>' + totKwh(a.kwh) + '</span><span class="c">' + money(a.grand) + '</span><span>' + a.nights + '</span><i>' + (open ? '\u25b4' : '\u25be') + '</i>') + '</button>';
+      if (open && !empty) h += (a.awayN ? '<div class="tot-aw">Home ' + money(a.cost) + ' + away ' + money(a.awayCost) + ' (' + a.awayN + ')</div>' : '') + totNights(m.rows);
+    });
+    var y = v.year;
+    h += '<div class="tot-yr">' + v.y + ' total: ' + totKwh(y.kwh) + ' at home, ' + money(y.cost) + (y.awayN ? ' + ' + money(y.awayCost) + ' away = ' + money(y.grand) : '') + '</div>' +
+      '<div class="tot-rule">Home = ' + esc(TOT_HOME) + '. Home cost is priced by the minute at the all-in PSO rate (energy + fuel charge): 6.23\u00a2/kWh from 11 PM to 6 AM, the day rate at other hours. Supercharger and away charges use the amount Tessie reports as paid. A charge counts on the night it started (weeks run Monday to Sunday). The desktop app uses the same rule.</div></div>' +
+      '<div class="foot tot-foot"><div class="dbv">DESIGN BY <span>VAN</span></div><div class="ver">' + VERSION + ' \u00b7 ' + VERSION_DATE + '</div></div></div>';
+    var sc = tot.el.querySelector('.tot-sc'), top = sc ? sc.scrollTop : 0;
+    tot.el.innerHTML = h;
+    var sc2 = tot.el.querySelector('.tot-sc'); if (sc2) sc2.scrollTop = top;
+  }
+  function totOpen() {
+    var t0 = performance.now();
+    if (!tot.el) {
+      tot.el = document.createElement('div'); tot.el.className = 'tot-pop'; tot.el.id = 'totPop';
+      tot.el.addEventListener('click', function (e) {
+        if (e.target === tot.el) return totClose();
+        var b = e.target.closest ? e.target.closest('button') : null; if (!b) return;
+        var a = b.getAttribute('data-tot'), m = b.getAttribute('data-month');
+        if (m) { tot.open[m] = !tot.open[m]; totPaint(); }
+        else if (a === 'close') totClose();
+        else if (a === 'stop') { if (tot.job) tot.job.cancel = true; }
+        else if (a === 'refresh') { tot.status = ''; totLoad(true); }
+      });
+    }
+    document.body.appendChild(tot.el); document.body.classList.add('tot-open');
+    totPaint(); tot.openMs = Math.round(performance.now() - t0);
+    document.addEventListener('keydown', totKey);
+    totLoad(false);
+  }
+  function totKey(e) { if (e.key === 'Escape') totClose(); }
+  function totClose() { if (tot.job) tot.job.cancel = true; document.removeEventListener('keydown', totKey); if (tot.el && tot.el.parentNode) tot.el.parentNode.removeChild(tot.el); document.body.classList.remove('tot-open'); }
+  window.TessDesk4310 = { view: function () { return totView(); }, open: totOpen, close: totClose, load: totLoad, busy: function () { return tot.job ? { done: tot.job.done, total: tot.job.total } : null; },
+    status: function () { return tot.status; }, log: function () { return tot.log; }, openMs: function () { return tot.openMs; }, isOpen: function () { return !!(tot.el && tot.el.parentNode); },
+    clear: function () { tot.months = {}; tot.loadedAt = 0; tot.rowsKey = ''; save('totals', {}); save('totalsAt', 0); }, stopAfter: function (n) { tot.stopAt = n; } };
 
   window.TessDesk437 = { share: function () { return shareLog; }, open: showShare };
   window.TessDesk435 = { sessions: function () { var c = getCfg(); var v = c && compute(c); return v ? windowSessions(c, v.win) : null; } };
