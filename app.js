@@ -5,7 +5,7 @@
   var CFG = window.TD_CONFIG || {};
   var VARIANT = CFG.variant || 'main';
   var P = CFG.storagePrefix || 'td:';
-  var VERSION = 'v4.3.13';
+  var VERSION = 'v4.3.14';
   var VERSION_DATE = 'Oct 4, 2026';
   var TZ = 'America/Chicago';
   var DEFAULT_API = 'https://api.tessie.com';
@@ -238,7 +238,7 @@
       var pd = !needDrives ? null : api('/' + cfg.vin + '/drives?from=' + (t - 30 * 86400) + '&to=' + t + '&distance_format=mi&format=json&limit=10')
         .then(function (r) { cache.drives = (r && r.results) || []; cache.drivesAt = t; drivesErr = null; }, function (e) { drivesErr = String(e.message || e); cache.drivesAt = t - CHARGES_EVERY_S + 300; });
       if (!needCharges) return pd;
-      return api('/' + cfg.vin + '/charges?from=' + (t - 31 * 86400) + '&to=' + t + '&distance_format=mi&format=json')
+      return api('/' + cfg.vin + '/charges?from=' + (t - 61 * 86400) + '&to=' + t + '&distance_format=mi&format=json')
         .then(function (r) { cache.charges = (r && r.results) || []; cache.chargesAt = t; return pd; });
     }).then(function () {
       lastErr = null; trackLive(cfg, cache.state); save('cache', cache);
@@ -323,7 +323,7 @@
       sessions.forEach(function (s) { if (s.start < from) return; cost += s.paid > 0 ? s.paid : sessionCost(cfg, s).cost; k += (s.added || 0); n++; });
       return { cost: cost, kwh: k, n: n };
     }
-    var d7 = rolling(t - 7 * 86400), d30 = rolling(t - 30 * 86400);
+    var d7 = rolling(t - 7 * 86400), d14 = rolling(t - 14 * 86400), d30 = rolling(t - 30 * 86400), d60 = rolling(t - 60 * 86400);
 
     // progress
     var soc = cs.battery_level, limit = cs.charge_limit_soc;
@@ -357,7 +357,7 @@
     return {
       charging: charging, state: st, cs: cs, hero: hero, heroCost: hc, win: agg,
       kw: charging ? chargerKw(cs) : null, toFull: charging ? fmtMins(cs.minutes_to_full_charge) : null,
-      night: night, nightLabel: label, nightStart: w0, d7: d7, d30: d30,
+      night: night, nightLabel: label, nightStart: w0, d7: d7, d14: d14, d30: d30, d60: d60,
       soc: soc, limit: limit, socStart: socStart, range: range, rangeKind: rangeKind, car: car,
       tires: { fl: tire('fl', recF), fr: tire('fr', recF), rl: tire('rl', recR), rr: tire('rr', recR), recF: recF, recR: recR, asOf: vs.timestamp ? Math.floor(vs.timestamp / 1000) : (cs.timestamp ? Math.floor(cs.timestamp / 1000) : null) },
       updated: cs.timestamp ? Math.floor(cs.timestamp / 1000) : cache.stateAt, asleep: st.state && st.state !== 'online', carState: st.state
@@ -502,10 +502,10 @@
       if (!v.charging) meta += '<br>' + esc(dayLabel(hero.start)) + ' ' + clock(hero.start) + ' \u2192 ' + (sameDay(hero.start, hero.end) ? '' : esc(dayLabel(hero.end)) + ' ') + clock(hero.end);
     }
     h += '<div class="hero"><span class="badge' + (v.charging ? ' on' : '') + '">' + (v.charging ? '\u25cf CHARGING' : esc((v.cs.charging_state || 'IDLE').toUpperCase())) + '</span>' +
-      // v4.3.13: rolling 7 days (left) and 30 days (right) beside the big amount; money only, same numbers as the Last 7 / 30 days rows
-      '<div class="hero-row" id="heroRow">' + rollSide('7 DAYS', v.d7, 'l', 'roll7', 'Rolling last 7 days: home charging + Supercharger paid (same as the Last 7 days row)') +
+      // v4.3.14: rolling 7 over 14 days (left) and 30 over 60 days (right) beside the big amount; money only, same rule as the Last 7 / 30 days rows
+      '<div class="hero-row" id="heroRow">' + rollCol('l', 'rollL', ['7 DAYS', v.d7, 'roll7', 'Rolling last 7 days: home charging + Supercharger paid (same as the Last 7 days row)'], ['14 DAYS', v.d14, 'roll14', 'Rolling last 14 days: home charging + Supercharger paid']) +
       '<div class="money ' + col + '" id="heroMoney">' + (hc ? money(hc.cost) : '$--.--') + '<i class="bl"></i></div>' +
-      rollSide('30 DAYS', v.d30, 'r', 'roll30', 'Rolling last 30 days: home charging + Supercharger paid (same as the Last 30 days row)') + '</div>' +
+      rollCol('r', 'rollR', ['30 DAYS', v.d30, 'roll30', 'Rolling last 30 days: home charging + Supercharger paid (same as the Last 30 days row)'], ['60 DAYS', v.d60, 'roll60', 'Rolling last 60 days: home charging + Supercharger paid']) + '</div>' +
       '<div class="sub">' + (v.charging ? 'This charge' : 'Last charge') + (hero && hero.src === 'window' && hero.sessions > 1 ? ' \u00b7 ' + hero.sessions + ' sessions since ' + clock(hero.start) : '') + (rate ? ' \u00b7 ' + rate : '') + '</div>' +
       '<div class="meta">' + meta + '</div></div>';
     // v4.3: RATE STATUS (peak/day pill + Stop, off-peak pill, or a neutral line)
@@ -829,40 +829,63 @@
     var w = windowSessions(cfg, win); if (!w) return '';
     return '<div class="sess" id="sessList"><small>' + esc(w.header) + '</small>' + w.lines.map(function (l) { return '<div>' + esc(l) + '</div>'; }).join('') + '</div>';
   }
-  // ---------- v4.3.13: rolling 7 / 30 days $ beside the big amount ----------
-  function rollSide(cap, t, side, id, tip) {
-    return '<div class="roll ' + side + '" id="' + id + '" title="' + esc(tip) + '"><small>' + esc(cap) + '</small><b>' + (t ? money(t.cost) : '$--') + '<i class="bl"></i></b></div>';
+  // ---------- v4.3.14: rolling 7 / 14 days (left) and 30 / 60 days (right) $ beside the big amount ----------
+  // Money only. All four use rolling() (whole charges that STARTED in the period, Supercharger = paid), the same shared rule as the rows.
+  function rollItem(cap, t, id, tip) {
+    return '<div class="ri" id="' + id + '" title="' + esc(tip) + '"><small>' + esc(cap) + '<i class="bl"></i></small><b>' + (t ? money(t.cost) : '$--') + '<i class="bl"></i></b></div>';
   }
-  // Same font size on both sides; shrink both together only when one would not fit; then line the baselines up with the big amount.
+  function rollCol(side, id, a, b) {
+    return '<div class="roll ' + side + '" id="' + id + '">' + rollItem(a[0], a[1], a[2], a[3]) + rollItem(b[0], b[1], b[2], b[3]) + '</div>';
+  }
+  var inkCanvas = null;
+  function inkAsc(el, ch) {
+    var cs = getComputedStyle(el); inkCanvas = inkCanvas || document.createElement('canvas'); var x = inkCanvas.getContext('2d');
+    x.font = cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily; var m = x.measureText(ch);
+    return m.actualBoundingBoxAscent || parseFloat(cs.fontSize) * 0.7;
+  }
+  function blY(el) { return el.querySelector('.bl').getBoundingClientRect().bottom; }
+  // One font size for all four; shrink together only when one would not fit; then center each stack on the big amount's digits.
   function fitHeroRow() {
     var row = document.getElementById('heroRow'); if (!row) return;
-    var L = document.getElementById('roll7'), R = document.getElementById('roll30'), M = document.getElementById('heroMoney');
-    var bl = L.querySelector('b'), br = R.querySelector('b');
-    bl.style.fontSize = br.style.fontSize = ''; L.style.paddingBottom = R.style.paddingBottom = '0px';
-    var size = parseFloat(getComputedStyle(bl).fontSize), min = 11;
+    var L = document.getElementById('rollL'), R = document.getElementById('rollR'), M = document.getElementById('heroMoney');
+    var bs = Array.prototype.slice.call(row.querySelectorAll('.ri b'));
+    bs.forEach(function (b) { b.style.fontSize = ''; }); L.style.paddingTop = R.style.paddingTop = M.style.paddingTop = '0px';
+    var size = parseFloat(getComputedStyle(bs[0]).fontSize), min = 11;
     function tw(b) { var r = document.createRange(); r.selectNodeContents(b); return r.getBoundingClientRect().width; }
-    function over(s) { return tw(s.querySelector('b')) > s.getBoundingClientRect().width - 1; }
-    for (var i = 0; i < 30 && size > min && (over(L) || over(R)); i++) { size -= 0.5; bl.style.fontSize = br.style.fontSize = size + 'px'; }
+    function over() { return bs.some(function (b) { return tw(b) > b.parentNode.getBoundingClientRect().width - 1; }); }
+    for (var i = 0; i < 30 && size > min && over(); i++) { size -= 0.5; bs.forEach(function (b) { b.style.fontSize = size + 'px'; }); }
+    function mid(col) { var wz = document.querySelector('.wrap'), zz = (wz && parseFloat(wz.style.zoom)) || 1, it = col.querySelectorAll('.ri'), cap = it[0].querySelector('small'), low = it[1].querySelector('b'); return ((blY(cap) - inkAsc(cap, 'D') * zz) + blY(low)) / 2; }
+    // CSS zoom (compact) makes rects visual px while padding is layout px: divide by the zoom, and do two passes
+    var wr = document.querySelector('.wrap'), z = (wr && parseFloat(wr.style.zoom)) || 1, pad = 0;
     for (var k = 0; k < 2; k++) {
-      var mb = M.querySelector('.bl').getBoundingClientRect().bottom;
-      [L, R].forEach(function (s) { var d = s.querySelector('.bl').getBoundingClientRect().bottom - mb; s.style.paddingBottom = Math.max(0, (parseFloat(s.style.paddingBottom) || 0) + d) + 'px'; });
+      pad += (blY(M) - inkAsc(M, '0') * z / 2 - mid(L)) / z;
+      if (pad >= 0) { L.style.paddingTop = R.style.paddingTop = pad + 'px'; M.style.paddingTop = '0px'; } else { M.style.paddingTop = (-pad) + 'px'; L.style.paddingTop = R.style.paddingTop = '0px'; }
     }
   }
   window.addEventListener('resize', function () { try { fitHeroRow(); } catch (e) {} });
   try { document.fonts && document.fonts.ready.then(function () { try { fitHeroRow(); } catch (e) {} }); } catch (e) {}
-  window.TessDesk4313 = { fit: function () { fitHeroRow(); }, check: function () {
+  window.TessDesk4314 = { fit: function () { fitHeroRow(); }, check: function () {
     var row = document.getElementById('heroRow'); if (!row) return null;
-    var M = document.getElementById('heroMoney'), L = document.getElementById('roll7'), R = document.getElementById('roll30');
-    function rc(e) { var r = e.getBoundingClientRect(); return { x: Math.round(r.left * 10) / 10, w: Math.round(r.width * 10) / 10, right: Math.round(r.right * 10) / 10 }; }
-    function base(e) { return Math.round(e.querySelector('.bl').getBoundingClientRect().bottom * 100) / 100; }
+    var M = document.getElementById('heroMoney'), L = document.getElementById('rollL'), R = document.getElementById('rollR');
+    function rc(e) { var r = e.getBoundingClientRect(); return { x: Math.round(r.left * 10) / 10, y: Math.round(r.top * 10) / 10, w: Math.round(r.width * 10) / 10, right: Math.round(r.right * 10) / 10 }; }
     function twc(b) { var r = document.createRange(); r.selectNodeContents(b); return Math.round(r.getBoundingClientRect().width * 10) / 10; }
-    var rr = rc(row), mr = rc(M), lb = L.querySelector('b'), rb = R.querySelector('b'), lbr = rc(lb), rbr = rc(rb);
+    var vw = document.documentElement.clientWidth, rr = rc(row), mr = rc(M), hcx = mr.x + mr.w / 2, items = {};
+    ['7', '14', '30', '60'].forEach(function (n) {
+      var e = document.getElementById('roll' + n), b = e.querySelector('b'), br = rc(b), er = rc(e);
+      items['d' + n] = { cap: e.querySelector('small').innerText.trim(), text: b.innerText.trim(), size: getComputedStyle(b).fontSize, cx: Math.round((br.x + br.w / 2) * 10) / 10, y: br.y,
+        baseline: Math.round(blY(b) * 100) / 100, fits: twc(b) <= er.w + 0.5 && br.x >= 0 && br.right <= vw };
+    });
+    function mid(col) { var wz = document.querySelector('.wrap'), zz = (wz && parseFloat(wz.style.zoom)) || 1, it = col.querySelectorAll('.ri'), cap = it[0].querySelector('small'), low = it[1].querySelector('b'); return ((blY(cap) - inkAsc(cap, 'D') * zz) + blY(low)) / 2; }
+    var wz = document.querySelector('.wrap'), zz = (wz && parseFloat(wz.style.zoom)) || 1, heroMid = blY(M) - inkAsc(M, '0') * zz / 2, lm = mid(L), rm = mid(R);
     var rowsTxt = Array.prototype.map.call(document.querySelectorAll('.card.rows .row'), function (e) { return e.innerText.replace(/\n/g, ' | '); });
-    var vw = document.documentElement.clientWidth;
-    return { hero: M.innerText.trim(), left: lb.innerText.trim(), right: rb.innerText.trim(), leftCap: L.querySelector('small').innerText, rightCap: R.querySelector('small').innerText, rows: rowsTxt,
-      heroCenterOff: Math.round(((mr.x + mr.w / 2) - (rr.x + rr.w / 2)) * 100) / 100, sizes: { hero: getComputedStyle(M).fontSize, side: getComputedStyle(lb).fontSize, sideR: getComputedStyle(rb).fontSize },
-      centerDist: { left: Math.round(((mr.x + mr.w / 2) - (lbr.x + lbr.w / 2)) * 10) / 10, right: Math.round(((rbr.x + rbr.w / 2) - (mr.x + mr.w / 2)) * 10) / 10 },
-      baselines: { hero: base(M), left: base(L), right: base(R) }, noClip: { left: twc(lb) <= L.getBoundingClientRect().width && lbr.x >= 0, right: twc(rb) <= R.getBoundingClientRect().width && rbr.right <= vw }, gaps: { left: Math.round((mr.x - L.getBoundingClientRect().right) * 10) / 10, right: Math.round((R.getBoundingClientRect().left - mr.right) * 10) / 10 }, vw: vw,
+    var sizes = Object.keys(items).map(function (k) { return items[k].size; });
+    return { hero: M.innerText.trim(), items: items, rows: rowsTxt, heroSize: getComputedStyle(M).fontSize, allSame: sizes.every(function (s) { return s === sizes[0]; }),
+      heroDominant: parseFloat(getComputedStyle(M).fontSize) >= 2.4 * parseFloat(sizes[0]),
+      heroCenterOff: Math.round((hcx - (rr.x + rr.w / 2)) * 100) / 100,
+      symmetric: { left: Math.round((hcx - items.d7.cx) * 10) / 10, right: Math.round((items.d30.cx - hcx) * 10) / 10, rowsLevel: Math.abs(items.d7.baseline - items.d30.baseline) <= 0.5 && Math.abs(items.d14.baseline - items.d60.baseline) <= 0.5 },
+      under: { l: items.d14.y > items.d7.y && Math.abs(items.d14.cx - items.d7.cx) <= 0.6, r: items.d60.y > items.d30.y && Math.abs(items.d60.cx - items.d30.cx) <= 0.6 },
+      vcenter: { hero: Math.round(heroMid * 100) / 100, left: Math.round(lm * 100) / 100, right: Math.round(rm * 100) / 100, ok: Math.abs(heroMid - lm) <= 1 && Math.abs(heroMid - rm) <= 1 },
+      noClip: Object.keys(items).every(function (k) { return items[k].fits; }), vw: vw,
       sideText: L.innerText.replace(/\n/g, ' ') + ' | ' + R.innerText.replace(/\n/g, ' ') };
   } };
   function row(l, sub, t, hl) {
