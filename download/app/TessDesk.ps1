@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-# TessDesk v4.3.10 (TOTALS pop-up: week / month / year running totals; CAMERAS panel from saved Sentry / Dashcam clips; checks for updates on open / wake; compact-when-OFF via cb_compact_addon.ps1) - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
+# TessDesk v4.3.11 (Restore / Remember buttons styled like Paycheck Live; TOTALS pop-up: week / month / year running totals; CAMERAS panel from saved Sentry / Dashcam clips; checks for updates on open / wake; compact-when-OFF via cb_compact_addon.ps1) - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
 param(
     [string]$ConfigPath,
     [string]$Snapshot,    # optional: folder to write PNG snapshots of both themes
@@ -14,8 +14,8 @@ Add-Type -AssemblyName System.Xaml
 
 $ErrorActionPreference = 'Stop'
 $AppName    = 'TessDesk'
-$AppVersion = '4.3.10'
-$AppDate    = 'Oct 3, 2026'
+$AppVersion = '4.3.11'
+$AppDate    = 'Oct 4, 2026'
 
 $scriptDir  = Split-Path -Parent $MyInvocation.MyCommand.Path
 if (-not $ConfigPath) { $ConfigPath = Join-Path $scriptDir 'config.json' }
@@ -1930,18 +1930,18 @@ function Open-Url433 {
             <TextBlock x:Name="FooterSep" Text="  ·  " FontSize="9" Foreground="#FF6A6A6A"/>
             <TextBlock x:Name="FooterAbout" Text="About / Privacy" FontSize="9" Foreground="#FF6A6A6A"/>
           </StackPanel>
-          <!-- v4.3.5: KEEP / RESTORE (v4.3.6: labelled REMEMBER) this window's spot (same idea as Remember / Restore on Van's other windows) -->
+          <!-- v4.3.11: Restore / Remember look like Paycheck Live's (Segoe UI 9 SemiBold, #FF444444 pill, 4 px corners, 16 px high, hover #FF666666 + white text, Restore first) -->
           <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,5,0,0">
-            <Border x:Name="KeepBtn" CornerRadius="8" BorderBrush="#FF49DF93" BorderThickness="1.5" Background="#1A49DF93" Padding="9,1,9,2" Margin="0,0,5,0" Cursor="Hand"
-                    ToolTip="REMEMBER: save where TessDesk is now (position, size and screen). It opens here next time.">
-              <TextBlock x:Name="KeepTxt" Text="REMEMBER" FontSize="9.5" FontWeight="Bold" Foreground="#FFFFFFFF"/>
+            <Border x:Name="RestoreBtn" CornerRadius="4" Background="#FF444444" Padding="6,0,6,0" Height="16" Opacity="0.95" Cursor="Hand" VerticalAlignment="Center"
+                    ToolTip="Restore TessDesk to its saved size and place">
+              <TextBlock x:Name="RestoreTxt" Text="&#x27F2; Restore" FontFamily="Segoe UI" FontSize="9" FontWeight="SemiBold" Foreground="#FFDDDDDD" HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Border>
-            <Border x:Name="RestoreBtn" CornerRadius="8" BorderBrush="#FF49DF93" BorderThickness="1.5" Background="#1A49DF93" Padding="9,1,9,2" Cursor="Hand"
-                    ToolTip="RESTORE: move TessDesk back to its remembered spot (desk_window_layout.json, same as TIMECLOCK LIVE)">
-              <TextBlock x:Name="RestoreTxt" Text="RESTORE" FontSize="9.5" FontWeight="Bold" Foreground="#FFFFFFFF"/>
+            <Border x:Name="KeepBtn" CornerRadius="4" Background="#FF444444" Padding="6,0,6,0" Height="16" Opacity="0.95" Margin="3,0,0,0" Cursor="Hand" VerticalAlignment="Center"
+                    ToolTip="Remember TessDesk's current size and place (used by Restore and startup)">
+              <TextBlock x:Name="KeepTxt" Text="Remember" FontFamily="Segoe UI" FontSize="9" FontWeight="SemiBold" Foreground="#FFDDDDDD" HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Border>
             <!-- v4.3.7: SHARE the TessDesk links (Messenger, text, email, copy, send to phone); never a token, never sent automatically -->
-            <Border x:Name="ShareBtn" CornerRadius="8" BorderBrush="#FF49DF93" BorderThickness="1.5" Background="#1A49DF93" Padding="9,1,9,2" Margin="5,0,0,0" Cursor="Hand"
+            <Border x:Name="ShareBtn" CornerRadius="8" BorderBrush="#FF49DF93" BorderThickness="1.5" Background="#1A49DF93" Padding="9,1,9,2" Margin="5,0,0,0" Cursor="Hand" VerticalAlignment="Center"
                     ToolTip="SHARE: send the TessDesk phone / download link to someone (only the link, never your token)">
               <TextBlock x:Name="ShareTxt" Text="SHARE" FontSize="9.5" FontWeight="Bold" Foreground="#FFFFFFFF"/>
             </Border>
@@ -5034,6 +5034,18 @@ try {
     $window.Top  = [math]::Max($wa.Top, [math]::Min($top, $wa.Bottom - $winH))
 } catch { $window.Left = 40; $window.Top = 40 }
 
+# ---------------- v4.3.11: Restore / Remember look and feel like Paycheck Live's ----------------
+# Same pill as Paycheck Live (#FF444444, hover #FF666666 with white text), label reads restored / saved / failed for 1.4 s
+# (button disabled meanwhile) and its tooltip then shows what happened. The save / restore logic is unchanged (desk_window_layout.json TESSDESK entry).
+$DwLbl = @{ restore = ([string][char]0x27F2 + ' Restore'); remember = 'Remember' }
+$script:DwBrush = @{}
+function Get-DwBrush { param([string]$Hex) if (-not $script:DwBrush.ContainsKey($Hex)) { $b = [System.Windows.Media.BrushConverter]::new().ConvertFromString($Hex); $b.Freeze(); $script:DwBrush[$Hex] = $b }; return $script:DwBrush[$Hex] }
+function Set-DwHover { param($Btn, [bool]$On) $Btn.Background = Get-DwBrush $(if ($On) { '#FF666666' } else { '#FF444444' }); $Btn.Child.Foreground = Get-DwBrush $(if ($On) { '#FFFFFFFF' } else { '#FFDDDDDD' }) }
+foreach ($dwb in @($ui.RestoreBtn, $ui.KeepBtn)) {
+    $dwb.Add_MouseEnter({ param($s, $e) try { Set-DwHover $s $true } catch {} })
+    $dwb.Add_MouseLeave({ param($s, $e) try { Set-DwHover $s $false } catch {} })
+}
+function Set-DwTip { param($Btn, [string]$Act, $R, [string]$Err) try { $Btn.ToolTip = $(if ($null -ne $R) { $Act + ': ' + [int]$R.x + ',' + [int]$R.y + ' ' + [int]$R.w + 'x' + [int]$R.h + $(if ($Err) { ' (' + $Err + ')' } else { '' }) } elseif ($Err) { $Err } else { 'failed' }) } catch {} }
 # ---------------- v4.3.5: KEEP / RESTORE (window spot) ----------------
 try { Add-Type -AssemblyName System.Windows.Forms -ErrorAction Stop } catch {}
 if (-not ('TdWinRect' -as [type])) {
@@ -5113,14 +5125,16 @@ function Write-DeskTessDeskEntry {
 }
 function Set-SpotBtnFeedback {
     # like TIMECLOCK LIVE: the button reads 'saved' / 'restored' / 'failed' for 1.4 s
+    # v4.3.11: like Paycheck Live, the button is disabled while it shows the result
     param($Tb, [string]$Text, [string]$Orig)
     $Tb.Text = $Text
+    try { $Tb.Parent.IsEnabled = $false } catch {}
     $t = New-Object System.Windows.Threading.DispatcherTimer; $t.Interval = [TimeSpan]::FromMilliseconds(1400); $t.Tag = @($Tb, $Orig)
-    $t.Add_Tick({ param($sx, $ex) try { $sx.Stop(); $sx.Tag[0].Text = $sx.Tag[1] } catch {} })
+    $t.Add_Tick({ param($sx, $ex) try { $sx.Stop(); $sx.Tag[0].Text = $sx.Tag[1]; $sx.Tag[0].Parent.IsEnabled = $true; Set-DwHover $sx.Tag[0].Parent ([bool]$sx.Tag[0].Parent.IsMouseOver) } catch {} })
     $t.Start()
 }
 function Invoke-KeepSpot {
-    $fail = { param($why) Set-SpotBtnFeedback $ui.KeepTxt 'FAILED' 'REMEMBER'; Show-TdToast ('Not saved: ' + $why) $false; Write-WidgetLog ('REMEMBER: not saved (' + $why + ')'); $script:KeepLast = [ordered]@{ action = 'remember'; ok = $false; error = $why } }
+    $fail = { param($why) Set-SpotBtnFeedback $ui.KeepTxt 'failed' $DwLbl.remember; Set-DwTip $ui.KeepBtn 'remember' $null ($why + ' - not saved'); Show-TdToast ('Not saved: ' + $why) $false; Write-WidgetLog ('REMEMBER: not saved (' + $why + ')'); $script:KeepLast = [ordered]@{ action = 'remember'; ok = $false; error = $why } }
     if ($window.WindowState -eq [System.Windows.WindowState]::Minimized) { & $fail 'minimized'; return }
     if ($window.WindowState -eq [System.Windows.WindowState]::Maximized) { & $fail 'maximized'; return }
     $R = [ordered]@{ x = [int][math]::Round($window.Left); y = [int][math]::Round($window.Top); w = [int][math]::Round($window.ActualWidth); h = [int][math]::Round($window.ActualHeight) }
@@ -5134,23 +5148,23 @@ function Invoke-KeepSpot {
     $lf = $null; try { $lf = Write-DeskTessDeskEntry $R } catch { $lf = 'desk_window_layout.json not updated: ' + $_.Exception.Message; Write-WidgetLog $lf }
     $script:KeepLast = [ordered]@{ action = 'remember'; ok = $true; spot = $S; layoutFile = $lf; path = (Get-DeskLayoutPath) }
     Write-WidgetLog ('REMEMBER: spot saved ' + $R.x + ',' + $R.y + ' ' + $R.w + 'x' + $R.h + ' on ' + $S.monitor + ' (' + $lf + ')')
-    Set-SpotBtnFeedback $ui.KeepTxt 'SAVED' 'REMEMBER'
-    Show-TdToast 'Spot saved' $true
+    Set-SpotBtnFeedback $ui.KeepTxt 'saved' $DwLbl.remember
+    Set-DwTip $ui.KeepBtn 'remember' $R
 }
 function Invoke-RestoreSpot {
     $S = Get-DeskSaved
-    if ($null -ne $S -and -not (Test-SpotUsable $S)) { Set-SpotBtnFeedback $ui.RestoreTxt 'FAILED' 'RESTORE'; Show-TdToast 'The remembered spot is not on any screen right now' $false; return }
+    if ($null -ne $S -and -not (Test-SpotUsable $S)) { Set-SpotBtnFeedback $ui.RestoreTxt 'failed' $DwLbl.restore; Set-DwTip $ui.RestoreBtn 'restore' $null 'the remembered spot is not on any screen right now'; Show-TdToast 'The remembered spot is not on any screen right now' $false; return }
     if ($window.WindowState -ne [System.Windows.WindowState]::Normal) { $window.WindowState = [System.Windows.WindowState]::Normal }
     if ($null -eq $S) {
-        if ($null -eq $script:DWL_Default) { Set-SpotBtnFeedback $ui.RestoreTxt 'FAILED' 'RESTORE'; Show-TdToast 'No spot remembered yet: press REMEMBER first' $false; return }
+        if ($null -eq $script:DWL_Default) { Set-SpotBtnFeedback $ui.RestoreTxt 'failed' $DwLbl.restore; Set-DwTip $ui.RestoreBtn 'restore' $null 'no saved place'; Show-TdToast 'No spot remembered yet: press Remember first' $false; return }
         $window.Left = [double]$script:DWL_Default.left; $window.Top = [double]$script:DWL_Default.top   # nothing remembered: the startup place, size unchanged
         $from = 'startup place'
     } else { Set-TdSpot $S; $from = [string]$S.from }
     try { $window.UpdateLayout(); [void]$window.Activate() } catch {}
     $script:KeepLast = [ordered]@{ action = 'restore'; spot = $S; from = $from; at = [ordered]@{ left = $window.Left; top = $window.Top; width = $window.Width; height = $window.Height } }
     Write-WidgetLog ('RESTORE: moved to ' + [math]::Round($window.Left) + ',' + [math]::Round($window.Top) + ' (' + $from + ')')
-    Set-SpotBtnFeedback $ui.RestoreTxt 'RESTORED' 'RESTORE'
-    Show-TdToast $(if ($null -eq $S) { 'Back at the startup spot (nothing remembered yet)' } else { 'Back at the remembered spot' }) $true
+    Set-SpotBtnFeedback $ui.RestoreTxt 'restored' $DwLbl.restore
+    Set-DwTip $ui.RestoreBtn 'restore' ([ordered]@{ x = $window.Left; y = $window.Top; w = $window.ActualWidth; h = $window.ActualHeight })
 }
 # startup: remember the place TessDesk picked itself (RESTORE falls back to it), then open at the remembered spot
 $script:DWL_Default = [pscustomobject]@{ left = $window.Left; top = $window.Top }
@@ -7342,6 +7356,44 @@ function Start-SelfTest {
         $r.rows = [ordered]@{ d7 = $ui.D7Cost.Text + ' ' + $ui.D7Kwh.Text + ' ' + $ui.D7Cap.Text; d30 = $ui.D30Cost.Text + ' ' + $ui.D30Kwh.Text + ' ' + $ui.D30Cap.Text }
         $ui.RowsCard.BringIntoView(); $window.UpdateLayout(); & $script:Shot4310 'totals-button'
         $script:TotFixtureDir = $null
+    }
+    # ---- v4.3.11: Restore / Remember match Paycheck Live (look, order, hover, feedback) ----
+    $script:Shot4311 = { param($n) $f = 'tessdesk-v4311-' + $n + '.png'; Save-RootPng (Join-Path $script:SelfDir $f); $script:SelfRec.shots += $f }
+    $script:DwProps = { param($b) [ordered]@{ text = $b.Child.Text; font = [string]$b.Child.FontFamily; size = $b.Child.FontSize; weight = [string]$b.Child.FontWeight; fg = [string]$b.Child.Foreground; bg = [string]$b.Background
+        corner = [string]$b.CornerRadius; padding = [string]$b.Padding; height = $b.Height; opacity = $b.Opacity; margin = [string]$b.Margin; borderThickness = [string]$b.BorderThickness; enabled = $b.IsEnabled; tip = [string]$b.ToolTip; width = [math]::Round($b.ActualWidth, 1) } }
+    & $add 'v4.3.11 Restore / Remember: Paycheck Live look and order' @() {
+        $script:SelfRec.v4311 = [ordered]@{ appVersion = $AppVersion; footer = $ui.FooterVersion.Text }
+        $r = $script:SelfRec.v4311; $row = $ui.RestoreBtn.Parent
+        $r.order = @($row.Children | ForEach-Object { [string]$_.Name })
+        $r.restore = & $script:DwProps $ui.RestoreBtn; $r.remember = & $script:DwProps $ui.KeepBtn
+        $r.shareStill = ([string]$ui.ShareBtn.Visibility)
+        $ui.FooterText.BringIntoView(); $window.UpdateLayout(); & $script:Shot4311 'buttons'
+    }
+    & $add 'v4.3.11 hover: #FF666666 with white text, back to #FF444444' @() {
+        $r = $script:SelfRec.v4311; $mk = { param($ev) New-Object System.Windows.Input.MouseEventArgs([System.Windows.Input.Mouse]::PrimaryDevice, 0) -Property @{ RoutedEvent = $ev } }
+        $ui.RestoreBtn.RaiseEvent((& $mk ([System.Windows.UIElement]::MouseEnterEvent))); $window.UpdateLayout()
+        $r.hoverOn = [ordered]@{ bg = [string]$ui.RestoreBtn.Background; fg = [string]$ui.RestoreTxt.Foreground }
+        & $script:Shot4311 'hover'
+        $ui.RestoreBtn.RaiseEvent((& $mk ([System.Windows.UIElement]::MouseLeaveEvent))); $window.UpdateLayout()
+        $r.hoverOff = [ordered]@{ bg = [string]$ui.RestoreBtn.Background; fg = [string]$ui.RestoreTxt.Foreground }
+    }
+    & $add 'v4.3.11 Remember: label saved, disabled 1.4 s, tooltip shows the spot (test copy of the layout file)' @() {
+        $r = $script:SelfRec.v4311
+        Invoke-KeepSpot; $window.UpdateLayout()
+        $r.rememberClick = [ordered]@{ label = $ui.KeepTxt.Text; enabled = $ui.KeepBtn.IsEnabled; tip = [string]$ui.KeepBtn.ToolTip; toastVisible = [string]$ui.WToast.Visibility; layoutPath = (Get-DeskLayoutPath); realFileUntouched = ((Get-DeskLayoutPath) -ne $DeskLayoutPath) }
+        & $script:Shot4311 'saved'
+        $window.Left = $window.Left - 120
+        Invoke-RestoreSpot; $window.UpdateLayout()
+        $r.restoreClick = [ordered]@{ label = $ui.RestoreTxt.Text; enabled = $ui.RestoreBtn.IsEnabled; tip = [string]$ui.RestoreBtn.ToolTip; backAtKept = ([math]::Abs($window.Left - [double]$script:KeptSpot.left) -lt 1) }
+        & $script:Shot4311 'restored'
+    }
+    & $add 'v4.3.11 (wait for the 1.4 s label timer)' @() { }
+    & $add 'v4.3.11 (wait)' @() { }
+    & $add 'v4.3.11 (wait)' @() { }
+    & $add 'v4.3.11 (wait)' @() { }
+    & $add 'v4.3.11 labels back to Restore / Remember and enabled again' @() {
+        $r = $script:SelfRec.v4311
+        $r.after = [ordered]@{ restore = $ui.RestoreTxt.Text; remember = $ui.KeepTxt.Text; restoreEnabled = $ui.RestoreBtn.IsEnabled; rememberEnabled = $ui.KeepBtn.IsEnabled }
     }
     & $add 'live refresh status' @() { $script:SelfRec.live = (Get-LiveStatus); $script:SelfRec.liveBadge = $ui.UpdBadge.Text; $script:SelfRec.tiresHeader = [ordered]@{ hdr = $ui.TiresHdr.Text; rec = $ui.TiresRec.Text; asOf = $ui.TiresAsOf.Text } }
     & $add 'theme snapshots' @() { Save-Snapshots $script:SelfDir; $script:SelfRec.shots += @($script:LastSnapshot.files | ForEach-Object { Split-Path -Leaf $_ }) }
