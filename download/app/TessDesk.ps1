@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-# TessDesk v4.3.12 (Restore / Remember at the top right with fade-in, like Paycheck Live; TOTALS pop-up: week / month / year running totals; CAMERAS panel from saved Sentry / Dashcam clips; checks for updates on open / wake; compact-when-OFF via cb_compact_addon.ps1) - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
+# TessDesk v4.3.13 (rolling 7 days / 30 days $ beside the big amount; Restore / Remember at the top right with fade-in, like Paycheck Live; TOTALS pop-up: week / month / year running totals; CAMERAS panel from saved Sentry / Dashcam clips; checks for updates on open / wake; compact-when-OFF via cb_compact_addon.ps1) - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
 param(
     [string]$ConfigPath,
     [string]$Snapshot,    # optional: folder to write PNG snapshots of both themes
@@ -14,7 +14,7 @@ Add-Type -AssemblyName System.Xaml
 
 $ErrorActionPreference = 'Stop'
 $AppName    = 'TessDesk'
-$AppVersion = '4.3.12'
+$AppVersion = '4.3.13'
 $AppDate    = 'Oct 4, 2026'
 
 $scriptDir  = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -1427,7 +1427,41 @@ function Open-Url433 {
               <TextBlock x:Name="UpdateSub" Text="click to update and restart" FontSize="9" FontWeight="SemiBold" Foreground="#FF0B3A1C" HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"/>
             </StackPanel>
           </Border>
-          <TextBlock x:Name="HeroCost" Text="" Foreground="#FFFFFFFF" FontSize="48" FontWeight="Bold" HorizontalAlignment="Center"/>
+          <!-- v4.3.13: rolling 7 days (left) and 30 days (right) beside the big amount. Money only; same numbers as the Last 7 / 30 days rows. -->
+          <Grid x:Name="HeroRow" HorizontalAlignment="Stretch">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+            <Grid x:Name="HeroL" Grid.Column="0">
+              <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+              <StackPanel x:Name="Roll7" HorizontalAlignment="Center" VerticalAlignment="Bottom" Cursor="Arrow"
+                          ToolTip="Rolling last 7 days: home charging + Supercharger paid (same as the Last 7 days row)">
+                <TextBlock x:Name="Roll7Cap" Text="7 DAYS" FontSize="8.5" FontWeight="Bold" Foreground="#FF49DF93" Opacity="0.85" HorizontalAlignment="Center" Margin="0,0,0,1"/>
+                <TextBlock x:Name="Roll7Cost" Text="$--" FontSize="18" FontWeight="SemiBold" Foreground="#FFF2F2F2" HorizontalAlignment="Center" TextWrapping="NoWrap"/>
+              </StackPanel>
+              <Border x:Name="HeroDivL" Grid.Column="1" Width="1" Height="34" Margin="4,8,12,0" VerticalAlignment="Center">
+                <Border.Background>
+                  <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                    <GradientStop Color="#0049DF93" Offset="0"/><GradientStop Color="#7749DF93" Offset="0.5"/><GradientStop Color="#0049DF93" Offset="1"/>
+                  </LinearGradientBrush>
+                </Border.Background>
+              </Border>
+            </Grid>
+            <TextBlock x:Name="HeroCost" Grid.Column="1" Text="" Foreground="#FFFFFFFF" FontSize="48" FontWeight="Bold" HorizontalAlignment="Center"/>
+            <Grid x:Name="HeroR" Grid.Column="2">
+              <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+              <Border x:Name="HeroDivR" Grid.Column="0" Width="1" Height="34" Margin="12,8,4,0" VerticalAlignment="Center">
+                <Border.Background>
+                  <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                    <GradientStop Color="#0049DF93" Offset="0"/><GradientStop Color="#7749DF93" Offset="0.5"/><GradientStop Color="#0049DF93" Offset="1"/>
+                  </LinearGradientBrush>
+                </Border.Background>
+              </Border>
+              <StackPanel x:Name="Roll30" Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Bottom" Cursor="Arrow"
+                          ToolTip="Rolling last 30 days: home charging + Supercharger paid (same as the Last 30 days row)">
+                <TextBlock x:Name="Roll30Cap" Text="30 DAYS" FontSize="8.5" FontWeight="Bold" Foreground="#FF49DF93" Opacity="0.85" HorizontalAlignment="Center" Margin="0,0,0,1"/>
+                <TextBlock x:Name="Roll30Cost" Text="$--" FontSize="18" FontWeight="SemiBold" Foreground="#FFF2F2F2" HorizontalAlignment="Center" TextWrapping="NoWrap"/>
+              </StackPanel>
+            </Grid>
+          </Grid>
           <Viewbox StretchDirection="DownOnly" Stretch="Uniform" HorizontalAlignment="Center" Margin="0,-2,0,0">
             <TextBlock x:Name="HeroSub" Text="" Foreground="#FFE82127" FontSize="14" TextWrapping="NoWrap"/>
           </Viewbox>
@@ -2486,6 +2520,46 @@ function Render-Tires {
 
 function Get-TextOf { param($tb) return ((@($tb.Inlines | ForEach-Object { $_.Text }) -join '')) }
 
+# ---------------- v4.3.13: rolling 7 days / 30 days $ beside the big amount ----------------
+# Money only. The figures come from the same $v.d7 / $v.d30 objects (Get-PeriodTotal: whole charges that STARTED in the period,
+# home + Supercharger paid) and the same Format-Money as the Last 7 days / Last 30 days rows, so they always match.
+$script:RollBase = 18.0
+function Get-TbWidth { param($Tb, [string]$Text, [double]$Size)
+    $tf = New-Object System.Windows.Media.Typeface($Tb.FontFamily, $Tb.FontStyle, $Tb.FontWeight, $Tb.FontStretch)
+    $ft = New-Object System.Windows.Media.FormattedText($Text, [Globalization.CultureInfo]::CurrentCulture, [System.Windows.FlowDirection]::LeftToRight, $tf, $Size, [System.Windows.Media.Brushes]::White, 1.0)
+    return $ft
+}
+function Set-HeroRollFit {
+    # same font size on both sides (symmetric); shrink both together only if one would not fit; bottoms set so all three baselines line up
+    try {
+        $rowW = $ui.HeroRow.ActualWidth; if ($rowW -le 0) { $rowW = 330 }
+        $hf = Get-TbWidth $ui.HeroCost $ui.HeroCost.Text $ui.HeroCost.FontSize
+        $side = ($rowW - $hf.WidthIncludingTrailingWhitespace) / 2 - 17 - 4
+        $size = $script:RollBase
+        while ($size -gt 11) {
+            $w = [math]::Max((Get-TbWidth $ui.Roll7Cost $ui.Roll7Cost.Text $size).WidthIncludingTrailingWhitespace, (Get-TbWidth $ui.Roll30Cost $ui.Roll30Cost.Text $size).WidthIncludingTrailingWhitespace)
+            if ($w -le $side) { break }
+            $size -= 0.5
+        }
+        $ui.Roll7Cost.FontSize = $size; $ui.Roll30Cost.FontSize = $size
+        $sf = Get-TbWidth $ui.Roll7Cost $ui.Roll7Cost.Text $size
+        $drop = [math]::Max(0, ($hf.Height - $hf.Baseline) - ($sf.Height - $sf.Baseline))
+        $m = New-Object System.Windows.Thickness(0, 0, 0, $drop)
+        $ui.Roll7.Margin = $m; $ui.Roll30.Margin = $m
+    } catch { Write-WidgetLog ('hero roll fit: ' + $_.Exception.Message) }
+}
+function Render-HeroRoll {
+    param($v)
+    $ui.Roll7Cost.Text = $(if ($null -ne $v -and $null -ne $v.d7 -and $null -ne $v.d7.costUsdAllIn) { Format-Money $v.d7.costUsdAllIn } else { '$--' })
+    $ui.Roll30Cost.Text = $(if ($null -ne $v -and $null -ne $v.d30 -and $null -ne $v.d30.costUsdAllIn) { Format-Money $v.d30.costUsdAllIn } else { '$--' })
+    $ui.Roll7Cap.Text = Get-Spaced '7 DAYS'; $ui.Roll30Cap.Text = Get-Spaced '30 DAYS'
+    $g = T 'Green'; $tx = T 'Text'
+    foreach ($n in 'Roll7Cap', 'Roll30Cap') { $ui[$n].Foreground = $g }
+    foreach ($n in 'Roll7Cost', 'Roll30Cost') { $ui[$n].Foreground = $tx }
+    Set-HeroRollFit
+}
+try { $ui.HeroRow.Add_SizeChanged({ Set-HeroRollFit }) } catch {}
+
 function Render-View {
     $v = $script:View
     if ($null -eq $v) { return }
@@ -2541,6 +2615,7 @@ function Render-View {
         $ui.D30Cost.Text = Format-Money $v.d30.costUsdAllIn; $ui.D30Kwh.Text = Format-Kwh $v.d30.kwhAdded
         $ui.D30Cap.Text = $(if ($null -ne $v.d30.sessions) { ('{0} charges · {1}' -f $v.d30.sessions, $cap) } else { $cap })
     } else { $ui.D30Cost.Text = '$—'; $ui.D30Kwh.Text = '— kWh'; $ui.D30Cap.Text = '' }
+    Render-HeroRoll $v
     $ui.RateNote.Text = [string]$v.rateNote
     $ui.StatusNote.Text = [string]$v.statusNote
     Confirm-Fit
@@ -4857,7 +4932,7 @@ function Get-LayoutCheck {
     try {
         $m = Get-ContentNeed; $need = $m[0]; $h = $m[1]; $w = $m[2]
         $wide = @()
-        foreach ($n in 'HeroCost', 'KwhLabel', 'DateLabel', 'NightCost', 'D7Cost', 'D30Cost', 'FooterText', 'FooterVersion', 'LoggedIn',
+        foreach ($n in 'HeroCost', 'Roll7Cost', 'Roll30Cost', 'KwhLabel', 'DateLabel', 'NightCost', 'D7Cost', 'D30Cost', 'FooterText', 'FooterVersion', 'LoggedIn',
                        'PsiFL', 'PsiFR', 'PsiRL', 'PsiRR', 'BattState', 'TiresHdr', 'TiresRec', 'UpdBadge', 'NightCap', 'D7Cap', 'D30Cap', 'CtlHdr', 'SeatsHdr', 'AmpsHdr', 'TiresAsOf', 'SeatLvlFL', 'SeatLvlFR', 'SeatCapRR', 'AmpsNow') {
             $tb = $ui[$n]
             $tb.Measure([System.Windows.Size]::new([double]::PositiveInfinity, [double]::PositiveInfinity))
@@ -7467,6 +7542,61 @@ function Start-SelfTest {
         $r.remember = [ordered]@{ label = $ui.KeepTxt.Text; rowShown = $ui.DwRow.IsHitTestVisible; realFileUntouched = ((Get-DeskLayoutPath) -ne $DeskLayoutPath); tip = [string]$ui.KeepBtn.ToolTip }
     }
     & $add 'v4.3.12 (wait for the label)' @() { & $script:Shot4312 'saved' }
+    # ---- v4.3.13: rolling 7 days (left) / 30 days (right) $ beside the big amount ----
+    $script:Shot4313 = { param($n) $f = 'tessdesk-v4313-' + $n + '.png'; Save-RootPng (Join-Path $script:SelfDir $f); $script:SelfRec.shots += $f }
+    $script:RollRect = { param($el) try { $p = $el.TranslatePoint([System.Windows.Point]::new(0, 0), $ui.RootBorder); return [ordered]@{ x = [math]::Round($p.X, 1); y = [math]::Round($p.Y, 1); w = [math]::Round($el.ActualWidth, 1); h = [math]::Round($el.ActualHeight, 1) } } catch { return $null } }
+    $script:RollBaseY = { param($tb) $ft = Get-TbWidth $tb $tb.Text $tb.FontSize; $p = $tb.TranslatePoint([System.Windows.Point]::new(0, 0), $ui.RootBorder); return [math]::Round($p.Y + $ft.Baseline, 2) }
+    $script:RollCheck = {
+        $window.UpdateLayout()
+        $row = & $script:RollRect $ui.HeroRow; $h = & $script:RollRect $ui.HeroCost; $l = & $script:RollRect $ui.Roll7Cost; $r = & $script:RollRect $ui.Roll30Cost
+        $lc = & $script:RollRect $ui.HeroL; $rc = & $script:RollRect $ui.HeroR; $dl = & $script:RollRect $ui.HeroDivL; $dr = & $script:RollRect $ui.HeroDivR
+        $root = & $script:RollRect $ui.RootBorder
+        $hcx = $h.x + $h.w / 2; $rcx = $row.x + $row.w / 2
+        $lw = (Get-TbWidth $ui.Roll7Cost $ui.Roll7Cost.Text $ui.Roll7Cost.FontSize).WidthIncludingTrailingWhitespace
+        $rw = (Get-TbWidth $ui.Roll30Cost $ui.Roll30Cost.Text $ui.Roll30Cost.FontSize).WidthIncludingTrailingWhitespace
+        $bH = & $script:RollBaseY $ui.HeroCost; $bL = & $script:RollBaseY $ui.Roll7Cost; $bR = & $script:RollBaseY $ui.Roll30Cost
+        $sideText = ((@($ui.Roll7.Children) + @($ui.Roll30.Children)) | ForEach-Object { [string]$_.Text }) -join ' | '
+        return [ordered]@{
+            hero = $ui.HeroCost.Text; left = $ui.Roll7Cost.Text; right = $ui.Roll30Cost.Text; leftCap = ($ui.Roll7Cap.Text -replace [string][char]0x2009, ''); rightCap = ($ui.Roll30Cap.Text -replace [string][char]0x2009, '')
+            rowsD7 = $ui.D7Cost.Text; rowsD30 = $ui.D30Cost.Text; matchRows = (($ui.Roll7Cost.Text -eq $ui.D7Cost.Text) -and ($ui.Roll30Cost.Text -eq $ui.D30Cost.Text))
+            sizes = [ordered]@{ hero = $ui.HeroCost.FontSize; side = $ui.Roll7Cost.FontSize; sideSame = ($ui.Roll7Cost.FontSize -eq $ui.Roll30Cost.FontSize) }
+            heroCentered = ([math]::Abs($hcx - $rcx) -le 0.6); heroCenterOff = [math]::Round($hcx - $rcx, 2)
+            symmetric = [ordered]@{ leftGap = [math]::Round($h.x - ($dl.x + $dl.w), 1); rightGap = [math]::Round($dr.x - ($h.x + $h.w), 1); leftCenterDist = [math]::Round($hcx - ($l.x + $l.w / 2), 1); rightCenterDist = [math]::Round(($r.x + $r.w / 2) - $hcx, 1) }
+            baselines = [ordered]@{ hero = $bH; left = $bL; right = $bR; aligned = (([math]::Abs($bH - $bL) -le 0.75) -and ([math]::Abs($bH - $bR) -le 0.75)) }
+            noClip = [ordered]@{ leftFits = ($lw -le $lc.w - $dl.w - 16 + 0.5); rightFits = ($rw -le $rc.w - $dr.w - 16 + 0.5); leftInside = ($l.x -ge $root.x); rightInside = ($r.x + $r.w -le $root.x + $root.w); rowW = $row.w; windowW = $window.ActualWidth }
+            moneyOnly = ($sideText -notmatch 'kWh|night|charge|%|/') ; sideText = ($sideText -replace [string][char]0x2009, '')
+        }
+    }
+    & $add 'v4.3.13 rolling 7 days (left) / 30 days (right) beside the big amount: same numbers as the rows' @() {
+        $script:SelfRec.v4313 = [ordered]@{ appVersion = $AppVersion; footer = $ui.FooterVersion.Text }
+        $r = $script:SelfRec.v4313
+        Render-View; $ui.BodyScroll.ScrollToVerticalOffset(0); $window.UpdateLayout()
+        $nowE = Get-EpochNow
+        $r.direct = [ordered]@{ d7 = $(try { (Get-PeriodTotal $script:State $nowE 7).costUsdAllIn } catch { $null }); d30 = $(try { (Get-PeriodTotal $script:State $nowE 30).costUsdAllIn } catch { $null }) }
+        $r.real = (& $script:RollCheck)
+        $r.real.matchDirect = (($r.real.left -eq (Format-Money $r.direct.d7)) -and ($r.real.right -eq (Format-Money $r.direct.d30)))
+        $updVis = $ui.UpdateBtn.Visibility; $ui.UpdateBtn.Visibility = 'Collapsed'; $window.UpdateLayout()   # earlier update-test banner hidden for the picture only
+        $r.realNoBanner = (& $script:RollCheck)
+        & $script:Shot4313 'top'
+        $ui.UpdateBtn.Visibility = $updVis; $window.UpdateLayout()
+    }
+    & $add 'v4.3.13 big figures still fit (wide-value check, display only)' @() {
+        $r = $script:SelfRec.v4313
+        $keep = @($ui.HeroCost.Text, $ui.Roll7Cost.Text, $ui.Roll30Cost.Text)
+        $ui.HeroCost.Text = '$18.88'; $ui.Roll7Cost.Text = '$64.50'; $ui.Roll30Cost.Text = '$212.40'; Set-HeroRollFit
+        $updVis = $ui.UpdateBtn.Visibility; $ui.UpdateBtn.Visibility = 'Collapsed'
+        $r.wide = (& $script:RollCheck)
+        & $script:Shot4313 'wide'
+        $ui.UpdateBtn.Visibility = $updVis
+        $ui.HeroCost.Text = $keep[0]; $ui.Roll7Cost.Text = $keep[1]; $ui.Roll30Cost.Text = $keep[2]; Render-View; $window.UpdateLayout()
+        $r.restored = [ordered]@{ hero = $ui.HeroCost.Text; left = $ui.Roll7Cost.Text; right = $ui.Roll30Cost.Text; side = $ui.Roll7Cost.FontSize }
+    }
+    & $add 'v4.3.13 refresh: new data updates the rolling amounts with the rows' @() {
+        $r = $script:SelfRec.v4313
+        $before = @($ui.Roll7Cost.Text, $ui.Roll30Cost.Text)
+        Render-View; $window.UpdateLayout()
+        $r.afterRender = [ordered]@{ left = $ui.Roll7Cost.Text; right = $ui.Roll30Cost.Text; same = (($before[0] -eq $ui.Roll7Cost.Text) -and ($before[1] -eq $ui.Roll30Cost.Text)); matchRows = (($ui.Roll7Cost.Text -eq $ui.D7Cost.Text) -and ($ui.Roll30Cost.Text -eq $ui.D30Cost.Text)) }
+    }
     & $add 'live refresh status' @() { $script:SelfRec.live = (Get-LiveStatus); $script:SelfRec.liveBadge = $ui.UpdBadge.Text; $script:SelfRec.tiresHeader = [ordered]@{ hdr = $ui.TiresHdr.Text; rec = $ui.TiresRec.Text; asOf = $ui.TiresAsOf.Text } }
     & $add 'theme snapshots' @() { Save-Snapshots $script:SelfDir; $script:SelfRec.shots += @($script:LastSnapshot.files | ForEach-Object { Split-Path -Leaf $_ }) }
     Start-SelfTimer
