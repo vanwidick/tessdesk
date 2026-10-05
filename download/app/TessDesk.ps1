@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-# TessDesk v4.3.14 (rolling 7 / 14 days and 30 / 60 days $ beside the big amount; Restore / Remember at the top right with fade-in, like Paycheck Live; TOTALS pop-up: week / month / year running totals; CAMERAS panel from saved Sentry / Dashcam clips; checks for updates on open / wake; compact-when-OFF via cb_compact_addon.ps1) - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
+# TessDesk v4.3.15 (LEAVING SOON: climate on, close windows in 3 min, unlock 3 min later; rolling 7 / 14 days and 30 / 60 days $ beside the big amount; Restore / Remember at the top right with fade-in, like Paycheck Live; TOTALS pop-up: week / month / year running totals; CAMERAS panel from saved Sentry / Dashcam clips; checks for updates on open / wake; compact-when-OFF via cb_compact_addon.ps1) - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
 param(
     [string]$ConfigPath,
     [string]$Snapshot,    # optional: folder to write PNG snapshots of both themes
@@ -14,7 +14,7 @@ Add-Type -AssemblyName System.Xaml
 
 $ErrorActionPreference = 'Stop'
 $AppName    = 'TessDesk'
-$AppVersion = '4.3.14'
+$AppVersion = '4.3.15'
 $AppDate    = 'Oct 4, 2026'
 
 $scriptDir  = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -1694,10 +1694,28 @@ function Open-Url433 {
 
         <Border x:Name="CtlCard" CornerRadius="10" Background="#FF111111" BorderBrush="#FF222222" BorderThickness="1" Padding="12,6,12,8" Margin="0,0,0,6">
           <StackPanel>
-            <DockPanel LastChildFill="True" Margin="0,0,0,6">
-              <TextBlock x:Name="CtlMode" DockPanel.Dock="Right" Text="" FontSize="10" FontWeight="Bold" Foreground="#FFFFB020" VerticalAlignment="Center"/>
-              <TextBlock x:Name="CtlHdr" Text="TESLA CONTROLS" FontSize="12.5" FontWeight="Bold" Foreground="#FF9A9A9A"/>
-            </DockPanel>
+            <Grid x:Name="CtlHdrRow" Margin="0,0,0,6">
+              <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+              <TextBlock x:Name="CtlHdr" Grid.ColumnSpan="3" Text="TESLA CONTROLS" FontSize="12.5" FontWeight="Bold" Foreground="#FF9A9A9A" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+              <!-- v4.3.15: LEAVING SOON, same line as the heading, over the Flash Lights column (right edge = Flash Lights box right edge) -->
+              <Button x:Name="LeaveBtn" Grid.Column="1" Style="{StaticResource CtlBtn}" Height="17" Margin="3,0,3,0" Padding="5,0,5,0" HorizontalAlignment="Right" VerticalAlignment="Center"
+                      ToolTip="Leaving Soon: climate on now, close the windows 3 minutes later, unlock 3 minutes after that. Asks first; each step is announced on Alexa; Stop cancels.">
+                <TextBlock x:Name="LeaveBtnTxt" Text="LEAVING SOON" FontSize="9" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+              </Button>
+              <TextBlock x:Name="CtlMode" Grid.Column="2" Text="" FontSize="10" FontWeight="Bold" Foreground="#FFFFB020" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+            </Grid>
+            <Border x:Name="LeaveRow" Visibility="Collapsed" CornerRadius="6" BorderThickness="1" BorderBrush="#FF49DF93" Background="#1A49DF93" Padding="7,3,4,3" Margin="0,0,0,6">
+              <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <StackPanel VerticalAlignment="Center">
+                  <TextBlock x:Name="LeaveStep" Text="" FontSize="10.5" FontWeight="Bold" TextWrapping="Wrap" Foreground="#FFFFFFFF"/>
+                  <TextBlock x:Name="LeaveNote" Text="" FontSize="9" TextWrapping="Wrap" Foreground="#FF9A9A9A" Visibility="Collapsed"/>
+                </StackPanel>
+                <Button x:Name="LeaveStopBtn" Grid.Column="1" Style="{StaticResource CtlBtn}" Height="20" Margin="6,0,0,0" Padding="9,0,9,0" VerticalAlignment="Center" ToolTip="Stop Leaving Soon: the remaining steps are cancelled">
+                  <TextBlock x:Name="LeaveStopTxt" Text="STOP" FontSize="9.5" FontWeight="Bold" HorizontalAlignment="Center"/>
+                </Button>
+              </Grid>
+            </Border>
             <UniformGrid Columns="3" Rows="1">
               <Button x:Name="LockBtn" Style="{StaticResource CtlBtn}" Height="56" Margin="0,0,3,0" Padding="4,4,4,4" ToolTip="Lock / unlock your Tesla">
                 <Grid>
@@ -3212,6 +3230,7 @@ function Render-Controls {
     $ui.TempCap.Text = $(if ($null -ne $script:CtlPendingTempC) { 'NEW SET TEMP' } else { 'SET TEMP' })
     if ($ui.CtlResult.Text -ne $script:CtlResultText) { $ui.CtlResult.Text = $script:CtlResultText }
     try { Render-Flash } catch {}
+    try { Render-Leave } catch {}
 }
 
 # ---------------- v4.3.2: FLASH LIGHTS (1-20 flashes, asks first, Stop ends early) ----------------
@@ -3307,6 +3326,188 @@ function Render-Flash {
 }
 $script:FlashTimer.Add_Tick({ try { Step-FlashLights } catch { Write-WidgetLog ('flash: ' + $_.Exception.Message) } })
 $ui.FlashBtn.Add_Click({ try { Invoke-FlashLights } catch { Write-WidgetLog ('flash: ' + $_.Exception.Message) } })
+
+# ---------------- v4.3.15: LEAVING SOON (climate on, close windows in 3 min, unlock 3 min later) ----------------
+# Tessie command names checked against developer.tessie.com (Oct 4, 2026): POST /{vin}/command/start_climate, /close_windows, /unlock
+# (each answers { result: true|false }). Every step is checked; a failure stops the rest (the car is never unlocked after a failed step),
+# is shown in red and announced. Announcements go to the Voice Monkey living-room device (config announce.device, default echo-living-room-4hqjv).
+# Dry run (controls.dryRun / -SelfTest): nothing is sent to the car or Voice Monkey; leavingSoon.dryRunWaitSec shortens the 3 minute waits (self-test 4 s).
+$LeaveDefaultDevice = 'echo-living-room-4hqjv'
+$LeaveSteps = @(
+    [pscustomobject]@{ cmd = 'start_climate'; doing = 'turning on climate'; next = 'climate on'; done = 'climate on'; spoken = 'Leaving Soon: climate is now on.'; what = 'turn on climate' }
+    [pscustomobject]@{ cmd = 'close_windows'; doing = 'closing windows'; next = 'closing windows'; done = 'windows closed'; spoken = 'Leaving Soon: the windows are now closed.'; what = 'close the windows' }
+    [pscustomobject]@{ cmd = 'unlock'; doing = 'unlocking'; next = 'unlocking'; done = 'unlocked'; spoken = 'Leaving Soon: your Tesla is now unlocked.'; what = 'unlock your Tesla' }
+)
+function Get-LeaveCfg { $l = $null; if ($null -ne $script:Cfg) { try { $l = $script:Cfg.leavingSoon } catch {} }; return $l }
+function Get-LeaveWaitSec {
+    $l = Get-LeaveCfg
+    if ($CTL_DRYRUN -or $SelfTest) {
+        $v = 0; if ($null -ne $l -and $null -ne $l.dryRunWaitSec) { $v = [int]$l.dryRunWaitSec } elseif ($SelfTest) { $v = 4 }
+        if ($v -ge 1) { return [math]::Min(180, $v) }
+    }
+    return 180
+}
+function Get-LeaveDevice {
+    $a = Get-AnnCfg; $d = ''
+    if ($null -ne $a) { try { if ($a.leavingSoonDevice) { $d = [string]$a.leavingSoonDevice } elseif ($a.device) { $d = [string]$a.device } } catch {} }
+    if (-not $d) { $d = $LeaveDefaultDevice }
+    return $d
+}
+function Format-LeaveSpan { param([int]$Sec) if ($Sec -ge 60 -and $Sec % 60 -eq 0) { $m = $Sec / 60; return ('{0} minute{1}' -f $m, $(if ($m -eq 1) { '' } else { 's' })) }; return ('{0} second{1}' -f $Sec, $(if ($Sec -eq 1) { '' } else { 's' })) }
+$script:Leave = [ordered]@{ running = $false; phase = 'idle'; step = 0; total = 3; dueAt = $null; job = $null; waitSec = 180; result = ''; kind = 'idle'; notes = @(); log = @(); ann = @(); startedAt = $null; endedAt = $null; hideAt = $null }
+$script:LeaveFailCmd = $null   # self-test only: this command comes back failed (dry run)
+$script:LeaveTimer = New-Object System.Windows.Threading.DispatcherTimer
+$script:LeaveTimer.Interval = [TimeSpan]::FromMilliseconds(250)
+$script:LeaveTimer.Add_Tick({ try { Step-Leave } catch { Write-WidgetLog ('leaving soon tick: ' + $_.Exception.Message) } })
+
+function Add-LeaveNote { param([string]$Text) $script:Leave.notes = @(@($script:Leave.notes) + $Text) | Select-Object -Last 3 }
+function Send-LeaveAnnouncement {
+    param([string]$Text, [string]$Tag)
+    $L = $script:Leave
+    $rec = $null
+    try {
+        $done = [scriptblock]::Create('param($r) Complete-LeaveAnn ''' + $Tag + ''' $r')
+        $rec = Send-Announcement $Text 'leaving' -Force -OnDone $done
+    } catch { Add-LeaveNote ('Alexa: could not announce (' + $_.Exception.Message + ')'); Render-Leave; return }
+    $L.ann = @(@($L.ann) + [ordered]@{ tag = $Tag; text = $Text; devices = @($rec.devices); dryRun = [bool]$rec.dryRun; result = [string]$rec.result }) | Select-Object -Last 20
+    if ([string]$rec.result -like 'skipped*') { Add-LeaveNote ('Alexa ' + $rec.result); Render-Leave }
+}
+function Complete-LeaveAnn {
+    param([string]$Tag, $Res)
+    if ($null -eq $Res -or [bool]$Res.ok -or [bool]$Res.dryRun) { return }
+    $why = $(if ($Res.code) { 'HTTP ' + $Res.code } elseif ($Res.skipped) { [string]$Res.skipped } elseif ($Res.error) { [string]$Res.error } else { 'no response' })
+    Add-LeaveNote ('Alexa announcement failed (' + $Tag + '): ' + $why)
+    Write-WidgetLog ('leaving soon announce failed ' + $Tag + ': ' + $why)
+    Render-Leave
+}
+function Start-LeaveSoon {
+    $L = $script:Leave
+    if ($L.running) { return }
+    if (-not (Test-CmdOn)) { Set-CtlResult 'err' 'Leaving Soon: commands are off (About / Privacy or config.json)'; return }
+    $w = Get-LeaveWaitSec; $span = Format-LeaveSpan $w
+    $sub = ('Climate turns on now, the windows close {0} later, then the car unlocks {0} after that. Each step is announced on Alexa. Stop cancels the rest.' -f $span)
+    if (-not (Confirm-Ctl 'Are you sure? Start Leaving Soon?' $sub 'Start' 'Cancel')) { Set-CtlResult 'idle' 'Leaving Soon cancelled'; return }
+    $L.running = $true; $L.phase = 'send'; $L.step = 0; $L.waitSec = $w; $L.dueAt = Get-Date; $L.job = $null; $L.result = ''; $L.kind = 'busy'; $L.notes = @(); $L.log = @(); $L.ann = @()
+    $L.startedAt = Get-Date; $L.endedAt = $null; $L.hideAt = $null
+    Write-WidgetLog ('leaving soon start wait=' + $w + 's' + $(if ($CTL_DRYRUN) { ' [DRY RUN]' } else { '' }))
+    Send-LeaveAnnouncement ('Leaving Soon is starting. Climate is turning on now. The windows close in {0}, and the car unlocks {0} after that.' -f $span) 'start'
+    Set-Visible $ui.LeaveRow $true
+    $script:LeaveTimer.Start()
+    Step-Leave
+}
+function Start-LeaveCommand {
+    $L = $script:Leave; $s = $LeaveSteps[$L.step]
+    $token = $null; try { $token = Get-TessieToken } catch {}
+    if (-not (Test-CmdOn)) { Stop-LeaveFailed $s 'commands are off'; return }
+    if (-not $token -or -not $script:VIN) { Stop-LeaveFailed $s 'no Tessie token / VIN'; return }
+    $url = Get-CommandUrl $s.cmd @{}
+    $ps = [powershell]::Create()
+    if ($CTL_DRYRUN) {
+        if ($script:LeaveFailCmd -eq $s.cmd) { [void]$ps.AddScript({ param($u) Start-Sleep -Milliseconds 800; [pscustomobject]@{ ok = $false; code = 200; error = 'simulated failure (self-test)'; dryRun = $true } }).AddArgument($url) }
+        else { [void]$ps.AddScript($script:CmdDryRunBlock).AddArgument($url) }
+    } else { [void]$ps.AddScript($script:CmdSendBlock).AddArgument($url).AddArgument($token).AddArgument($CmdTimeoutSec); $script:NetCommandsSent++ }
+    $token = $null
+    $L.job = [pscustomobject]@{ ps = $ps; async = $ps.BeginInvoke(); cmd = $s.cmd; url = $url; started = Get-Date }
+    $L.phase = 'sending'
+    Write-WidgetLog ('leaving soon command ' + $s.cmd + $(if ($CTL_DRYRUN) { ' [DRY RUN]' } else { '' }))
+}
+function Complete-LeaveCommand {
+    $L = $script:Leave; $j = $L.job; $L.job = $null
+    $res = $null
+    try { $out = $j.ps.EndInvoke($j.async); if ($null -ne $out -and $out.Count -gt 0) { $res = $out[$out.Count - 1] } } catch { $res = [pscustomobject]@{ ok = $false; error = $_.Exception.Message } }
+    try { $j.ps.Dispose() } catch {}
+    $ok = ($null -ne $res -and [bool]$res.ok)
+    $why = ''
+    if (-not $ok) {
+        $why = 'no response'; if ($null -ne $res) { $why = [string]$res.error; if (-not $why -and $null -ne $res.code) { $why = 'HTTP ' + $res.code }; if (-not $why) { $why = 'car did not confirm' } }
+        if ($null -ne $res -and ($res.code -eq 401 -or $res.code -eq 403)) { $why = 'token rejected (' + $res.code + ')' }
+        if ($why.Length -gt 90) { $why = $why.Substring(0, 90) + '…' }
+    }
+    $secs = [math]::Round(((Get-Date) - $j.started).TotalSeconds, 1)
+    $L.log = @(@($L.log) + [ordered]@{ at = (Get-LocalNow).ToString('s'); cmd = $j.cmd; ok = $ok; error = $why; seconds = $secs; dryRun = [bool]$CTL_DRYRUN; cancelled = (-not $L.running) })
+    $script:CtlLog = @(@($script:CtlLog) + [ordered]@{ at = (Get-LocalNow).ToString('s'); cmd = $j.cmd; query = @{}; url = $j.url; dryRun = [bool]$CTL_DRYRUN; ok = $ok; seconds = $secs; result = ('Leaving Soon ' + $j.cmd + ': ' + $(if ($ok) { 'ok' } else { 'failed: ' + $why })) }) | Select-Object -Last 12
+    try { Request-LiveSoon 4 } catch {}
+    $s = $LeaveSteps[$L.step]
+    if (-not $L.running) { return }   # stopped while this command was on its way: result logged, nothing more runs
+    if (-not $ok) { Stop-LeaveFailed $s $why; return }
+    switch ($s.cmd) { 'start_climate' { Set-CtlOverride 'climateOn' $true } 'close_windows' { Set-CtlOverride 'windowsOpen' $false } 'unlock' { Set-CtlOverride 'locked' $false } }
+    Send-LeaveAnnouncement $s.spoken $s.cmd
+    $L.step++
+    if ($L.step -ge $L.total) {
+        $L.running = $false; $L.phase = 'done'; $L.kind = 'ok'; $L.endedAt = Get-Date; $L.hideAt = (Get-Date).AddMinutes(2)
+        $L.result = ('Leaving Soon done · climate on, windows closed, unlocked · ' + (Format-Clock (Get-LocalNow)) + $(if ($CTL_DRYRUN) { ' (dry run, not sent)' } else { '' }))
+        Set-CtlResult 'ok' ('✓ ' + $L.result)
+        Write-WidgetLog 'leaving soon done'
+    } else {
+        $L.phase = 'wait'; $L.dueAt = (Get-Date).AddSeconds($L.waitSec)
+        Set-CtlResult 'ok' ('✓ Leaving Soon: ' + $s.done + $(if ($CTL_DRYRUN) { ' (dry run, not sent)' } else { '' }))
+    }
+    try { Render-Controls } catch {}
+}
+function Stop-LeaveFailed {
+    param($S, [string]$Why)
+    $L = $script:Leave
+    $skipped = @($LeaveSteps | Select-Object -Skip ($L.step + 1) | ForEach-Object { $_.done -replace '^climate on$', 'climate' -replace '^windows closed$', 'close windows' -replace '^unlocked$', 'unlock' })
+    $L.running = $false; $L.phase = 'failed'; $L.kind = 'err'; $L.endedAt = Get-Date; $L.hideAt = $null
+    $L.result = ('Step {0} of {1} failed: {2}: {3}{4}' -f ($L.step + 1), $L.total, $S.cmd, $Why, $(if ($skipped.Count -gt 0) { '. Skipped: ' + ($skipped -join ', ') } else { '' }))
+    Set-CtlResult 'err' ('✕ Leaving Soon ' + $S.cmd + ' failed: ' + $Why)
+    Write-WidgetLog ('leaving soon failed ' + $S.cmd + ': ' + $Why)
+    $reason = $(if ($Why -match 'token') { ' because the Tessie token was rejected' } elseif ($Why -match 'timed out|no response|did not confirm') { ' because the car did not respond' } else { '' })
+    Send-LeaveAnnouncement ('Leaving Soon stopped. TessDesk could not ' + $S.what + $reason + '.' + $(if ($skipped.Count -gt 0) { ' The remaining steps will not run.' } else { '' })) 'failed'
+    try { Render-Controls } catch {}
+}
+function Stop-LeaveSoon {
+    $L = $script:Leave
+    if (-not $L.running) { Set-Visible $ui.LeaveRow $false; $L.phase = 'idle'; $script:LeaveTimer.Stop(); return }
+    $doneTxt = @($LeaveSteps | Select-Object -First $L.step | ForEach-Object { $_.done })
+    $L.running = $false; $L.phase = 'cancelled'; $L.kind = 'idle'; $L.endedAt = Get-Date; $L.hideAt = (Get-Date).AddMinutes(1)
+    $L.result = ('Leaving Soon stopped · ' + $(if ($doneTxt.Count -gt 0) { ($doneTxt -join ', ') + ', ' } else { '' }) + 'the rest cancelled · ' + (Format-Clock (Get-LocalNow)))
+    if ($null -ne $L.job) { Add-LeaveNote ('The ' + $L.job.cmd + ' request was already sent; its result is still logged.') }
+    Set-CtlResult 'idle' $L.result
+    Write-WidgetLog ('leaving soon cancelled at step ' + ($L.step + 1))
+    Send-LeaveAnnouncement 'Leaving Soon is cancelled. The remaining steps will not run.' 'cancel'
+    Render-Leave
+}
+function Step-Leave {
+    $L = $script:Leave
+    if ($null -ne $L.job -and $L.job.async.IsCompleted) { Complete-LeaveCommand }
+    if ($L.running -and $null -eq $L.job -and ($L.phase -eq 'send' -or ($L.phase -eq 'wait' -and (Get-Date) -ge $L.dueAt))) { Start-LeaveCommand }
+    if (-not $L.running -and $null -eq $L.job) {
+        if ($null -ne $L.hideAt -and (Get-Date) -ge $L.hideAt) { Set-Visible $ui.LeaveRow $false; $L.hideAt = $null; $L.phase = 'idle' }
+        if ($ui.LeaveRow.Visibility -ne 'Visible') { $script:LeaveTimer.Stop() }
+    }
+    Render-Leave
+}
+function Get-LeaveStepText {
+    $L = $script:Leave
+    if (-not $L.running) { return $L.result }
+    $s = $LeaveSteps[[math]::Min($L.step, $L.total - 1)]
+    if ($L.phase -eq 'wait') {
+        $left = [math]::Max(0, [int][math]::Ceiling(($L.dueAt - (Get-Date)).TotalSeconds))
+        return ('Step {0} of {1} · {2} in {3}:{4:00}' -f ($L.step + 1), $L.total, $s.next, [math]::Floor($left / 60), ($left % 60))
+    }
+    return ('Step {0} of {1} · {2}…' -f ($L.step + 1), $L.total, $s.doing)
+}
+function Render-Leave {
+    $L = $script:Leave
+    $r = [System.Windows.CornerRadius]::new(5)
+    $ui.LeaveBtn.Tag = $r; $ui.LeaveStopBtn.Tag = $r
+    $ui.LeaveBtn.IsEnabled = ((Test-CmdOn) -and -not $L.running)
+    if ($L.running) { $ui.LeaveBtn.Background = T 'BtnOn'; $ui.LeaveBtn.BorderBrush = T 'Green'; $ui.LeaveBtnTxt.Foreground = T 'Text' }
+    else { $ui.LeaveBtn.Background = T 'BtnBg'; $ui.LeaveBtn.BorderBrush = T 'BtnBorder'; $ui.LeaveBtnTxt.Foreground = T 'Text' }
+    if ($ui.LeaveRow.Visibility -ne 'Visible') { return }
+    $ui.LeaveStep.Text = Get-LeaveStepText
+    $notes = @($L.notes); $ui.LeaveNote.Text = ($notes -join "`n"); Set-Visible $ui.LeaveNote ($notes.Count -gt 0)
+    $acc = $(if ($L.kind -eq 'err') { 'Red' } elseif ($L.kind -eq 'idle') { 'Amber' } else { 'Green' })
+    $ui.LeaveRow.BorderBrush = T $acc; $ui.LeaveRow.Background = T 'ResultBg'
+    $ui.LeaveStep.Foreground = $(if ($L.kind -eq 'err') { T 'Red' } else { T 'Text' })
+    $ui.LeaveNote.Foreground = $(if (@($notes | Where-Object { $_ -match 'fail|could not|skipped' }).Count -gt 0) { T 'Red' } else { T 'TextSoft' })
+    $ui.LeaveStopTxt.Text = $(if ($L.running) { 'STOP' } else { 'CLOSE' })
+    $ui.LeaveStopBtn.ToolTip = $(if ($L.running) { 'Stop Leaving Soon: the remaining steps are cancelled' } else { 'Hide this line' })
+    $ui.LeaveStopBtn.Background = $(if ($L.running) { T 'BtnBg' } else { T 'BtnBg' }); $ui.LeaveStopBtn.BorderBrush = $(if ($L.running) { T 'Red' } else { T 'BtnBorder' }); $ui.LeaveStopTxt.Foreground = T 'Text'
+}
+$ui.LeaveBtn.Add_Click({ try { Start-LeaveSoon } catch { Write-WidgetLog ('leaving soon: ' + $_.Exception.Message); Set-CtlResult 'err' ('Leaving Soon error: ' + $_.Exception.Message) } })
+$ui.LeaveStopBtn.Add_Click({ try { Stop-LeaveSoon } catch { Write-WidgetLog ('leaving soon stop: ' + $_.Exception.Message) } })
 $ui.FlashCount.Add_PreviewTextInput({ param($s, $e) if ($e.Text -notmatch '^[0-9]+$') { $e.Handled = $true } })
 $ui.FlashCount.Add_LostFocus({ try { $ui.FlashCount.Text = [string](Get-FlashCount) } catch {} })
 $ui.FlashPause.Text = $FLASH_PAUSE.ToString('0.0', $Inv); $ui.FlashCount.Text = [string]$FLASH_COUNT
@@ -4001,6 +4202,7 @@ function Get-AnnTargets {
     param([string]$Why = 'action')
     $dev = Get-VmDevice
     if ($Why -eq 'reminder') { return @(@($dev) | Where-Object { $_ }) }
+    if ($Why -eq 'leaving') { return @(Get-LeaveDevice) }   # v4.3.15: Leaving Soon = the living-room Echo
     $sel = Get-SpeakerSel; $list = @(Get-SpeakerList)
     if ($sel.all) { $t = @($list | ForEach-Object { $_.id }) } else { $t = @($sel.ids) }
     $t = @($t | Where-Object { $_ } | Select-Object -Unique)
@@ -6883,6 +7085,7 @@ try {
 
 # ---------------- -SelfTest (DRY RUN only: nothing is sent to the car) ----------------
 $script:SelfSteps = $null
+$script:LeaveWaitFor = $null; $script:LeaveWaitUntil = $null
 function Start-SelfTest {
     $dir = $Snapshot; if (-not $dir) { $dir = Join-Path $scriptDir 'shots' }
     if (-not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
@@ -7701,6 +7904,51 @@ function Start-SelfTest {
         $ui.HeroCost.Text = $keep[0]; Render-View; $window.UpdateLayout()
         $r.restored = [ordered]@{ hero = $ui.HeroCost.Text; d7 = $ui.Roll7Cost.Text; d14 = $ui.Roll14Cost.Text; d30 = $ui.Roll30Cost.Text; d60 = $ui.Roll60Cost.Text; side = $ui.Roll7Cost.FontSize; same = ($ui.Roll14Cost.Text -eq $keep[2] -and $ui.Roll60Cost.Text -eq $keep[4]) }
     }
+    # ---- v4.3.15: LEAVING SOON (dry run, fast waits) ----
+    $script:SelfRec.v4315 = [ordered]@{ waitSec = (Get-LeaveWaitSec); device = (Get-LeaveDevice); steps = @($LeaveSteps | ForEach-Object { $_.cmd }) }
+    $script:Shot4315 = { param($n) $f = 'tessdesk-v4315-' + $n + '.png'; Save-RootPng (Join-Path $script:SelfDir $f); $script:SelfRec.shots += $f }
+    $script:ElPng4315 = { param($el, $n)
+        $window.UpdateLayout(); $s = 2.0; $w = [int][math]::Ceiling($el.ActualWidth * $s); $h = [int][math]::Ceiling($el.ActualHeight * $s)
+        $bmp = New-Object System.Windows.Media.Imaging.RenderTargetBitmap($w, $h, (96 * $s), (96 * $s), [System.Windows.Media.PixelFormats]::Pbgra32)
+        $dv = New-Object System.Windows.Media.DrawingVisual; $dc = $dv.RenderOpen()
+        $dc.DrawRectangle((T 'CardBg'), $null, [System.Windows.Rect]::new(0, 0, $el.ActualWidth, $el.ActualHeight))
+        $dc.DrawRectangle((New-Object System.Windows.Media.VisualBrush($el)), $null, [System.Windows.Rect]::new(0, 0, $el.ActualWidth, $el.ActualHeight)); $dc.Close(); $bmp.Render($dv)
+        $enc = New-Object System.Windows.Media.Imaging.PngBitmapEncoder; $enc.Frames.Add([System.Windows.Media.Imaging.BitmapFrame]::Create($bmp))
+        $f = 'tessdesk-v4315-' + $n + '.png'; $fs = [IO.File]::Create((Join-Path $script:SelfDir $f)); try { $enc.Save($fs) } finally { $fs.Close() }; $script:SelfRec.shots += $f }
+    $script:Rect4315 = { param($el) $p = $el.TranslatePoint([System.Windows.Point]::new(0, 0), $ui.CtlCard); return [ordered]@{ x = [math]::Round($p.X, 1); y = [math]::Round($p.Y, 1); w = [math]::Round($el.ActualWidth, 1); h = [math]::Round($el.ActualHeight, 1) } }
+    $script:Wait4315 = { param($sb) $script:LeaveWaitFor = $sb; $script:LeaveWaitUntil = (Get-Date).AddSeconds(60) }
+    & $add 'v4.3.15 LEAVING SOON button: position (heading line, over Flash Lights) + snapshot' @() {
+        Render-Controls; $ui.CtlCard.BringIntoView(); $window.UpdateLayout()
+        $hd = & $script:Rect4315 $ui.CtlHdr; $bt = & $script:Rect4315 $ui.LeaveBtn; $fl = & $script:Rect4315 $ui.FlashBox; $md = & $script:Rect4315 $ui.CtlMode
+        $ft = Get-TbWidth $ui.CtlHdr $ui.CtlHdr.Text $ui.CtlHdr.FontSize; $hdTextR = $hd.x + $ft.WidthIncludingTrailingWhitespace
+        $hdTextMid = $hd.y + $ft.Baseline - (Get-TbCapH $ui.CtlHdr $ui.CtlHdr.FontSize) / 2
+        $btMid = $bt.y + $bt.h / 2
+        $script:SelfRec.v4315.position = [ordered]@{ heading = $hd; headingTextRight = [math]::Round($hdTextR, 1); button = $bt; flash = $fl; mode = $md
+            sameLine = ([math]::Abs($btMid - $hdTextMid) -le 1.5); midDiff = [math]::Round($btMid - $hdTextMid, 2)
+            noOverlapHeading = ($bt.x -ge $hdTextR + 4); gapToHeading = [math]::Round($bt.x - $hdTextR, 1)
+            overFlash = ($bt.x -ge $fl.x - 0.5 -and ($bt.x + $bt.w) -le ($fl.x + $fl.w + 0.5)); aboveFlash = (($bt.y + $bt.h) -le $fl.y)
+            text = $ui.LeaveBtnTxt.Text; textFits = ($ui.LeaveBtnTxt.ActualWidth -le $bt.w) }
+        & $script:Shot4315 'button'; & $script:ElPng4315 $ui.CtlCard 'button-area' }
+    & $add 'v4.3.15 LEAVING SOON: Are you sure? snapshot' @() { [void](Show-ConfirmOverlay 'Are you sure? Start Leaving Soon?' ('Climate turns on now, the windows close {0} later, then the car unlocks {0} after that. Each step is announced on Alexa. Stop cancels the rest.' -f (Format-LeaveSpan 180)) 'Start' 'Cancel' -NoWait); & $script:Shot4315 'confirm'; Close-ConfirmOverlay $false }
+    & $add 'v4.3.15 LEAVING SOON: answer NO (nothing sent)' @($false) { $c0 = @($script:CtlLog).Count; $a0 = @($script:AnnLog).Count; Start-LeaveSoon
+        $script:SelfRec.v4315.no = [ordered]@{ running = $script:Leave.running; commands = (@($script:CtlLog).Count - $c0); announcements = (@($script:AnnLog).Count - $a0); result = $script:CtlResultText } }
+    & $add 'v4.3.15 LEAVING SOON: answer YES (DRY RUN), run to the step 2 countdown' @($true) { $script:Leave0 = @($script:AnnLog).Count; Start-LeaveSoon; & $script:Wait4315 { $script:Leave.phase -eq 'wait' -and $script:Leave.step -eq 1 -and ($script:Leave.dueAt - (Get-Date)).TotalSeconds -le ($script:Leave.waitSec - 1) } }
+    & $add 'v4.3.15 LEAVING SOON: countdown snapshot + Stop button' @() { $window.UpdateLayout(); $script:SelfRec.v4315.countdown = [ordered]@{ text = $ui.LeaveStep.Text; stop = $ui.LeaveStopTxt.Text; rowVisible = ($ui.LeaveRow.Visibility -eq 'Visible'); buttonEnabled = $ui.LeaveBtn.IsEnabled }
+        & $script:Shot4315 'countdown'; & $script:ElPng4315 $ui.CtlCard 'countdown-area'; & $script:Wait4315 { -not $script:Leave.running -and $null -eq $script:Leave.job } }
+    & $add 'v4.3.15 LEAVING SOON: finished (3 of 3)' @() { $L = $script:Leave
+        $script:SelfRec.v4315.full = [ordered]@{ phase = $L.phase; result = $L.result; text = $ui.LeaveStep.Text; log = @($L.log); ann = @($L.ann); notes = @($L.notes); stop = $ui.LeaveStopTxt.Text
+            urls = @(@($script:CtlLog) | Select-Object -Last 3 | ForEach-Object { ([string]$_.url) -replace '^.*?/command/', '/command/' }) }
+        & $script:Shot4315 'done' }
+    & $add 'v4.3.15 LEAVING SOON: Stop during the step 2 countdown' @($true) { Stop-LeaveSoon; Start-LeaveSoon; & $script:Wait4315 { $script:Leave.phase -eq 'wait' -and $script:Leave.step -eq 1 } }
+    & $add 'v4.3.15 LEAVING SOON: press Stop' @() { $ui.LeaveStopBtn.RaiseEvent((New-Object System.Windows.RoutedEventArgs([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent))); $script:LeaveStopAt = Get-Date
+        & $script:Wait4315 { ((Get-Date) - $script:LeaveStopAt).TotalSeconds -ge ($script:Leave.waitSec + 2) } }
+    & $add 'v4.3.15 LEAVING SOON: stopped result (no more commands after Stop)' @() { $L = $script:Leave
+        $script:SelfRec.v4315.stop = [ordered]@{ phase = $L.phase; result = $L.result; text = $ui.LeaveStep.Text; log = @($L.log); ann = @($L.ann); running = $L.running }
+        & $script:Shot4315 'stopped' }
+    & $add 'v4.3.15 LEAVING SOON: failure (close_windows fails, unlock must not run)' @($true) { Stop-LeaveSoon; $script:LeaveFailCmd = 'close_windows'; Start-LeaveSoon; & $script:Wait4315 { -not $script:Leave.running -and $null -eq $script:Leave.job } }
+    & $add 'v4.3.15 LEAVING SOON: failure result' @() { $L = $script:Leave; $script:LeaveFailCmd = $null
+        $script:SelfRec.v4315.fail = [ordered]@{ phase = $L.phase; result = $L.result; text = $ui.LeaveStep.Text; ctlResult = $script:CtlResultText; log = @($L.log); ann = @($L.ann) }
+        & $script:Shot4315 'failed'; & $script:ElPng4315 $ui.CtlCard 'failed-area'; Stop-LeaveSoon }
     & $add 'live refresh status' @() { $script:SelfRec.live = (Get-LiveStatus); $script:SelfRec.liveBadge = $ui.UpdBadge.Text; $script:SelfRec.tiresHeader = [ordered]@{ hdr = $ui.TiresHdr.Text; rec = $ui.TiresRec.Text; asOf = $ui.TiresAsOf.Text } }
     & $add 'theme snapshots' @() { Save-Snapshots $script:SelfDir; $script:SelfRec.shots += @($script:LastSnapshot.files | ForEach-Object { Split-Path -Leaf $_ }) }
     Start-SelfTimer
@@ -7710,6 +7958,7 @@ function Start-SelfTimer {
     $script:SelfTimer.Interval = [TimeSpan]::FromMilliseconds(400)
     $script:SelfTimer.Add_Tick({
         try {
+            if ($null -ne $script:LeaveWaitFor) { if ((Get-Date) -gt $script:LeaveWaitUntil) { $script:LeaveWaitFor = $null; $script:SelfRec.steps += 'ERROR v4.3.15 leaving soon wait timed out' } elseif (-not [bool](& $script:LeaveWaitFor)) { return } else { $script:LeaveWaitFor = $null } }
             if ($null -ne $script:FlashWaitFor -and $script:FlashWaitFor -lt 99) { if ($script:Flash.running -and $script:Flash.done -lt $script:FlashWaitFor) { return } }
             elseif ($null -ne $script:UpdJob -or (Test-CamBusy) -or (Test-TotBusy) -or $script:CtlBusy -or $script:TempTimer.IsEnabled -or $script:SeatTimer.IsEnabled -or $script:WheelTimer.IsEnabled) { return }
             if ($null -ne $script:FlashWaitFor -and $script:FlashWaitFor -ge 99 -and $script:Flash.running) { return }
