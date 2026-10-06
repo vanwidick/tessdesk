@@ -31,9 +31,18 @@
   <p class="lead">Every TessDesk version (desktop widget and phone app), newest first.</p>
 
   <!-- Add each new version at the top: <section class="rel new"> ... -->
-  <section class="rel new" id="v4.3.15">
-    <h2>v4.3.15 <small>Oct 4, 2026</small></h2>
+  <section class="rel new" id="v4.3.16">
+    <h2>v4.3.16 <small>Oct 5, 2026</small></h2>
     <span class="tag">LATEST</span>
+    <ul>
+      <li><b>Leaving Soon waits you choose</b> (desktop). Under the LEAVING SOON button, <b>Windows after</b> and <b>Unlock after</b> set the minutes (0-30, default 3) with - / + buttons, the mouse wheel or Up / Down, and TessDesk remembers them. The countdown and the Alexa announcements use your times; 0 means that step happens right away.</li>
+      <li><b>Stop undoes what was already done.</b> When Leaving Soon starts, TessDesk notes how the car was (Tessie's cached data, the car is not woken). Press Stop partway through and the remaining steps are cancelled, then only the finished steps are reversed: climate back off if it was off, windows vented if any were open (Tessie can only vent or close), and locked again if it was locked. Each undo step is announced on Alexa and shown as "Undoing 1 of 2".</li>
+      <li>Desktop v4.3.16, Windows download: TessDesk Setup 4.4.16. Already on 4.3.10 or newer? TessDesk shows the Update now pop-up the next time it opens or you bring it back. The phone app stays v4.3.14.</li>
+    </ul>
+  </section>
+
+  <section class="rel" id="v4.3.15">
+    <h2>v4.3.15 <small>Oct 4, 2026</small></h2>
     <ul>
       <li><b>LEAVING SOON button</b> (desktop). It sits next to the TESLA CONTROLS heading, above Flash Lights. Tap it and confirm, and TessDesk announces on Alexa that Leaving Soon is starting, turns on climate, closes the windows 3 minutes later, then unlocks the car 3 minutes after that. Each step is announced.</li>
       <li>The widget shows the step and a countdown (for example "Step 2 of 3 · closing windows in 2:41") with a STOP button that cancels the remaining steps and announces the cancel. Every step's result is checked: a failure is shown in red, announced, and the remaining steps do not run (the car is never unlocked after a failed step).</li>
