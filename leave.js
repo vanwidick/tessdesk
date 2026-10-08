@@ -1,4 +1,5 @@
-/* TessDesk LEAVING SOON v4.3.16 (phone). Design by Van.
+/* TessDesk LEAVING SOON v4.3.19 (phone). Design by Van. v4.3.19: 'Start after' (0-120 min, default 0) waits before the sequence begins;
+   Stop during it just cancels (nothing to undo); the same timestamp catch-up and 30-minute late limit apply to that step.
    Shared by the main phone app (TESLA CONTROLS) and the standalone Leaving Soon page (leaving/). Same behavior as desktop v4.3.16:
    confirm -> read the start state (Tessie GET /{vin}/state?use_cache=true, never wakes the car; fallback = last TessDesk refresh)
    -> start_climate -> wait 'Windows after' -> close_windows -> wait 'Unlock after' -> unlock. Waits 0-30 min (default 3, 0 = right away),
@@ -16,7 +17,7 @@
   'use strict';
   var CFG = window.TD_CONFIG || {}, P = CFG.storagePrefix || 'td:';
   var DEFAULT_API = 'https://api.tessie.com', VM_API = 'https://api-v3.voicemonkey.io', DEF_DEVICE = 'echo-living-room-4hqjv';
-  var MAXMIN = 30, DEFMIN = 3, CMD_TIMEOUT = 90000, READ_TIMEOUT = 8000, STALE_SEND = 100000, LATE_NOTE = 3000, OWNER_STALE = 4000;
+  var MAXMIN = 30, DEFMIN = 3, STARTMAX = 120, DEFSTART = 0, CMD_TIMEOUT = 90000, READ_TIMEOUT = 8000, STALE_SEND = 100000, LATE_NOTE = 3000, OWNER_STALE = 4000;
   var TAB = Math.random().toString(36).slice(2, 10);
   var STEPS = [
     { cmd: 'start_climate', doing: 'turning on climate', next: 'climate on', done: 'climate on', label: 'Climate', name: 'Climate on', what: 'turn on climate', spoken: 'Leaving Soon: climate is now on.' },
@@ -41,16 +42,18 @@
   function dry() { return !!load('dryRun', false); }
   function spm() { if (dry()) { var v = +load('leaveSecPerMin', 0); if (v >= 1) return Math.min(60, v); } return 60; }
   function clampMin(v) { v = parseInt(v, 10); if (isNaN(v)) return DEFMIN; return Math.max(0, Math.min(MAXMIN, v)); }
-  function mins() { var m = load('leaveMins', null) || {}; return [clampMin(m.w != null ? m.w : DEFMIN), clampMin(m.u != null ? m.u : DEFMIN)]; }
-  function setMins(w, u) { save('leaveMins', { w: clampMin(w), u: clampMin(u) }); }
+  function clampStart(v) { v = parseInt(v, 10); if (isNaN(v)) return DEFSTART; return Math.max(0, Math.min(STARTMAX, v)); }   // v4.3.19: Start after, 0-120 min (0 = start right away)
+  function mins() { var m = load('leaveMins', null) || {}; return [clampMin(m.w != null ? m.w : DEFMIN), clampMin(m.u != null ? m.u : DEFMIN), clampStart(m.s != null ? m.s : DEFSTART)]; }
+  function setMins(w, u, s2) { if (s2 == null) s2 = mins()[2]; save('leaveMins', { w: clampMin(w), u: clampMin(u), s: clampStart(s2) }); }
   function st() { return load('leave', null); }
   function put(L) { save('leave', L); }
-  function active(L) { return !!L && (L.phase === 'snap' || L.phase === 'run' || L.phase === 'stopping' || L.phase === 'undo'); }
+  function active(L) { return !!L && (L.phase === 'pre' || L.phase === 'snap' || L.phase === 'run' || L.phase === 'stopping' || L.phase === 'undo'); }
 
   // ---------- text ----------
   var clockFmt = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Chicago', hour: 'numeric', minute: '2-digit' });
   function clock(ms) { return clockFmt.format(new Date(ms)); }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (ch) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]; }); }
+  function summary(m) { function f(n, z, t) { return n <= 0 ? z : t.replace('{0}', n); } return f(m[2], 'start now', 'start in {0} min') + ' \u00b7 ' + f(m[0], 'windows right away', 'windows {0} min later') + ' \u00b7 ' + f(m[1], 'unlock right after', 'unlock {0} min later'); }
   function minTxt(m) { return m + ' minute' + (m === 1 ? '' : 's'); }
   function inTxt(m, now, later) { return m <= 0 ? now : later.replace('{0}', minTxt(m)); }
   function span(ms) { var s = Math.round(ms / 1000); if (s < 90) return s + ' s'; var m = Math.round(s / 60); return m < 90 ? m + ' min' : (Math.round(m / 6) / 10) + ' h'; }
@@ -156,13 +159,13 @@
     if (!hasSetup()) { msg = 'Set up your Tessie token first.'; paint(); return; }
     if (!cmdAllowed()) { msg = 'Commands are off: allow vehicle commands first (Settings \u2192 Permissions).'; paint(); return; }
     readInputs(); var m = mins();
-    var sub = 'Climate turns on now, ' + inTxt(m[0], 'the windows close right away', 'the windows close {0} later') + ', then ' + inTxt(m[1], 'the car unlocks right after that', 'the car unlocks {0} after that') +
+    var sub = summary(m) + '. ' + (m[2] > 0 ? 'Nothing happens for ' + minTxt(m[2]) + ' (Stop just cancels). Then c' : 'C') + 'limate turns on, ' + inTxt(m[0], 'the windows close right away', 'the windows close {0} later') + ', then ' + inTxt(m[1], 'the car unlocks right after that', 'the car unlocks {0} after that') +
       '. Each step is announced on Alexa. Stop cancels the rest and undoes the steps already done. Keep this page open during the countdown.';
     return (skipLeave() ? Promise.resolve(true) : confirmBox('Are you sure? Start Leaving Soon?', 'Start', sub)).then(function (yes) {   // v4.3.18 SKIP CONFIRM
       if (!yes) { msg = 'Leaving Soon cancelled'; paint(); return false; }
       if (active(st())) return false;
       var s = spm(), now = Date.now();
-      put({ v: 1, id: now.toString(36) + TAB, phase: 'snap', mins: m, spm: s, waits: [0, m[0] * s * 1000, m[1] * s * 1000], startedAt: now, step: 0, dueAt: now,
+      put({ v: 1, id: now.toString(36) + TAB, phase: m[2] > 0 ? 'pre' : 'snap', mins: m, spm: s, waits: [m[2] * s * 1000, m[0] * s * 1000, m[1] * s * 1000], startedAt: now, step: 0, dueAt: now + (m[2] > 0 ? m[2] * s * 1000 : 0),
         sending: null, snapAt: 0, snap: null, done: [], undo: [], undoIdx: 0, undoDone: [], undoFailed: [], notes: [], late: [], log: [], ann: [], announced: 0,
         result: '', kind: 'busy', endedAt: 0, dry: dry(), owner: { by: TAB, at: now } });
       msg = ''; ensureTimer(); tick(); return true;
@@ -261,6 +264,10 @@
   function stop() {
     var L = st(); if (!L) return;
     if (L.phase === 'undo' || L.phase === 'stopping') return;
+    if (L.phase === 'pre') {   // v4.3.19: stopped before anything started: nothing to undo
+      L.phase = 'cancelled'; L.kind = 'idle'; L.endedAt = Date.now();
+      L.result = 'Leaving Soon cancelled before it started \u00b7 nothing to undo \u00b7 ' + clock(L.endedAt);
+      note(L, 'Cancelled during the start-after countdown: nothing was sent.'); put(L); paint(); return; }
     if (L.phase === 'expired' && L.done.length) { L.phase = 'stopping'; planUndo(L); return; }
     if (!active(L)) { dismiss(); return; }
     L.phase = 'stopping'; L.kind = 'idle'; L.endedAt = Date.now(); own(L);
@@ -287,7 +294,16 @@
         put(L); send(L, s.cmd, s.kind); return;
       }
     }
-    if (L.phase === 'snap') { if (!snapping[L.id] && (!L.snapAt || now - L.snapAt > 15000)) { doSnap(L); return; } }
+    if (L.phase === 'pre') {
+      if (now - L.dueAt > MAXMIN * L.spm * 1000) {   // the 30-minute late limit applies to the pre-leave step too
+        L.phase = 'cancelled'; L.kind = 'err'; L.endedAt = now;
+        L.result = 'Leaving Soon expired \u00b7 the start was due at ' + clock(L.dueAt) + ', but this page was closed for ' + span(now - L.dueAt) + '. It is too late to start, so nothing was sent.';
+        put(L); paint(); return; }
+      if (now >= L.dueAt) {
+        if (now - L.dueAt > LATE_NOTE) { L.late.push({ cmd: 'start', dueAt: L.dueAt, ranAt: now }); note(L, 'The start was due at ' + clock(L.dueAt) + ' and ran at ' + clock(now) + ' (' + span(now - L.dueAt) + ' late: the page was closed or the screen was locked).'); }
+        L.phase = 'snap'; put(L); doSnap(L); return; }
+    }
+    else if (L.phase === 'snap') { if (!snapping[L.id] && (!L.snapAt || now - L.snapAt > 15000)) { doSnap(L); return; } }
     else if (L.phase === 'run' && !L.sending && now >= L.dueAt) {
       var late = now - L.dueAt, step = STEPS[L.step];
       if (L.step > 0 && late > MAXMIN * L.spm * 1000) { expire(L, late); return; }
@@ -297,7 +313,7 @@
       if (L.undoIdx >= L.undo.length) { finishStop(L); return; }
       send(L, L.undo[L.undoIdx], 'undo'); return;
     }
-    if (L.phase === 'run' && !L.sending) { clearTimeout(dueTimer); dueTimer = setTimeout(tick, Math.max(0, L.dueAt - now) + 15); }   // exact due time (the 1 s timer only repaints)
+    if ((L.phase === 'run' || L.phase === 'pre') && !L.sending) { clearTimeout(dueTimer); dueTimer = setTimeout(tick, Math.max(0, L.dueAt - now) + 15); }   // exact due time (the 1 s timer only repaints)
     put(L); paint();
   }
   function autoHide(L) { if (L && (L.phase === 'done' || (L.phase === 'cancelled' && L.kind !== 'err')) && Date.now() - L.endedAt > 30 * 60000) save('leave', null); }
@@ -329,6 +345,7 @@
 
   // ---------- UI ----------
   function stepText(L, now) {
+    if (L.phase === 'pre') return 'Starting in ' + mmss(L.dueAt - now);
     if (L.phase === 'undo') { var n = L.undo.length, i = Math.min(L.undoIdx, n - 1), u = UNDO_BY[L.undo[i]]; return 'Undoing ' + (i + 1) + ' of ' + n + ' \u00b7 ' + u.doing + '\u2026'; }
     if (L.phase === 'stopping') return L.result || 'Stopping\u2026';
     if (!active(L)) return L.result;
@@ -340,17 +357,18 @@
   function inner(kind) {
     var L = st(), act = active(L), m = act ? L.mins : mins(), now = Date.now(), ready = hasSetup() && cmdAllowed(), dis = act ? ' disabled' : '';
     var sub = act ? (L.phase === 'undo' || L.phase === 'stopping' ? 'stopping\u2026' : 'running \u00b7 tap STOP to cancel') :
-      (!hasSetup() ? 'set up Tessie first' : (!cmdAllowed() ? 'commands are off (Permissions)' : 'climate now \u00b7 windows ' + (m[0] ? 'in ' + m[0] + ' min' : 'right away') + ' \u00b7 unlock ' + (m[1] ? m[1] + ' min later' : 'right after')));
+      (!hasSetup() ? 'set up Tessie first' : (!cmdAllowed() ? 'commands are off (Permissions)' : summary(m)));
     var h = '<button class="cbtn lv-go' + (act ? ' on' : '') + '" data-lv="start" id="lvGo"' + (act || !ready ? ' disabled' : '') + '><b>LEAVING SOON</b><small>' + esc(sub) + '</small></button>';
-    function pm(key, label, v) {
+    function pm(key, label, v, max, len) {
       return '<div class="lv-w"><span class="lv-wl">' + label + '</span><div class="lv-pm"><button class="cbtn sq" data-lv="' + key + '-" aria-label="' + label + ' minus one minute"' + dis + '>\u2212</button>' +
-        '<label class="lv-v"><input id="lv' + key.toUpperCase() + '" data-lvin="' + key + '" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" value="' + v + '" aria-label="' + label + ', minutes (0-30)"' + dis + '><small>MIN</small></label>' +
+        '<label class="lv-v"><input id="lv' + key.toUpperCase() + '" data-lvin="' + key + '" data-lvmax="' + max + '" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="' + len + '" value="' + v + '" aria-label="' + label + ', minutes (0-' + max + ')"' + dis + '><small>MIN</small></label>' +
         '<button class="cbtn sq" data-lv="' + key + '+" aria-label="' + label + ' plus one minute"' + dis + '>+</button></div></div>';
     }
-    h += '<div class="lv-waits">' + pm('w', 'Windows after', m[0]) + pm('u', 'Unlock after', m[1]) + '</div>';
+    h += '<div class="lv-waits">' + pm('s', 'Start after', m[2], STARTMAX, 3) + pm('w', 'Windows after', m[0], MAXMIN, 2) + pm('u', 'Unlock after', m[1], MAXMIN, 2) + '</div>';
     if (L) {
       var pct = 0, wait = L.waits ? L.waits[Math.min(L.step, 2)] : 0;
-      if (L.phase === 'run' && !L.sending && wait > 0) pct = Math.max(0, Math.min(100, 100 - (L.dueAt - now) / wait * 100));
+      if (L.phase === 'pre' && L.waits && L.waits[0] > 0) pct = Math.max(0, Math.min(100, 100 - (L.dueAt - now) / L.waits[0] * 100));
+      else if (L.phase === 'run' && !L.sending && wait > 0) pct = Math.max(0, Math.min(100, 100 - (L.dueAt - now) / wait * 100));
       else if (L.phase === 'run' && (L.sending || wait === 0)) pct = 100;
       else if (L.phase === 'undo') pct = L.undo.length ? L.undoIdx / L.undo.length * 100 : 100;
       else if (!act) pct = 100;
@@ -380,18 +398,19 @@
     if (opts.onPaint) try { opts.onPaint(); } catch (e) {}
   }
   function readInputs() {
-    var w = document.querySelector('[data-lvin="w"]'), u = document.querySelector('[data-lvin="u"]'), m = mins();
-    if (w || u) setMins(w ? w.value : m[0], u ? u.value : m[1]);
+    var w = document.querySelector('[data-lvin="w"]'), u = document.querySelector('[data-lvin="u"]'), s2 = document.querySelector('[data-lvin="s"]'), m = mins();
+    if (w || u || s2) setMins(w ? w.value : m[0], u ? u.value : m[1], s2 ? s2.value : m[2]);
   }
-  function bump(key, d) { if (active(st())) return; var m = mins(); if (key === 'w') m[0] = clampMin(m[0] + d); else m[1] = clampMin(m[1] + d); setMins(m[0], m[1]); paint(); }
+  function bump(key, d) { if (active(st())) return; var m = mins(); if (key === 'w') m[0] = clampMin(m[0] + d); else if (key === 'u') m[1] = clampMin(m[1] + d); else m[2] = clampStart(m[2] + d); setMins(m[0], m[1], m[2]); paint(); }
   document.addEventListener('click', function (e) {
     var t = e.target && e.target.closest ? e.target.closest('[data-lv]') : null; if (!t || t.disabled) return;
     var a = t.getAttribute('data-lv'); e.preventDefault();
     if (a === 'start') start(); else if (a === 'stop') stop(); else if (a === 'close') dismiss();
     else if (a === 'w-') bump('w', -1); else if (a === 'w+') bump('w', 1); else if (a === 'u-') bump('u', -1); else if (a === 'u+') bump('u', 1);
+    else if (a === 's-') bump('s', -1); else if (a === 's+') bump('s', 1);
   });
   document.addEventListener('change', function (e) { var t = e.target; if (t && t.getAttribute && t.getAttribute('data-lvskip')) setSkipLeave(t.checked); });   // v4.3.18
-  document.addEventListener('input', function (e) { var t = e.target; if (t && t.getAttribute && t.getAttribute('data-lvin')) t.value = t.value.replace(/[^0-9]/g, '').slice(0, 2); });
+  document.addEventListener('input', function (e) { var t = e.target; if (t && t.getAttribute && t.getAttribute('data-lvin')) t.value = t.value.replace(/[^0-9]/g, '').slice(0, t.getAttribute('data-lvin') === 's' ? 3 : 2); });
   document.addEventListener('change', function (e) { var t = e.target; if (t && t.getAttribute && t.getAttribute('data-lvin')) { readInputs(); t.blur(); paint(); } });
   document.addEventListener('keydown', function (e) { var t = e.target; if (t && t.getAttribute && t.getAttribute('data-lvin') && e.key === 'Enter') { readInputs(); t.blur(); paint(); } });
   function wake() { var L = st(); if (active(L)) { ensureTimer(); tick(); } else paint(); if (opts.ownRefresh && document.visibilityState === 'visible') readCar(false); }
@@ -400,9 +419,9 @@
   window.addEventListener('storage', function (e) { if (e.key === P + 'leave' || e.key === P + 'leaveMins' || e.key === P + 'cache' || e.key === P + 'skipConfirm') { if (active(st())) ensureTimer(); paint(); } });
 
   window.TDLeave = {
-    version: 'v4.3.18', skipLeave: function () { return skipLeave(); },
+    version: 'v4.3.19', skipLeave: function () { return skipLeave(); },
     init: function (o) { opts = o || {}; if (active(st())) { ensureTimer(); setTimeout(tick, 0); } return window.TDLeave; },
-    html: html, paint: paint, start: start, stop: stop, dismiss: dismiss, tick: tick, mins: mins, setMins: function (w, u) { setMins(w, u); paint(); },
+    html: html, paint: paint, start: start, stop: stop, dismiss: dismiss, tick: tick, mins: mins, setMins: function (w, u, s2) { setMins(w, u, s2); paint(); }, summary: summary,
     state: st, active: function () { return active(st()); }, cmdLog: cmdLog, hasSetup: hasSetup, cmdAllowed: cmdAllowed, readCar: readCar, car: car,
     vmSend: vmSend, annDevice: annDevice, cfg: cfg, prefix: P, steps: STEPS
   };

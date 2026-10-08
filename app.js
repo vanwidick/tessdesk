@@ -2,14 +2,314 @@
    Everything (name, Tessie token, vehicle, rates) is stored in localStorage on this device only. */
 (function () {
   'use strict';
+/* TessDesk phone v4.3.19 (DESIGN BY VAN). Pure logic + UI for: PLUG-IN REMINDER, TRIPS, MORNING READY CHECK,
+   PSO BILL MATCH (on/off switch), BATTERY HEALTH TREND + TIPS. No Alexa, no toasts (in-app banners only),
+   cached data only (never wakes the car). The same functions are unit-tested headlessly. */
+(function (g) {
+  'use strict';
+  var HOME = { lat: 36.10364, lon: -96.03282 }, HOME_NAMES = { '3515 W 41st Pl': 1, 'Home': 1 };
+  var PREFILL_NOTE = 'Prefilled from your Gmail: PSO bill email of Sep 26, 2026, total $442.21 (due Oct 19, 2026). The email has no billing period or kWh: enter them from the bill.';
+  function distMi(a, b, c, d) { var r = Math.PI / 180, x = (d - b) * r * Math.cos((a + c) / 2 * r), y = (c - a) * r; return Math.sqrt(x * x + y * y) * 3958.8; }
+  function nearHome(la, lo) { return la != null && lo != null && distMi(+la, +lo, HOME.lat, HOME.lon) <= 0.15; }
+  function homeName(s) { return !!(s && HOME_NAMES[String(s)]); }
+  function inWindow(h, s, e) { return s < e ? (h >= s && h < e) : (h >= s || h < e); }
+  function money(v) { return '$' + (Math.round(v * 100) / 100).toFixed(2); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function num(v) { if (v == null) return null; var n = parseFloat(String(v).replace(/[\$,\s]/g, '')); return isNaN(n) ? null : n; }
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function dayKey(ct) { return ct.y + '-' + pad(ct.mo) + '-' + pad(ct.d); }
+  function dayDiff(a, b) { return Math.round((Date.UTC(b.y, b.mo - 1, b.d) - Date.UTC(a.y, a.mo - 1, a.d)) / 86400000); }
+  function hourLabel(h) { var x = h % 24, ap = x < 12 ? 'AM' : 'PM', hh = x % 12; return (hh || 12) + ' ' + ap; }
+  function parseDate(s) {
+    s = String(s || '').trim(); if (!s) return null;
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s) || /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(s);
+    if (!m) return null;
+    var y, mo, d; if (m[0].indexOf('-') > 0) { y = +m[1]; mo = +m[2]; d = +m[3]; } else { mo = +m[1]; d = +m[2]; y = +m[3]; }
+    if (mo < 1 || mo > 12 || d < 1 || d > 31) return null; return { y: y, mo: mo, d: d };
+  }
+  function fmtDate(o) { return o ? (o.mo + '/' + o.d + '/' + o.y) : ''; }
+
+  // ---- plug-in reminder ----
+  function plugReminder(car, hour, cfg, atHome) {
+    var r = { show: false, why: '', soc: car ? car.soc : null, target: null, targetKind: '', inWindow: inWindow(hour, cfg.fromHour, cfg.untilHour), enabled: cfg.enabled !== false, state: car ? String(car.chargingState || '') : '' };
+    if (!car) { r.why = 'no car data'; return r; }
+    if (cfg.mode === 'threshold' || car.limit == null) { r.target = cfg.thresholdPct != null ? cfg.thresholdPct : 60; r.targetKind = 'reminder threshold'; }
+    else { r.target = +car.limit; r.targetKind = 'daily limit'; }
+    if (r.enabled === false) { r.why = 'reminder is off'; return r; }
+    if (!r.inWindow) { r.why = 'not evening yet'; return r; }
+    if (atHome !== true) { r.why = 'car is not at home'; return r; }
+    if (r.state !== 'Disconnected') { r.why = 'plugged in'; return r; }
+    if (r.soc == null || +r.soc >= r.target) { r.why = 'battery is at or above the target'; return r; }
+    r.show = true; r.why = r.soc + '% is under the ' + r.targetKind + ' ' + r.target + '%'; return r;
+  }
+
+  // ---- trips ----
+  function shortAddr(a) {
+    if (!a) return 'Unknown place';
+    var p = String(a).split(',').map(function (x) { return x.trim(); }).filter(Boolean); if (!p.length) return 'Unknown place';
+    var s = p[0];
+    if (!/^\d/.test(s)) return s.length > 26 ? s.slice(0, 25) + '\u2026' : s;
+    [['South', 'S'], ['North', 'N'], ['East', 'E'], ['West', 'W'], ['Avenue', 'Ave'], ['Street', 'St'], ['Place', 'Pl'], ['Road', 'Rd'], ['Boulevard', 'Blvd'], ['Drive', 'Dr'], ['Parkway', 'Pkwy'], ['Highway', 'Hwy'], ['Court', 'Ct'], ['Lane', 'Ln']].forEach(function (w) { s = s.replace(new RegExp('\\b' + w[0] + '\\b', 'g'), w[1]); });
+    if (p.length >= 2 && p[1] !== 'Tulsa' && !/^\d|United States|Oklahoma/.test(p[1])) s += ', ' + p[1];
+    return s.length > 30 ? s.slice(0, 29) + '\u2026' : s;
+  }
+  function tripPlace(saved, addr, la, lo) { if (homeName(saved) || nearHome(la, lo)) return 'Home'; if (saved) return String(saved); return shortAddr(addr); }
+  function convertTrip(d) {
+    var s = +d.started_at, e = +(d.ended_at || d.started_at);
+    return { id: d.id, start: s, end: e, minutes: Math.round((e - s) / 60),
+      from: tripPlace(d.starting_saved_location, d.starting_location, d.starting_latitude, d.starting_longitude),
+      to: tripPlace(d.ending_saved_location, d.ending_location, d.ending_latitude, d.ending_longitude),
+      toHome: homeName(d.ending_saved_location) || nearHome(d.ending_latitude, d.ending_longitude),
+      miles: Math.round(+(d.odometer_distance || 0) * 100) / 100, kwh: Math.round(+(d.energy_used || 0) * 100) / 100, tempF: d.average_outside_temperature };
+  }
+  function tripRate(sessions, nowE, pso) {
+    var cut = nowE - 30 * 86400, cost = 0, kwh = 0, n = 0;
+    (sessions || []).forEach(function (s) { if (!s || s.fast || s.paid > 0 || s.start < cut) return; var k = +(s.added || 0); if (!(k > 0) || s.cost == null) return; cost += +s.cost; kwh += k; n++; });
+    if (kwh >= 5 && n >= 2) return { rate: cost / kwh, source: 'home', sessions: n, kwh: Math.round(kwh * 10) / 10, cost: Math.round(cost * 100) / 100, note: 'Cost = kWh used \u00d7 ' + (Math.round(cost / kwh * 1000) / 10).toFixed(1) + '\u00a2/kWh = your home charging average, last 30 days (' + n + ' charges, ' + Math.round(kwh) + ' kWh added, ' + money(cost) + ' incl. losses)' };
+    return { rate: pso, source: 'pso', sessions: n, note: 'Cost = kWh used \u00d7 ' + (Math.round(pso * 1000) / 10).toFixed(1) + '\u00a2/kWh = PSO overnight rate (no home charging data in the last 30 days)' };
+  }
+  function tripView(trips, nowCt, days, rate, ctFn) {
+    var all = (trips || []).filter(function (t) { return t && t.miles >= 0.1; }).sort(function (a, b) { return b.start - a.start; });
+    function ctOf(s) { return ctFn(s); }
+    var today = dayKey(nowCt), shown = [], older = 0, mi7 = 0, k7 = 0, n7 = 0, miA = 0, kA = 0;
+    all.forEach(function (t) { var c = ctOf(t.start), dd = dayDiff(c, nowCt); miA += t.miles; kA += t.kwh; if (dd <= 6 && dd >= 0) { n7++; mi7 += t.miles; k7 += t.kwh; } if (dd < days && dd >= 0) shown.push([t, c, dd]); else if (dd >= days) older++; });
+    var avg7 = k7 > 0 ? mi7 / k7 : null, avgA = kA > 0 ? miA / kA : null, ref = (n7 >= 3 && avg7 != null) ? avg7 : avgA;
+    var dayList = [], cur = null;
+    shown.forEach(function (x) {
+      var t = x[0], c = x[1], key = dayKey(c);
+      if (!cur || cur.key !== key) { var label = x[2] === 0 ? 'Today' : (x[2] === 1 ? 'Yesterday' : (typeof c.dow === 'number' ? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][c.dow] : c.dow) + ' ' + ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][c.mo] + ' ' + c.d); cur = { key: key, label: label, trips: [], n: 0, miles: 0, kwh: 0, cost: 0 }; dayList.push(cur); }
+      var mpk = t.kwh > 0.05 ? t.miles / t.kwh : null, bad = t.miles >= 2 && mpk != null && ref != null && mpk < 0.7 * ref;
+      cur.trips.push({ t: t, minutes: t.minutes, miles: t.miles, kwh: t.kwh, cost: Math.round(t.kwh * rate * 10000) / 10000, mpk: mpk, inefficient: bad });
+      cur.n++; cur.miles += t.miles; cur.kwh += t.kwh; cur.cost += t.kwh * rate;
+    });
+    return { days: dayList, older: older, refMpk: ref, sum7: { trips: n7, miles: Math.round(mi7 * 10) / 10, kwh: Math.round(k7 * 10) / 10, cost: Math.round(k7 * rate * 100) / 100, avgMpk: avg7 != null ? Math.round(avg7 * 100) / 100 : null } };
+  }
+
+  // ---- morning ready check ----
+  function readyCheck(car, tires, hour) {
+    var items = [], morning = hour >= 5 && hour < 10;
+    function push(k, l, s, t) { items.push({ key: k, label: l, state: s, text: t }); }
+    if (!car) { push('battery', 'Battery', 'unknown', 'no car data'); return { ready: false, overall: 'NO DATA', off: ['no car data yet'], items: items, morning: morning }; }
+    var soc = car.soc, lim = car.limit, cs = String(car.chargingState || ''), atLim = soc != null && lim != null && +soc >= +lim - 1;
+    if (soc == null || lim == null) push('battery', 'Battery', 'unknown', 'battery level unknown');
+    else if (atLim) push('battery', 'Battery', 'ok', soc + '% (limit ' + lim + '%)'); else push('battery', 'Battery', 'off', soc + '%, under the ' + lim + '% limit');
+    if (cs === 'Complete') push('charging', 'Charging', 'ok', 'finished');
+    else if (cs === 'Charging' || cs === 'Starting') push('charging', 'Charging', 'off', 'still charging');
+    else if (!cs) push('charging', 'Charging', 'unknown', 'state unknown');
+    else if (atLim) push('charging', 'Charging', 'ok', cs === 'Disconnected' ? 'done, unplugged' : 'done');
+    else push('charging', 'Charging', 'off', cs === 'Disconnected' ? 'not plugged in' : 'stopped before the limit');
+    if (car.locked == null) push('locked', 'Locked', 'unknown', 'unknown'); else push('locked', 'Locked', car.locked ? 'ok' : 'off', car.locked ? 'locked' : 'UNLOCKED');
+    if (car.windowsOpen == null) push('windows', 'Windows', 'unknown', 'unknown'); else push('windows', 'Windows', car.windowsOpen ? 'off' : 'ok', car.windowsOpen ? 'a window is OPEN' : 'closed');
+    var fr = tires && tires.fr != null ? +tires.fr : null;
+    if (fr == null) push('tires', 'Tires', 'unknown', 'no tire data');
+    else {
+      var low = []; ['fl', 'fr', 'rl', 'rr'].forEach(function (k) { var p = tires[k]; if (p != null && +p < 40) low.push({ fl: 'LF', fr: 'RF', rl: 'LR', rr: 'RR' }[k] + ' ' + Math.round(+p)); });
+      push('tires', 'Tires', low.length ? 'off' : 'ok', low.length ? 'under 40 PSI: ' + low.join(', ') : 'all 40+ PSI \u00b7 RF ' + Math.round(fr) + ' PSI');
+    }
+    push('sentry', 'Sentry', 'info', car.sentry == null ? 'unknown' : (car.sentry ? 'on' : 'off'));
+    push('range', 'Range', 'info', car.range != null ? Math.round(car.range) + ' mi' : 'unknown');
+    var off = items.filter(function (i) { return i.state === 'off'; });
+    return { ready: off.length === 0, overall: off.length ? 'CHECK' : 'READY', off: off.map(function (i) { return i.label + ': ' + i.text; }), items: items, morning: morning };
+  }
+
+  // ---- PSO bill match ----
+  function billMatch(bill, sessions, pso, eff, epochFn) {
+    var r = { ok: false, need: [], from: null, to: null, teslaKwh: 0, trackedUsd: 0, sessions: 0, sharePct: null, shareUsd: null, estPsoUsd: null, diffPct: null, mismatch: false, billRate: null, dataFrom: null, partial: false };
+    r.from = parseDate(bill.from); r.to = parseDate(bill.to); var k = num(bill.kwh), u = num(bill.usd);
+    if (!r.from) r.need.push('period from'); if (!r.to) r.need.push('period to'); if (!(k > 0)) r.need.push('total kWh'); if (!(u > 0)) r.need.push('total $');
+    if (r.from && r.to && dayDiff(r.to, r.from) > 0) r.need.push('a TO date after FROM');
+    r.billKwh = k; r.billUsd = u; if (k > 0 && u != null) r.billRate = u / k;
+    var home = (sessions || []).filter(function (s) { return s && !s.fast && !(s.paid > 0); });
+    if (home.length) r.dataFrom = home.reduce(function (m, s) { return Math.min(m, s.start); }, home[0].start);
+    if (!r.from || !r.to || dayDiff(r.to, r.from) > 0) return r;
+    var s0 = epochFn(r.from.y, r.from.mo, r.from.d, 0), s1 = epochFn(r.to.y, r.to.mo, r.to.d + 1, 0);
+    home.forEach(function (s) {
+      if (s.start < s0 || s.start >= s1) return;
+      var w = (s.wall != null && +s.wall > 0) ? +s.wall : (s.added != null && eff > 0 ? +s.added / eff : 0);
+      r.teslaKwh += w; r.trackedUsd += +(s.cost || 0); r.sessions++;
+    });
+    r.teslaKwh = Math.round(r.teslaKwh * 100) / 100; r.trackedUsd = Math.round(r.trackedUsd * 100) / 100;
+    r.partial = r.dataFrom != null && r.dataFrom > s0 + 43200;
+    r.estPsoUsd = Math.round(r.teslaKwh * pso * 100) / 100;
+    if (r.estPsoUsd > 0) { r.diffPct = Math.round((r.trackedUsd - r.estPsoUsd) / r.estPsoUsd * 1000) / 10; r.mismatch = Math.abs(r.diffPct) > 5; }
+    if (k > 0) r.sharePct = Math.round(r.teslaKwh / k * 1000) / 10;
+    if (r.billRate != null) r.shareUsd = Math.round(r.teslaKwh * r.billRate * 100) / 100;
+    r.ok = r.need.length === 0; return r;
+  }
+
+  // ---- battery health + tips ----
+  function healthSeries(h, own) {
+    var m = {}; (own || []).forEach(function (p) { if (p && p.d && p.range != null) m[p.d] = +p.range; });
+    if (h) (h.points || []).forEach(function (p) { if (p && p.d && p.range != null) m[p.d] = +p.range; });
+    return Object.keys(m).sort().map(function (d) { return { d: d, range: m[d] }; });
+  }
+  function healthTrend(series) {
+    if (!series || series.length < 2) return null;
+    var n = Math.min(7, Math.floor(series.length / 2)); if (n < 1) n = 1;
+    function avg(a) { return a.reduce(function (s, p) { return s + p.range; }, 0) / a.length; }
+    var a = avg(series.slice(0, n)), b = avg(series.slice(-n));
+    return { fromRange: Math.round(a * 10) / 10, toRange: Math.round(b * 10) / 10, deltaPct: a > 0 ? Math.round((b - a) / a * 1000) / 10 : null, since: series[0].d, points: series.length };
+  }
+  function sparkPoints(series, w, h) {
+    var pts = series.slice(); if (pts.length > 90) { var step = pts.length / 90, o = []; for (var i = 0; i < 90; i++) o.push(pts[Math.floor(i * step)]); o.push(pts[pts.length - 1]); pts = o; }
+    if (pts.length < 2) return '';
+    var mn = Infinity, mx = -Infinity; pts.forEach(function (p) { mn = Math.min(mn, p.range); mx = Math.max(mx, p.range); }); if (mx - mn < 2) mx = mn + 2;
+    return pts.map(function (p, i) { return (2 + (w - 6) * i / (pts.length - 1)).toFixed(1) + ',' + (2 + (h - 6) * (1 - (p.range - mn) / (mx - mn))).toFixed(1); }).join(' ');
+  }
+  function batteryTips(sessions, car, trips, nowE) {
+    var ss = sessions || [], tips = [], good = [], span = 60;
+    if (ss.length) { var mn = ss.reduce(function (m, s) { return Math.min(m, s.start); }, ss[0].start); span = Math.max(1, Math.round((nowE - mn) / 86400)); }
+    var full = ss.filter(function (s) { return s.socEnd != null && +s.socEnd >= 98; });
+    var lim = car ? car.limit : null;
+    if (full.length >= 4) tips.push('You charged to 100% ' + full.length + ' times in the last ' + span + ' days. Save 100% for road trips; your daily limit' + (lim != null ? ' of ' + lim + '%' : '') + ' is easier on the battery.');
+    else if (full.length) good.push('Only ' + full.length + ' charge' + (full.length === 1 ? '' : 's') + ' to 100% in ' + span + ' days: good, keep 100% for trips.');
+    else good.push('No charges to 100% in ' + span + ' days: good.');
+    var tr = (trips || []).slice().sort(function (a, b) { return a.start - b.start; });
+    if (full.length && tr.length) {
+      var t0 = tr[0].start, sat = [];
+      ss.filter(function (s) { return s.socEnd != null && +s.socEnd >= 95 && s.end >= t0; }).forEach(function (s) { var nx = null; tr.some(function (t) { if (t.start > s.end) { nx = t; return true; } }); if (nx) sat.push((nx.start - s.end) / 3600); });
+      var long = sat.filter(function (x) { return x >= 8; });
+      if (long.length) tips.push(long.length + ' of ' + sat.length + ' recent full charges sat at 95%+ for 8+ hours before the next drive (longest ' + Math.round(Math.max.apply(null, sat)) + ' h). Set a departure time so a full charge ends close to when you leave.');
+      else if (sat.length) good.push('Your recent full charges were driven soon after: good.');
+    }
+    if (lim != null) { if (+lim > 90) tips.push('Your charge limit is ' + lim + '%. For daily driving, 80% or lower is easier on the battery.'); else if (+lim <= 80) good.push('Daily limit ' + lim + '%: right where Tesla suggests for everyday use.'); }
+    var fast = ss.filter(function (s) { return s.fast || s.paid > 0; });
+    if (!fast.length && ss.length) good.push('No Supercharging in ' + span + ' days: all home AC charging, the gentlest kind.');
+    else if (fast.length >= 6) tips.push(fast.length + ' fast charges in ' + span + ' days. Frequent DC fast charging adds heat; home charging is gentler.');
+    var starts = ss.filter(function (s) { return s.socStart != null; }).map(function (s) { return +s.socStart; });
+    if (starts.length) { var lo = starts.filter(function (x) { return x < 20; }), mnS = Math.min.apply(null, starts); if (lo.length) tips.push(lo.length + ' charge' + (lo.length === 1 ? '' : 's') + ' started below 20% (lowest ' + Math.round(mnS) + '%). Plugging in before 20% avoids deep discharges.'); else good.push('Never below ' + Math.round(mnS) + '% before charging in ' + span + ' days: no deep discharges.'); }
+    var temps = tr.filter(function (t) { return t.start >= nowE - 14 * 86400 && t.tempF != null; }).map(function (t) { return +t.tempF; });
+    if (temps.length >= 3) { var avg = temps.reduce(function (a, b) { return a + b; }, 0) / temps.length; if (avg >= 85) tips.push('Hot weather: your drives averaged ' + Math.round(avg) + '\u00b0F outside the last 2 weeks. Shade or a garage helps; heat ages a battery faster than miles.'); else if (avg <= 32) tips.push('Cold weather: your drives averaged ' + Math.round(avg) + '\u00b0F outside the last 2 weeks. Charging soon after a drive, while the pack is warm, is more efficient.'); }
+    return tips.concat(good).slice(0, 5);
+  }
+
+  g.__TD4319bind = function (o) { g.ct = o.ct; g.ctEpoch = o.ctEpoch; g.nowSec = o.nowSec; g.clock = o.clock; g.dayLabel = o.dayLabel; g.cache = o.cache; g.sessionCost = o.sessionCost; g.fromCharge = o.fromCharge; g.render = o.render; };
+  var API = { plugReminder: plugReminder, convertTrip: convertTrip, tripRate: tripRate, tripView: tripView, readyCheck: readyCheck, billMatch: billMatch, healthSeries: healthSeries, healthTrend: healthTrend, sparkPoints: sparkPoints, batteryTips: batteryTips, shortAddr: shortAddr, nearHome: nearHome, parseDate: parseDate, money: money, PREFILL_NOTE: PREFILL_NOTE, HOME: HOME };
+  g.TD4319 = API;
+  if (typeof document === 'undefined') return;
+
+  // ---------------- UI (runs inside the phone app; uses its globals) ----------------
+  var P = (g.TD_CONFIG && g.TD_CONFIG.storagePrefix) || 'td:';
+  function ld(k, d) { try { var v = localStorage.getItem(P + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }
+  function sv(k, v) { try { localStorage.setItem(P + k, JSON.stringify(v)); } catch (e) {} }
+  function plugCfg() { var c = ld('plugReminder', null) || {}; return { enabled: c.enabled !== false, fromHour: c.fromHour != null ? +c.fromHour : 21, untilHour: c.untilHour != null ? +c.untilHour : 5, thresholdPct: c.thresholdPct != null ? +c.thresholdPct : 60, mode: c.mode || 'limit' }; }
+  function billCfg() { var c = ld('billMatch', null) || {}; return { enabled: c.enabled !== false, from: c.from || '', to: c.to || '', kwh: c.kwh != null ? c.kwh : null, usd: c.usd != null ? c.usd : 442.21, note: c.note != null ? c.note : PREFILL_NOTE }; }
+  function sw(id, on, label) { return '<button class="sw' + (on ? ' on' : '') + '" id="' + id + '" role="switch" aria-checked="' + on + '" aria-label="' + label + '" type="button"><i></i></button>'; }
+  function atHome(car) {
+    var ds = car && car.drive_state; if (ds && ds.latitude != null) return nearHome(ds.latitude, ds.longitude);
+    var ds2 = (g.cache && g.cache.drives) || []; if (ds2.length) { var last = ds2.slice().sort(function (a, b) { return b.started_at - a.started_at; })[0]; return homeName(last.ending_saved_location) || nearHome(last.ending_latitude, last.ending_longitude); }
+    return null;
+  }
+  function withCost(v, cfg) {
+    var charges = ((g.cache && g.cache.charges) || []).filter(function (c) { return c && c.started_at && c.ended_at; });
+    return charges.map(function (c) {
+      var fast = !!(c.is_supercharger || c.is_fast_charger || c.max_charger_power > 25), s = { start: +c.started_at, end: +c.ended_at, added: c.energy_added != null ? +c.energy_added : null, wall: c.energy_used != null ? +c.energy_used : null, socStart: c.starting_battery, socEnd: c.ending_battery, fast: fast, paid: fast && c.cost > 0 ? +c.cost : null, cost: 0 };
+      try { s.cost = g.sessionCost(cfg, g.fromCharge(c)).cost; } catch (e) {}
+      return s;
+    });
+  }
+  var bannerKeys = { plug: null, ready: null };
+  function plugHtml(v) {
+    var cfg = plugCfg(), car = { soc: v.soc, limit: v.limit, chargingState: v.cs.charging_state }, hour = g.ct(g.nowSec()).h;
+    var r = plugReminder(car, hour, cfg, atHome(v.state));
+    var key = 'night-' + (hour < 12 ? dayKey(g.ct(g.nowSec() - 13 * 3600)) : dayKey(g.ct(g.nowSec())));
+    var seen = ld('plugSeen', ''); if (r.show && seen !== key) { sv('plugSeen', key); bannerKeys.plug = key; }
+    if (!r.show) bannerKeys.plug = null;
+    var bar = r.show ? '<div class="plugbar" id="plugBar"><i></i><b>PLUG IN TONIGHT</b><span>' + esc(r.soc + '% \u00b7 ' + (r.targetKind === 'daily limit' ? 'limit' : 'reminder') + ' ' + r.target + '% \u00b7 home, unplugged') + '</span></div>' : '';
+    return { bar: bar, fresh: r.show && (seen !== key || bannerKeys.plug === key) };   // banner shown once per night, kept for this page visit
+  }
+  function readyHtml(v) {
+    var hour = g.ct(g.nowSec()).h, tires = { fl: v.tires.fl.psi, fr: v.tires.fr.psi, rl: v.tires.rl.psi, rr: v.tires.rr.psi };
+    var r = readyCheck({ soc: v.soc, limit: v.limit, chargingState: v.cs.charging_state, locked: v.car.locked, windowsOpen: v.car.windowsOpen, sentry: v.car.sentry, range: v.range }, tires, hour);
+    var ico = { ok: '\u2713', off: '!', info: '\u2022', unknown: '?' };
+    var key = 'morning-' + dayKey(g.ct(g.nowSec())); var seen = ld('readySeen', '');
+    var banner = '';
+    if (r.morning && !r.ready && r.overall === 'CHECK' && seen !== key) { sv('readySeen', key); bannerKeys.ready = key; }
+    if (r.ready || !r.morning) bannerKeys.ready = null;
+    if (r.morning && !r.ready && r.overall === 'CHECK' && bannerKeys.ready === key) { banner = '<div class="readybanner" id="readyBanner"><b>MORNING CHECK</b><span>' + esc(r.off.join(' \u00b7 ')) + '</span></div>'; }
+    var h = '<div class="readybox ' + (r.ready ? 'rc-ok' : (r.overall === 'NO DATA' ? 'rc-none' : 'rc-check')) + '" id="readyBox"><div class="readyhd"><b>' + (r.morning ? 'MORNING READY CHECK' : 'READY CHECK') + '</b><span class="readypill">' + r.overall + '</span><em>' + (v.updated ? 'cached \u00b7 ' + esc(g.clock(v.updated)) : 'cached data') + '</em></div>';
+    if (!r.ready && r.overall !== 'NO DATA') h += '<div class="readyoff">Check: ' + esc(r.off.join(' \u00b7 ')) + '</div>';
+    if (r.morning) h += '<div class="readygrid">' + r.items.map(function (i) { return '<div class="ri ' + i.state + '"><b>' + ico[i.state] + '</b> ' + esc(i.label) + ': ' + esc(i.text) + '</div>'; }).join('') + '</div>';
+    else h += '<div class="readyline">' + esc(r.items.map(function (i) { return ico[i.state] + ' ' + (i.state === 'info' ? i.label + ' ' + i.text : i.text); }).join('  \u00b7  ')) + '</div>';
+    return banner + h + '</div>';
+  }
+  function billHtml(v, cfg) {
+    var b = billCfg(), on = b.enabled !== false;
+    var h = '<div class="billcard" id="billCard"><div class="billhd"><b>PSO BILL MATCH</b>' + (on && b.from && b.to ? '' : '<em>' + (on ? '' : 'off') + '</em>') + sw('billSw', on, 'PSO BILL MATCH on or off') + '</div>';
+    if (!on) return h + '</div>';
+    var ss = withCost(v, cfg), pso = (cfg.rates.overnight || 0) + (cfg.rates.fca || 0);
+    var m = billMatch(b, ss, pso, cfg.eff, g.ctEpoch);
+    h += '<div class="billbody" id="billBody"><div class="billinputs">' +
+      '<label>PERIOD FROM<input id="billFrom" inputmode="text" value="' + esc(b.from) + '" placeholder="8/26/2026"></label>' +
+      '<label>TO<input id="billTo" value="' + esc(b.to) + '" placeholder="9/25/2026"></label>' +
+      '<label>TOTAL kWh<input id="billKwh" inputmode="decimal" value="' + esc(b.kwh != null ? b.kwh : '') + '"></label>' +
+      '<label>TOTAL $<input id="billUsd" inputmode="decimal" value="' + esc(b.usd != null ? (+b.usd).toFixed(2) : '') + '"></label>' +
+      '<button class="cbtn" id="billSave" type="button">SAVE</button></div>';
+    if (b.note) h += '<div class="billsrc">' + esc(b.note) + '</div>';
+    if (m.from && m.to && !(dayDiff(m.to, m.from) > 0)) {
+      h += '<div class="billres"><b>Tesla share: ' + m.teslaKwh.toFixed(1) + ' kWh' + (m.shareUsd != null ? ' \u00b7 ' + money(m.shareUsd) : '') + (m.sharePct != null ? ' \u00b7 ' + m.sharePct.toFixed(1) + '% of the bill' : '') + ' \u00b7 ' + m.sessions + ' home charge' + (m.sessions === 1 ? '' : 's') + '</b>' +
+        '<span>At the PSO overnight rate (' + (Math.round(pso * 1000) / 10).toFixed(1) + '\u00a2/kWh): ' + money(m.estPsoUsd) + ' \u00b7 TessDesk tracked ' + money(m.trackedUsd) + (m.diffPct != null ? ' (' + (m.diffPct >= 0 ? '+' : '') + m.diffPct.toFixed(1) + '%)' : '') + (m.partial ? ' \u00b7 TessDesk charge data starts later, so earlier days are not counted' : '') + '</span></div>';
+      if (m.mismatch) h += '<div class="billflag" id="billFlag">Mismatch over 5%: TessDesk tracked ' + money(m.trackedUsd) + ' vs ' + money(m.estPsoUsd) + ' at the PSO overnight rate (' + (m.diffPct >= 0 ? '+' : '') + m.diffPct.toFixed(1) + '%). Some charging may have run outside 11 PM-6 AM, or the rates in settings differ from the bill.</div>';
+    } else h += '<div class="billres">Enter the billing period (from / to) and the total kWh from your PSO bill to see the Tesla share.' + (m.need.length ? '<span>Missing: ' + esc(m.need.join(', ')) + '</span>' : '') + '</div>';
+    return h + '</div></div>';
+  }
+  function healthHtml(v, cfg) {
+    var h = g.cache && g.cache.health, own = ld('healthHist', null) || [], series = healthSeries(h, own), tr = healthTrend(series);
+    var pts = sparkPoints(series, 130, 36);
+    var out = '<div class="healthcard" id="healthCard"><div class="billhd"><b>BATTERY HEALTH</b><em>' + (h && h.at ? 'Tessie \u00b7 ' + esc(g.dayLabel(h.at)) : '') + '</em></div>';
+    if (h && h.healthPct != null) out += '<div class="healthrow"><div class="hpct"><b>' + (+h.healthPct).toFixed(1) + '%</b><small>HEALTH</small></div><div class="hlines"><b>' + (h.capacity != null && h.original != null ? (+h.capacity).toFixed(1) + ' of ' + (+h.original).toFixed(1) + ' kWh capacity' : '') + '</b><span>' + (h.maxRange != null ? 'Full-pack range ' + Math.round(h.maxRange) + ' mi (est.)' : '') + '</span><em>' + (tr ? 'Full-pack range ' + Math.round(tr.fromRange) + ' \u2192 ' + Math.round(tr.toRange) + ' mi since ' + esc(tr.since.slice(0, 7)) + ' (' + (tr.deltaPct >= 0 ? '+' : '') + tr.deltaPct.toFixed(1) + '%)' : 'Trend: history builds up day by day') + '</em></div>' +
+      '<div class="spark"><svg viewBox="0 0 130 36" width="130" height="36">' + (pts ? '<polyline points="' + pts + '" fill="none" stroke="var(--green)" stroke-width="1.8" stroke-linejoin="round"/>' : '') + '</svg><small>' + (series.length >= 2 ? 'max range \u00b7 ' + series.length + ' days' : 'trend: needs 2+ days') + '</small></div></div>';
+    else out += '<div class="hlines"><span>Battery health loads from Tessie (every 6 h).</span></div>';
+    var nowE = g.nowSec(), trips = ((g.cache && g.cache.drives) || []).map(convertTrip);
+    var ss = withCost(v, cfg);
+    var tips = batteryTips(ss, { limit: v.limit }, trips, nowE);
+    if (tips.length) out += '<div class="tipshd">TIPS FROM YOUR DATA</div>' + tips.map(function (t) { return '<div class="tip">\u2022 ' + esc(t) + '</div>'; }).join('');
+    var pc = plugCfg();
+    out += '<div class="plugset" id="plugSet"><span>Plug-in reminder \u00b7 from ' + hourLabel(pc.fromHour) + ', when home, unplugged and under the ' + (pc.mode === 'threshold' ? 'reminder threshold ' + pc.thresholdPct + '%' : 'daily limit' + (v.limit != null ? ' (' + v.limit + '%)' : '')) + '</span>' + sw('plugSw', pc.enabled !== false, 'Plug-in reminder on or off') + '</div>';
+    return out + '</div>';
+  }
+  function tripsHtml(v, cfg) {
+    var open = !!ld('tripsMore', false), days = open ? 30 : 7, nowE = g.nowSec(), pso = (cfg.rates.overnight || 0) + (cfg.rates.fca || 0);
+    var trips = ((g.cache && g.cache.drives) || []).map(convertTrip);
+    var rate = tripRate(withCost(v, cfg), nowE, pso);
+    var view = tripView(trips, g.ct(nowE), days, rate.rate, g.ct);
+    var s7 = view.sum7;
+    function cell(val, lbl) { return '<div><b>' + val + '</b><small>' + lbl + '</small></div>'; }
+    var h = '<div class="card trips4319" id="tripsCard"><div class="sec-hd"><h3>Trips</h3>' + (g.cache && g.cache.drivesAt ? '<span class="pill">as of ' + esc(g.clock(g.cache.drivesAt)) + '</span>' : '') + '</div>' +
+      '<div class="tripsum"><small>LAST 7 DAYS</small><div class="tripsumg">' + cell(s7.trips, 'TRIPS') + cell(s7.miles.toFixed(1), 'MILES') + cell(s7.kwh.toFixed(1), 'kWh') + cell(money(s7.cost), 'COST') + cell(s7.avgMpk != null ? s7.avgMpk.toFixed(2) : '--', 'AVG mi/kWh') + '</div></div>' +
+      '<div class="triprate">' + esc(rate.note) + ' \u00b7 \u25bc = under 70% of your average mi/kWh</div>';
+    if (!view.days.length) h += '<div class="dnote">' + (trips.length ? 'No trips in the last ' + days + ' days.' : 'No trips loaded yet.') + '</div>';
+    view.days.forEach(function (d) {
+      h += '<div class="tripday"><b>' + esc(d.label.toUpperCase()) + '</b><span>' + d.n + ' trip' + (d.n === 1 ? '' : 's') + ' \u00b7 ' + d.miles.toFixed(1) + ' mi \u00b7 ' + d.kwh.toFixed(1) + ' kWh \u00b7 ' + money(d.cost) + '</span></div>';
+      d.trips.forEach(function (r) {
+        var mins = r.minutes >= 60 ? Math.floor(r.minutes / 60) + ' h ' + (r.minutes % 60) + ' min' : Math.max(1, r.minutes) + ' min';
+        h += '<div class="triprow' + (r.inefficient ? ' bad' : '') + '"><div class="tr-when"><b>' + esc(g.clock(r.t.start)) + '</b><small>' + mins + '</small></div>' +
+          '<div class="tr-mid"><b>' + esc(r.t.from + ' \u2192 ' + r.t.to) + '</b><small>' + r.miles.toFixed(1) + ' mi \u00b7 ' + r.kwh.toFixed(2) + ' kWh \u00b7 ' + (r.mpk != null ? r.mpk.toFixed(1) + ' mi/kWh' : '-- mi/kWh') + '</small></div>' +
+          '<div class="tr-cost"><b>' + money(r.cost) + '</b>' + (r.inefficient ? '<small>\u25bc LOW mi/kWh</small>' : '') + '</div></div>';
+      });
+    });
+    h += '<button class="cbtn tripmore" id="tripsMore" type="button">' + (open ? 'Show less (7 days)' : 'Show more (30 days' + (view.older ? ', ' + view.older + ' more' : '') + ')') + '</button></div>';
+    return h;
+  }
+  function bannerOf(v) { var p = plugHtml(v); return (p.fresh ? '<div class="plugbanner" id="plugBanner"><b>PLUG IN TONIGHT</b><span>The car is home, unplugged and under its daily limit.</span></div>' : '') ; }
+  API.plugHtml = plugHtml; API.readyHtml = readyHtml; API.billHtml = billHtml; API.healthHtml = healthHtml; API.tripsHtml = tripsHtml; API.bannerOf = bannerOf;
+  API.bind4319 = function () {
+    var b = document.getElementById('billSw'); if (b) b.onclick = function () { var c = billCfg(); c.enabled = !(c.enabled !== false); sv('billMatch', c); g.render(); };
+    var p = document.getElementById('plugSw'); if (p) p.onclick = function () { var c = plugCfg(); c.enabled = !(c.enabled !== false); sv('plugReminder', c); g.render(); };
+    var s = document.getElementById('billSave'); if (s) s.onclick = function () { var c = billCfg(); var f = parseDate(document.getElementById('billFrom').value), t = parseDate(document.getElementById('billTo').value); c.from = f ? (f.y + '-' + pad(f.mo) + '-' + pad(f.d)) : document.getElementById('billFrom').value.trim(); c.to = t ? (t.y + '-' + pad(t.mo) + '-' + pad(t.d)) : document.getElementById('billTo').value.trim(); c.kwh = num(document.getElementById('billKwh').value); c.usd = num(document.getElementById('billUsd').value); sv('billMatch', c); g.render(); };
+    var m = document.getElementById('tripsMore'); if (m) m.onclick = function () { sv('tripsMore', !ld('tripsMore', false)); g.render(); var el = document.getElementById('tripsCard'); if (el) el.scrollIntoView(); };
+  };
+  document.addEventListener('DOMContentLoaded', function () { });
+})(typeof window !== 'undefined' ? window : globalThis);
+
   var CFG = window.TD_CONFIG || {};
   var VARIANT = CFG.variant || 'main';
   var P = CFG.storagePrefix || 'td:';
-  var VERSION = 'v4.3.18';
+  var VERSION = 'v4.3.19';
   var VERSION_DATE = 'Oct 8, 2026';
   var TZ = 'America/Chicago';
   var DEFAULT_API = 'https://api.tessie.com';
-  var REFRESH_MS = 60000, CHARGES_EVERY_S = 15 * 60, HTTP_TIMEOUT_MS = 15000, CMD_TIMEOUT_MS = 90000;
+  var REFRESH_MS = 60000, CHARGES_EVERY_S = 15 * 60, HEALTH_EVERY_S = 6 * 3600, HTTP_TIMEOUT_MS = 15000, CMD_TIMEOUT_MS = 90000;
   var CHANGELOG_URL = VARIANT === 'test' ? '../changelog.html' : 'changelog.html';
   var BAR_TO_PSI = 14.5038;
   var PRIVACY_URL = VARIANT === 'test' ? '../privacy.html' : 'privacy.html';
@@ -235,8 +535,18 @@
       cache.state = st; cache.stateAt = t;
       var needCharges = force || !cache.charges || (t - cache.chargesAt) > CHARGES_EVERY_S || wasCharging !== isCharging;
       var needDrives = force || !cache.drives || (t - (cache.drivesAt || 0)) > CHARGES_EVERY_S;
-      var pd = !needDrives ? null : api('/' + cfg.vin + '/drives?from=' + (t - 30 * 86400) + '&to=' + t + '&distance_format=mi&format=json&limit=10')
-        .then(function (r) { cache.drives = (r && r.results) || []; cache.drivesAt = t; drivesErr = null; }, function (e) { drivesErr = String(e.message || e); cache.drivesAt = t - CHARGES_EVERY_S + 300; });
+      var needHealth = force || !cache.health || (t - (cache.healthAt || 0)) > HEALTH_EVERY_S;
+      var ph = !needHealth ? null : api('/battery_health?distance_format=mi').then(function (r) {
+        var mine = ((r && r.results) || []).filter(function (x) { return x && x.vin === cfg.vin; })[0];
+        return mine ? api('/' + cfg.vin + '/battery_health?from=' + (t - 400 * 86400) + '&to=' + t + '&distance_format=mi').then(function (h) {
+          var by = {}, pts = []; ((h && h.results) || []).forEach(function (p) { if (p && p.timestamp && p.max_range != null) by[String(p.timestamp).slice(0, 10)] = p; });
+          Object.keys(by).sort().forEach(function (d) { pts.push({ d: d, range: Math.round(+by[d].max_range * 100) / 100, cap: by[d].capacity != null ? Math.round(+by[d].capacity * 100) / 100 : null }); });
+          cache.health = { healthPct: mine.health_percent, capacity: mine.capacity, original: mine.original_capacity, maxRange: mine.max_range, at: t, points: pts }; cache.healthAt = t;
+          try { var own = load('healthHist', []) || [], day = new Date().toISOString().slice(0, 10); own = own.filter(function (p) { return p.d !== day; }); own.push({ d: day, range: mine.max_range, cap: mine.capacity, health: mine.health_percent }); save('healthHist', own.slice(-800)); } catch (e) {}
+        }, function () { cache.health = { healthPct: mine.health_percent, capacity: mine.capacity, original: mine.original_capacity, maxRange: mine.max_range, at: t, points: (cache.health && cache.health.points) || [] }; cache.healthAt = t; }) : null;
+      }, function () { cache.healthAt = t - HEALTH_EVERY_S + 1800; });
+      var pd = !needDrives ? null : api('/' + cfg.vin + '/drives?from=' + (t - 30 * 86400) + '&to=' + t + '&distance_format=mi&format=json')
+        .then(function (r) { cache.drives = (r && r.results) || []; cache.drivesAt = t; drivesErr = null; return ph; }, function (e) { drivesErr = String(e.message || e); cache.drivesAt = t - CHARGES_EVERY_S + 300; return ph; });
       if (!needCharges) return pd;
       return api('/' + cfg.vin + '/charges?from=' + (t - 61 * 86400) + '&to=' + t + '&distance_format=mi&format=json')
         .then(function (r) { cache.charges = (r && r.results) || []; cache.chargesAt = t; return pd; });
@@ -474,6 +784,7 @@
 
   function render() {
     if (dragging) return;
+    if (window.__TD4319bind) window.__TD4319bind({ ct: ct, ctEpoch: ctEpoch, nowSec: nowSec, clock: clock, dayLabel: dayLabel, cache: cache, sessionCost: sessionCost, fromCharge: fromCharge, render: render });
     applyTheme();
     var cfg = getCfg();
     if (!cfg) return renderForm(true);
@@ -509,7 +820,7 @@
       '<div class="sub">' + (v.charging ? 'This charge' : 'Last charge') + (hero && hero.src === 'window' && hero.sessions > 1 ? ' \u00b7 ' + hero.sessions + ' sessions since ' + clock(hero.start) : '') + (rate ? ' \u00b7 ' + rate : '') + '</div>' +
       '<div class="meta">' + meta + '</div></div>';
     // v4.3.18: CHARGING STATUS bar (START / STOP inside) right under the big amount, then TESLA CONTROLS (as desktop 4.3.18)
-    h += chgBar(v) + controlsCard(v.car);
+    h += (window.TD4319 ? TD4319.bannerOf(v) : '') + chgBar(v) + (window.TD4319 ? TD4319.plugHtml(v).bar : '') + controlsCard(v.car);
 
     // battery: big % + range, 0-100% bar (ball = now, tick = where this charge started), draggable LIMIT handle
     var a = v.socStart, b = ctlVal('limit', v.limit), s = v.soc;
@@ -531,10 +842,10 @@
       '<div class="fl-labels"><div><small>FROM</small><span class="mi">' + miles(perPct, a) + '</span><b>' + (a != null ? a + '%' : '--') + '</b></div>' +
       '<div class="r"><small>LIMIT</small><span class="mi" id="limMi">' + miles(perPct, b) + '</span><b id="limPct">' + (b != null ? b + '%' : '--') + '</b></div></div>' +
       '</div>' + vSlider(b, col, v.car, perPct) + '</div>' +
-      ampsAndCharge(v.car, col) + '</div>';
+      ampsAndCharge(v.car, col) + (window.TD4319 ? TD4319.readyHtml(v) + TD4319.billHtml(v, cfg) + TD4319.healthHtml(v, cfg) : '') + '</div>';
 
-    // v4.3.18: old POWER / TO FULL / ENDED chips removed (in the status bar now); RATE STATUS line, then the CHARGE HISTORY & TOTALS dropdown
-    h += peakBanner(rateStatus(v, cfg)) + histCard(v, cfg);
+    // v4.3.19: TRIPS directly below BATTERY; then the RATE STATUS line and the CHARGE HISTORY & TOTALS dropdown
+    h += (window.TD4319 ? TD4319.tripsHtml(v, cfg) : '') + peakBanner(rateStatus(v, cfg)) + histCard(v, cfg);
 
     // tires
     var rec = v.tires.recF == null ? '' : (v.tires.recR != null && Math.abs(v.tires.recR - v.tires.recF) >= 0.5 ? 'Recommended ' + Math.round(v.tires.recF) + ' PSI front \u00b7 ' + Math.round(v.tires.recR) + ' PSI rear' : 'Recommended ' + Math.round(v.tires.recF) + ' PSI (all four)');
@@ -1334,6 +1645,7 @@
     on('cAnnounce', onAnnounce); on('cAnnSetup', openAnnSetup); on('pkStop', onChgStop);
     on('pkHide', function () { var p = peakState(compute(getCfg()), getCfg()); if (p) save('peakHide', p.key); render(); }); on('pkShow', function () { save('peakHide', ''); render(); });
     bind4318();   // v4.3.18
+    try { if (window.TD4319) TD4319.bind4319(); } catch (e) { console.error(e); }   // v4.3.19
     if (busy) setSpin(true);
   }
 

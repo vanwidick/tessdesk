@@ -31,10 +31,24 @@
   <p class="lead">Every TessDesk version (desktop widget and phone app), newest first.</p>
 
   <!-- Add each new version at the top: <section class="rel new"> ... -->
-  <section class="rel new" id="v4.3.18">
-    <h2>v4.3.18 <small>Oct 8, 2026 (desktop and phone)</small></h2>
+  <section class="rel new" id="v4.3.19">
+    <h2>v4.3.19 <small>Oct 8, 2026 (desktop and phone)</small></h2>
     <span class="tag">LATEST</span>
     <ul>
+      <li><b>30% wider on the desktop</b> (473 px). The battery bar, the amps slider and the buttons use the extra room, and the SKIP CONFIRM labels (including Announce) show in full. A saved window position keeps its right edge and grows to the new width.</li>
+      <li><b>PLUG-IN REMINDER</b>: in the evening (from 9 PM), when the car is home, unplugged and under its daily limit, the charging status bar shows a red <b>PLUG IN TONIGHT</b>. The desktop also shows one Windows toast per night. It clears when the car is plugged in. A switch in the BATTERY card turns it off (on by default, saved). No Alexa announcement.</li>
+      <li><b>TRIPS</b>, right under BATTERY: your drives grouped by day (Today, Yesterday, then the date) with from → to (Home and your saved names), start time, duration, miles, kWh, cost and mi/kWh. Cost = kWh × your home charging average over the last 30 days (the PSO overnight rate if there is no home charging). A day total and a 7-day summary. Last 7 days, with Show more for 30 (remembered). A trip well under your usual mi/kWh is marked.</li>
+      <li><b>MORNING READY CHECK</b> in the BATTERY card (from cached data, the car is never woken): battery at the limit, charging finished, locked, windows closed, tires (none under 40 PSI, right front called out), Sentry and range. READY in green, or CHECK in amber listing what is off. Big from 5 to 10 AM, one line the rest of the day. The desktop shows one morning toast only when something is off. No Alexa announcement.</li>
+      <li><b>PSO BILL MATCH</b>: enter the bill period, total kWh and total $ (the total is prefilled from your Sep 26, 2026 bill email, $442.21; the period and kWh are not in the email, so those stay blank). Shows the Tesla share (kWh, $, % of the bill) and the estimated cost at the PSO overnight rate against what TessDesk tracked, and flags a difference over 5%. The card has an on/off switch; off collapses it to one small row (on by default, saved).</li>
+      <li><b>BATTERY HEALTH</b>: health %, capacity vs original, full-pack range and a trend sparkline, plus a few tips drawn from your own charging and driving.</li>
+      <li><b>LEAVING SOON: Start after</b> (desktop, phone and the <a href="leaving/">Leaving Soon mini app</a>): a wait of 0-120 minutes (default 0, so it starts right away as before) before the sequence begins. The countdown reads Starting in mm:ss, then the usual steps. Stop during that countdown just cancels, with nothing to undo. The confirm text and the summary line include it, for example start in 20 min · windows 3 min later · unlock 3 min later.</li>
+      <li>Desktop v4.3.19, Windows download: TessDesk Setup 4.4.19. Phone app v4.3.19: open TessDesk on your phone and tap the refresh banner.</li>
+    </ul>
+  </section>
+
+  <section class="rel" id="v4.3.18">
+    <h2>v4.3.18 <small>Oct 8, 2026 (desktop and phone)</small></h2>
+        <ul>
       <li><b>CHARGING STATUS bar</b> (desktop), right under the big amount: one wide bar says in large bold letters <b>CHARGING</b> (green, pulsing dot), <b>NOT CHARGING</b> (red), <b>UNPLUGGED</b> or <b>COMPLETE</b>, with the power (kW), this or the last session's length, when it will be full (or when it ended) and the battery %. START and STOP sit right in the bar.</li>
       <li>The old POWER / DURATION / ENDED tiles and the separate START / STOP row are gone, and TESLA CONTROLS is a little tighter, so the status bar, all the controls and the top of BATTERY fit the window without scrolling.</li>
       <li><b>SKIP CONFIRM</b> checkboxes at the bottom of TESLA CONTROLS, one for each action that asks first: Unlock, Leaving Soon, Flash, Vent, Trunk, Sentry, Announce, Stop charging, charge Limit and Amps. Tick one and that action runs right away with no Yes/No or Are-you-sure pop-up. Each is saved in your settings and stays ticked after restarts and updates. All start unticked.</li>

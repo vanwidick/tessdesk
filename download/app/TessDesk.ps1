@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-# TessDesk v4.3.18 (CHARGING STATUS bar under the big cost with START / STOP, fits 364x990 without scrolling; v4.3.17: TESLA CONTROLS under the big cost, CHARGE HISTORY & TOTALS dropdown; v4.3.16 LEAVING SOON: adjustable 'Windows after' / 'Unlock after' minutes, Stop undoes the steps already done; v4.3.15: climate on, close windows, unlock; rolling 7 / 14 days and 30 / 60 days $ beside the big amount; Restore / Remember at the top right with fade-in, like Paycheck Live; TOTALS pop-up: week / month / year running totals; CAMERAS panel from saved Sentry / Dashcam clips; checks for updates on open / wake; compact-when-OFF via cb_compact_addon.ps1) - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
+# TessDesk v4.3.19 (30% wider; PLUG-IN REMINDER; TRIPS; MORNING READY CHECK; PSO BILL MATCH with on/off; BATTERY HEALTH TREND + TIPS; LEAVING SOON 'Start after' delay; v4.3.18 CHARGING STATUS bar under the big cost with START / STOP, fits 364x990 without scrolling; v4.3.17: TESLA CONTROLS under the big cost, CHARGE HISTORY & TOTALS dropdown; v4.3.16 LEAVING SOON: adjustable 'Windows after' / 'Unlock after' minutes, Stop undoes the steps already done; v4.3.15: climate on, close windows, unlock; rolling 7 / 14 days and 30 / 60 days $ beside the big amount; Restore / Remember at the top right with fade-in, like Paycheck Live; TOTALS pop-up: week / month / year running totals; CAMERAS panel from saved Sentry / Dashcam clips; checks for updates on open / wake; compact-when-OFF via cb_compact_addon.ps1) - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
 param(
     [string]$ConfigPath,
     [string]$Snapshot,    # optional: folder to write PNG snapshots of both themes
@@ -14,7 +14,7 @@ Add-Type -AssemblyName System.Xaml
 
 $ErrorActionPreference = 'Stop'
 $AppName    = 'TessDesk'
-$AppVersion = '4.3.18'
+$AppVersion = '4.3.19'
 $AppDate    = 'Oct 8, 2026'
 
 $scriptDir  = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -159,9 +159,9 @@ $ResumeWindowMin   = 30
 $ChargesRefreshMin = 15
 $HistoryDays       = 61   # v4.3.14: 60 days rolling needs 60 days of /charges
 
-# Window size: 364 wide. v4.2: the window grows to fit (never past the bottom of the work area). The top (hero + money
+# Window size: 473 wide (v4.3.19, 30% wider than 364). v4.2: the window grows to fit (never past the bottom of the work area). The top (hero + money
 # rows) and the footer stay fixed; the sections below scroll (slim scrollbar) when they don't fit the screen.
-$winW = 364
+$winW = 473
 $winH = 900
 $CmdTimeoutSec = 90
 
@@ -369,7 +369,7 @@ function Resolve-Vin {
 
 # ---------------- State (state.json next to the script) ----------------
 $StateFields = @('wasCharging', 'session', 'lastLive', 'lastCharges', 'lastChargesFetchEpoch', 'recentSessions',
-                 'lastCharge', 'tessieLook', 'lastTires', 'lastCar', 'drives', 'drivesFetchEpoch')
+                 'lastCharge', 'tessieLook', 'lastTires', 'lastCar', 'drives', 'drivesFetchEpoch', 'trips', 'health', 'healthFetchEpoch')
 
 function New-State {
     param($Base, [hashtable]$Set = @{})
@@ -952,6 +952,7 @@ function Invoke-LivePoll {
     try { $w = Get-LastChargeShown $script:State; if ($null -ne $w) { $last = $w; $script:State.lastCharge = $w } } catch { Write-WidgetLog ('window charge: ' + $_.Exception.Message) }
     $script:LastWindow = $(if ($null -ne $last -and [string]$last.source -eq 'window') { $last } else { $null })
     Update-DrivesCache $Token $nowE
+    try { Update-HealthCache $Token $nowE } catch { Write-WidgetLog ('battery health: ' + $_.Exception.Message) }
     Save-WidgetState
     return [pscustomobject]@{ mode = 'idle'; last = $last; car = $car; tires = $tires }
 }
@@ -1108,9 +1109,10 @@ function Update-DrivesCache {
     $st.drivesFetchEpoch = $NowE
     try {
         $from = $NowE - 30 * 86400
-        $r = Invoke-Tessie ("/$($script:VIN)/drives?from=$from&to=$NowE&distance_format=mi&format=json&limit=10") $Token
-        $rows = @($r.results | Where-Object { $null -ne $_ -and $null -ne $_.started_at } | Sort-Object { [int64]$_.started_at } -Descending | Select-Object -First 10)
-        $st.drives = @($rows | ForEach-Object { Convert-Drive $_ })
+        $r = Invoke-Tessie ("/$($script:VIN)/drives?from=$from&to=$NowE&distance_format=mi&format=json") $Token
+        $rows = @($r.results | Where-Object { $null -ne $_ -and $null -ne $_.started_at } | Sort-Object { [int64]$_.started_at } -Descending)
+        $st.drives = @($rows | Select-Object -First 10 | ForEach-Object { Convert-Drive $_ })   # the DRIVES card (last 10)
+        $st.trips = @($rows | ForEach-Object { Convert-Trip4319 $_ })   # v4.3.19: the TRIPS card (full 30 days)
         $script:DrivesNote = $null
     } catch { $script:DrivesNote = 'drives: ' + $_.Exception.Message; Write-WidgetLog ('drives fetch failed: ' + $_.Exception.Message); $st.drivesFetchEpoch = $NowE - ($ChargesRefreshMin * 60) + 300 }
 }
@@ -1517,7 +1519,7 @@ function Open-Url433 {
         <!-- v4.3.18: CHARGING STATUS bar, fixed under the big cost (never scrolls): state word (CHARGING / NOT CHARGING / UNPLUGGED / COMPLETE), START / STOP on the right, then POWER, SESSION, FULL AT or ENDED, BATTERY -->
         <Border x:Name="ChgCard" Grid.Row="3" CornerRadius="10" Background="#FF111111" BorderBrush="#FF222222" BorderThickness="2" Padding="10,5,8,5" Margin="0,2,0,6">
           <Grid>
-            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
             <Grid x:Name="ChgHead" VerticalAlignment="Center" Margin="0,0,6,0">
               <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
@@ -1547,6 +1549,17 @@ function Open-Url433 {
               <StackPanel Margin="2,0,0,0"><Viewbox StretchDirection="DownOnly" Height="20"><TextBlock x:Name="ChgV3" Text="&#x2014;" FontSize="15" FontWeight="Bold" Foreground="#FFFFFFFF"/></Viewbox><TextBlock x:Name="ChgL3" Text="BATTERY" FontSize="8" FontWeight="Bold" Foreground="#FFCCCCCC" HorizontalAlignment="Center"/></StackPanel>
             </UniformGrid>
             <TextBlock x:Name="ChgSub" Grid.Row="2" Grid.ColumnSpan="2" Text="" FontSize="9.5" FontWeight="SemiBold" Foreground="#FFCCCCCC" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,3,0,0"/>
+            <!-- v4.3.19: PLUG-IN REMINDER (evening, at home, unplugged, under the daily limit); clears when plugged in -->
+            <Border x:Name="PlugRemBar" Grid.Row="3" Grid.ColumnSpan="2" Visibility="Collapsed" CornerRadius="6" Background="#40E82127" BorderBrush="#FFE82127" BorderThickness="1.5" Padding="8,2,8,3" Margin="0,4,0,0"
+                    ToolTip="Plug-in reminder: evening, the car is home, unplugged and under its daily limit. Turn it off in BATTERY (Plug-in reminder).">
+              <DockPanel LastChildFill="True">
+                <TextBlock x:Name="PlugRemSub" DockPanel.Dock="Right" Text="" FontSize="10" FontWeight="SemiBold" Foreground="#FFFFFFFF" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                  <Ellipse x:Name="PlugRemDot" Width="9" Height="9" Fill="#FFE82127" VerticalAlignment="Center" Margin="0,1,6,0"/>
+                  <TextBlock x:Name="PlugRemTxt" Text="PLUG IN TONIGHT" FontSize="13" FontWeight="Black" Foreground="#FFFF4D52" VerticalAlignment="Center"/>
+                </StackPanel>
+              </DockPanel>
+            </Border>
           </Grid>
         </Border>
 
@@ -1562,26 +1575,34 @@ function Open-Url433 {
               <TextBlock x:Name="CtlHdr" Grid.ColumnSpan="3" Text="TESLA CONTROLS" FontSize="12.5" FontWeight="Bold" Foreground="#FF9A9A9A" HorizontalAlignment="Left" VerticalAlignment="Center"/>
               <!-- v4.3.15: LEAVING SOON, same line as the heading, over the Flash Lights column (right edge = Flash Lights box right edge) -->
               <Button x:Name="LeaveBtn" Grid.Column="1" Style="{StaticResource CtlBtn}" Height="17" Margin="3,0,3,0" Padding="5,0,5,0" HorizontalAlignment="Right" VerticalAlignment="Center"
-                      ToolTip="Leaving Soon: climate on now, close the windows after the Windows after minutes, unlock after the Unlock after minutes. Asks first; each step is announced on Alexa; Stop cancels the rest and undoes the steps already done.">
+                      ToolTip="Leaving Soon: waits the Start after minutes, then climate on, close the windows after the Windows after minutes, unlock after the Unlock after minutes. Asks first; each step is announced on Alexa; Stop cancels the rest and undoes the steps already done. Stop during Start after just cancels.">
                 <TextBlock x:Name="LeaveBtnTxt" Text="LEAVING SOON" FontSize="9" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
               </Button>
               <TextBlock x:Name="CtlMode" Grid.Column="2" Text="" FontSize="10" FontWeight="Bold" Foreground="#FFFFB020" HorizontalAlignment="Right" VerticalAlignment="Center"/>
             </Grid>
-            <!-- v4.3.16: Leaving Soon waits, minutes 0-30 (default 3, 0 = right away), saved in config.json leavingSoon -->
-            <StackPanel x:Name="LeaveWaitRow" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,-1,0,4">
-              <TextBlock x:Name="LeaveWinLbl" Text="Windows after" FontSize="9" FontWeight="SemiBold" Foreground="#FF9A9A9A" VerticalAlignment="Center" Margin="0,0,3,0"/>
-              <Button x:Name="LeaveWinDn" Style="{StaticResource CtlBtn}" Width="14" Height="16" Padding="0" ToolTip="1 minute less"><TextBlock Text="&#x2212;" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-2,0,0"/></Button>
-              <TextBox x:Name="LeaveWinMin" Text="3" Width="22" Height="16" Margin="2,0,2,0" FontSize="9.5" FontWeight="Bold" TextAlignment="Center" VerticalContentAlignment="Center" Padding="0" MaxLength="2"
+            <!-- v4.3.16: Leaving Soon waits, minutes 0-30 (default 3, 0 = right away), saved in config.json leavingSoon. v4.3.19: Start after (0-120, default 0) first -->
+            <Viewbox x:Name="LeaveWaitFit" Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Right" Margin="0,-1,0,4">
+            <StackPanel x:Name="LeaveWaitRow" Orientation="Horizontal" HorizontalAlignment="Right">
+              <TextBlock x:Name="LeaveStartLbl" Text="Start after" FontSize="9.5" FontWeight="SemiBold" Foreground="#FF9A9A9A" VerticalAlignment="Center" Margin="0,0,2,0"/>
+              <Button x:Name="LeaveStartDn" Style="{StaticResource CtlBtn}" Width="16" Height="17" Padding="0" ToolTip="1 minute less"><TextBlock Text="&#x2212;" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-2,0,0"/></Button>
+              <TextBox x:Name="LeaveStartMin" Text="0" Width="26" Height="17" Margin="1,0,1,0" FontSize="10" FontWeight="Bold" TextAlignment="Center" VerticalContentAlignment="Center" Padding="0" MaxLength="3"
+                       Background="#33000000" Foreground="#FFFFFFFF" BorderBrush="#FF49DF93" BorderThickness="1" CaretBrush="#FFFFFFFF" ToolTip="Leaving Soon: minutes to wait after you press LEAVING SOON before it starts (before climate turns on). 0-120, 0 = start right away; type a number, or use the mouse wheel or Up/Down"/>
+              <Button x:Name="LeaveStartUp" Style="{StaticResource CtlBtn}" Width="16" Height="17" Padding="0" ToolTip="1 minute more"><TextBlock Text="+" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-2,0,0"/></Button>
+              <TextBlock Text="min" FontSize="9.5" FontWeight="SemiBold" Foreground="#FF9A9A9A" VerticalAlignment="Center" Margin="2,0,7,0"/>
+              <TextBlock x:Name="LeaveWinLbl" Text="Windows after" FontSize="9.5" FontWeight="SemiBold" Foreground="#FF9A9A9A" VerticalAlignment="Center" Margin="0,0,2,0"/>
+              <Button x:Name="LeaveWinDn" Style="{StaticResource CtlBtn}" Width="16" Height="17" Padding="0" ToolTip="1 minute less"><TextBlock Text="&#x2212;" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-2,0,0"/></Button>
+              <TextBox x:Name="LeaveWinMin" Text="3" Width="22" Height="17" Margin="1,0,1,0" FontSize="10" FontWeight="Bold" TextAlignment="Center" VerticalContentAlignment="Center" Padding="0" MaxLength="2"
                        Background="#33000000" Foreground="#FFFFFFFF" BorderBrush="#FF49DF93" BorderThickness="1" CaretBrush="#FFFFFFFF" ToolTip="Leaving Soon: minutes from climate on to closing the windows (0-30, 0 = right away; mouse wheel or Up/Down changes it)"/>
-              <Button x:Name="LeaveWinUp" Style="{StaticResource CtlBtn}" Width="14" Height="16" Padding="0" ToolTip="1 minute more"><TextBlock Text="+" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-2,0,0"/></Button>
-              <TextBlock Text="min" FontSize="9" FontWeight="SemiBold" Foreground="#FF9A9A9A" VerticalAlignment="Center" Margin="3,0,10,0"/>
-              <TextBlock x:Name="LeaveUnlockLbl" Text="Unlock after" FontSize="9" FontWeight="SemiBold" Foreground="#FF9A9A9A" VerticalAlignment="Center" Margin="0,0,3,0"/>
-              <Button x:Name="LeaveUnlockDn" Style="{StaticResource CtlBtn}" Width="14" Height="16" Padding="0" ToolTip="1 minute less"><TextBlock Text="&#x2212;" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-2,0,0"/></Button>
-              <TextBox x:Name="LeaveUnlockMin" Text="3" Width="22" Height="16" Margin="2,0,2,0" FontSize="9.5" FontWeight="Bold" TextAlignment="Center" VerticalContentAlignment="Center" Padding="0" MaxLength="2"
+              <Button x:Name="LeaveWinUp" Style="{StaticResource CtlBtn}" Width="16" Height="17" Padding="0" ToolTip="1 minute more"><TextBlock Text="+" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-2,0,0"/></Button>
+              <TextBlock Text="min" FontSize="9.5" FontWeight="SemiBold" Foreground="#FF9A9A9A" VerticalAlignment="Center" Margin="2,0,7,0"/>
+              <TextBlock x:Name="LeaveUnlockLbl" Text="Unlock after" FontSize="9.5" FontWeight="SemiBold" Foreground="#FF9A9A9A" VerticalAlignment="Center" Margin="0,0,2,0"/>
+              <Button x:Name="LeaveUnlockDn" Style="{StaticResource CtlBtn}" Width="16" Height="17" Padding="0" ToolTip="1 minute less"><TextBlock Text="&#x2212;" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-2,0,0"/></Button>
+              <TextBox x:Name="LeaveUnlockMin" Text="3" Width="22" Height="17" Margin="1,0,1,0" FontSize="10" FontWeight="Bold" TextAlignment="Center" VerticalContentAlignment="Center" Padding="0" MaxLength="2"
                        Background="#33000000" Foreground="#FFFFFFFF" BorderBrush="#FF49DF93" BorderThickness="1" CaretBrush="#FFFFFFFF" ToolTip="Leaving Soon: minutes from closing the windows to unlocking (0-30, 0 = right away; mouse wheel or Up/Down changes it)"/>
-              <Button x:Name="LeaveUnlockUp" Style="{StaticResource CtlBtn}" Width="14" Height="16" Padding="0" ToolTip="1 minute more"><TextBlock Text="+" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-2,0,0"/></Button>
-              <TextBlock Text="min" FontSize="9" FontWeight="SemiBold" Foreground="#FF9A9A9A" VerticalAlignment="Center" Margin="3,0,0,0"/>
+              <Button x:Name="LeaveUnlockUp" Style="{StaticResource CtlBtn}" Width="16" Height="17" Padding="0" ToolTip="1 minute more"><TextBlock Text="+" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-2,0,0"/></Button>
+              <TextBlock Text="min" FontSize="9.5" FontWeight="SemiBold" Foreground="#FF9A9A9A" VerticalAlignment="Center" Margin="2,0,0,0"/>
             </StackPanel>
+            </Viewbox>
             <Border x:Name="LeaveRow" Visibility="Collapsed" CornerRadius="6" BorderThickness="1" BorderBrush="#FF49DF93" Background="#1A49DF93" Padding="7,3,4,3" Margin="0,0,0,6">
               <Grid>
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
@@ -1744,18 +1765,18 @@ function Open-Url433 {
             </Border>
             <Border x:Name="SkipCfRow" Margin="0,4,0,0" Padding="6,1,4,1" CornerRadius="6" BorderThickness="1" BorderBrush="#33FFFFFF" ToolTip="Skip confirm: a checked action runs right away, with no Yes/No or Are-you-sure pop-up. Each one is saved in your settings and stays checked after restarts and updates.">
               <DockPanel x:Name="SkipCfWrap" LastChildFill="True">
-                <TextBlock x:Name="SkipCfHdr" DockPanel.Dock="Left" Text="SKIP&#x0a;CONFIRM" FontSize="8.5" FontWeight="Bold" LineHeight="10" LineStackingStrategy="BlockLineHeight" Foreground="#FF9A9A9A" VerticalAlignment="Center" TextAlignment="Center" Margin="0,0,5,0"/>
+                <TextBlock x:Name="SkipCfHdr" DockPanel.Dock="Left" Text="SKIP&#x0a;CONFIRM" FontSize="9" FontWeight="Bold" LineHeight="10" LineStackingStrategy="BlockLineHeight" Foreground="#FF9A9A9A" VerticalAlignment="Center" TextAlignment="Center" Margin="0,0,5,0"/>
                 <UniformGrid x:Name="SkipCfGrid" Columns="5" Rows="2">
-                  <CheckBox x:Name="SkipCf_unlock" Tag="unlock" Style="{StaticResource SkipCfChk}" ToolTip="Skip confirm for UNLOCK (the LOCKED button): unlocks right away"><Viewbox StretchDirection="DownOnly" HorizontalAlignment="Left"><TextBlock Text="Unlock"/></Viewbox></CheckBox>
-                  <CheckBox x:Name="SkipCf_leave" Tag="leave" Style="{StaticResource SkipCfChk}" ToolTip="Skip the 'Are you sure? Start Leaving Soon?' pop-up"><Viewbox StretchDirection="DownOnly" HorizontalAlignment="Left"><TextBlock Text="Leaving"/></Viewbox></CheckBox>
-                  <CheckBox x:Name="SkipCf_flash" Tag="flash" Style="{StaticResource SkipCfChk}" ToolTip="Skip confirm for FLASH LIGHTS"><Viewbox StretchDirection="DownOnly" HorizontalAlignment="Left"><TextBlock Text="Flash"/></Viewbox></CheckBox>
-                  <CheckBox x:Name="SkipCf_vent" Tag="vent" Style="{StaticResource SkipCfChk}" ToolTip="Skip confirm for VENT windows"><Viewbox StretchDirection="DownOnly" HorizontalAlignment="Left"><TextBlock Text="Vent"/></Viewbox></CheckBox>
-                  <CheckBox x:Name="SkipCf_trunk" Tag="trunk" Style="{StaticResource SkipCfChk}" ToolTip="Skip the 'Are you sure?' pop-up when opening or closing the TRUNK"><Viewbox StretchDirection="DownOnly" HorizontalAlignment="Left"><TextBlock Text="Trunk"/></Viewbox></CheckBox>
-                  <CheckBox x:Name="SkipCf_sentry" Tag="sentry" Style="{StaticResource SkipCfChk}" ToolTip="Skip confirm when turning SENTRY on or off"><Viewbox StretchDirection="DownOnly" HorizontalAlignment="Left"><TextBlock Text="Sentry"/></Viewbox></CheckBox>
-                  <CheckBox x:Name="SkipCf_announce" Tag="announce" Style="{StaticResource SkipCfChk}" ToolTip="Skip confirm for ANNOUNCE full status on Alexa"><Viewbox StretchDirection="DownOnly" HorizontalAlignment="Left"><TextBlock Text="Announce"/></Viewbox></CheckBox>
-                  <CheckBox x:Name="SkipCf_stopCharging" Tag="stopCharging" Style="{StaticResource SkipCfChk}" ToolTip="Skip 'Stop charging now?' (the STOP button in the charging bar)"><Viewbox StretchDirection="DownOnly" HorizontalAlignment="Left"><TextBlock Text="Stop chg"/></Viewbox></CheckBox>
-                  <CheckBox x:Name="SkipCf_limit" Tag="limit" Style="{StaticResource SkipCfChk}" ToolTip="Skip confirm when you drag the charge limit on the battery bar"><Viewbox StretchDirection="DownOnly" HorizontalAlignment="Left"><TextBlock Text="Limit"/></Viewbox></CheckBox>
-                  <CheckBox x:Name="SkipCf_amps" Tag="amps" Style="{StaticResource SkipCfChk}" ToolTip="Skip confirm when you set the charging amps"><Viewbox StretchDirection="DownOnly" HorizontalAlignment="Left"><TextBlock Text="Amps"/></Viewbox></CheckBox>
+                  <CheckBox x:Name="SkipCf_unlock" Tag="unlock" Style="{StaticResource SkipCfChk}" ToolTip="Skip confirm for UNLOCK (the LOCKED button): unlocks right away"><TextBlock Text="Unlock" FontSize="10.5" FontWeight="SemiBold" VerticalAlignment="Center"/></CheckBox>
+                  <CheckBox x:Name="SkipCf_leave" Tag="leave" Style="{StaticResource SkipCfChk}" ToolTip="Skip the 'Are you sure? Start Leaving Soon?' pop-up"><TextBlock Text="Leaving" FontSize="10.5" FontWeight="SemiBold" VerticalAlignment="Center"/></CheckBox>
+                  <CheckBox x:Name="SkipCf_flash" Tag="flash" Style="{StaticResource SkipCfChk}" ToolTip="Skip confirm for FLASH LIGHTS"><TextBlock Text="Flash" FontSize="10.5" FontWeight="SemiBold" VerticalAlignment="Center"/></CheckBox>
+                  <CheckBox x:Name="SkipCf_vent" Tag="vent" Style="{StaticResource SkipCfChk}" ToolTip="Skip confirm for VENT windows"><TextBlock Text="Vent" FontSize="10.5" FontWeight="SemiBold" VerticalAlignment="Center"/></CheckBox>
+                  <CheckBox x:Name="SkipCf_trunk" Tag="trunk" Style="{StaticResource SkipCfChk}" ToolTip="Skip the 'Are you sure?' pop-up when opening or closing the TRUNK"><TextBlock Text="Trunk" FontSize="10.5" FontWeight="SemiBold" VerticalAlignment="Center"/></CheckBox>
+                  <CheckBox x:Name="SkipCf_sentry" Tag="sentry" Style="{StaticResource SkipCfChk}" ToolTip="Skip confirm when turning SENTRY on or off"><TextBlock Text="Sentry" FontSize="10.5" FontWeight="SemiBold" VerticalAlignment="Center"/></CheckBox>
+                  <CheckBox x:Name="SkipCf_announce" Tag="announce" Style="{StaticResource SkipCfChk}" ToolTip="Skip confirm for ANNOUNCE full status on Alexa"><TextBlock Text="Announce" FontSize="10.5" FontWeight="SemiBold" VerticalAlignment="Center"/></CheckBox>
+                  <CheckBox x:Name="SkipCf_stopCharging" Tag="stopCharging" Style="{StaticResource SkipCfChk}" ToolTip="Skip 'Stop charging now?' (the STOP button in the charging bar)"><TextBlock Text="Stop chg" FontSize="10.5" FontWeight="SemiBold" VerticalAlignment="Center"/></CheckBox>
+                  <CheckBox x:Name="SkipCf_limit" Tag="limit" Style="{StaticResource SkipCfChk}" ToolTip="Skip confirm when you drag the charge limit on the battery bar"><TextBlock Text="Limit" FontSize="10.5" FontWeight="SemiBold" VerticalAlignment="Center"/></CheckBox>
+                  <CheckBox x:Name="SkipCf_amps" Tag="amps" Style="{StaticResource SkipCfChk}" ToolTip="Skip confirm when you set the charging amps"><TextBlock Text="Amps" FontSize="10.5" FontWeight="SemiBold" VerticalAlignment="Center"/></CheckBox>
                 </UniformGrid>
               </DockPanel>
             </Border>
@@ -1784,8 +1805,8 @@ function Open-Url433 {
                 <TextBlock x:Name="DragVal" Text="" FontSize="25" FontWeight="Bold" Foreground="#FFFFFFFF" Margin="0,-3,0,0"/>
               </StackPanel>
             </Grid>
-            <Canvas x:Name="BarDark" Width="206" Height="40" HorizontalAlignment="Left" Margin="0,4,0,0" Background="Transparent">
-              <Rectangle x:Name="BarTrack" Canvas.Left="13" Canvas.Top="16" Width="180" Height="8" RadiusX="4" RadiusY="4" Fill="#FF2A2A2A"/>
+            <Canvas x:Name="BarDark" Width="286" Height="40" HorizontalAlignment="Left" Margin="0,4,0,0" Background="Transparent">
+              <Rectangle x:Name="BarTrack" Canvas.Left="13" Canvas.Top="16" Width="260" Height="8" RadiusX="4" RadiusY="4" Fill="#FF2A2A2A"/>
               <Rectangle x:Name="BarFrom" Canvas.Left="13" Canvas.Top="16" Width="0" Height="8" RadiusX="4" RadiusY="4" Fill="#FFE82127" Opacity="0.35"/>
               <Rectangle x:Name="BarFill" Canvas.Left="13" Canvas.Top="16" Width="0" Height="8" RadiusX="4" RadiusY="4" Fill="#FFE82127"/>
               <Rectangle x:Name="FromTick" Canvas.Left="13" Canvas.Top="10" Width="2" Height="20" Fill="#FFCCCCCC" Opacity="0.8"/>
@@ -1795,7 +1816,7 @@ function Open-Url433 {
                 <TextBlock x:Name="BarBallText" Text="" FontSize="8" FontWeight="Bold" Foreground="#FF0B0B0B" HorizontalAlignment="Center" VerticalAlignment="Center"/>
               </Grid>
             </Canvas>
-            <Grid Margin="0,5,0,0" Width="206" HorizontalAlignment="Left">
+            <Grid Margin="0,5,0,0" Width="286" HorizontalAlignment="Left">
               <StackPanel HorizontalAlignment="Left">
                 <TextBlock x:Name="FromCap" Text="FROM" FontSize="9" FontWeight="SemiBold" Foreground="#FF8A8A8A"/>
                 <TextBlock x:Name="FromMi" Text="" FontSize="11" FontWeight="SemiBold" Foreground="#FFCCCCCC"/>
@@ -1830,14 +1851,29 @@ function Open-Url433 {
                 </Border>
               </Canvas>
             </Grid>
+            <!-- v4.3.19: MORNING READY CHECK (cached data only; big 5-10 AM, one line otherwise) -->
+            <Border x:Name="ReadyBox" CornerRadius="6" BorderThickness="1" BorderBrush="#FF49DF93" Background="#1A49DF93" Padding="8,3,8,4" Margin="0,6,0,0">
+              <StackPanel>
+                <DockPanel LastChildFill="True">
+                  <TextBlock x:Name="ReadyWhen" DockPanel.Dock="Right" Text="" FontSize="9.5" Foreground="#FF9A9A9A" VerticalAlignment="Center"/>
+                  <TextBlock x:Name="ReadyHdr" Text="MORNING READY CHECK" FontSize="10.5" FontWeight="Bold" Foreground="#FF9A9A9A" VerticalAlignment="Center"/>
+                  <Border x:Name="ReadyPill" CornerRadius="4" Padding="6,0,6,1" Margin="7,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center" Background="#FF49DF93">
+                    <TextBlock x:Name="ReadyPillTxt" Text="READY" FontSize="11" FontWeight="Black" Foreground="#FF0B0B0B"/>
+                  </Border>
+                </DockPanel>
+                <TextBlock x:Name="ReadyOff" Text="" FontSize="10.5" FontWeight="SemiBold" TextWrapping="Wrap" Foreground="#FFFFB547" Margin="0,2,0,0" Visibility="Collapsed"/>
+                <UniformGrid x:Name="ReadyGrid" Columns="2" Margin="0,3,0,0"/>
+                <TextBlock x:Name="ReadyLine" Text="" FontSize="10" TextWrapping="Wrap" Foreground="#FFCCCCCC" Margin="0,2,0,0"/>
+              </StackPanel>
+            </Border>
             <!-- v4.2: CHARGING AMPS slider (same build as the limit slider) -->
             <Border x:Name="AmpsSep" Height="1" Background="#FF222222" Margin="0,8,0,6"/>
             <DockPanel LastChildFill="True">
               <TextBlock x:Name="AmpsNow" DockPanel.Dock="Right" Text="" FontSize="10" FontWeight="SemiBold" Foreground="#FFCCCCCC" VerticalAlignment="Center"/>
               <TextBlock x:Name="AmpsHdr" Text="CHARGING AMPS" FontSize="11" FontWeight="Bold" Foreground="#FF9A9A9A"/>
             </DockPanel>
-            <Canvas x:Name="AmpsDark" Width="306" Height="40" HorizontalAlignment="Center" Margin="0,4,0,0" Background="Transparent">
-              <Rectangle x:Name="AmpsTrack" Canvas.Left="13" Canvas.Top="16" Width="280" Height="8" RadiusX="4" RadiusY="4" Fill="#FF2A2A2A"/>
+            <Canvas x:Name="AmpsDark" Width="386" Height="40" HorizontalAlignment="Center" Margin="0,4,0,0" Background="Transparent">
+              <Rectangle x:Name="AmpsTrack" Canvas.Left="13" Canvas.Top="16" Width="360" Height="8" RadiusX="4" RadiusY="4" Fill="#FF2A2A2A"/>
               <Rectangle x:Name="AmpsFill" Canvas.Left="13" Canvas.Top="16" Width="0" Height="8" RadiusX="4" RadiusY="4" Fill="#FFE82127"/>
               <Border x:Name="AmpsThumb" Canvas.Left="0" Canvas.Top="0" Width="20" Height="40" CornerRadius="6" Background="#FFFFFFFF"
                       BorderBrush="#FF0B0B0B" BorderThickness="2" Cursor="SizeWE" ToolTip="Drag to set the charging current (amps)">
@@ -1852,6 +1888,95 @@ function Open-Url433 {
               <TextBlock x:Name="AmpsVal" Text="-- A" FontSize="18" FontWeight="Bold" Foreground="#FFFFFFFF" HorizontalAlignment="Center"/>
               <TextBlock x:Name="AmpsMaxLbl" Text="-- A max" FontSize="10" FontWeight="SemiBold" Foreground="#FF8A8A8A" HorizontalAlignment="Right" VerticalAlignment="Center"/>
             </Grid>
+            <!-- v4.3.19: PSO BILL MATCH (on/off switch; off = one small row) -->
+            <Border x:Name="BillSep" Height="1" Background="#FF222222" Margin="0,8,0,5"/>
+            <DockPanel x:Name="BillHead" LastChildFill="True">
+              <ToggleButton x:Name="BillSwitch" DockPanel.Dock="Right" Style="{StaticResource SwitchStyle}" Tag="#FF49DF93" IsChecked="True" VerticalAlignment="Center" ToolTip="PSO BILL MATCH on / off (off hides the card and its calculations; saved)"/>
+              <TextBlock x:Name="BillState" DockPanel.Dock="Right" Text="" FontSize="9.5" FontWeight="SemiBold" Foreground="#FF888888" VerticalAlignment="Center" Margin="0,0,7,0"/>
+              <TextBlock x:Name="BillHdr" Text="PSO BILL MATCH" FontSize="11" FontWeight="Bold" Foreground="#FF9A9A9A" VerticalAlignment="Center"/>
+            </DockPanel>
+            <StackPanel x:Name="BillBody" Margin="0,4,0,0">
+              <Grid x:Name="BillInputs">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <StackPanel Margin="0,0,4,0"><TextBlock x:Name="BillFromLbl" Text="PERIOD FROM" FontSize="8.5" FontWeight="Bold" Foreground="#FF8A8A8A"/>
+                  <TextBox x:Name="BillFrom" Height="22" FontSize="10.5" Padding="2,0,2,0" VerticalContentAlignment="Center" Background="#33000000" Foreground="#FFFFFFFF" BorderBrush="#FF444444" CaretBrush="#FFFFFFFF" ToolTip="First day of the PSO billing period (e.g. 8/26/2026)"/></StackPanel>
+                <StackPanel Grid.Column="1" Margin="0,0,4,0"><TextBlock x:Name="BillToLbl" Text="TO" FontSize="8.5" FontWeight="Bold" Foreground="#FF8A8A8A"/>
+                  <TextBox x:Name="BillTo" Height="22" FontSize="10.5" Padding="2,0,2,0" VerticalContentAlignment="Center" Background="#33000000" Foreground="#FFFFFFFF" BorderBrush="#FF444444" CaretBrush="#FFFFFFFF" ToolTip="Last day of the billing period"/></StackPanel>
+                <StackPanel Grid.Column="2" Margin="0,0,4,0"><TextBlock x:Name="BillKwhLbl" Text="TOTAL kWh" FontSize="8.5" FontWeight="Bold" Foreground="#FF8A8A8A"/>
+                  <TextBox x:Name="BillKwh" Height="22" FontSize="10.5" Padding="2,0,2,0" VerticalContentAlignment="Center" Background="#33000000" Foreground="#FFFFFFFF" BorderBrush="#FF444444" CaretBrush="#FFFFFFFF" ToolTip="Total kWh used on the bill"/></StackPanel>
+                <StackPanel Grid.Column="3" Margin="0,0,4,0"><TextBlock x:Name="BillUsdLbl" Text="TOTAL &#x24;" FontSize="8.5" FontWeight="Bold" Foreground="#FF8A8A8A"/>
+                  <TextBox x:Name="BillUsd" Height="22" FontSize="10.5" Padding="2,0,2,0" VerticalContentAlignment="Center" Background="#33000000" Foreground="#FFFFFFFF" BorderBrush="#FF444444" CaretBrush="#FFFFFFFF" ToolTip="Total amount of the bill in dollars"/></StackPanel>
+                <Button x:Name="BillSaveBtn" Grid.Column="4" Style="{StaticResource CtlBtn}" Width="44" Height="22" VerticalAlignment="Bottom" Padding="0" ToolTip="Save the bill numbers (settings) and recalculate"><TextBlock Text="SAVE" FontSize="10" FontWeight="Bold"/></Button>
+              </Grid>
+              <TextBlock x:Name="BillSrc" Text="" FontSize="9" Foreground="#FF888888" TextWrapping="Wrap" Margin="0,3,0,0"/>
+              <TextBlock x:Name="BillRes1" Text="" FontSize="10.5" FontWeight="SemiBold" Foreground="#FFFFFFFF" TextWrapping="Wrap" Margin="0,3,0,0"/>
+              <TextBlock x:Name="BillRes2" Text="" FontSize="10" Foreground="#FFCCCCCC" TextWrapping="Wrap" Margin="0,1,0,0"/>
+              <Border x:Name="BillFlag" CornerRadius="5" BorderThickness="1" BorderBrush="#FFFFB547" Background="#26FFB547" Padding="6,2,6,3" Margin="0,3,0,0" Visibility="Collapsed">
+                <TextBlock x:Name="BillFlagTxt" Text="" FontSize="10" FontWeight="SemiBold" Foreground="#FFFFB547" TextWrapping="Wrap"/>
+              </Border>
+            </StackPanel>
+            <!-- v4.3.19: BATTERY HEALTH TREND + TIPS -->
+            <Border x:Name="HealthSep" Height="1" Background="#FF222222" Margin="0,8,0,5"/>
+            <DockPanel LastChildFill="True">
+              <TextBlock x:Name="HealthAsOf" DockPanel.Dock="Right" Text="" FontSize="9.5" FontWeight="SemiBold" Foreground="#FF888888" VerticalAlignment="Center"/>
+              <TextBlock x:Name="HealthHdr" Text="BATTERY HEALTH" FontSize="11" FontWeight="Bold" Foreground="#FF9A9A9A"/>
+            </DockPanel>
+            <Grid Margin="0,2,0,0">
+              <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+              <StackPanel VerticalAlignment="Center">
+                <TextBlock x:Name="HealthPct" Text="--" FontSize="26" FontWeight="Bold" Foreground="#FFFFFFFF"/>
+                <TextBlock x:Name="HealthPctCap" Text="HEALTH" FontSize="8.5" FontWeight="Bold" Foreground="#FF8A8A8A" Margin="0,-3,0,0"/>
+              </StackPanel>
+              <StackPanel Grid.Column="1" Margin="12,1,8,0" VerticalAlignment="Center">
+                <TextBlock x:Name="HealthL1" Text="" FontSize="11" FontWeight="SemiBold" Foreground="#FFFFFFFF"/>
+                <TextBlock x:Name="HealthL2" Text="" FontSize="10" Foreground="#FFCCCCCC"/>
+                <TextBlock x:Name="HealthTrend" Text="" FontSize="9.5" Foreground="#FF9A9A9A" TextWrapping="Wrap"/>
+              </StackPanel>
+              <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                <Canvas x:Name="HealthSpark" Width="130" Height="36" ClipToBounds="False">
+                  <Polyline x:Name="HealthLine" Stroke="#FF49DF93" StrokeThickness="1.8" StrokeLineJoin="Round"/>
+                  <Ellipse x:Name="HealthDot" Width="6" Height="6" Fill="#FF49DF93"/>
+                </Canvas>
+                <TextBlock x:Name="HealthSparkCap" Text="" FontSize="8.5" Foreground="#FF888888" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+              </StackPanel>
+            </Grid>
+            <TextBlock x:Name="TipsHdr" Text="TIPS FROM YOUR DATA" FontSize="9.5" FontWeight="Bold" Foreground="#FF9A9A9A" Margin="0,6,0,1"/>
+            <StackPanel x:Name="TipsList"/>
+            <!-- v4.3.19: plug-in reminder setting (on by default) -->
+            <Border x:Name="PlugSetSep" Height="1" Background="#FF222222" Margin="0,7,0,5"/>
+            <DockPanel x:Name="PlugSetRow" LastChildFill="True">
+              <ToggleButton x:Name="PlugRemSwitch" DockPanel.Dock="Right" Style="{StaticResource SwitchStyle}" Tag="#FF49DF93" IsChecked="True" VerticalAlignment="Center" ToolTip="Plug-in reminder on / off (saved)"/>
+              <TextBlock x:Name="PlugSetTxt" Text="Plug-in reminder" FontSize="10" FontWeight="SemiBold" Foreground="#FFCCCCCC" VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,0,8,0"/>
+            </DockPanel>
+          </StackPanel>
+        </Border>
+
+        <!-- v4.3.19: TRIPS (Tessie /drives, grouped by day; cost = kWh x your home charging $/kWh) -->
+        <Border x:Name="TripsCard" CornerRadius="10" Background="#FF111111" BorderBrush="#FF222222" BorderThickness="1" Padding="12,6,12,7" Margin="0,0,0,6">
+          <StackPanel>
+            <DockPanel LastChildFill="True">
+              <Border x:Name="TripsSumPill" DockPanel.Dock="Right" CornerRadius="9" Background="#1FFFFFFF" Padding="8,1,8,2" VerticalAlignment="Center">
+                <TextBlock x:Name="TripsSumPillTxt" Text="" FontSize="11" FontWeight="SemiBold" Foreground="#FFCCCCCC"/>
+              </Border>
+              <TextBlock x:Name="TripsHdr" Text="TRIPS" FontSize="12.5" FontWeight="Bold" Foreground="#FF9A9A9A" VerticalAlignment="Center"/>
+            </DockPanel>
+            <Border x:Name="TripsSumBox" CornerRadius="6" Background="#14FFFFFF" Padding="8,3,8,4" Margin="0,4,0,2">
+              <StackPanel>
+                <TextBlock x:Name="TripsSumHdr" Text="LAST 7 DAYS" FontSize="8.5" FontWeight="Bold" Foreground="#FF8A8A8A"/>
+                <UniformGrid x:Name="TripsSumGrid" Columns="5" Rows="1" Margin="0,1,0,0">
+                  <StackPanel><TextBlock x:Name="TripsS0" Text="--" FontSize="13" FontWeight="Bold" Foreground="#FFFFFFFF" HorizontalAlignment="Center"/><TextBlock x:Name="TripsSL0" Text="TRIPS" FontSize="8" FontWeight="Bold" Foreground="#FF8A8A8A" HorizontalAlignment="Center"/></StackPanel>
+                  <StackPanel><TextBlock x:Name="TripsS1" Text="--" FontSize="13" FontWeight="Bold" Foreground="#FFFFFFFF" HorizontalAlignment="Center"/><TextBlock x:Name="TripsSL1" Text="MILES" FontSize="8" FontWeight="Bold" Foreground="#FF8A8A8A" HorizontalAlignment="Center"/></StackPanel>
+                  <StackPanel><TextBlock x:Name="TripsS2" Text="--" FontSize="13" FontWeight="Bold" Foreground="#FFFFFFFF" HorizontalAlignment="Center"/><TextBlock x:Name="TripsSL2" Text="kWh" FontSize="8" FontWeight="Bold" Foreground="#FF8A8A8A" HorizontalAlignment="Center"/></StackPanel>
+                  <StackPanel><TextBlock x:Name="TripsS3" Text="--" FontSize="13" FontWeight="Bold" Foreground="#FFFFFFFF" HorizontalAlignment="Center"/><TextBlock x:Name="TripsSL3" Text="COST" FontSize="8" FontWeight="Bold" Foreground="#FF8A8A8A" HorizontalAlignment="Center"/></StackPanel>
+                  <StackPanel><TextBlock x:Name="TripsS4" Text="--" FontSize="13" FontWeight="Bold" Foreground="#FFFFFFFF" HorizontalAlignment="Center"/><TextBlock x:Name="TripsSL4" Text="AVG mi/kWh" FontSize="8" FontWeight="Bold" Foreground="#FF8A8A8A" HorizontalAlignment="Center"/></StackPanel>
+                </UniformGrid>
+              </StackPanel>
+            </Border>
+            <TextBlock x:Name="TripsRate" Text="" FontSize="9" Foreground="#FF888888" TextWrapping="Wrap" Margin="0,1,0,2"/>
+            <StackPanel x:Name="TripsList"/>
+            <Button x:Name="TripsMoreBtn" Style="{StaticResource CtlBtn}" Height="24" Margin="0,5,0,0" Padding="10,0,10,0" HorizontalAlignment="Center" ToolTip="Show more trips (30 days) or fewer (7 days); remembered">
+              <TextBlock x:Name="TripsMoreTxt" Text="Show more" FontSize="10.5" FontWeight="Bold"/>
+            </Button>
           </StackPanel>
         </Border>
 
@@ -2282,7 +2407,7 @@ function Apply-Theme {
     $ui.TitleBar.CornerRadius = [System.Windows.CornerRadius]::new($th.RootRadius, $th.RootRadius, 0, 0)
     $ui.TitleText.Foreground = T 'Title'; $ui.LoggedIn.Foreground = T 'LoggedIn'
     $ui.DateLabel.Foreground = T 'Caption'
-    foreach ($n in 'TiresCard', 'RowsCard', 'BattCard', 'CtlCard', 'SeatsCard', 'DrivesCard', 'CamCard') {
+    foreach ($n in 'TiresCard', 'RowsCard', 'BattCard', 'CtlCard', 'SeatsCard', 'DrivesCard', 'CamCard', 'TripsCard') {
         $ui[$n].Background = T 'CardBg'; $ui[$n].BorderBrush = T 'CardBorder'
         $ui[$n].CornerRadius = [System.Windows.CornerRadius]::new($th.CardRadius)
     }
@@ -2535,8 +2660,8 @@ function Build-FallbackView {
 # ---------------- Render ----------------
 function Get-AccentKey { param([string]$a) switch ($a) { 'green' { return 'Green' } 'red' { return 'Red' } default { return 'Grey' } } }
 
-$BarX = 13.0; $BarW = 280.0
-$BBarX = 13.0; $BBarW = 180.0   # v4.3: battery bar is narrower (vertical limit slider on the right)
+$BarX = 13.0; $BarW = 360.0   # v4.3.19: amps bar widened with the window
+$BBarX = 13.0; $BBarW = 260.0   # v4.3.19: battery bar widened with the window (vertical limit slider stays on the right)
 function Get-MilesAt {
     param($Pct)
     $car = $null; if ($null -ne $script:View) { $car = $script:View.car }
@@ -2722,6 +2847,7 @@ function Render-View {
     if ($null -eq $v) { return }
     try { Render-Peak } catch { Write-WidgetLog ('peak banner: ' + $_.Exception.Message) }
     try { Render-Drives } catch { Write-WidgetLog ('drives render: ' + $_.Exception.Message) }
+    try { Render-V4319 } catch { Write-WidgetLog ('v4.3.19 render: ' + $_.Exception.Message) }
     try { Render-Controls43 } catch {}
     $glow = Get-GlowState
     $chg = ($glow -ne 'red')          # v4.3.2: green look whenever plugged in, red look when unplugged
@@ -3487,12 +3613,15 @@ $LeaveUndo = @{
     unlock        = [pscustomobject]@{ cmd = 'lock'; doing = 'locking'; done = 'locked'; spoken = 'Leaving Soon undo: your Tesla is locked again.'; what = 'lock your Tesla' }
 }
 $LeaveMinMax = 30; $LeaveMinDefault = 3
+$LeaveStartMax = 120; $LeaveStartDefault = 0   # v4.3.19: 'Start after' (minutes before the sequence begins)
+$LeaveMinSpec = @{ windowsAfterMin = @(30, 3); unlockAfterMin = @(30, 3); startAfterMin = @(120, 0) }
 function Get-LeaveCfg { $l = $null; if ($null -ne $script:Cfg) { try { $l = $script:Cfg.leavingSoon } catch {} }; return $l }
+function Get-LeaveMinSpec { param([string]$Key) if ($LeaveMinSpec.ContainsKey($Key)) { return $LeaveMinSpec[$Key] }; return @($LeaveMinMax, $LeaveMinDefault) }
 function Get-LeaveCfgMin {
     param([string]$Key)
-    $l = Get-LeaveCfg; $v = $LeaveMinDefault
+    $sp = Get-LeaveMinSpec $Key; $l = Get-LeaveCfg; $v = $sp[1]
     if ($null -ne $l) { try { if ($null -ne $l.$Key) { $v = [int]$l.$Key } } catch {} }
-    return [int][math]::Min($LeaveMinMax, [math]::Max(0, $v))
+    return [int][math]::Min($sp[0], [math]::Max(0, $v))
 }
 function Get-LeaveSecPerMin {
     if ($CTL_DRYRUN -or $SelfTest) {
@@ -3506,26 +3635,26 @@ function Get-LeaveSecPerMin {
 }
 function Get-LeaveUiMin {
     param($Box, [string]$Key)
-    $n = 0; if (-not [int]::TryParse(([string]$Box.Text).Trim(), [ref]$n)) { $n = Get-LeaveCfgMin $Key }
-    return [int][math]::Min($LeaveMinMax, [math]::Max(0, $n))
+    $sp = Get-LeaveMinSpec $Key; $n = 0; if (-not [int]::TryParse(([string]$Box.Text).Trim(), [ref]$n)) { $n = Get-LeaveCfgMin $Key }
+    return [int][math]::Min($sp[0], [math]::Max(0, $n))
 }
-function Get-LeaveMins { return @((Get-LeaveUiMin $ui.LeaveWinMin 'windowsAfterMin'), (Get-LeaveUiMin $ui.LeaveUnlockMin 'unlockAfterMin')) }
+function Get-LeaveMins { return @((Get-LeaveUiMin $ui.LeaveWinMin 'windowsAfterMin'), (Get-LeaveUiMin $ui.LeaveUnlockMin 'unlockAfterMin'), (Get-LeaveUiMin $ui.LeaveStartMin 'startAfterMin')) }
 function Get-LeaveWaitSec { param([int]$Step = 1) $m = Get-LeaveMins; return [int]($(if ($Step -ge 2) { $m[1] } else { $m[0] }) * (Get-LeaveSecPerMin)) }
 function Save-LeaveMins {
     $m = Get-LeaveMins
-    $ui.LeaveWinMin.Text = [string]$m[0]; $ui.LeaveUnlockMin.Text = [string]$m[1]
-    if ($null -ne $script:LeaveMinSaved -and $m[0] -eq $script:LeaveMinSaved[0] -and $m[1] -eq $script:LeaveMinSaved[1]) { return }
-    $script:LeaveMinSaved = @($m[0], $m[1])
+    $ui.LeaveWinMin.Text = [string]$m[0]; $ui.LeaveUnlockMin.Text = [string]$m[1]; $ui.LeaveStartMin.Text = [string]$m[2]
+    if ($null -ne $script:LeaveMinSaved -and $m[0] -eq $script:LeaveMinSaved[0] -and $m[1] -eq $script:LeaveMinSaved[1] -and $m[2] -eq $script:LeaveMinSaved[2]) { return }
+    $script:LeaveMinSaved = @($m[0], $m[1], $m[2])
     if ($SelfTest -and (Split-Path -Leaf $ConfigPath) -eq 'config.json') { return }   # self-test writes only its own test config
     try {
         $o = [ordered]@{}; $l = Get-LeaveCfg
         if ($null -ne $l) { foreach ($p in $l.PSObject.Properties) { $o[$p.Name] = $p.Value } }
-        $o['windowsAfterMin'] = $m[0]; $o['unlockAfterMin'] = $m[1]
+        $o['windowsAfterMin'] = $m[0]; $o['unlockAfterMin'] = $m[1]; $o['startAfterMin'] = $m[2]
         Save-ConfigProp 'leavingSoon' ([pscustomobject]$o); $script:Cfg = Read-Config
-        Write-WidgetLog ('leaving soon waits saved: windows ' + $m[0] + ' min, unlock ' + $m[1] + ' min')
+        Write-WidgetLog ('leaving soon waits saved: start ' + $m[2] + ' min, windows ' + $m[0] + ' min, unlock ' + $m[1] + ' min')
     } catch { Write-WidgetLog ('leaving soon waits save failed: ' + $_.Exception.Message) }
 }
-function Set-LeaveMin { param($Box, [int]$V) $Box.Text = [string][math]::Min($LeaveMinMax, [math]::Max(0, $V)); Save-LeaveMins; try { Render-Leave } catch {} }
+function Set-LeaveMin { param($Box, [int]$V) $sp = Get-LeaveMinSpec ([string]$Box.Tag); $Box.Text = [string][math]::Min($sp[0], [math]::Max(0, $V)); Save-LeaveMins; try { Render-Leave } catch {} }
 function Add-LeaveMin { param($Box, [string]$Key, [int]$D) if (-not $Box.IsEnabled) { return }; Set-LeaveMin $Box ((Get-LeaveUiMin $Box $Key) + $D) }
 function Get-LeaveDevice {
     $a = Get-AnnCfg; $d = ''
@@ -3534,8 +3663,9 @@ function Get-LeaveDevice {
     return $d
 }
 function Format-LeaveSpan { param([int]$Sec) if ($Sec -ge 60 -and $Sec % 60 -eq 0) { $m = $Sec / 60; return ('{0} minute{1}' -f $m, $(if ($m -eq 1) { '' } else { 's' })) }; return ('{0} second{1}' -f $Sec, $(if ($Sec -eq 1) { '' } else { 's' })) }
+function Get-LeaveSummary { param($M) $f = { param($n, $z, $t) if ([int]$n -le 0) { $z } else { $t -f [int]$n } }; return ((& $f $M[2] 'start now' 'start in {0} min') + ' · ' + (& $f $M[0] 'windows right away' 'windows {0} min later') + ' · ' + (& $f $M[1] 'unlock right after' 'unlock {0} min later')) }
 function Format-LeaveIn { param([int]$Min, [string]$Now, [string]$Later) if ($Min -le 0) { return $Now }; return ($Later -f (Format-LeaveSpan ($Min * 60))) }
-$script:Leave = [ordered]@{ running = $false; phase = 'idle'; step = 0; total = 3; dueAt = $null; job = $null; waitSec = 180; mins = @(0, 3, 3); waits = @(0, 180, 180); result = ''; kind = 'idle'; notes = @(); log = @(); ann = @(); startedAt = $null; endedAt = $null; hideAt = $null
+$script:Leave = [ordered]@{ running = $false; phase = 'idle'; step = 0; total = 3; dueAt = $null; job = $null; waitSec = 180; mins = @(0, 3, 3); waits = @(0, 180, 180); startAfterMin = 0; result = ''; kind = 'idle'; notes = @(); log = @(); ann = @(); startedAt = $null; endedAt = $null; hideAt = $null
     snap = $null; snapJob = $null; snapUntil = $null; doneCmds = @(); undoing = $false; undo = @(); undoIdx = 0; undoDone = @(); undoFailed = @(); undoKept = @(); waitLog = @() }
 $script:LeaveFailCmd = $null     # self-test only: this command comes back failed (dry run)
 $script:LeaveFakeStart = $null   # self-test only: start state used instead of the Tessie cache read
@@ -3571,16 +3701,17 @@ function Start-LeaveSoon {
     if (-not (Test-CmdOn)) { Set-CtlResult 'err' 'Leaving Soon: commands are off (About / Privacy or config.json)'; return }
     Save-LeaveMins
     $m = Get-LeaveMins; $spm = Get-LeaveSecPerMin
-    $sub = ('Climate turns on now, {0}, then {1}. Each step is announced on Alexa. Stop cancels the rest and undoes the steps already done.' -f (Format-LeaveIn $m[0] 'the windows close right away' 'the windows close {0} later'), (Format-LeaveIn $m[1] 'the car unlocks right after that' 'the car unlocks {0} after that'))
+    $sub = (Get-LeaveSummary $m) + "`n" + ($(if ($m[2] -gt 0) { 'Starts in ' + (Format-LeaveSpan ($m[2] * 60)) + ' (nothing happens until then; Stop just cancels). Then c' } else { 'C' }) + 'limate turns on now, {0}, then {1}. Each step is announced on Alexa. Stop cancels the rest and undoes the steps already done.' -f (Format-LeaveIn $m[0] 'the windows close right away' 'the windows close {0} later'), (Format-LeaveIn $m[1] 'the car unlocks right after that' 'the car unlocks {0} after that'))
     if (-not (Test-SkipConfirm 'leave') -and -not (Confirm-Ctl 'Are you sure? Start Leaving Soon?' $sub 'Start' 'Cancel')) { Set-CtlResult 'idle' 'Leaving Soon cancelled'; return }
-    $L.running = $true; $L.phase = 'snap'; $L.step = 0; $L.mins = @(0, $m[0], $m[1]); $L.waits = @(0, ($m[0] * $spm), ($m[1] * $spm)); $L.waitSec = $L.waits[1]
+    $L.running = $true; $L.phase = $(if ($m[2] -gt 0) { 'pre' } else { 'snap' }); $L.step = 0; $L.mins = @(0, $m[0], $m[1]); $L.waits = @(0, ($m[0] * $spm), ($m[1] * $spm)); $L.waitSec = $L.waits[1]; $L.startAfterMin = $m[2]
     $L.dueAt = Get-Date; $L.job = $null; $L.result = ''; $L.kind = 'busy'; $L.notes = @(); $L.log = @(); $L.ann = @(); $L.waitLog = @()
-    $L.startedAt = Get-Date; $L.endedAt = $null; $L.hideAt = $null
+    $L.startedAt = Get-Date; $L.dueAt = $(if ($m[2] -gt 0) { (Get-Date).AddSeconds($m[2] * $spm) } else { Get-Date }); $L.endedAt = $null; $L.hideAt = $null
     $L.snap = $null; $L.snapJob = $null; $L.doneCmds = @(); $L.undoing = $false; $L.undo = @(); $L.undoIdx = 0; $L.undoDone = @(); $L.undoFailed = @(); $L.undoKept = @()
     $script:LeaveSeen = @()
-    Write-WidgetLog ('leaving soon start windows=' + $m[0] + 'min unlock=' + $m[1] + 'min' + $(if ($CTL_DRYRUN) { ' [DRY RUN ' + $spm + 's/min]' } else { '' }))
-    Send-LeaveAnnouncement ('Leaving Soon is starting. Climate is turning on now. {0}, and {1}.' -f (Format-LeaveIn $m[0] 'The windows close right away' 'The windows close in {0}'), (Format-LeaveIn $m[1] 'the car unlocks right after that' 'the car unlocks {0} after that')) 'start'
-    Start-LeaveSnap
+    Add-LeaveNote (Get-LeaveSummary $m)
+    Write-WidgetLog ('leaving soon start startAfter=' + $m[2] + 'min windows=' + $m[0] + 'min unlock=' + $m[1] + 'min' + $(if ($CTL_DRYRUN) { ' [DRY RUN ' + $spm + 's/min]' } else { '' }))
+    Send-LeaveAnnouncement ($(if ($m[2] -gt 0) { 'Leaving Soon starts in ' + (Format-LeaveSpan ($m[2] * 60)) + '. Then c' } else { 'Leaving Soon is starting. C' }) + 'limate is turning on now. {0}, and {1}.' -f (Format-LeaveIn $m[0] 'The windows close right away' 'The windows close in {0}'), (Format-LeaveIn $m[1] 'the car unlocks right after that' 'the car unlocks {0} after that')) 'start'
+    if ($m[2] -le 0) { Start-LeaveSnap }
     Set-Visible $ui.LeaveRow $true
     $script:LeaveTimer.Start()
     Step-Leave
@@ -3710,6 +3841,11 @@ function Stop-LeaveSoon {
     $L = $script:Leave
     if ($L.undoing -or ($L.phase -eq 'cancelled' -and $null -ne $L.job)) { return }   # undo / pending result already in progress
     if (-not $L.running) { Set-Visible $ui.LeaveRow $false; $L.phase = 'idle'; $script:LeaveTimer.Stop(); Render-Leave; return }
+    if ($L.phase -eq 'pre') {   # v4.3.19: stopped before the sequence began: nothing was done, so there is nothing to undo
+        $L.running = $false; $L.phase = 'cancelled'; $L.kind = 'idle'; $L.endedAt = Get-Date
+        $L.result = 'Leaving Soon cancelled before it started · nothing to undo · ' + (Format-Clock (Get-LocalNow))
+        $L.hideAt = (Get-Date).AddMinutes(1); Set-CtlResult 'idle' $L.result
+        Write-WidgetLog 'leaving soon cancelled during the start-after countdown (nothing to undo)'; Render-Leave; return }
     $L.running = $false; $L.phase = 'cancelled'; $L.kind = 'idle'; $L.endedAt = Get-Date; $L.hideAt = $null
     if ($null -ne $L.snapJob) { try { [void]$L.snapJob.ps.BeginStop($null, $null) } catch {}; $L.snapJob = $null }
     Write-WidgetLog ('leaving soon cancelled at step ' + ($L.step + 1))
@@ -3781,6 +3917,7 @@ function Complete-LeaveStop {
 }
 function Step-Leave {
     $L = $script:Leave
+    if ($L.running -and $L.phase -eq 'pre' -and (Get-Date) -ge $L.dueAt) { $L.phase = 'snap'; Start-LeaveSnap }
     if ($L.phase -eq 'snap') { Step-LeaveSnap }
     if ($null -ne $L.job -and $L.job.async.IsCompleted) { Complete-LeaveCommand }
     if ($L.running -and $null -eq $L.job -and ($L.phase -eq 'send' -or ($L.phase -eq 'wait' -and (Get-Date) -ge $L.dueAt))) { Start-LeaveCommand }
@@ -3795,6 +3932,7 @@ function Get-LeaveStepText {
     $L = $script:Leave
     if ($L.undoing) { $u = $L.undo[[math]::Min($L.undoIdx, @($L.undo).Count - 1)]; return ('Undoing {0} of {1} · {2}…' -f ([math]::Min($L.undoIdx + 1, @($L.undo).Count)), @($L.undo).Count, $u.doing) }
     if (-not $L.running) { return $L.result }
+    if ($L.phase -eq 'pre') { $left = [math]::Max(0, [int][math]::Ceiling(($L.dueAt - (Get-Date)).TotalSeconds)); return ('Starting in {0}:{1:00}' -f [math]::Floor($left / 60), ($left % 60)) }
     if ($L.phase -eq 'snap') { return ('Step 1 of {0} · reading the start state…' -f $L.total) }
     $s = $LeaveSteps[[math]::Min($L.step, $L.total - 1)]
     if ($L.phase -eq 'wait') {
@@ -3811,9 +3949,9 @@ function Render-Leave {
     $ui.LeaveBtn.IsEnabled = ((Test-CmdOn) -and -not $busy)
     if ($L.running) { $ui.LeaveBtn.Background = T 'BtnOn'; $ui.LeaveBtn.BorderBrush = T 'Green'; $ui.LeaveBtnTxt.Foreground = T 'Text' }
     else { $ui.LeaveBtn.Background = T 'BtnBg'; $ui.LeaveBtn.BorderBrush = T 'BtnBorder'; $ui.LeaveBtnTxt.Foreground = T 'Text' }
-    foreach ($b in @($ui.LeaveWinDn, $ui.LeaveWinUp, $ui.LeaveUnlockDn, $ui.LeaveUnlockUp)) { $b.Tag = $r3; $b.Background = T 'BtnBg'; $b.BorderBrush = T 'BtnBorder'; $b.Foreground = T 'Text'; $b.IsEnabled = -not $busy }
-    foreach ($tb in @($ui.LeaveWinMin, $ui.LeaveUnlockMin)) { $tb.IsEnabled = -not $busy; $tb.BorderBrush = T 'Green'; $tb.Foreground = T 'Text' }
-    foreach ($lb in @($ui.LeaveWinLbl, $ui.LeaveUnlockLbl)) { $lb.Foreground = T 'Caption' }
+    foreach ($b in @($ui.LeaveStartDn, $ui.LeaveStartUp, $ui.LeaveWinDn, $ui.LeaveWinUp, $ui.LeaveUnlockDn, $ui.LeaveUnlockUp)) { $b.Tag = $r3; $b.Background = T 'BtnBg'; $b.BorderBrush = T 'BtnBorder'; $b.Foreground = T 'Text'; $b.IsEnabled = -not $busy }
+    foreach ($tb in @($ui.LeaveStartMin, $ui.LeaveWinMin, $ui.LeaveUnlockMin)) { $tb.IsEnabled = -not $busy; $tb.BorderBrush = T 'Green'; $tb.Foreground = T 'Text' }
+    foreach ($lb in @($ui.LeaveStartLbl, $ui.LeaveWinLbl, $ui.LeaveUnlockLbl)) { $lb.Foreground = T 'Caption' }
     if ($ui.LeaveRow.Visibility -ne 'Visible') { return }
     $ui.LeaveStep.Text = Get-LeaveStepText
     if ($SelfTest -and @($script:LeaveSeen) -notcontains $ui.LeaveStep.Text -and @($script:LeaveSeen).Count -lt 200) { $script:LeaveSeen = @(@($script:LeaveSeen) + $ui.LeaveStep.Text) }
@@ -3825,14 +3963,14 @@ function Render-Leave {
     $pending = ($L.undoing -or ($L.phase -eq 'cancelled' -and $null -ne $L.job))
     $ui.LeaveStopTxt.Text = $(if ($L.running -or $pending) { 'STOP' } else { 'CLOSE' })
     $ui.LeaveStopBtn.IsEnabled = -not $pending
-    $ui.LeaveStopBtn.ToolTip = $(if ($L.running) { 'Stop Leaving Soon: the remaining steps are cancelled and the steps already done are undone' } elseif ($pending) { 'Undoing the steps already done…' } else { 'Hide this line' })
+    $ui.LeaveStopBtn.ToolTip = $(if ($L.phase -eq 'pre') { 'Stop: cancels before anything starts (nothing to undo)' } elseif ($L.running) { 'Stop Leaving Soon: the remaining steps are cancelled and the steps already done are undone' } elseif ($pending) { 'Undoing the steps already done…' } else { 'Hide this line' })
     $ui.LeaveStopBtn.Background = T 'BtnBg'; $ui.LeaveStopBtn.BorderBrush = $(if ($L.running -or $pending) { T 'Red' } else { T 'BtnBorder' }); $ui.LeaveStopTxt.Foreground = T 'Text'
 }
 $ui.LeaveBtn.Add_Click({ try { Start-LeaveSoon } catch { Write-WidgetLog ('leaving soon: ' + $_.Exception.Message); Set-CtlResult 'err' ('Leaving Soon error: ' + $_.Exception.Message) } })
 $ui.LeaveStopBtn.Add_Click({ try { Stop-LeaveSoon } catch { Write-WidgetLog ('leaving soon stop: ' + $_.Exception.Message) } })
 # v4.3.16: wait boxes (digits only; - / + buttons, mouse wheel, Up / Down; saved on change)
-$ui.LeaveWinMin.Text = [string](Get-LeaveCfgMin 'windowsAfterMin'); $ui.LeaveUnlockMin.Text = [string](Get-LeaveCfgMin 'unlockAfterMin'); $script:LeaveMinSaved = @(Get-LeaveMins)
-foreach ($pair in @(@($ui.LeaveWinMin, 'windowsAfterMin', $ui.LeaveWinDn, $ui.LeaveWinUp), @($ui.LeaveUnlockMin, 'unlockAfterMin', $ui.LeaveUnlockDn, $ui.LeaveUnlockUp))) {
+$ui.LeaveStartMin.Text = [string](Get-LeaveCfgMin 'startAfterMin'); $ui.LeaveWinMin.Text = [string](Get-LeaveCfgMin 'windowsAfterMin'); $ui.LeaveUnlockMin.Text = [string](Get-LeaveCfgMin 'unlockAfterMin'); $script:LeaveMinSaved = @(Get-LeaveMins)
+foreach ($pair in @(@($ui.LeaveStartMin, 'startAfterMin', $ui.LeaveStartDn, $ui.LeaveStartUp), @($ui.LeaveWinMin, 'windowsAfterMin', $ui.LeaveWinDn, $ui.LeaveWinUp), @($ui.LeaveUnlockMin, 'unlockAfterMin', $ui.LeaveUnlockDn, $ui.LeaveUnlockUp))) {
     $bx = $pair[0]; $ky = $pair[1]
     $bx.Add_PreviewTextInput({ param($s, $e) if ($e.Text -notmatch '^[0-9]+$') { $e.Handled = $true } })
     $bx.Add_LostFocus({ param($s, $e) try { Set-LeaveMin $s (Get-LeaveUiMin $s $s.Tag) } catch {} })
@@ -5456,7 +5594,7 @@ function Set-LayoutMode {
     $script:Layout = $Mode; $c = ($Mode -eq 'compact')
     $ui.LayoutBtn.Content = $(if ($c) { 'COMPACT' } else { 'FULL' })
     $ui.LayoutBtn.ToolTip = $(if ($c) { 'Compact: everything fits the screen, no scrolling. Click for Full.' } else { 'Full: normal size, the lower sections scroll if needed. Click for Compact.' })
-    $cards = @('RowsCard', 'BattCard', 'CtlCard', 'TiresCard', 'SeatsCard')
+    $cards = @('RowsCard', 'BattCard', 'CtlCard', 'TiresCard', 'SeatsCard', 'TripsCard')
     foreach ($n in $cards) {
         $e = $ui[$n]; if (-not $script:OrigBox.ContainsKey($n)) { $script:OrigBox[$n] = @($e.Padding, $e.Margin) }
         if ($c) { $p = $script:OrigBox[$n][0]; $e.Padding = [System.Windows.Thickness]::new([math]::Max(8, $p.Left - 3), [math]::Max(3, $p.Top - 3), [math]::Max(8, $p.Right - 3), [math]::Max(3, $p.Bottom - 3)); $m = $script:OrigBox[$n][1]; $e.Margin = [System.Windows.Thickness]::new($m.Left, $m.Top, $m.Right, [math]::Min(3, $m.Bottom)) }
@@ -5821,7 +5959,7 @@ function Test-SpotUsable {
 function Set-TdSpot {
     param($S)
     $window.Left = [double]$S.left; $window.Top = [double]$S.top
-    if ($null -ne $S.width -and [double]$S.width -ge 200) { $window.Width = [double]$S.width }
+    if ($null -ne $S.width -and [double]$S.width -ge 200) { $ww = [double]$S.width; if ($ww -lt $winW) { $window.Left = [math]::Max(0, $window.Left - ($winW - $ww)); $ww = $winW }; $window.Width = $ww }
     if ($null -ne $S.height -and [double]$S.height -ge 400) { $window.Height = [double]$S.height }
 }
 function Get-DeskLayoutPath {
@@ -7500,6 +7638,519 @@ $ui.TotOverlay.Add_MouseLeftButtonUp({ param($s9, $e9) if ($e9.OriginalSource -e
 $window.Add_PreviewKeyDown({ param($s9, $e9) try { if (Invoke-TotKey ([string]$e9.Key)) { $e9.Handled = $true } } catch {} })
 try { Load-TotCache } catch {}
 
+# ---------------- v4.3.19: PLUG-IN REMINDER, TRIPS, MORNING READY CHECK, PSO BILL MATCH (on/off), BATTERY HEALTH TREND + TIPS ----------------
+# All read-only: Tessie cached state (use_cache=true, never wakes the car), /drives, /battery_health. No Alexa (Voice Monkey) for any of these.
+# Windows toasts: plug-in reminder once per night, morning ready check once per morning only when something is off.
+$HomeLatDef = 36.10364; $HomeLonDef = -96.03282
+$HomeSavedNames = @('3515 W 41st Pl', 'Home')
+$HealthHistPath = Join-Path $scriptDir 'battery-health-history.json'
+$script:Now4319 = $null          # self-test only: fixed 'now'
+$script:Toast4319 = @()          # toasts asked for (self-test: logged, not shown)
+$script:TripsSig = ''; $script:Trips4319 = $null
+function Get-Now4319 { if ($null -ne $script:Now4319) { return [DateTime]$script:Now4319 }; return (Get-LocalNow) }
+function Get-Cfg4319 { param([string]$Name) try { if ($null -ne $script:Cfg -and $null -ne $script:Cfg.PSObject.Properties[$Name]) { return $script:Cfg.$Name } } catch {}; return $null }
+function Save-Cfg4319 {
+    param([string]$Name, $Value)
+    $obj = $(if ($Value -is [System.Collections.IDictionary]) { [pscustomobject]$Value } else { $Value })
+    if ($null -eq $script:Cfg) { $script:Cfg = [pscustomobject]@{} }
+    try { $script:Cfg | Add-Member -NotePropertyName $Name -NotePropertyValue $obj -Force } catch {}
+    if ($SelfTest -and (Split-Path -Leaf $ConfigPath) -eq 'config.json') { return }   # a self-test writes only its own test config
+    try { Save-ConfigProp $Name $obj } catch { Write-WidgetLog ('config save ' + $Name + ': ' + $_.Exception.Message) }
+}
+function Get-Merged4319 {
+    param([string]$Name, $Defaults)
+    $o = [ordered]@{}; foreach ($k in @($Defaults.Keys)) { $o[$k] = $Defaults[$k] }
+    $c = Get-Cfg4319 $Name
+    if ($null -ne $c) { foreach ($p in $c.PSObject.Properties) { if ($null -ne $p.Value) { $o[$p.Name] = $p.Value } } }
+    return $o
+}
+function Get-MarkPath4319 { param([string]$N) if ($SelfTest) { return (Join-Path $env:TEMP ('td4319-selftest-' + $N + '.json')) }; return (Join-Path $scriptDir ($N + '.json')) }
+
+# ---- home ----
+function Get-DistMi { param([double]$La1, [double]$Lo1, [double]$La2, [double]$Lo2) $r = [math]::PI / 180; $x = ($Lo2 - $Lo1) * $r * [math]::Cos(($La1 + $La2) / 2 * $r); $y = ($La2 - $La1) * $r; return [math]::Sqrt($x * $x + $y * $y) * 3958.8 }
+function Get-HomeLL {
+    $h = Get-Cfg4319 'home'; $la = $HomeLatDef; $lo = $HomeLonDef
+    try { if ($null -ne $h -and $null -ne $h.lat -and $null -ne $h.lon) { $la = [double]$h.lat; $lo = [double]$h.lon } } catch {}
+    return @($la, $lo)
+}
+function Test-HomeName { param($Saved) if (-not $Saved) { return $false }; return (@($HomeSavedNames | Where-Object { $_ -eq [string]$Saved }).Count -gt 0) }
+function Test-NearHome { param($La, $Lo) if ($null -eq $La -or $null -eq $Lo) { return $false }; $h = Get-HomeLL; return ((Get-DistMi ([double]$La) ([double]$Lo) $h[0] $h[1]) -le 0.15) }
+function Test-CarAtHome {
+    param($Car)
+    if ($null -ne $Car -and $null -ne $Car.lat -and $null -ne $Car.lon) { return (Test-NearHome $Car.lat $Car.lon) }
+    $t = @(@(Get-Val $script:State.trips @()) | Where-Object { $null -ne $_ } | Sort-Object { [int64]$_.startEpoch } -Descending | Select-Object -First 1)
+    if ($t.Count -gt 0) { return [bool]$t[0].toHome }
+    return $null
+}
+
+# ---- 1. PLUG-IN REMINDER ----
+function Get-PlugCfg {
+    $o = Get-Merged4319 'plugReminder' ([ordered]@{ enabled = $true; fromHour = 21; untilHour = 5; thresholdPct = 60; mode = 'limit' })
+    $o.enabled = [bool]$o.enabled; $o.fromHour = [int]$o.fromHour; $o.untilHour = [int]$o.untilHour; $o.thresholdPct = [int]$o.thresholdPct; $o.mode = [string]$o.mode
+    return $o
+}
+function Get-PlugReminder {
+    param($Car, [DateTime]$Now, $Cfg, $AtHome)
+    $r = [ordered]@{ show = $false; why = ''; soc = $null; target = $null; targetKind = ''; atHome = $AtHome; state = ''; inWindow = $false; enabled = [bool]$Cfg.enabled }
+    $r.inWindow = (Test-HourIn $Now.Hour ([int]$Cfg.fromHour) ([int]$Cfg.untilHour))
+    if ($null -eq $Car) { $r.why = 'no car data'; return [pscustomobject]$r }
+    $r.state = [string]$Car.chargingState; $r.soc = $Car.socPct
+    if ([string]$Cfg.mode -eq 'threshold' -or $null -eq $Car.limitPct) { $r.target = [int]$Cfg.thresholdPct; $r.targetKind = 'reminder threshold' } else { $r.target = [int]$Car.limitPct; $r.targetKind = 'daily limit' }
+    if (-not $Cfg.enabled) { $r.why = 'reminder is off'; return [pscustomobject]$r }
+    if (-not $r.inWindow) { $r.why = 'not evening yet'; return [pscustomobject]$r }
+    if ($AtHome -ne $true) { $r.why = 'car is not at home'; return [pscustomobject]$r }
+    if ($r.state -ne 'Disconnected') { $r.why = 'plugged in'; return [pscustomobject]$r }
+    if ($null -eq $r.soc -or [double]$r.soc -ge [double]$r.target) { $r.why = 'battery is at or above the target'; return [pscustomobject]$r }
+    $r.show = $true; $r.why = ('{0}% is under the {1} {2}%' -f $r.soc, $r.targetKind, $r.target)
+    return [pscustomobject]$r
+}
+function Get-Car4319 {
+    $c = Get-CtlCar; if ($null -eq $c) { return $null }
+    return [pscustomobject]@{ socPct = $c.socPct; limitPct = $c.limitPct; chargingState = [string](Get-CtlValue 'chargingState' $c.chargingState); lat = $c.lat; lon = $c.lon
+        locked = (Get-CtlValue 'locked' $c.locked); windowsOpen = (Get-CtlValue 'windowsOpen' $c.windowsOpen); sentry = (Get-CtlValue 'sentry' $c.sentry); rangeMi = $c.rangeMi; atEpoch = $c.atEpoch }
+}
+function Render-PlugRem {
+    $cfg = Get-PlugCfg; $car = Get-Car4319; $now = Get-Now4319
+    $r = Get-PlugReminder $car $now $cfg (Test-CarAtHome $car)
+    $script:PlugRem = $r
+    Set-Visible $ui.PlugRemBar ([bool]$r.show)
+    if ($r.show) {
+        $ui.PlugRemSub.Text = ('{0}% · {1} {2}% · home, unplugged' -f $r.soc, $(if ($r.targetKind -eq 'daily limit') { 'limit' } else { 'reminder' }), $r.target)
+        $ui.PlugRemBar.BorderBrush = T 'Red'; $ui.PlugRemDot.Fill = T 'Red'; $ui.PlugRemBar.Background = Get-Brush '#40E82127'
+        $n = $now; if ($n.Hour -lt 12) { $n = $n.AddDays(-1) }; $key = 'night-' + $n.ToString('yyyy-MM-dd')
+        $mp = Get-MarkPath4319 'plug-reminder'
+        if ((Get-MarkKey $mp) -ne $key) {
+            Set-MarkKey $mp $key
+            $script:Toast4319 = @(@($script:Toast4319) + ('plug: ' + $key))
+            Show-WinToast 'TessDesk: plug in tonight' ('Battery {0}% is under the {1} {2}%. The car is home and unplugged.' -f $r.soc, $r.targetKind, $r.target)
+        }
+    }
+    $ui.PlugRemSwitch.IsChecked = [bool]$cfg.enabled
+    $ui.PlugSetTxt.Text = ('Plug-in reminder · from {0}, when home, unplugged and under the {1}' -f (Format-HourLabel $cfg.fromHour), $(if ($cfg.mode -eq 'threshold') { 'reminder threshold ' + $cfg.thresholdPct + '%' } else { 'daily limit' + $(if ($null -ne $car -and $null -ne $car.limitPct) { ' (' + $car.limitPct + '%)' } else { '' }) }))
+    $ui.PlugSetTxt.Foreground = T 'TextSoft'
+}
+function Set-PlugEnabled { param([bool]$On) $c = Get-PlugCfg; $c.enabled = $On; Save-Cfg4319 'plugReminder' $c; Write-WidgetLog ('plug-in reminder ' + $(if ($On) { 'on' } else { 'off' })); Render-PlugRem }
+
+# ---- 3. TRIPS ----
+function Get-ShortAddr {
+    param([string]$A)
+    if (-not $A) { return 'Unknown place' }
+    $p = @(([string]$A) -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+    if ($p.Count -eq 0) { return 'Unknown place' }
+    $s = $p[0]
+    if ($s -notmatch '^\d') { if ($s.Length -gt 26) { $s = $s.Substring(0, 25) + '…' }; return $s }
+    foreach ($w in @(@('South', 'S'), @('North', 'N'), @('East', 'E'), @('West', 'W'), @('Avenue', 'Ave'), @('Street', 'St'), @('Place', 'Pl'), @('Road', 'Rd'), @('Boulevard', 'Blvd'), @('Drive', 'Dr'), @('Parkway', 'Pkwy'), @('Highway', 'Hwy'), @('Court', 'Ct'), @('Lane', 'Ln'), @('Expressway', 'Expy'), @('Circle', 'Cir'))) { $s = $s -replace ('\b' + $w[0] + '\b'), $w[1] }
+    if ($p.Count -ge 2 -and $p[1] -ne 'Tulsa' -and $p[1] -notmatch '^\d' -and $p[1] -notmatch 'United States|Oklahoma') { $s += ', ' + $p[1] }
+    if ($s.Length -gt 30) { $s = $s.Substring(0, 29) + '…' }
+    return $s
+}
+function Get-TripPlace { param($Saved, $Addr, $La, $Lo) if ((Test-HomeName $Saved) -or (Test-NearHome $La $Lo)) { return 'Home' }; if ($Saved) { return [string]$Saved }; return (Get-ShortAddr $Addr) }
+function Convert-Trip4319 {
+    param($d)
+    $se = [int64]$d.started_at; $ee = [int64](Get-Val $d.ended_at $d.started_at)
+    $fh = ((Test-HomeName $d.starting_saved_location) -or (Test-NearHome $d.starting_latitude $d.starting_longitude))
+    $th = ((Test-HomeName $d.ending_saved_location) -or (Test-NearHome $d.ending_latitude $d.ending_longitude))
+    return [pscustomobject]@{
+        id = $d.id; startEpoch = $se; endEpoch = $ee; minutes = [int][math]::Round(($ee - $se) / 60.0)
+        from = (Get-TripPlace $d.starting_saved_location $d.starting_location $d.starting_latitude $d.starting_longitude)
+        to = (Get-TripPlace $d.ending_saved_location $d.ending_location $d.ending_latitude $d.ending_longitude)
+        fromHome = $fh; toHome = $th
+        miles = [math]::Round([double](Get-Val $d.odometer_distance 0.0), 2); kwh = [math]::Round([double](Get-Val $d.energy_used 0.0), 2)
+        tempF = $d.average_outside_temperature; avgMph = $d.average_speed; socStart = $d.starting_battery; socEnd = $d.ending_battery
+    }
+}
+function Test-Fast4319 { param($s) return ([bool]$s.fast -or $null -ne $s.paidUsd) }
+function Get-TripRate {
+    param($Sessions, [int64]$NowE)
+    $cut = $NowE - 30 * 86400; $cost = 0.0; $kwh = 0.0; $n = 0
+    foreach ($s in @($Sessions)) {
+        if ($null -eq $s -or (Test-Fast4319 $s) -or [int64]$s.startEpoch -lt $cut) { continue }
+        $ka = $(if ($null -ne $s.kwhAdded -and [double]$s.kwhAdded -gt 0) { [double]$s.kwhAdded } else { 0.0 })
+        if ($ka -le 0 -or $null -eq $s.costUsdAllIn) { continue }
+        $cost += [double]$s.costUsdAllIn; $kwh += $ka; $n++
+    }
+    if ($kwh -ge 5 -and $n -ge 2) {
+        $rt = $cost / $kwh
+        return [pscustomobject]@{ rate = $rt; source = 'home'; sessions = $n; kwh = [math]::Round($kwh, 1); cost = [math]::Round($cost, 2)
+            note = ('Cost = kWh used × {0} = your home charging average, last 30 days ({1} charges, {2:N0} kWh added, {3} incl. losses)' -f (Format-C1 $rt), $n, $kwh, (Format-Money $cost)) }
+    }
+    $rt = $R_ON + $FCA
+    return [pscustomobject]@{ rate = $rt; source = 'pso'; sessions = $n; kwh = [math]::Round($kwh, 1); cost = [math]::Round($cost, 2)
+        note = ('Cost = kWh used × {0} = PSO overnight rate (no home charging data in the last 30 days)' -f (Format-C1 $rt)) }
+}
+function Get-TripDayLabel { param([DateTime]$D, [DateTime]$Today) if ($D.Date -eq $Today) { return 'Today' }; if ($D.Date -eq $Today.AddDays(-1)) { return 'Yesterday' }; return $D.ToString('ddd MMM d', $Inv) }
+function Get-TripView {
+    param($Trips, [DateTime]$Now, [int]$Days, [double]$Rate)
+    $today = $Now.Date
+    $all = @(@($Trips) | Where-Object { $null -ne $_ -and [double]$_.miles -ge 0.1 } | Sort-Object { [int64]$_.startEpoch } -Descending)
+    $c7 = ConvertTo-EpochLocal $today.AddDays(-6); $back = 1 - [math]::Max(1, $Days); $cut = ConvertTo-EpochLocal $today.AddDays($back)
+    $w7 = @($all | Where-Object { [int64]$_.startEpoch -ge $c7 })
+    $mi7 = [double](($w7 | Measure-Object -Property miles -Sum).Sum); $k7 = [double](($w7 | Measure-Object -Property kwh -Sum).Sum)
+    $miA = [double](($all | Measure-Object -Property miles -Sum).Sum); $kA = [double](($all | Measure-Object -Property kwh -Sum).Sum)
+    $avg7 = $(if ($k7 -gt 0) { $mi7 / $k7 } else { $null }); $avgA = $(if ($kA -gt 0) { $miA / $kA } else { $null })
+    $ref = $(if ($w7.Count -ge 3 -and $null -ne $avg7) { $avg7 } else { $avgA })
+    $dayList = New-Object System.Collections.ArrayList; $cur = $null
+    foreach ($t in @($all | Where-Object { [int64]$_.startEpoch -ge $cut })) {
+        $dt = ConvertFrom-Epoch $t.startEpoch; $key = $dt.ToString('yyyy-MM-dd')
+        if ($null -eq $cur -or $cur.key -ne $key) { $cur = [pscustomobject]@{ key = $key; label = (Get-TripDayLabel $dt $today); trips = New-Object System.Collections.ArrayList; n = 0; miles = 0.0; kwh = 0.0; cost = 0.0 }; [void]$dayList.Add($cur) }
+        $kw = [double]$t.kwh; $mi = [double]$t.miles
+        $mpk = $(if ($kw -gt 0.05) { $mi / $kw } else { $null })
+        $bad = ($mi -ge 2 -and $null -ne $mpk -and $null -ne $ref -and $mpk -lt 0.7 * $ref)
+        [void]$cur.trips.Add([pscustomobject]@{ t = $t; time = (Format-Clock $dt); from = $t.from; to = $t.to; minutes = [int]$t.minutes; miles = $mi; kwh = $kw; cost = [math]::Round($kw * $Rate, 4); mpk = $mpk; inefficient = $bad })
+        $cur.n++; $cur.miles += $mi; $cur.kwh += $kw; $cur.cost += $kw * $Rate
+    }
+    return [pscustomobject]@{ days = @($dayList); refMpk = $ref; days7 = 7; shownDays = $Days
+        sum7 = [pscustomobject]@{ trips = $w7.Count; miles = [math]::Round($mi7, 1); kwh = [math]::Round($k7, 1); cost = [math]::Round($k7 * $Rate, 2); avgMpk = $(if ($null -ne $avg7) { [math]::Round($avg7, 2) } else { $null }) }
+        older = @($all | Where-Object { [int64]$_.startEpoch -lt $cut }).Count; total = $all.Count }
+}
+function Get-TripsOpen { $c = Get-Cfg4319 'trips'; try { if ($null -ne $c -and $null -ne $c.expanded) { return [bool]$c.expanded } } catch {}; return $false }
+function Set-TripsOpen { param([bool]$On) Save-Cfg4319 'trips' ([ordered]@{ expanded = $On }); $script:TripsSig = ''; Render-Trips }
+function New-Tb4319 { param([string]$Text, [double]$Size, $Brush, [string]$Weight = 'Normal') $t = New-Object System.Windows.Controls.TextBlock; $t.Text = $Text; $t.FontSize = $Size; $t.Foreground = $Brush; $t.FontWeight = $Weight; return $t }
+function Format-Mpk { param($v) if ($null -eq $v) { return '-- mi/kWh' }; return ('{0:N1} mi/kWh' -f [double]$v) }
+function Format-TripMin { param([int]$m) if ($m -ge 60) { return ('{0} h {1} min' -f [math]::Floor($m / 60), ($m % 60)) }; return ('{0} min' -f [math]::Max(1, $m)) }
+function Render-Trips {
+    $st = $script:State; $open = Get-TripsOpen; $days = $(if ($open) { 30 } else { 7 })
+    $trips = @(Get-Val $st.trips @()); $now = Get-Now4319; $nowE = ConvertTo-EpochLocal $now
+    $rate = Get-TripRate @(Get-CompletedForTotals $st) $nowE
+    $sig = ('{0}|{1}|{2}|{3}|{4}|{5:N4}|{6}' -f $trips.Count, $(if ($trips.Count) { $trips[0].id } else { '' }), [int64](Get-Val $st.drivesFetchEpoch 0), $open, $now.ToString('yyyy-MM-dd'), $rate.rate, [bool]$script:ThemeCharging)
+    if ($sig -eq $script:TripsSig) { return }
+    $script:TripsSig = $sig
+    $v = Get-TripView $trips $now $days $rate.rate; $script:Trips4319 = [pscustomobject]@{ view = $v; rate = $rate; open = $open }
+    $ui.TripsList.Children.Clear()
+    $ui.TripsHdr.Foreground = T 'Caption'; $ui.TripsRate.Foreground = T 'Caption'; $ui.TripsSumHdr.Foreground = T 'Caption'
+    foreach ($i in 0..4) { $ui['TripsS' + $i].Foreground = T 'Text'; $ui['TripsSL' + $i].Foreground = T 'Caption' }
+    $s7 = $v.sum7
+    $ui.TripsS0.Text = [string]$s7.trips; $ui.TripsS1.Text = ('{0:N1}' -f $s7.miles); $ui.TripsS2.Text = ('{0:N1}' -f $s7.kwh); $ui.TripsS3.Text = (Format-Money $s7.cost); $ui.TripsS4.Text = $(if ($null -ne $s7.avgMpk) { ('{0:N2}' -f $s7.avgMpk) } else { '--' })
+    $fe = [int64](Get-Val $st.drivesFetchEpoch 0)
+    $ui.TripsSumPillTxt.Text = $(if ($fe -gt 0) { 'as of ' + (ConvertFrom-Epoch $fe).ToString('h:mm tt', $Inv) } else { 'no data yet' })
+    $ui.TripsRate.Text = $rate.note + ' · ▼ = under 70% of your average mi/kWh'
+    if ($v.days.Count -eq 0) { [void]$ui.TripsList.Children.Add((New-Tb4319 $(if ($trips.Count -eq 0) { 'No trips loaded yet (Tessie /drives refreshes every 15 min).' } else { 'No trips in the last ' + $days + ' days.' }) 10 (T 'Caption'))) }
+    foreach ($d in $v.days) {
+        $hd = New-Object System.Windows.Controls.DockPanel; $hd.Margin = '0,6,0,1'; $hd.LastChildFill = $true
+        $tot = New-Tb4319 ('{0} trip{1} · {2:N1} mi · {3:N1} kWh · {4}' -f $d.n, $(if ($d.n -eq 1) { '' } else { 's' }), $d.miles, $d.kwh, (Format-Money $d.cost)) 9.5 (T 'TextSoft') 'SemiBold'
+        [System.Windows.Controls.DockPanel]::SetDock($tot, 'Right'); $tot.VerticalAlignment = 'Center'; [void]$hd.Children.Add($tot)
+        $lb = New-Tb4319 $d.label.ToUpper() 10 (T 'Caption') 'Bold'; $lb.VerticalAlignment = 'Center'; [void]$hd.Children.Add($lb)
+        [void]$ui.TripsList.Children.Add($hd)
+        $sep = New-Object System.Windows.Controls.Border; $sep.Height = 1; $sep.Background = T 'Sep'; $sep.Margin = '0,0,0,2'; [void]$ui.TripsList.Children.Add($sep)
+        foreach ($r in $d.trips) {
+            $g = New-Object System.Windows.Controls.Grid; $g.Margin = '0,2,0,2'
+            foreach ($gl in @([System.Windows.GridLength]::new(56), [System.Windows.GridLength]::new(1, [System.Windows.GridUnitType]::Star), [System.Windows.GridLength]::Auto)) { $cd = New-Object System.Windows.Controls.ColumnDefinition; $cd.Width = $gl; [void]$g.ColumnDefinitions.Add($cd) }
+            $c0 = New-Object System.Windows.Controls.StackPanel
+            [void]$c0.Children.Add((New-Tb4319 $r.time 10.5 (T 'Text') 'SemiBold')); [void]$c0.Children.Add((New-Tb4319 (Format-TripMin $r.minutes) 9 (T 'Caption')))
+            [void]$g.Children.Add($c0)
+            $c1 = New-Object System.Windows.Controls.StackPanel; $c1.Margin = '4,0,6,0'
+            $rt = New-Tb4319 ($r.from + ' → ' + $r.to) 11 (T 'Text') 'SemiBold'; $rt.TextTrimming = 'CharacterEllipsis'; $rt.ToolTip = ($r.t.from + ' → ' + $r.t.to); [void]$c1.Children.Add($rt)
+            $mt = New-Tb4319 ('{0:N1} mi · {1:N2} kWh · {2}' -f $r.miles, $r.kwh, (Format-Mpk $r.mpk)) 9.5 $(if ($r.inefficient) { T 'Amber' } else { T 'TextSoft' }) $(if ($r.inefficient) { 'SemiBold' } else { 'Normal' }); [void]$c1.Children.Add($mt)
+            [System.Windows.Controls.Grid]::SetColumn($c1, 1); [void]$g.Children.Add($c1)
+            $c2 = New-Object System.Windows.Controls.StackPanel; $c2.HorizontalAlignment = 'Right'
+            $ct = New-Tb4319 (Format-Money $r.cost) 11.5 (T 'Text') 'Bold'; $ct.HorizontalAlignment = 'Right'; [void]$c2.Children.Add($ct)
+            if ($r.inefficient) { $fl = New-Tb4319 '▼ LOW mi/kWh' 8.5 (T 'Amber') 'Bold'; $fl.HorizontalAlignment = 'Right'; $fl.ToolTip = ('Unusually inefficient: {0:N1} mi/kWh vs your average {1:N1}' -f $r.mpk, $v.refMpk); [void]$c2.Children.Add($fl) }
+            [System.Windows.Controls.Grid]::SetColumn($c2, 2); [void]$g.Children.Add($c2)
+            [void]$ui.TripsList.Children.Add($g)
+        }
+    }
+    $ui.TripsMoreTxt.Text = $(if ($open) { 'Show less (7 days)' } else { 'Show more (30 days' + $(if ($v.older -gt 0) { ', ' + $v.older + ' more' } else { '' }) + ')' })
+    $ui.TripsMoreBtn.Tag = [System.Windows.CornerRadius]::new(5); $ui.TripsMoreBtn.Background = T 'BtnBg'; $ui.TripsMoreBtn.BorderBrush = T 'BtnBorder'; $ui.TripsMoreTxt.Foreground = T 'Text'
+    $ui.TripsSumBox.Background = Get-Brush '#14FFFFFF'
+}
+
+# ---- 4a. MORNING READY CHECK ----
+function Get-ReadyCheck {
+    param($Car, $Tires, [DateTime]$Now, [double]$MinPsi = 40)
+    $items = New-Object System.Collections.ArrayList
+    $push = { param($k, $l, $s, $t) [void]$items.Add([pscustomobject]@{ key = $k; label = $l; state = $s; text = $t }) }
+    if ($null -eq $Car) { & $push 'battery' 'Battery' 'unknown' 'no car data' }
+    else {
+        $soc = $Car.socPct; $lim = $Car.limitPct; $cs = [string]$Car.chargingState
+        $atLim = ($null -ne $soc -and $null -ne $lim -and [double]$soc -ge [double]$lim - 1)
+        if ($null -eq $soc -or $null -eq $lim) { & $push 'battery' 'Battery' 'unknown' 'battery level unknown' }
+        elseif ($atLim) { & $push 'battery' 'Battery' 'ok' ('{0}% (limit {1}%)' -f $soc, $lim) } else { & $push 'battery' 'Battery' 'off' ('{0}%, under the {1}% limit' -f $soc, $lim) }
+        if ($cs -eq 'Complete') { & $push 'charging' 'Charging' 'ok' 'finished' }
+        elseif ($cs -eq 'Charging' -or $cs -eq 'Starting') { & $push 'charging' 'Charging' 'off' 'still charging' }
+        elseif (-not $cs) { & $push 'charging' 'Charging' 'unknown' 'state unknown' }
+        elseif ($atLim) { & $push 'charging' 'Charging' 'ok' $(if ($cs -eq 'Disconnected') { 'done, unplugged' } else { 'done' }) }
+        else { & $push 'charging' 'Charging' 'off' $(if ($cs -eq 'Disconnected') { 'not plugged in' } else { 'stopped before the limit' }) }
+        if ($null -eq $Car.locked) { & $push 'locked' 'Locked' 'unknown' 'unknown' } elseif ([bool]$Car.locked) { & $push 'locked' 'Locked' 'ok' 'locked' } else { & $push 'locked' 'Locked' 'off' 'UNLOCKED' }
+        if ($null -eq $Car.windowsOpen) { & $push 'windows' 'Windows' 'unknown' 'unknown' } elseif ([bool]$Car.windowsOpen) { & $push 'windows' 'Windows' 'off' 'a window is OPEN' } else { & $push 'windows' 'Windows' 'ok' 'closed' }
+    }
+    if ($null -eq $Tires -or $null -eq $Tires.fr) { & $push 'tires' 'Tires' 'unknown' 'no tire data' }
+    else {
+        $low = @(); foreach ($k in 'fl', 'fr', 'rl', 'rr') { $p = $Tires.$k; if ($null -ne $p -and [double]$p -lt $MinPsi) { $low += ('{0} {1:N0}' -f $k.ToUpper(), [double]$p) } }
+        $rf = ('RF {0:N0} PSI' -f [double]$Tires.fr)
+        if ($low.Count -gt 0) { & $push 'tires' 'Tires' 'off' ('under ' + $MinPsi + ' PSI: ' + ($low -join ', ')) } else { & $push 'tires' 'Tires' 'ok' ('all ' + $MinPsi + '+ PSI · ' + $rf) }
+    }
+    if ($null -ne $Car) {
+        & $push 'sentry' 'Sentry' 'info' $(if ($null -eq $Car.sentry) { 'unknown' } elseif ([bool]$Car.sentry) { 'on' } else { 'off' })
+        & $push 'range' 'Range' 'info' $(if ($null -ne $Car.rangeMi) { ('{0:N0} mi' -f [double]$Car.rangeMi) } else { 'unknown' })
+    }
+    $off = @($items | Where-Object { $_.state -eq 'off' })
+    $morning = ($Now.Hour -ge 5 -and $Now.Hour -lt 10)
+    if ($null -eq $Car) { return [pscustomobject]@{ ready = $false; overall = 'NO DATA'; off = @('no car data yet'); items = @($items); morning = $morning; at = $Now } }
+    return [pscustomobject]@{ ready = ($off.Count -eq 0); overall = $(if ($off.Count -eq 0) { 'READY' } else { 'CHECK' }); off = @($off | ForEach-Object { $_.label + ': ' + $_.text }); items = @($items); morning = $morning; at = $Now }
+}
+function Render-Ready {
+    $car = Get-Car4319; $tires = $null; if ($null -ne $script:View) { $tires = $script:View.tires }
+    $now = Get-Now4319; $r = Get-ReadyCheck $car $tires $now; $script:Ready4319 = $r
+    $acc = $(if ($r.ready) { 'Green' } elseif ($r.overall -eq 'NO DATA') { 'Caption' } else { 'Amber' })
+    $ui.ReadyBox.BorderBrush = T $acc; $ui.ReadyBox.Background = Get-Brush $(if ($r.ready) { '#1A49DF93' } else { '#26FFB547' })
+    $ui.ReadyPill.Background = T $acc; $ui.ReadyPillTxt.Text = $r.overall; $ui.ReadyPillTxt.Foreground = Get-Brush '#FF0B0B0B'
+    $ui.ReadyHdr.Text = $(if ($r.morning) { 'MORNING READY CHECK' } else { 'READY CHECK' }); $ui.ReadyHdr.Foreground = T 'Caption'
+    $ui.ReadyWhen.Text = $(if ($null -ne $car -and $null -ne $car.atEpoch -and [int64]$car.atEpoch -gt 0) { 'cached · ' + (Format-Clock (ConvertFrom-Epoch $car.atEpoch)) } else { 'cached data' }); $ui.ReadyWhen.Foreground = T 'Caption'
+    $ui.ReadyOff.Text = $(if ($r.ready) { '' } else { 'Check: ' + ($r.off -join ' · ') }); Set-Visible $ui.ReadyOff (-not $r.ready); $ui.ReadyOff.Foreground = T 'Amber'
+    $ui.ReadyGrid.Children.Clear()
+    $ico = @{ ok = [string][char]0x2713; off = '!'; info = [string][char]0x2022; unknown = '?' }
+    if ($r.morning) {
+        Set-Visible $ui.ReadyGrid $true; Set-Visible $ui.ReadyLine $false; $ui.ReadyPillTxt.FontSize = 13; $ui.ReadyHdr.FontSize = 11.5
+        foreach ($it in $r.items) {
+            $tb = New-Tb4319 '' 10.5 (T 'TextSoft'); $tb.TextTrimming = 'CharacterEllipsis'; $tb.Margin = '0,1,6,1'
+            $b = $(switch ($it.state) { 'ok' { T 'Green' } 'off' { T 'Amber' } default { T 'Caption' } })
+            $r1 = New-Object System.Windows.Documents.Run(($ico[$it.state] + ' ')); $r1.Foreground = $b; $r1.FontWeight = 'Bold'
+            $r2 = New-Object System.Windows.Documents.Run(($it.label + ': ')); $r2.Foreground = T 'Caption'; $r2.FontWeight = 'SemiBold'
+            $r3 = New-Object System.Windows.Documents.Run($it.text); $r3.Foreground = $(if ($it.state -eq 'off') { T 'Amber' } else { T 'Text' })
+            [void]$tb.Inlines.Add($r1); [void]$tb.Inlines.Add($r2); [void]$tb.Inlines.Add($r3); $tb.ToolTip = ($it.label + ': ' + $it.text)
+            [void]$ui.ReadyGrid.Children.Add($tb)
+        }
+    } else {
+        Set-Visible $ui.ReadyGrid $false; Set-Visible $ui.ReadyLine $true; $ui.ReadyPillTxt.FontSize = 10.5; $ui.ReadyHdr.FontSize = 10.5
+        $ui.ReadyLine.Text = (@($r.items | ForEach-Object { $ico[$_.state] + ' ' + $(if ($_.state -eq 'info') { $_.label + ' ' + $_.text } else { $_.text }) }) -join '  ·  '); $ui.ReadyLine.Foreground = T 'TextSoft'; $ui.ReadyLine.FontSize = 9.5
+    }
+    if ($r.morning -and -not $r.ready -and $null -ne $car) {
+        $key = 'morning-' + $now.ToString('yyyy-MM-dd'); $mp = Get-MarkPath4319 'ready-check'
+        if ((Get-MarkKey $mp) -ne $key) {
+            Set-MarkKey $mp $key
+            $script:Toast4319 = @(@($script:Toast4319) + ('ready: ' + $key))
+            Show-WinToast 'TessDesk: morning check' ('Check: ' + ($r.off -join ' · '))
+        }
+    }
+}
+
+# ---- 4b. PSO BILL MATCH ----
+$BillPrefillNote = 'Prefilled from your Gmail: PSO bill email of Sep 26, 2026, total $442.21 (due Oct 19, 2026). The email has no billing period or kWh: enter them from the bill.'
+function Get-BillCfg {
+    $o = Get-Merged4319 'billMatch' ([ordered]@{ enabled = $true; from = ''; to = ''; kwh = $null; usd = 442.21; note = $BillPrefillNote })
+    $o.enabled = [bool]$o.enabled
+    return $o
+}
+function ConvertTo-BillDate {
+    param([string]$S)
+    $S = ([string]$S).Trim(); if (-not $S) { return $null }
+    $d = [DateTime]::MinValue
+    foreach ($f in @('yyyy-MM-dd', 'M/d/yyyy', 'M/d/yy', 'MMM d yyyy', 'MMM d, yyyy')) { if ([DateTime]::TryParseExact($S, $f, $Inv, 'None', [ref]$d)) { return $d.Date } }
+    return $null
+}
+function ConvertTo-BillNum { param($V) if ($null -eq $V) { return $null }; $s = ([string]$V) -replace '[\$,\s]', ''; if (-not $s) { return $null }; $n = 0.0; if ([double]::TryParse($s, [System.Globalization.NumberStyles]::Float, $Inv, [ref]$n)) { return $n }; return $null }
+function Get-BillMatch {
+    param($Bill, $Sessions, [double]$PsoRate, [double]$Eff)
+    $r = [ordered]@{ ok = $false; need = @(); from = $null; to = $null; billKwh = $null; billUsd = $null; billRate = $null; sessions = 0; teslaKwh = 0.0; trackedUsd = 0.0
+        sharePct = $null; shareUsd = $null; estPsoUsd = $null; diffPct = $null; mismatch = $false; dataFrom = $null; partial = $false }
+    $f = ConvertTo-BillDate $Bill.from; $t = ConvertTo-BillDate $Bill.to; $k = ConvertTo-BillNum $Bill.kwh; $u = ConvertTo-BillNum $Bill.usd
+    if ($null -eq $f) { $r.need += 'period from' }; if ($null -eq $t) { $r.need += 'period to' }; if ($null -eq $k -or $k -le 0) { $r.need += 'total kWh' }; if ($null -eq $u -or $u -le 0) { $r.need += 'total $' }
+    if ($null -ne $f -and $null -ne $t -and $t -lt $f) { $r.need += 'a TO date after FROM' }
+    $r.from = $f; $r.to = $t; $r.billKwh = $k; $r.billUsd = $u
+    if ($null -ne $k -and $k -gt 0 -and $null -ne $u) { $r.billRate = $u / $k }
+    $all = @(@($Sessions) | Where-Object { $null -ne $_ -and -not (Test-Fast4319 $_) })
+    if ($all.Count -gt 0) { $r.dataFrom = ConvertFrom-Epoch (($all | Measure-Object -Property startEpoch -Minimum).Minimum) }
+    if ($null -eq $f -or $null -eq $t -or $t -lt $f) { return [pscustomobject]$r }
+    $s0 = ConvertTo-EpochLocal $f; $s1 = ConvertTo-EpochLocal $t.AddDays(1)
+    foreach ($s in $all) {
+        if ([int64]$s.startEpoch -lt $s0 -or [int64]$s.startEpoch -ge $s1) { continue }
+        $w = $(if ($null -ne $s.kwhWall -and [double]$s.kwhWall -gt 0) { [double]$s.kwhWall } elseif ($null -ne $s.kwhAdded -and $Eff -gt 0) { [double]$s.kwhAdded / $Eff } else { 0.0 })
+        $r.teslaKwh += $w; $r.trackedUsd += [double](Get-Val $s.costUsdAllIn 0.0); $r.sessions++
+    }
+    $r.teslaKwh = [math]::Round($r.teslaKwh, 2); $r.trackedUsd = [math]::Round($r.trackedUsd, 2)
+    $r.partial = ($null -ne $r.dataFrom -and $r.dataFrom.Date -gt $f)
+    $r.estPsoUsd = [math]::Round($r.teslaKwh * $PsoRate, 2)
+    if ($r.estPsoUsd -gt 0) { $r.diffPct = [math]::Round(($r.trackedUsd - $r.estPsoUsd) / $r.estPsoUsd * 100, 1); $r.mismatch = ([math]::Abs($r.diffPct) -gt 5) }
+    if ($null -ne $k -and $k -gt 0) { $r.sharePct = [math]::Round($r.teslaKwh / $k * 100, 1) }
+    if ($null -ne $r.billRate) { $r.shareUsd = [math]::Round($r.teslaKwh * $r.billRate, 2) }
+    $r.ok = ($r.need.Count -eq 0)
+    return [pscustomobject]$r
+}
+function Format-BillDate { param($D) if ($null -eq $D) { return '' }; return ([DateTime]$D).ToString('M/d/yyyy', $Inv) }
+function Render-Bill {
+    $b = Get-BillCfg; $on = [bool]$b.enabled
+    $script:BillRendering = $true; try { $ui.BillSwitch.IsChecked = $on } finally { $script:BillRendering = $false }
+    Set-Visible $ui.BillBody $on
+    $ui.BillHdr.Foreground = T 'Caption'; $ui.BillState.Foreground = T 'Caption'
+    if (-not $on) { $ui.BillState.Text = 'off'; $script:Bill4319 = $null; return }
+    if (-not $ui.BillFrom.IsKeyboardFocusWithin) { $ui.BillFrom.Text = [string]$b.from }; if (-not $ui.BillTo.IsKeyboardFocusWithin) { $ui.BillTo.Text = [string]$b.to }
+    if (-not $ui.BillKwh.IsKeyboardFocusWithin) { $ui.BillKwh.Text = $(if ($null -ne $b.kwh -and [string]$b.kwh -ne '') { [string]$b.kwh } else { '' }) }
+    if (-not $ui.BillUsd.IsKeyboardFocusWithin) { $ui.BillUsd.Text = $(if ($null -ne $b.usd -and [string]$b.usd -ne '') { ([double](ConvertTo-BillNum $b.usd)).ToString('0.00', $Inv) } else { '' }) }
+    foreach ($n in 'BillFromLbl', 'BillToLbl', 'BillKwhLbl', 'BillUsdLbl') { $ui[$n].Foreground = T 'Caption' }
+    foreach ($n in 'BillFrom', 'BillTo', 'BillKwh', 'BillUsd') { $ui[$n].Foreground = T 'Text'; $ui[$n].BorderBrush = T 'BtnBorder' }
+    $ui.BillSaveBtn.Tag = [System.Windows.CornerRadius]::new(4); $ui.BillSaveBtn.Background = T 'BtnBg'; $ui.BillSaveBtn.BorderBrush = T 'BtnBorder'
+    $m = Get-BillMatch $b @(Get-CompletedForTotals $script:State) ($R_ON + $FCA) $EFFICIENCY; $script:Bill4319 = $m
+    $ui.BillSrc.Text = [string]$b.note; $ui.BillSrc.Foreground = T 'Caption'; Set-Visible $ui.BillSrc ([bool]$b.note)
+    $ui.BillRes1.Foreground = T 'Text'; $ui.BillRes2.Foreground = T 'TextSoft'
+    if ($null -ne $m.from -and $null -ne $m.to -and $m.to -ge $m.from) {
+        $ui.BillRes1.Text = ('Tesla share: {0:N1} kWh{1}{2} · {3} home charge{4}' -f $m.teslaKwh, $(if ($null -ne $m.shareUsd) { ' · ' + (Format-Money $m.shareUsd) } else { '' }), $(if ($null -ne $m.sharePct) { (' · {0:N1}% of the bill' -f $m.sharePct) } else { '' }), $m.sessions, $(if ($m.sessions -eq 1) { '' } else { 's' }))
+        $ui.BillRes2.Text = ('At the PSO overnight rate ({0}): {1} · TessDesk tracked {2}{3}' -f (Format-C1 ($R_ON + $FCA)), (Format-Money $m.estPsoUsd), (Format-Money $m.trackedUsd), $(if ($null -ne $m.diffPct) { (' ({0}{1:N1}%)' -f $(if ($m.diffPct -ge 0) { '+' } else { '' }), $m.diffPct) } else { '' })) + $(if ($m.partial) { ' · TessDesk charge data starts ' + (Format-BillDate $m.dataFrom) + ', so earlier days are not counted' } else { '' })
+        $ui.BillState.Text = $(if ($null -ne $m.sharePct) { ('{0:N1}% Tesla' -f $m.sharePct) } else { '' })
+    } else {
+        $ui.BillRes1.Text = 'Enter the billing period (from / to) and the total kWh from your PSO bill to see the Tesla share.'
+        $ui.BillRes2.Text = $(if ($m.need.Count -gt 0) { 'Missing: ' + ($m.need -join ', ') } else { '' }); $ui.BillState.Text = 'needs the bill'
+    }
+    if ($m.mismatch) {
+        $ui.BillFlagTxt.Text = ('Mismatch over 5%: TessDesk tracked {0} vs {1} at the PSO overnight rate ({2}{3:N1}%). Some charging may have run outside 11 PM-6 AM, or the rates in settings differ from the bill.' -f (Format-Money $m.trackedUsd), (Format-Money $m.estPsoUsd), $(if ($m.diffPct -ge 0) { '+' } else { '' }), $m.diffPct)
+        $ui.BillFlagTxt.Foreground = T 'Amber'; $ui.BillFlag.BorderBrush = T 'Amber'; Set-Visible $ui.BillFlag $true
+    } else { Set-Visible $ui.BillFlag $false }
+}
+function Save-BillInputs {
+    $b = Get-BillCfg
+    $b.from = $(if ($d = ConvertTo-BillDate $ui.BillFrom.Text) { $d.ToString('yyyy-MM-dd') } else { ([string]$ui.BillFrom.Text).Trim() })
+    $b.to = $(if ($d = ConvertTo-BillDate $ui.BillTo.Text) { $d.ToString('yyyy-MM-dd') } else { ([string]$ui.BillTo.Text).Trim() })
+    $b.kwh = ConvertTo-BillNum $ui.BillKwh.Text; $b.usd = ConvertTo-BillNum $ui.BillUsd.Text
+    Save-Cfg4319 'billMatch' $b; Write-WidgetLog ('bill match saved: ' + $b.from + ' to ' + $b.to + ', ' + $b.kwh + ' kWh, $' + $b.usd)
+    Render-Bill
+}
+function Set-BillEnabled { param([bool]$On) $b = Get-BillCfg; $b.enabled = $On; Save-Cfg4319 'billMatch' $b; Write-WidgetLog ('bill match ' + $(if ($On) { 'on' } else { 'off' })); Render-Bill }
+
+# ---- 4c. BATTERY HEALTH TREND + TIPS ----
+function Update-HealthCache {
+    param([string]$Token, [int64]$NowE)
+    $st = $script:State; if ($null -eq $st -or -not $script:VIN) { return }
+    $last = [int64](Get-Val $st.healthFetchEpoch 0)
+    if (($NowE - $last) -lt 6 * 3600 -and $null -ne $st.health) { return }
+    $st.healthFetchEpoch = $NowE
+    try {
+        $cur = Invoke-Tessie '/battery_health?distance_format=mi' $Token
+        $mine = @(@($cur.results) | Where-Object { $null -ne $_ -and [string]$_.vin -eq [string]$script:VIN }) | Select-Object -First 1
+        $pts = @()
+        try {
+            $h = Invoke-Tessie ("/$($script:VIN)/battery_health?from=" + ($NowE - 400 * 86400) + "&to=$NowE&distance_format=mi") $Token
+            $byDay = [ordered]@{}
+            foreach ($p in @($h.results)) { if ($null -eq $p -or -not $p.timestamp -or $null -eq $p.max_range) { continue }; $byDay[([string]$p.timestamp).Substring(0, 10)] = $p }
+            $pts = @($byDay.Keys | ForEach-Object { $p = $byDay[$_]; [pscustomobject]@{ d = $_; range = [math]::Round([double]$p.max_range, 2); cap = $(if ($null -ne $p.capacity) { [math]::Round([double]$p.capacity, 2) } else { $null }); odo = $p.odometer } })
+        } catch { Write-WidgetLog ('battery health history: ' + $_.Exception.Message) }
+        if ($null -eq $mine) { throw 'no battery health for this car' }
+        $st.health = [pscustomobject]@{ healthPct = $mine.health_percent; capacity = $mine.capacity; original = $mine.original_capacity; degradation = $mine.degradation_percent; maxRange = $mine.max_range; odometer = $mine.odometer; at = $NowE; points = $pts }
+        Add-OwnHealthPoint $st.health $NowE
+    } catch { Write-WidgetLog ('battery health fetch failed: ' + $_.Exception.Message); $st.healthFetchEpoch = $NowE - 6 * 3600 + 1800 }
+}
+function Read-OwnHealth { if ($SelfTest -and $null -ne $script:OwnHealthMock) { return @($script:OwnHealthMock) }; try { if (Test-Path -LiteralPath $HealthHistPath) { return @((Get-Content -LiteralPath $HealthHistPath -Raw -Encoding UTF8 | ConvertFrom-Json).points) } } catch {}; return @() }
+function Add-OwnHealthPoint {
+    param($H, [int64]$NowE)
+    if ($SelfTest -or $null -eq $H -or $null -eq $H.maxRange) { return }
+    try {
+        $d = (ConvertFrom-Epoch $NowE).ToString('yyyy-MM-dd')
+        $pts = @(Read-OwnHealth | Where-Object { $null -ne $_ -and [string]$_.d -ne $d })
+        $pts += [pscustomobject]@{ d = $d; range = [math]::Round([double]$H.maxRange, 2); cap = $H.capacity; health = $H.healthPct; odo = $H.odometer }
+        [ordered]@{ note = 'TessDesk battery health history (one point per day, from Tessie /battery_health)'; points = @($pts | Sort-Object d | Select-Object -Last 800) } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $HealthHistPath -Encoding UTF8
+    } catch { Write-WidgetLog ('health history save: ' + $_.Exception.Message) }
+}
+function Get-HealthSeries {
+    param($H, $Own)
+    $m = @{}
+    foreach ($p in @($Own)) { if ($null -ne $p -and $p.d -and $null -ne $p.range) { $m[[string]$p.d] = [double]$p.range } }
+    if ($null -ne $H) { foreach ($p in @($H.points)) { if ($null -ne $p -and $p.d -and $null -ne $p.range) { $m[[string]$p.d] = [double]$p.range } } }
+    $keys = @($m.Keys | Sort-Object)
+    return @($keys | ForEach-Object { [pscustomobject]@{ d = $_; range = $m[$_] } })
+}
+function Get-HealthTrend {
+    param($Series)
+    $s = @($Series); if ($s.Count -lt 2) { return $null }
+    # smooth the ends: average of the first / last 7 points (Tessie's estimate moves a few miles day to day)
+    $n = [math]::Min(7, [math]::Floor($s.Count / 2)); if ($n -lt 1) { $n = 1 }
+    $a = [double](($s | Select-Object -First $n | Measure-Object -Property range -Average).Average); $b = [double](($s | Select-Object -Last $n | Measure-Object -Property range -Average).Average)
+    $d0 = [DateTime]::ParseExact($s[0].d, 'yyyy-MM-dd', $Inv)
+    return [pscustomobject]@{ fromRange = [math]::Round($a, 1); toRange = [math]::Round($b, 1); deltaPct = $(if ($a -gt 0) { [math]::Round(($b - $a) / $a * 100, 1) } else { $null }); since = $d0; points = $s.Count }
+}
+function Get-BatteryTips {
+    param($Sessions, $Car, $Trips, $Health, [DateTime]$Now)
+    $ss = @(@($Sessions) | Where-Object { $null -ne $_ }); $tips = @(); $good = @()
+    $span = 60
+    if ($ss.Count -gt 0) { $span = [math]::Max(1, [math]::Round(((ConvertTo-EpochLocal $Now) - [int64](($ss | Measure-Object -Property startEpoch -Minimum).Minimum)) / 86400.0)) }
+    $full = @($ss | Where-Object { $null -ne $_.socEndPct -and [double]$_.socEndPct -ge 98 })
+    $lim = $(if ($null -ne $Car) { $Car.limitPct } else { $null })
+    if ($full.Count -ge 4) { $tips += ('You charged to 100% {0} times in the last {1} days. Save 100% for road trips; your daily limit{2} is easier on the battery.' -f $full.Count, $span, $(if ($null -ne $lim) { ' of ' + $lim + '%' } else { '' })) }
+    elseif ($full.Count -gt 0) { $good += ('Only {0} charge{1} to 100% in {2} days: good, keep 100% for trips.' -f $full.Count, $(if ($full.Count -eq 1) { '' } else { 's' }), $span) }
+    else { $good += ('No charges to 100% in {0} days: good.' -f $span) }
+    # sat full: hours between a 95%+ charge ending and the next drive
+    $tr = @(@($Trips) | Where-Object { $null -ne $_ } | Sort-Object { [int64]$_.startEpoch })
+    if ($full.Count -gt 0 -and $tr.Count -gt 0) {
+        $t0 = [int64]$tr[0].startEpoch; $sat = @()
+        foreach ($s in @($ss | Where-Object { $null -ne $_.socEndPct -and [double]$_.socEndPct -ge 95 -and [int64]$_.endEpoch -ge $t0 })) {
+            $nx = @($tr | Where-Object { [int64]$_.startEpoch -gt [int64]$s.endEpoch } | Select-Object -First 1)
+            if ($nx.Count -gt 0) { $sat += (([int64]$nx[0].startEpoch - [int64]$s.endEpoch) / 3600.0) }
+        }
+        $long = @($sat | Where-Object { $_ -ge 8 })
+        if ($long.Count -gt 0) { $tips += ('{0} of {1} recent full charges sat at 95%+ for 8+ hours before the next drive (longest {2:N0} h). Set a departure time so a full charge ends close to when you leave.' -f $long.Count, $sat.Count, ($sat | Measure-Object -Maximum).Maximum) }
+        elseif ($sat.Count -gt 0) { $good += 'Your recent full charges were driven soon after: good.' }
+    }
+    if ($null -ne $lim) { if ([int]$lim -gt 90) { $tips += ('Your charge limit is {0}%. For daily driving, 80% or lower is easier on the battery.' -f $lim) } elseif ([int]$lim -le 80) { $good += ('Daily limit {0}%: right where Tesla suggests for everyday use.' -f $lim) } }
+    $fast = @($ss | Where-Object { Test-Fast4319 $_ })
+    if ($fast.Count -eq 0 -and $ss.Count -gt 0) { $good += ('No Supercharging in {0} days: all home AC charging, the gentlest kind.' -f $span) } elseif ($fast.Count -ge 6) { $tips += ('{0} fast charges in {1} days. Frequent DC fast charging adds heat; home charging is gentler.' -f $fast.Count, $span) }
+    $starts = @($ss | Where-Object { $null -ne $_.socStartPct } | ForEach-Object { [double]$_.socStartPct })
+    if ($starts.Count -gt 0) {
+        $mn = ($starts | Measure-Object -Minimum).Minimum; $lo = @($starts | Where-Object { $_ -lt 20 })
+        if ($lo.Count -gt 0) { $tips += ('{0} charge{1} started below 20% (lowest {2:N0}%). Plugging in before 20% avoids deep discharges.' -f $lo.Count, $(if ($lo.Count -eq 1) { '' } else { 's' }), $mn) } else { $good += ('Never below {0:N0}% before charging in {1} days: no deep discharges.' -f $mn, $span) }
+    }
+    $c14 = (ConvertTo-EpochLocal $Now) - 14 * 86400
+    $temps = @($tr | Where-Object { [int64]$_.startEpoch -ge $c14 -and $null -ne $_.tempF } | ForEach-Object { [double]$_.tempF })
+    if ($temps.Count -ge 3) { $avg = ($temps | Measure-Object -Average).Average; if ($avg -ge 85) { $tips += ('Hot weather: your drives averaged {0:N0}°F outside the last 2 weeks. Shade or a garage helps; heat ages a battery faster than miles.' -f $avg) } elseif ($avg -le 32) { $tips += ('Cold weather: your drives averaged {0:N0}°F outside the last 2 weeks. Charging soon after a drive, while the pack is warm, is more efficient.' -f $avg) } }
+    $all = @($tips) + @($good)
+    return @($all | Select-Object -First 5)
+}
+function Render-Health {
+    $st = $script:State; $h = $null; if ($null -ne $st) { $h = $st.health }
+    $own = Read-OwnHealth; $series = Get-HealthSeries $h $own; $tr = Get-HealthTrend $series
+    $script:Health4319 = [pscustomobject]@{ health = $h; series = @($series); trend = $tr }
+    foreach ($n in 'HealthHdr', 'HealthPctCap', 'HealthAsOf', 'HealthSparkCap', 'TipsHdr') { $ui[$n].Foreground = T 'Caption' }
+    $ui.HealthPct.Foreground = T 'Text'; $ui.HealthL1.Foreground = T 'Text'; $ui.HealthL2.Foreground = T 'TextSoft'; $ui.HealthTrend.Foreground = T 'Caption'
+    if ($null -ne $h -and $null -ne $h.healthPct) {
+        $ui.HealthPct.Text = ('{0:N1}%' -f [double]$h.healthPct)
+        $ui.HealthL1.Text = $(if ($null -ne $h.capacity -and $null -ne $h.original) { ('{0:N1} of {1:N1} kWh capacity' -f [double]$h.capacity, [double]$h.original) } else { '' })
+        $ui.HealthL2.Text = $(if ($null -ne $h.maxRange) { ('Full-pack range {0:N0} mi (est.)' -f [double]$h.maxRange) } else { '' })
+        $ui.HealthAsOf.Text = $(if ($h.at) { 'Tessie · ' + (ConvertFrom-Epoch $h.at).ToString('MMM d', $Inv) } else { '' })
+    } else { $ui.HealthPct.Text = '--'; $ui.HealthL1.Text = 'Battery health loads from Tessie (every 6 h).'; $ui.HealthL2.Text = ''; $ui.HealthAsOf.Text = '' }
+    $ui.HealthTrend.Text = $(if ($null -ne $tr) { ('Full-pack range {0:N0} → {1:N0} mi since {2} ({3}{4:N1}%)' -f $tr.fromRange, $tr.toRange, $tr.since.ToString('MMM yyyy', $Inv), $(if ($tr.deltaPct -ge 0) { '+' } else { '' }), $tr.deltaPct) } else { 'Trend: history builds up day by day' })
+    # sparkline (max range per day, at most 90 points)
+    $pts = @($series); $SpW = 130.0; $SpH = 36.0
+    if ($pts.Count -gt 90) { $step = $pts.Count / 90.0; $pts = @(0..89 | ForEach-Object { $pts[[int][math]::Floor($_ * $step)] }) + @($series[-1]) }
+    $pc = New-Object System.Windows.Media.PointCollection
+    if ($pts.Count -ge 2) {
+        $vals = @($pts | ForEach-Object { [double]$_.range }); $mn = ($vals | Measure-Object -Minimum).Minimum; $mx = ($vals | Measure-Object -Maximum).Maximum; if ($mx - $mn -lt 2) { $mx = $mn + 2 }
+        for ($i = 0; $i -lt $pts.Count; $i++) { $x = 2 + ($SpW - 6) * $i / ($pts.Count - 1); $y = 2 + ($SpH - 6) * (1 - ($vals[$i] - $mn) / ($mx - $mn)); [void]$pc.Add([System.Windows.Point]::new($x, $y)) }
+        $lp = $pc[$pc.Count - 1]; [System.Windows.Controls.Canvas]::SetLeft($ui.HealthDot, $lp.X - 3); [System.Windows.Controls.Canvas]::SetTop($ui.HealthDot, $lp.Y - 3); Set-Visible $ui.HealthDot $true
+        $ui.HealthSparkCap.Text = ('max range · {0} days' -f $series.Count)
+    } else { Set-Visible $ui.HealthDot $false; $ui.HealthSparkCap.Text = 'trend: needs 2+ days' }
+    $ui.HealthLine.Points = $pc; $ui.HealthLine.Stroke = T 'Green'; $ui.HealthDot.Fill = T 'Green'
+    $tips = @(Get-BatteryTips @(Get-CompletedForTotals $st) (Get-Car4319) @(Get-Val $st.trips @()) $h (Get-Now4319)); $script:Tips4319 = $tips
+    $ui.TipsList.Children.Clear()
+    foreach ($t in $tips) {
+        $tb = New-Tb4319 ([string][char]0x2022 + ' ' + $t) 10 (T 'TextSoft'); $tb.TextWrapping = 'Wrap'; $tb.Margin = '0,1,0,1'
+        [void]$ui.TipsList.Children.Add($tb)
+    }
+    Set-Visible $ui.TipsHdr ($tips.Count -gt 0)
+}
+function Render-V4319 {
+    foreach ($n in 'BillSep', 'HealthSep', 'PlugSetSep') { $ui[$n].Background = T 'Sep' }
+    try { Render-PlugRem } catch { Write-WidgetLog ('plug reminder: ' + $_.Exception.Message) }
+    try { Render-Ready } catch { Write-WidgetLog ('ready check: ' + $_.Exception.Message) }
+    try { Render-Bill } catch { Write-WidgetLog ('bill match: ' + $_.Exception.Message) }
+    try { Render-Health } catch { Write-WidgetLog ('battery health: ' + $_.Exception.Message) }
+    try { Render-Trips } catch { Write-WidgetLog ('trips: ' + $_.Exception.Message) }
+}
+# wiring
+$ui.PlugRemSwitch.Add_Checked({ try { if (-not (Get-PlugCfg).enabled) { Set-PlugEnabled $true } } catch {} })
+$ui.PlugRemSwitch.Add_Unchecked({ try { if ((Get-PlugCfg).enabled) { Set-PlugEnabled $false } } catch {} })
+$ui.BillSwitch.Add_Checked({ try { if (-not $script:BillRendering -and -not (Get-BillCfg).enabled) { Set-BillEnabled $true } } catch {} })
+$ui.BillSwitch.Add_Unchecked({ try { if (-not $script:BillRendering -and (Get-BillCfg).enabled) { Set-BillEnabled $false } } catch {} })
+$ui.BillSaveBtn.Add_Click({ try { Save-BillInputs } catch { Write-WidgetLog ('bill save: ' + $_.Exception.Message) } })
+foreach ($bx in @($ui.BillFrom, $ui.BillTo, $ui.BillKwh, $ui.BillUsd)) { $bx.Add_PreviewKeyDown({ param($s9, $e9) try { if ($e9.Key -eq 'Enter') { Save-BillInputs; $e9.Handled = $true } } catch {} }) }
+$ui.TripsMoreBtn.Add_Click({ try { Set-TripsOpen (-not (Get-TripsOpen)) } catch { Write-WidgetLog ('trips more: ' + $_.Exception.Message) } })
+# v4.3.19: 30% wider (473 px). A layout saved at the old width (or the compact add-on restoring it) is widened back to $winW.
+$script:WidthGuard = $false
+$window.Add_SizeChanged({
+    try {
+        if ($script:WidthGuard) { return }
+        $off = $false; try { if ($null -ne $script:CbCompact) { $off = [bool]$script:CbCompact.Off } } catch {}
+        if (-not $off -and $window.Width -lt ($winW - 0.5) -and $window.Width -ge 300) {
+            $script:WidthGuard = $true
+            [void]$window.Dispatcher.BeginInvoke([Action]{ try { $o2 = $false; try { if ($null -ne $script:CbCompact) { $o2 = [bool]$script:CbCompact.Off } } catch {}; if (-not $o2 -and $window.Width -lt ($winW - 0.5)) { Write-WidgetLog ('width ' + $window.Width + ' -> ' + $winW); $window.Width = $winW } } catch {}; $script:WidthGuard = $false })
+        }
+    } catch {}
+})
 # Show local/cached data immediately; the first Tessie call runs once the window is on screen.
 try {
     $script:View = Build-FallbackView (Read-LocalJson) 'Live: connecting…' 'starting'
@@ -7575,6 +8226,7 @@ function Start-SelfTest {
     & $add 'v4.3.3 SENTRY: answer NO' @($false) { $n0 = @($script:CtlLog).Count; Invoke-SentryToggle; $script:SelfRec.v433.sentryNo = [ordered]@{ result = $script:CtlResultText; commands = @($script:CtlLog).Count - $n0 } }
     & $add 'v4.3.3 SENTRY: answer YES (DRY RUN)' @($true) { Invoke-SentryToggle }
     & $add 'v4.3.3 sentry result' @() { $script:SelfRec.v433.sentryYes = [ordered]@{ result = $script:CtlResultText; button = $ui.SentryTxt.Text + ' / ' + $ui.SentrySub.Text; cmds = @($script:CtlLog | Where-Object { $_.cmd -like '*_sentry' } | ForEach-Object { $_.cmd }) }; & $script:Shot433 'sentry-toggled'; $script:CtlOverride.Remove('sentry'); Render-Controls; $ui.CtlCard.BringIntoView(); $window.UpdateLayout(); & $script:Shot433 'controls-after' }
+    & $add 'v4.3.19 test order: let the launch update check finish before the local-feed update test' @() { & $script:Wait4315 { $null -eq $script:UpdJob } }
     & $add 'v4.3.3 update: check a local test feed (v9.9.8 = newer than this copy)' @() {
         $feed = Join-Path $script:SelfDir 'updfeed'; New-Item -ItemType Directory -Path $feed -Force | Out-Null
         $me = [System.IO.File]::ReadAllText((Join-Path $scriptDir 'TessDesk.ps1'))
@@ -8319,7 +8971,7 @@ function Start-SelfTest {
         & $script:Shot4314 'top'
         $ui.UpdateBtn.Visibility = $updVis; $window.UpdateLayout()
     }
-    & $add 'v4.3.14 big figures still fit at 364 px (wide-value check, display only)' @() {
+    & $add 'v4.3.14 big figures still fit at 473 px (wide-value check, display only)' @() {
         $r = $script:SelfRec.v4314
         $keep = @($ui.HeroCost.Text, $ui.Roll7Cost.Text, $ui.Roll14Cost.Text, $ui.Roll30Cost.Text, $ui.Roll60Cost.Text)
         $ui.HeroCost.Text = '$18.88'; $ui.Roll7Cost.Text = '$64.50'; $ui.Roll14Cost.Text = '$128.90'; $ui.Roll30Cost.Text = '$212.40'; $ui.Roll60Cost.Text = '$1,048.75'; Set-HeroRollFit
@@ -8537,7 +9189,7 @@ function Start-SelfTest {
     & $add 'v4.3.18 status bar: COMPLETE' @() { & $script:State4318 'complete' 'Complete' $false 'complete' }
     & $add 'v4.3.18 status bar: NOT CHARGING (no power), CHARGING (starting), unknown state' @() {
         & $script:State4318 'noPower' 'NoPower' $false ''; & $script:State4318 'starting' 'Starting' $false ''; & $script:State4318 'unknown' '' $false '' }
-    & $add 'v4.3.18 layout: fits 364x990 without scrolling (status bar, TESLA CONTROLS, top of BATTERY)' @() {
+    & $add 'v4.3.18 layout: fits 473x990 without scrolling (status bar, TESLA CONTROLS, top of BATTERY)' @() {
         & $script:State4318 'layoutCharging' 'Charging' $true ''
         $ui.BodyScroll.ScrollToVerticalOffset(0); $window.UpdateLayout()
         $sc = $ui.BodyScroll; $vp = $sc.ViewportHeight; $mgH = $ui.MainGrid.ActualHeight
@@ -8619,6 +9271,253 @@ function Start-SelfTest {
         $script:SelfRec.v4318.skip.savedAllOff = [ordered]@{ reload = (Get-SkipCfCfg); allOff = (@($SkipCfKeys | Where-Object { [bool](Get-SkipCfCfg)[$_] }).Count -eq 0) }
         $script:CtlOverride.Remove('chargingState'); $script:View = $script:Orig4318; Render-View; $window.UpdateLayout(); & $script:ElPng4318 $ui.CtlCard 'skip-confirm-off'
         $acts = $script:SelfRec.v4318.skip.actions; $script:SelfRec.v4318.skip.allPass = (@($acts.Keys | Where-Object { -not ($acts[$_].off.pass -and $acts[$_].on.pass -and $acts[$_].savedOn) }).Count -eq 0) -and $script:SelfRec.v4318.skip.savedAllOn.allOn -and $script:SelfRec.v4318.skip.savedAllOff.allOff }
+    # ---- v4.3.19 (DRY RUN: nothing is sent to the car, nothing announced) ----
+    $script:SelfRec.v4319 = [ordered]@{ appVersion = $AppVersion; footer = $ui.FooterVersion.Text; footerBrand = $ui.FooterText.Text; footerBold = [string]$ui.FooterText.FontWeight; width = $winW }
+    $script:Shot4319 = { param($n) $f = 'tessdesk-v4319-' + $n + '.png'; Save-RootPng (Join-Path $script:SelfDir $f); $script:SelfRec.shots += $f }
+    $script:ElPng4319 = { param($el, $n)
+        $window.UpdateLayout(); $sc = 2.0; $w = [int][math]::Ceiling($el.ActualWidth * $sc); $h = [int][math]::Ceiling($el.ActualHeight * $sc)
+        $bmp = New-Object System.Windows.Media.Imaging.RenderTargetBitmap($w, $h, (96 * $sc), (96 * $sc), [System.Windows.Media.PixelFormats]::Pbgra32)
+        $dv = New-Object System.Windows.Media.DrawingVisual; $dc = $dv.RenderOpen()
+        $dc.DrawRectangle((T 'CardBg'), $null, [System.Windows.Rect]::new(0, 0, $el.ActualWidth, $el.ActualHeight))
+        $dc.DrawRectangle((New-Object System.Windows.Media.VisualBrush($el)), $null, [System.Windows.Rect]::new(0, 0, $el.ActualWidth, $el.ActualHeight)); $dc.Close(); $bmp.Render($dv)
+        $enc = New-Object System.Windows.Media.Imaging.PngBitmapEncoder; $enc.Frames.Add([System.Windows.Media.Imaging.BitmapFrame]::Create($bmp))
+        $f = 'tessdesk-v4319-' + $n + '.png'; $fs = [IO.File]::Create((Join-Path $script:SelfDir $f)); try { $enc.Save($fs) } finally { $fs.Close() }; $script:SelfRec.shots += $f }
+    $script:Car4319 = {
+        param([int]$Soc, [int]$Lim, [string]$State, $Locked, $WinOpen, $Sentry, [double]$Range, [double]$Fr, [double]$Other = 42)
+        [pscustomobject]@{ socPct = $Soc; limitPct = $Lim; chargingState = $State; lat = 36.10364; lon = -96.03282; locked = $Locked; windowsOpen = $WinOpen; sentry = $Sentry; rangeMi = $Range; atEpoch = (ConvertTo-EpochLocal (Get-Now4319))
+            fl = $Other; fr = $Fr; rl = $Other; rr = $Other }
+    }
+    & $add 'v4.3.19 pure checks: plug reminder, trips, rate, ready check, bill match, health + tips' @() {
+    # ---- plug-in reminder conditions ----
+    $cfgP = Get-PlugCfg
+    $casesP = @(
+        @('evening, home, unplugged, under the limit', 21, 55, 80, 'Disconnected', $true, $true, $true),
+        @('exactly at the limit: no reminder', 21, 80, 80, 'Disconnected', $true, $true, $false),
+        @('above the limit: no reminder', 21, 90, 80, 'Disconnected', $true, $true, $false),
+        @('daytime: no reminder', 14, 55, 80, 'Disconnected', $true, $true, $false),
+        @('not at home: no reminder', 21, 55, 80, 'Disconnected', $false, $true, $false),
+        @('plugged in (charging): no reminder', 21, 55, 80, 'Charging', $true, $true, $false),
+        @('plugged in (complete): no reminder', 21, 55, 80, 'Complete', $true, $true, $false),
+        @('reminder switched off: no reminder', 21, 55, 80, 'Disconnected', $true, $false, $false)
+    )
+    $gotP = @()
+    foreach ($c in $casesP) {
+        $cfgP.enabled = [bool]$c[6]
+        $car = [pscustomobject]@{ socPct = $c[2]; limitPct = $c[3]; chargingState = $c[4] }
+        $r = Get-PlugReminder $car (Get-Date '2026-10-08').AddHours($c[1]) $cfgP $c[5]
+        $gotP += [ordered]@{ case = $c[0]; show = [bool]$r.show; why = $r.why; target = $r.target; pass = ([bool]$r.show -eq [bool]$c[7]) }
+    }
+    # threshold mode uses the threshold instead of the limit
+    $cfgP.mode = 'threshold'; $cfgP.thresholdPct = 60; $cfgP.enabled = $true
+    $rT = Get-PlugReminder ([pscustomobject]@{ socPct = 62; limitPct = 80; chargingState = 'Disconnected' }) (Get-Date '2026-10-08').AddHours(21) $cfgP $true
+    $gotP += [ordered]@{ case = 'threshold mode: 62% is over the 60% threshold'; show = [bool]$rT.show; pass = (-not $rT.show -and $rT.target -eq 60) }
+    $script:SelfRec.v4319.plugCases = $gotP
+    # ---- trips: grouping, cost math, inefficient flag (pure functions, fixed data) ----
+    $script:NowT4319 = Get-Date '2026-10-08 15:00'
+    $e1 = ConvertTo-EpochLocal (Get-Date '2026-10-08 08:10'); $e2 = ConvertTo-EpochLocal (Get-Date '2026-10-08 12:30'); $e3 = ConvertTo-EpochLocal (Get-Date '2026-10-07 09:00'); $e4 = ConvertTo-EpochLocal (Get-Date '2026-10-01 18:00')
+    $script:TripsT4319 = @(
+        [pscustomobject]@{ id = 1; startEpoch = $e1; endEpoch = ($e1 + 1500); minutes = 25; from = 'Home'; to = 'Store'; miles = 12.0; kwh = 3.0 },
+        [pscustomobject]@{ id = 2; startEpoch = $e2; endEpoch = ($e2 + 600); minutes = 10; from = 'Store'; to = 'Home'; miles = 12.0; kwh = 6.0 },
+        [pscustomobject]@{ id = 3; startEpoch = $e3; endEpoch = ($e3 + 1800); minutes = 30; from = 'Home'; to = 'Work'; miles = 20.0; kwh = 5.0 },
+        [pscustomobject]@{ id = 4; startEpoch = $e4; endEpoch = ($e4 + 900); minutes = 15; from = 'A'; to = 'B'; miles = 8.0; kwh = 2.0 }
+    )
+    $rateT = 0.10
+    $v7 = Get-TripView $script:TripsT4319 $script:NowT4319 7 $rateT; $v30 = Get-TripView $script:TripsT4319 $script:NowT4319 30 $rateT
+    $dToday = @($v7.days | Where-Object { $_.label -eq 'Today' }); $dYest = @($v7.days | Where-Object { $_.label -eq 'Yesterday' })
+    $bad = @($dToday[0].trips | Where-Object { $_.inefficient })
+    $script:SelfRec.v4319.trips = [ordered]@{
+        days7 = @($v7.days | ForEach-Object { $_.label }); hiddenIn7 = $v7.older; shownIn30 = $v30.days.Count
+        todayTrips = $dToday[0].n; todayMiles = $dToday[0].miles; todayCost = [math]::Round($dToday[0].cost, 2)
+        yestTrips = $dYest[0].n; sum7 = $v7.sum7
+        inefficient = @($bad | ForEach-Object { '{0}->{1} {2:N1} mi/kWh' -f $_.from, $_.to, $_.mpk })
+        refMpk = [math]::Round([double]$v7.refMpk, 3)
+        pass = ($v7.days.Count -eq 2 -and $v7.older -eq 1 -and $v30.days.Count -eq 3 -and $dToday[0].n -eq 2 -and [math]::Round($dToday[0].cost, 2) -eq 0.90 -and $bad.Count -eq 1 -and $v7.sum7.trips -eq 3 -and [math]::Round($v7.sum7.miles, 1) -eq 44.0 -and [math]::Round($v7.sum7.cost, 2) -eq 1.40 -and [math]::Round([double]$v7.sum7.avgMpk, 2) -eq 3.14)
+    }
+    # rate: home average over the last 30 days, else the PSO overnight rate
+    $nowE = ConvertTo-EpochLocal $script:NowT4319
+    $ss = @(
+        [pscustomobject]@{ startEpoch = ($nowE - 5 * 86400); kwhAdded = 10.0; kwhWall = 11.0; costUsdAllIn = 1.0; fast = $false; paidUsd = $null },
+        [pscustomobject]@{ startEpoch = ($nowE - 10 * 86400); kwhAdded = 20.0; kwhWall = 22.0; costUsdAllIn = 3.0; fast = $false; paidUsd = $null },
+        [pscustomobject]@{ startEpoch = ($nowE - 40 * 86400); kwhAdded = 100.0; kwhWall = 110.0; costUsdAllIn = 50.0; fast = $false; paidUsd = $null },
+        [pscustomobject]@{ startEpoch = ($nowE - 2 * 86400); kwhAdded = 40.0; kwhWall = 40.0; costUsdAllIn = 12.0; fast = $true; paidUsd = 12.0 }
+    )
+    $rt = Get-TripRate $ss $nowE; $rtNone = Get-TripRate @() $nowE
+    $script:SelfRec.v4319.tripRate = [ordered]@{ rate = [math]::Round($rt.rate, 4); source = $rt.source; sessions = $rt.sessions; note = $rt.note
+        fallbackRate = [math]::Round($rtNone.rate, 6); fallbackSource = $rtNone.source
+        pass = ([math]::Round($rt.rate, 4) -eq 0.1333 -and $rt.source -eq 'home' -and $rt.sessions -eq 2 -and $rtNone.source -eq 'pso' -and [math]::Abs($rtNone.rate - ($R_ON + $FCA)) -lt 0.000001) }
+    # ---- morning ready check states ----
+    $morn = Get-Date '2026-10-08 07:30'; $aft = Get-Date '2026-10-08 15:00'
+    $tiresOk = [pscustomobject]@{ fl = 42; fr = 41; rl = 42; rr = 42 }; $tiresLow = [pscustomobject]@{ fl = 42; fr = 37; rl = 42; rr = 42 }
+    $rc = [ordered]@{}
+    $rc.allGood = Get-ReadyCheck ([pscustomobject]@{ socPct = 80; limitPct = 80; chargingState = 'Complete'; locked = $true; windowsOpen = $false; sentry = $false; rangeMi = 240 }) $tiresOk $morn
+    $rc.charging = Get-ReadyCheck ([pscustomobject]@{ socPct = 60; limitPct = 80; chargingState = 'Charging'; locked = $true; windowsOpen = $false; sentry = $true; rangeMi = 180 }) $tiresOk $morn
+    $rc.unlocked = Get-ReadyCheck ([pscustomobject]@{ socPct = 80; limitPct = 80; chargingState = 'Disconnected'; locked = $false; windowsOpen = $true; sentry = $false; rangeMi = 240 }) $tiresLow $aft
+    $rc.doneUnplugged = Get-ReadyCheck ([pscustomobject]@{ socPct = 79.5; limitPct = 80; chargingState = 'Disconnected'; locked = $true; windowsOpen = $false; sentry = $false; rangeMi = 240 }) $tiresOk $morn
+    $rc.noData = Get-ReadyCheck $null $null $morn
+    $script:SelfRec.v4319.ready = [ordered]@{
+        allGood = [ordered]@{ overall = $rc.allGood.overall; morning = $rc.allGood.morning; off = @($rc.allGood.off) }
+        charging = [ordered]@{ overall = $rc.charging.overall; off = @($rc.charging.off); sentry = @($rc.charging.items | Where-Object { $_.key -eq 'sentry' } | ForEach-Object { $_.state + ':' + $_.text }) }
+        unlocked = [ordered]@{ overall = $rc.unlocked.overall; morning = $rc.unlocked.morning; off = @($rc.unlocked.off) }
+        doneUnplugged = [ordered]@{ overall = $rc.doneUnplugged.overall; off = @($rc.doneUnplugged.off) }
+        noData = [ordered]@{ overall = $rc.noData.overall; items = @($rc.noData.items | ForEach-Object { $_.key + ':' + $_.state }) }
+        pass = ($rc.allGood.ready -and $rc.allGood.morning -and -not $rc.charging.ready -and @($rc.charging.off | Where-Object { $_ -like 'Battery*' }).Count -eq 1 -and @($rc.charging.off | Where-Object { $_ -like 'Charging*' }).Count -eq 1 -and @($rc.charging.items | Where-Object { $_.key -eq 'sentry' -and $_.state -eq 'info' }).Count -eq 1 -and -not $rc.unlocked.morning -and @($rc.unlocked.off).Count -eq 3 -and $rc.doneUnplugged.ready -and -not $rc.noData.ready -and $rc.noData.overall -eq 'NO DATA')
+    }
+    # ---- bill match math + mismatch flag + switch default ----
+    $pso = $R_ON + $FCA
+    $billSs = @(
+        [pscustomobject]@{ startEpoch = (ConvertTo-EpochLocal (Get-Date '2026-09-05')); endEpoch = (ConvertTo-EpochLocal (Get-Date '2026-09-05 06:00')); kwhWall = 30.0; kwhAdded = 27.0; costUsdAllIn = [math]::Round(30 * $pso, 4); fast = $false; paidUsd = $null },
+        [pscustomobject]@{ startEpoch = (ConvertTo-EpochLocal (Get-Date '2026-09-20')); endEpoch = (ConvertTo-EpochLocal (Get-Date '2026-09-20 06:00')); kwhWall = 20.0; kwhAdded = 18.0; costUsdAllIn = [math]::Round(20.4 * $pso, 4); fast = $false; paidUsd = $null },
+        [pscustomobject]@{ startEpoch = (ConvertTo-EpochLocal (Get-Date '2026-08-01')); endEpoch = (ConvertTo-EpochLocal (Get-Date '2026-08-01 06:00')); kwhWall = 99.0; kwhAdded = 90.0; costUsdAllIn = 9.0; fast = $false; paidUsd = $null },
+        [pscustomobject]@{ startEpoch = (ConvertTo-EpochLocal (Get-Date '2026-09-10')); endEpoch = (ConvertTo-EpochLocal (Get-Date '2026-09-10 01:00')); kwhWall = 40.0; kwhAdded = 40.0; costUsdAllIn = 12.0; fast = $true; paidUsd = 12.0 }
+    )
+    $bm = Get-BillMatch ([pscustomobject]@{ from = '2026-09-01'; to = '2026-09-30'; kwh = 500; usd = 100 }) $billSs $pso $EFFICIENCY
+    $bmBad = Get-BillMatch ([pscustomobject]@{ from = '2026-09-01'; to = '2026-09-30'; kwh = 500; usd = 100 }) @([pscustomobject]@{ startEpoch = (ConvertTo-EpochLocal (Get-Date '2026-09-05')); kwhWall = 100.0; kwhAdded = 90.0; costUsdAllIn = 20.0; fast = $false; paidUsd = $null }) $pso $EFFICIENCY
+    $bmNeed = Get-BillMatch ([pscustomobject]@{ from = ''; to = ''; kwh = $null; usd = 442.21 }) @() $pso $EFFICIENCY
+    $script:SelfRec.v4319.bill = [ordered]@{
+        kwh = $bm.teslaKwh; sharePct = $bm.sharePct; shareUsd = $bm.shareUsd; estPso = $bm.estPsoUsd; tracked = $bm.trackedUsd; diffPct = $bm.diffPct; mismatch = [bool]$bm.mismatch; sessions = $bm.sessions; ok = [bool]$bm.ok
+        mismatchCase = [ordered]@{ diffPct = $bmBad.diffPct; mismatch = [bool]$bmBad.mismatch }
+        missing = @($bmNeed.need); switchDefault = [bool](& { $k = $script:Cfg; $script:Cfg = [pscustomobject]@{}; try { (Get-BillCfg).enabled } finally { $script:Cfg = $k } }); plugDefault = [bool](& { $k = $script:Cfg; $script:Cfg = [pscustomobject]@{}; try { (Get-PlugCfg).enabled } finally { $script:Cfg = $k } })
+        pass = ($bm.teslaKwh -eq 50 -and $bm.sessions -eq 2 -and $bm.sharePct -eq 10 -and $bm.shareUsd -eq 10 -and [math]::Abs($bm.trackedUsd - [math]::Round(50.4 * $pso, 2)) -lt 0.011 -and -not $bm.mismatch -and $bmBad.mismatch -and [math]::Abs($bm.estPsoUsd - [math]::Round(50 * $pso, 2)) -lt 0.001 -and @($bmNeed.need).Count -eq 3 -and (Get-BillCfg).enabled -and (Get-PlugCfg).enabled)
+    }
+    # ---- battery health trend (mocked history) + tips grounded in data ----
+    $series = @([pscustomobject]@{ d = '2026-03-17'; range = 279.0 }, [pscustomobject]@{ d = '2026-06-01'; range = 276.0 }, [pscustomobject]@{ d = '2026-10-01'; range = 273.0 })
+    $tr = Get-HealthTrend $series
+    $script:HMock4319 = [pscustomobject]@{ healthPct = 84.1; capacity = 66.28; original = 78.83; maxRange = 274.25; at = (ConvertTo-EpochLocal $script:NowT4319); points = $series }
+    $script:OwnHealthMock = @([pscustomobject]@{ d = '2026-10-02'; range = 273.5 })
+    $merged = Get-HealthSeries $script:HMock4319 $script:OwnHealthMock
+    $tipsIn = Get-BatteryTips @(
+        [pscustomobject]@{ startEpoch = ($nowE - 20 * 86400); endEpoch = ($nowE - 20 * 86400 + 3600); socStartPct = 30; socEndPct = 100; fast = $false; paidUsd = $null },
+        [pscustomobject]@{ startEpoch = ($nowE - 10 * 86400); endEpoch = ($nowE - 10 * 86400 + 3600); socStartPct = 40; socEndPct = 100; fast = $false; paidUsd = $null },
+        [pscustomobject]@{ startEpoch = ($nowE - 5 * 86400); endEpoch = ($nowE - 5 * 86400 + 3600); socStartPct = 25; socEndPct = 80; fast = $false; paidUsd = $null }
+    ) ([pscustomobject]@{ limitPct = 80 }) @([pscustomobject]@{ startEpoch = ($nowE - 19 * 86400); tempF = 90 }, [pscustomobject]@{ startEpoch = ($nowE - 9 * 86400); tempF = 92 }, [pscustomobject]@{ startEpoch = ($nowE - 4 * 86400); tempF = 88 }) $script:HMock4319 $script:NowT4319
+    $script:SelfRec.v4319.health = [ordered]@{ trend = [ordered]@{ from = $tr.fromRange; to = $tr.toRange; delta = $tr.deltaPct }; mergedDays = @($merged | ForEach-Object { $_.d }); tips = @($tipsIn)
+        pass = ($tr.fromRange -eq 279 -and $tr.toRange -eq 273 -and $tr.deltaPct -lt 0 -and $merged.Count -eq 4 -and @($tipsIn | Where-Object { $_ -like '*100%*' }).Count -ge 1 -and @($tipsIn | Where-Object { $_ -like '*No Supercharging*' -or $_ -like '*Supercharging*' }).Count -ge 1) }
+    $script:OwnHealthMock = $null
+    }
+    # ---- UI: bill switch collapses, plug switch, trips show more remembered, width guard ----
+    & $add 'v4.3.19 UI: bill switch OFF collapses to one row, ON shows it again (saved)' @() {
+        $ui.BillSwitch.IsChecked = $false; $window.UpdateLayout()
+        $off = [ordered]@{ visible = [string]$ui.BillBody.Visibility; text = $ui.BillHdr.Text; saved = [bool](Get-BillCfg).enabled }
+        try { & $script:ElPng4319 $ui.BattCard 'battery-bill-off' } catch {}
+        $ui.BillSwitch.IsChecked = $true; $window.UpdateLayout()
+        try { & $script:ElPng4319 $ui.BattCard 'battery-bill-on' } catch {}
+        $script:SelfRec.v4319.billSwitch = [ordered]@{ off = $off; onVisible = [string]$ui.BillBody.Visibility; savedOn = [bool](Get-BillCfg).enabled
+            pass = (-not $off.saved -and [string]$off.visible -eq 'Collapsed' -and $off.text -eq 'PSO BILL MATCH' -and [string]$ui.BillBody.Visibility -eq 'Visible' -and (Get-BillCfg).enabled) } }
+    & $add 'v4.3.19 UI: plug-in reminder switch off/on (saved) and the evening bar' @() {
+        foreach ($mk in 'plug-reminder', 'ready-check') { Remove-Item -LiteralPath (Get-MarkPath4319 $mk) -Force -ErrorAction SilentlyContinue }
+        $script:Toast4319 = @(); $script:Keep4319 = @($script:View.car, $script:View.tires, $script:State.health)
+        $script:Now4319 = Get-Date '2026-10-08 21:30'
+        $script:View.car = [pscustomobject]@{ socPct = 55; limitPct = 80; chargingState = 'Disconnected'; lat = 36.10364; lon = -96.03282; locked = $true; windowsOpen = $false; sentry = $false; rangeMi = 160; atEpoch = (ConvertTo-EpochLocal $script:Now4319) }
+        Render-V4319; $window.UpdateLayout()
+        $on = [ordered]@{ bar = [string]$ui.PlugRemBar.Visibility; word = $ui.PlugRemTxt.Text; toasts = @($script:Toast4319) }
+        $ui.PlugRemSwitch.IsChecked = $false; $window.UpdateLayout()
+        $off = [ordered]@{ bar = [string]$ui.PlugRemBar.Visibility; saved = [bool](Get-PlugCfg).enabled }
+        $ui.PlugRemSwitch.IsChecked = $true; $window.UpdateLayout()
+        $again = @($script:Toast4319).Count
+        $script:SelfRec.v4319.plugUi = [ordered]@{ on = $on; off = $off; toastsAfterReenable = $again; savedBack = [bool](Get-PlugCfg).enabled
+            pass = ([string]$on.bar -eq 'Visible' -and $on.word -eq 'PLUG IN TONIGHT' -and $on.toasts.Count -eq 1 -and [string]$off.bar -eq 'Collapsed' -and -not $off.saved -and $again -eq 1 -and (Get-PlugCfg).enabled) }
+        $script:Now4319 = $null }
+    & $add 'v4.3.19 UI: trips card groups days, show more is remembered' @() {
+        $st = $script:State
+        $keep = $st.trips; $keepF = $st.drivesFetchEpoch
+        $st.trips = $script:TripsT4319; $st.drivesFetchEpoch = ConvertTo-EpochLocal (Get-Date '2026-10-08 14:55'); $script:TripsSig = ''
+        $script:Now4319 = $script:NowT4319
+        Set-TripsOpen $false; $window.UpdateLayout()
+        $n7 = $ui.TripsList.Children.Count; $txt7 = $ui.TripsMoreTxt.Text; $sum = $ui.TripsS0.Text + '/' + $ui.TripsS1.Text + '/' + $ui.TripsS3.Text + '/' + $ui.TripsS4.Text
+        Set-TripsOpen $true; $window.UpdateLayout()
+        $n30 = $ui.TripsList.Children.Count; $txt30 = $ui.TripsMoreTxt.Text
+        $raw = Get-Content -LiteralPath $ConfigPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $script:SelfRec.v4319.tripsUi = [ordered]@{ children7 = $n7; more7 = $txt7; sum7 = $sum; children30 = $n30; more30 = $txt30; saved = [bool]$raw.trips.expanded; rateNote = $ui.TripsRate.Text
+            pass = ($n30 -gt $n7 -and $txt7 -like 'Show more*' -and $txt30 -like 'Show less*' -and [bool]$raw.trips.expanded -and $ui.TripsS0.Text -eq '3') }
+        $st.trips = $keep; $st.drivesFetchEpoch = $keepF; $script:TripsSig = ''; $script:Now4319 = $null; Set-TripsOpen $false; Render-V4319 }
+    & $add 'v4.3.19 UI: ready check, bill match and health render from the view' @() {
+        $script:Now4319 = Get-Date '2026-10-08 07:30'
+        $script:View.car = [pscustomobject]@{ socPct = 60; limitPct = 80; chargingState = 'Charging'; lat = 36.10364; lon = -96.03282; locked = $false; windowsOpen = $true; sentry = $false; rangeMi = 170; atEpoch = (ConvertTo-EpochLocal $script:Now4319) }
+        $script:View.tires = [pscustomobject]@{ fl = 42; fr = 37; rl = 42; rr = 42 }
+        $script:State.health = $script:HMock4319
+        Render-V4319; $window.UpdateLayout()
+        $script:SelfRec.v4319.rendered = [ordered]@{ ready = $ui.ReadyPillTxt.Text; morning = ($ui.ReadyHdr.Text -eq 'MORNING READY CHECK'); off = $ui.ReadyOff.Text; grid = $ui.ReadyGrid.Children.Count
+            health = $ui.HealthPct.Text; cap = $ui.HealthL1.Text; trend = $ui.HealthTrend.Text; spark = $ui.HealthLine.Points.Count; tips = $ui.TipsList.Children.Count
+            bill = $ui.BillRes1.Text; billSrc = $ui.BillSrc.Text
+            pass = ($ui.ReadyPillTxt.Text -eq 'CHECK' -and $ui.ReadyGrid.Children.Count -ge 4 -and $ui.HealthPct.Text -eq '84.1%' -and $ui.HealthLine.Points.Count -ge 2 -and $ui.TipsList.Children.Count -ge 1 -and $ui.BillSrc.Text -like '*442.21*') }
+        & $script:ElPng4319 $ui.BattCard 'battery'; & $script:ElPng4319 $ui.TripsCard 'trips'
+        $script:Now4319 = $null }
+    & $add 'v4.3.19 UI: bill numbers save and the mismatch flag shows' @() {
+        $keep = $script:State.recentSessions
+        $script:State.recentSessions = @([pscustomobject]@{ source = 'tessie'; startEpoch = (ConvertTo-EpochLocal (Get-Date '2026-09-10')); endEpoch = (ConvertTo-EpochLocal (Get-Date '2026-09-10 06:00')); kwhWall = 100.0; kwhAdded = 90.0; costUsdAllIn = 30.0; fast = $false; paidUsd = $null; home = '3515 W 41st Pl'; socStartPct = 30; socEndPct = 80 })
+        $ui.BillFrom.Text = '9/1/2026'; $ui.BillTo.Text = '9/30/2026'; $ui.BillKwh.Text = '500'; $ui.BillUsd.Text = '100'
+        $ui.BillSaveBtn.RaiseEvent((New-Object System.Windows.RoutedEventArgs([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent)))
+        $raw = Get-Content -LiteralPath $ConfigPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $script:SelfRec.v4319.billSave = [ordered]@{ saved = [ordered]@{ from = [string]$raw.billMatch.from; to = [string]$raw.billMatch.to; kwh = $raw.billMatch.kwh; usd = $raw.billMatch.usd }; flag = [string]$ui.BillFlag.Visibility; res = $ui.BillRes1.Text
+            pass = ([string]$raw.billMatch.from -eq '2026-09-01' -and [double]$raw.billMatch.kwh -eq 500 -and [string]$ui.BillFlag.Visibility -eq 'Visible' -and $ui.BillRes1.Text -like '*100.0 kWh*') }
+        $script:State.recentSessions = $keep }
+    & $add 'v4.3.19 width: saved 364 becomes 473 (right edge kept), and a width drop is corrected' @() {
+        $l0 = $window.Left; $window.Left = 1500; Set-TdSpot ([pscustomobject]@{ left = 1500; top = $window.Top; width = 364; height = $window.Height })
+        $after = [ordered]@{ left = $window.Left; width = $window.Width }
+        $window.Width = 400; $window.UpdateLayout()
+        $dropped = $window.Width
+        $window.Dispatcher.Invoke([Action]{}, 'Background')
+        $script:SelfRec.v4319.width = [ordered]@{ after = $after; droppedTo = $dropped; corrected = $window.Width
+            pass = ([math]::Abs($after.left - (1500 - (473 - 364))) -lt 1 -and [math]::Abs($after.width - 473) -lt 1 -and [math]::Abs($window.Width - 473) -lt 1) }
+        $window.Left = $l0 }
+    & $add 'v4.3.19 layout: Leaving Soon waits row (Start after, Windows after, Unlock after) fits inside TESLA CONTROLS at 473 px' @() {
+        $window.UpdateLayout()
+        $row = $ui.LeaveWaitRow; $fit = $ui.LeaveWaitFit
+        $scale = $(if ($row.ActualWidth -gt 0) { [math]::Round($fit.ActualWidth / $row.ActualWidth, 3) } else { 0 })
+        $pf = $fit.TransformToAncestor($ui.CtlCard).Transform((New-Object System.Windows.Point(0, 0)))
+        $script:SelfRec.v4319.waitsFit = [ordered]@{ rowW = [math]::Round($row.ActualWidth, 1); shownW = [math]::Round($fit.ActualWidth, 1); scale = $scale; leftInCard = [math]::Round($pf.X, 1); cardW = [math]::Round($ui.CtlCard.ActualWidth, 1)
+            pass = ($scale -ge 0.9 -and $pf.X -ge 0 -and ($pf.X + $fit.ActualWidth) -le ($ui.CtlCard.ActualWidth + 0.5)) }
+        try { & $script:ElPng4319 $ui.CtlCard 'controls-waits' } catch {} }
+    # ---- LEAVING SOON: Start after (0 and non-zero, Stop during the countdown) ----
+    & $add 'v4.3.19 Start after 0: the sequence begins right away (DRY RUN)' @($true) {
+        Set-LeaveMin $ui.LeaveStartMin 0; Set-LeaveMin $ui.LeaveWinMin 1; Set-LeaveMin $ui.LeaveUnlockMin 1
+        Set-CtlOverride 'climateOn' $false; Set-CtlOverride 'locked' $true; Set-CtlOverride 'windowsOpen' $true
+        $script:N4319 = @($script:CtlLog)[-1]; $script:A4319 = @($script:AnnLog).Count
+        Start-LeaveSoon
+        & $script:Wait4315 { -not $script:Leave.running -and $null -eq $script:Leave.job } }
+    & $add 'v4.3.19 Start after 0: result (no pre phase, 3 dry-run steps)' @() {
+        $new = @(& $script:New4318 $script:N4319)
+        $seen = @($script:LeaveSeen)
+        $script:SelfRec.v4319.start0 = [ordered]@{ phase = $script:Leave.phase; result = $script:Leave.result; seen = @($seen | Select-Object -First 6)
+            cmds = @($new | ForEach-Object { $_.cmd + ':' + $(if ($_.dryRun) { 'dryRun' } else { 'REAL' }) }); anns = (@($script:AnnLog).Count - $script:A4319)
+            pass = (@($seen | Where-Object { $_ -like 'Starting in*' }).Count -eq 0 -and @($new | Where-Object { $_.cmd -eq 'start_climate' -and $_.dryRun }).Count -eq 1 -and $script:Leave.result -like 'Leaving Soon done*') } }
+    & $add 'v4.3.19 Start after 2 min: countdown shows Starting in mm:ss (DRY RUN)' @($true) {
+        Set-LeaveMin $ui.LeaveStartMin 2
+        $script:N4319b = @($script:CtlLog)[-1]
+        Start-LeaveSoon
+        & $script:Wait4315 { @($script:LeaveSeen | Where-Object { $_ -like 'Starting in*' }).Count -ge 1 } }
+    & $add 'v4.3.19 Start after: STOP during the countdown cancels with nothing to undo' @() {
+        try { $window.UpdateLayout(); & $script:ElPng4319 $ui.CtlCard 'leave-countdown' } catch {}
+        Stop-LeaveSoon
+        $new = @(& $script:New4318 $script:N4319b)
+        $script:SelfRec.v4319.startStop = [ordered]@{ phase = $script:Leave.phase; result = $script:Leave.result; text = $ui.LeaveStep.Text; commands = @($new).Count
+            saved = [int](Get-LeaveCfg).startAfterMin
+            pass = ($script:Leave.result -like '*cancelled before it started*nothing to undo*' -and @($new).Count -eq 0 -and [int](Get-LeaveCfg).startAfterMin -eq 2) } }
+    & $add 'v4.3.19 Start after 2 min: the sequence runs after the countdown (DRY RUN)' @($true) {
+        Set-LeaveMin $ui.LeaveStartMin 2
+        $script:N4319c = @($script:CtlLog)[-1]; $script:LeaveSeen = @()
+        Start-LeaveSoon
+        & $script:Wait4315 { -not $script:Leave.running -and $null -eq $script:Leave.job } }
+    & $add 'v4.3.19 Start after 2 min: result (countdown then the 3 steps)' @() {
+        $new = @(& $script:New4318 $script:N4319c)
+        $script:SelfRec.v4319.start2 = [ordered]@{ result = $script:Leave.result; sawStarting = (@($script:LeaveSeen | Where-Object { $_ -like 'Starting in*' }).Count -gt 0)
+            firstSeen = @($script:LeaveSeen | Select-Object -First 3); cmds = @($new | ForEach-Object { $_.cmd + ':' + $(if ($_.dryRun) { 'dryRun' } else { 'REAL' }) })
+            confirm = @($script:ConfirmPrompts | Select-Object -Last 1)
+            pass = (@($script:LeaveSeen | Where-Object { $_ -like 'Starting in*' }).Count -gt 0 -and @($new).Count -eq 3 -and @($new | Where-Object { -not $_.dryRun }).Count -eq 0 -and $script:Leave.result -like 'Leaving Soon done*' -and @($script:ConfirmPrompts | Select-Object -Last 1) -like '*Starts in 2 minutes*') }
+        Set-LeaveMin $ui.LeaveStartMin 0; Set-LeaveMin $ui.LeaveWinMin 3; Set-LeaveMin $ui.LeaveUnlockMin 3
+        & $script:Shot4319 'controls'; & $script:ElPng4319 $ui.CtlCard 'controls' }
+    & $add 'v4.3.19 summary' @() {
+        $r = $script:SelfRec.v4319
+        $fails = @()
+        foreach ($k in 'trips', 'tripRate', 'ready', 'bill', 'health') { if (-not $r[$k].pass) { $fails += $k } }
+        foreach ($k in 'billSwitch', 'plugUi', 'tripsUi', 'rendered', 'billSave', 'width', 'waitsFit', 'start0', 'startStop', 'start2') { if (-not $r[$k].pass) { $fails += $k } }
+        $plugFail = @($r.plugCases | Where-Object { -not $_.pass })
+        $r.summary = [ordered]@{ plugFails = @($plugFail | ForEach-Object { $_.case }); fails = $fails; allPass = ($plugFail.Count -eq 0 -and $fails.Count -eq 0) }
+        $script:View.car = $script:Keep4319[0]; $script:View.tires = $script:Keep4319[1]; $script:State.health = $script:Keep4319[2]; $script:Now4319 = $null; $script:TripsSig = ''
+        Render-View; $ui.BodyScroll.ScrollToVerticalOffset(0); $window.UpdateLayout(); & $script:Shot4319 'top'
+        $ui.BattCard.BringIntoView(); $window.UpdateLayout(); & $script:Shot4319 'battery-real'; & $script:ElPng4319 $ui.BattCard 'battery-real'; & $script:ElPng4319 $ui.TripsCard 'trips-real'
+        $ui.BodyScroll.ScrollToVerticalOffset(0); $window.UpdateLayout() }
+
     & $add 'live refresh status' @() { $script:SelfRec.live = (Get-LiveStatus); $script:SelfRec.liveBadge = $ui.UpdBadge.Text; $script:SelfRec.tiresHeader = [ordered]@{ hdr = $ui.TiresHdr.Text; rec = $ui.TiresRec.Text; asOf = $ui.TiresAsOf.Text } }
     & $add 'theme snapshots' @() { Save-Snapshots $script:SelfDir; $script:SelfRec.shots += @($script:LastSnapshot.files | ForEach-Object { Split-Path -Leaf $_ }) }
     Start-SelfTimer
