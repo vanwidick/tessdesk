@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-# TessDesk v4.3.16 (LEAVING SOON: adjustable 'Windows after' / 'Unlock after' minutes, Stop undoes the steps already done; v4.3.15: climate on, close windows, unlock; rolling 7 / 14 days and 30 / 60 days $ beside the big amount; Restore / Remember at the top right with fade-in, like Paycheck Live; TOTALS pop-up: week / month / year running totals; CAMERAS panel from saved Sentry / Dashcam clips; checks for updates on open / wake; compact-when-OFF via cb_compact_addon.ps1) - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
+# TessDesk v4.3.17 (layout: TESLA CONTROLS right under the big cost, START / STOP CHARGING under it, then battery / amps / tiles / day rate, CHARGE HISTORY & TOTALS dropdown; v4.3.16 LEAVING SOON: adjustable 'Windows after' / 'Unlock after' minutes, Stop undoes the steps already done; v4.3.15: climate on, close windows, unlock; rolling 7 / 14 days and 30 / 60 days $ beside the big amount; Restore / Remember at the top right with fade-in, like Paycheck Live; TOTALS pop-up: week / month / year running totals; CAMERAS panel from saved Sentry / Dashcam clips; checks for updates on open / wake; compact-when-OFF via cb_compact_addon.ps1) - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
 param(
     [string]$ConfigPath,
     [string]$Snapshot,    # optional: folder to write PNG snapshots of both themes
@@ -14,8 +14,8 @@ Add-Type -AssemblyName System.Xaml
 
 $ErrorActionPreference = 'Stop'
 $AppName    = 'TessDesk'
-$AppVersion = '4.3.16'
-$AppDate    = 'Oct 5, 2026'
+$AppVersion = '4.3.17'
+$AppDate    = 'Oct 8, 2026'
 
 $scriptDir  = Split-Path -Parent $MyInvocation.MyCommand.Path
 if (-not $ConfigPath) { $ConfigPath = Join-Path $scriptDir 'config.json' }
@@ -1319,6 +1319,26 @@ function Open-Url433 {
         </Setter.Value>
       </Setter>
     </Style>
+    <!-- v4.3.17: CHARGE HISTORY & TOTALS dropdown header (flat, the whole row is clickable) -->
+    <Style x:Key="HistHdrBtn" TargetType="Button">
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Focusable" Value="False"/>
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Bd" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+              <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Bd" Property="Opacity" Value="0.8"/></Trigger>
+              <Trigger Property="IsPressed" Value="True"><Setter TargetName="Bd" Property="Opacity" Value="0.6"/></Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
   </Window.Resources>
   <Border x:Name="RootBorder" Background="#FF0B0B0B" BorderBrush="#FF333333" BorderThickness="1" CornerRadius="10">
    <Grid x:Name="RootGrid">
@@ -1484,214 +1504,13 @@ function Open-Url433 {
         <TextBlock x:Name="KwhLabel" Grid.Row="2" Text="" Foreground="#FFE82127" FontSize="16" FontWeight="SemiBold"
                    HorizontalAlignment="Center" Margin="0,0,0,4"/>
 
-        <!-- v4.2: money rows right under the hero, compact -->
-        <Border x:Name="RowsCard" Grid.Row="3" CornerRadius="10" Background="#FF111111" BorderBrush="#FF222222" BorderThickness="1" Padding="10,3,10,3" Margin="0,0,0,6">
-          <StackPanel>
-            <Grid x:Name="NightRow" Height="19">
-              <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="62"/></Grid.ColumnDefinitions>
-              <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                <TextBlock x:Name="NightLbl" Text="Tonight" FontSize="11.5" FontWeight="SemiBold" Foreground="#FFCCCCCC" VerticalAlignment="Center"/>
-                <TextBlock x:Name="NightCap" Text="" FontSize="9" Foreground="#FF666666" Margin="6,1,0,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="150"/>
-              </StackPanel>
-              <TextBlock x:Name="NightKwh" Grid.Column="1" Text="— kWh" FontSize="9.5" Foreground="#FF666666" VerticalAlignment="Center" Margin="4,1,0,0"/>
-              <TextBlock x:Name="NightCost" Grid.Column="2" Text="$—" FontSize="13" FontWeight="Bold" Foreground="#FFFFFFFF" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-            </Grid>
-            <!-- v4.3.5: SESSIONS of the current / last 11 PM -> 11 AM window (one line each) -->
-            <StackPanel x:Name="SessBox" Visibility="Collapsed" Margin="8,0,0,2">
-              <TextBlock x:Name="SessHdr" Text="Sessions" FontSize="9" FontWeight="SemiBold" Foreground="#FF888888"/>
-              <StackPanel x:Name="SessList"/>
-            </StackPanel>
-            <Border x:Name="RowSep1" Height="1" Background="#FF222222" Margin="0,1,0,1"/>
-            <Grid x:Name="D7Row" Height="19">
-              <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="62"/></Grid.ColumnDefinitions>
-              <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                <TextBlock x:Name="D7Lbl" Text="Last 7 days" FontSize="11.5" FontWeight="SemiBold" Foreground="#FFCCCCCC" VerticalAlignment="Center"/>
-                <TextBlock x:Name="D7Cap" Text="" FontSize="9" Foreground="#FF666666" Margin="6,1,0,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="150"/>
-              </StackPanel>
-              <TextBlock x:Name="D7Kwh" Grid.Column="1" Text="— kWh" FontSize="9.5" Foreground="#FF666666" VerticalAlignment="Center" Margin="4,1,0,0"/>
-              <TextBlock x:Name="D7Cost" Grid.Column="2" Text="$—" FontSize="13" FontWeight="Bold" Foreground="#FFFFFFFF" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-            </Grid>
-            <Border x:Name="RowSep2" Height="1" Background="#FF222222" Margin="0,1,0,1"/>
-            <Grid x:Name="D30Row" Height="19">
-              <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="62"/></Grid.ColumnDefinitions>
-              <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                <TextBlock x:Name="D30Lbl" Text="Last 30 days" FontSize="11.5" FontWeight="SemiBold" Foreground="#FFCCCCCC" VerticalAlignment="Center"/>
-                <TextBlock x:Name="D30Cap" Text="" FontSize="9" Foreground="#FF666666" Margin="6,1,0,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="150"/>
-              </StackPanel>
-              <TextBlock x:Name="D30Kwh" Grid.Column="1" Text="— kWh" FontSize="9.5" Foreground="#FF666666" VerticalAlignment="Center" Margin="4,1,0,0"/>
-              <TextBlock x:Name="D30Cost" Grid.Column="2" Text="$—" FontSize="13" FontWeight="Bold" Foreground="#FFFFFFFF" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-            </Grid>
-            <!-- v4.3.10: TOTALS pop-up (running totals for this week / month / year, month by month) -->
-            <Border x:Name="RowSep3" Height="1" Background="#FF222222" Margin="0,1,0,2"/>
-            <Button x:Name="TotBtn" Style="{StaticResource TotRowBtn}" Height="22" Margin="0,0,0,2" Padding="8,0,8,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Cursor="Hand" ToolTip="Charging totals: this week, this month, this year, month by month">
-              <DockPanel>
-                <TextBlock DockPanel.Dock="Right" Text="&#xE76C;" FontFamily="Segoe MDL2 Assets" FontSize="9" VerticalAlignment="Center" Foreground="#FF888888"/>
-                <TextBlock x:Name="TotBtnSum" DockPanel.Dock="Right" Text="" FontSize="9.5" Foreground="#FF888888" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                  <Border Width="15" Height="15" CornerRadius="8" Background="#FF49DF93" Margin="0,0,6,0"><TextBlock Text="&#x24;" FontSize="10" FontWeight="Bold" Foreground="#FF06140C" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
-                  <TextBlock Text="TOTALS" FontSize="10.5" FontWeight="Bold" Foreground="#FFFFFFFF" VerticalAlignment="Center"/>
-                  <TextBlock Text="week · month · year" FontSize="9.5" Foreground="#FF888888" VerticalAlignment="Center" Margin="6,0,0,0"/>
-                </StackPanel>
-              </DockPanel>
-            </Button>
-          </StackPanel>
-        </Border>
+        <!-- v4.3.17: grid row 3 (history card) moved into the scroll area as the CHARGE HISTORY & TOTALS dropdown -->
 
         <!-- v4.2: lower sections scroll (slim scrollbar) when they don't fit the screen -->
         <ScrollViewer x:Name="BodyScroll" Grid.Row="4" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
                       PanningMode="None" Focusable="False" Margin="0,0,-11,0">
           <StackPanel x:Name="BodyStack" Margin="0,0,5,0">
-        <!-- v4.3: RATE STATUS (peak/day pill + Stop, off-peak pill, or a neutral line) -->
-        <Border x:Name="PeakBanner" CornerRadius="10" Background="#30FFB547" BorderBrush="#FFFFB547" BorderThickness="1.5" Padding="10,7,10,8" Margin="0,0,0,6" Visibility="Collapsed">
-          <StackPanel>
-            <DockPanel LastChildFill="True">
-              <TextBlock x:Name="PeakClose" DockPanel.Dock="Right" Text="&#xE711;" FontFamily="Segoe MDL2 Assets" FontSize="11" Foreground="#FFCCCCCC" Cursor="Hand" Margin="6,2,0,0" VerticalAlignment="Top" ToolTip="Fold to a single line for this charge session"/>
-              <TextBlock x:Name="PeakIcon" DockPanel.Dock="Left" Text="&#xE7BA;" FontFamily="Segoe MDL2 Assets" FontSize="17" Foreground="#FFFFB547" Margin="0,1,8,0" VerticalAlignment="Top"/>
-              <StackPanel>
-                <TextBlock x:Name="PeakTitle" Text="" FontSize="12.5" FontWeight="Bold" TextWrapping="Wrap" Foreground="#FFFFFFFF"/>
-                <TextBlock x:Name="PeakSub" Text="" FontSize="10" TextWrapping="Wrap" Margin="0,2,0,0" Foreground="#FFCCCCCC"/>
-              </StackPanel>
-            </DockPanel>
-            <Grid x:Name="PeakActions" Margin="0,6,0,0">
-              <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-              <Button x:Name="PeakStopBtn" Style="{StaticResource CtlBtn}" Height="32" Padding="10,0,10,0" ToolTip="Stop charging now (asks to confirm)">
-                <TextBlock x:Name="PeakStopTxt" Text="&#x25A0; STOP CHARGING" FontSize="11.5" FontWeight="Bold" HorizontalAlignment="Center"/>
-              </Button>
-              <TextBlock x:Name="PeakTip" Grid.Column="1" Text="" FontSize="9.5" TextWrapping="Wrap" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="#FF888888"/>
-            </Grid>
-          </StackPanel>
-        </Border>
-        <Border x:Name="BattCard" CornerRadius="10" Background="#FF111111" BorderBrush="#FF222222" BorderThickness="1" Padding="12,7,12,8" Margin="0,0,0,6">
-          <StackPanel>
-            <DockPanel LastChildFill="True">
-              <TextBlock x:Name="BattState" DockPanel.Dock="Right" Text="" FontSize="10" FontWeight="SemiBold" Foreground="#FF888888" VerticalAlignment="Center"/>
-              <TextBlock x:Name="BattHdr" Text="BATTERY" FontSize="12.5" FontWeight="Bold" Foreground="#FF9A9A9A"/>
-            </DockPanel>
-            <Grid x:Name="BattMain">
-              <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="96"/></Grid.ColumnDefinitions>
-              <StackPanel x:Name="BattLeft">
-            <Grid Height="46">
-              <StackPanel x:Name="BattTop" Orientation="Horizontal">
-                <TextBlock x:Name="BattPct" Text="--" FontSize="38" FontWeight="Bold" Foreground="#FFFFFFFF" VerticalAlignment="Bottom"/>
-                <StackPanel VerticalAlignment="Bottom" Margin="10,0,0,8">
-                  <TextBlock x:Name="BattRange" Text="" FontSize="19" FontWeight="SemiBold" Foreground="#FFFFFFFF"/>
-                  <TextBlock x:Name="BattRangeCap" Text="" FontSize="8" FontWeight="SemiBold" Foreground="#FF888888" Margin="0,-1,0,0"/>
-                </StackPanel>
-              </StackPanel>
-              <StackPanel x:Name="DragBox" Orientation="Vertical" HorizontalAlignment="Left" VerticalAlignment="Bottom" Visibility="Collapsed">
-                <TextBlock x:Name="DragCap" Text="SET LIMIT" FontSize="9.5" FontWeight="SemiBold" Foreground="#FF888888"/>
-                <TextBlock x:Name="DragVal" Text="" FontSize="25" FontWeight="Bold" Foreground="#FFFFFFFF" Margin="0,-3,0,0"/>
-              </StackPanel>
-            </Grid>
-            <Canvas x:Name="BarDark" Width="206" Height="40" HorizontalAlignment="Left" Margin="0,4,0,0" Background="Transparent">
-              <Rectangle x:Name="BarTrack" Canvas.Left="13" Canvas.Top="16" Width="180" Height="8" RadiusX="4" RadiusY="4" Fill="#FF2A2A2A"/>
-              <Rectangle x:Name="BarFrom" Canvas.Left="13" Canvas.Top="16" Width="0" Height="8" RadiusX="4" RadiusY="4" Fill="#FFE82127" Opacity="0.35"/>
-              <Rectangle x:Name="BarFill" Canvas.Left="13" Canvas.Top="16" Width="0" Height="8" RadiusX="4" RadiusY="4" Fill="#FFE82127"/>
-              <Rectangle x:Name="FromTick" Canvas.Left="13" Canvas.Top="10" Width="2" Height="20" Fill="#FFCCCCCC" Opacity="0.8"/>
-              <Border x:Name="LimitThumb" Canvas.Left="0" Canvas.Top="9" Width="4" Height="22" CornerRadius="2" Background="#FFFFFFFF" BorderThickness="0" ToolTip="Charge limit (set it with the slider on the right)"/>
-              <Grid x:Name="BarBall" Canvas.Left="0" Canvas.Top="7" Width="26" Height="26">
-                <Ellipse x:Name="BarBallDot" Fill="#FFE82127" Stroke="#FF0B0B0B" StrokeThickness="2.5"/>
-                <TextBlock x:Name="BarBallText" Text="" FontSize="8" FontWeight="Bold" Foreground="#FF0B0B0B" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-              </Grid>
-            </Canvas>
-            <Grid Margin="0,5,0,0" Width="206" HorizontalAlignment="Left">
-              <StackPanel HorizontalAlignment="Left">
-                <TextBlock x:Name="FromCap" Text="FROM" FontSize="9" FontWeight="SemiBold" Foreground="#FF8A8A8A"/>
-                <TextBlock x:Name="FromMi" Text="" FontSize="11" FontWeight="SemiBold" Foreground="#FFCCCCCC"/>
-                <TextBlock x:Name="BarStartLbl" Text="--" FontSize="18" FontWeight="Bold" Foreground="#FFFFFFFF" Margin="0,-2,0,0"/>
-              </StackPanel>
-              <StackPanel HorizontalAlignment="Right">
-                <TextBlock x:Name="LimitCap" Text="LIMIT" FontSize="9" FontWeight="SemiBold" Foreground="#FF8A8A8A" HorizontalAlignment="Right"/>
-                <TextBlock x:Name="LimitMi" Text="" FontSize="11" FontWeight="SemiBold" Foreground="#FFCCCCCC" HorizontalAlignment="Right"/>
-                <TextBlock x:Name="BarLimitLbl" Text="--" FontSize="18" FontWeight="Bold" Foreground="#FFFFFFFF" HorizontalAlignment="Right" Margin="0,-2,0,0"/>
-              </StackPanel>
-            </Grid>
-              </StackPanel>
-              <!-- v4.3: vertical CHARGE LIMIT slider, % + miles on the thumb -->
-              <Canvas x:Name="VLim" Grid.Column="1" Width="96" Height="150" VerticalAlignment="Top" Background="Transparent" Cursor="SizeNS"
-                      ToolTip="Drag (or use the mouse wheel) to set the charge limit">
-                <TextBlock x:Name="VLblTop" Canvas.Left="0" Canvas.Top="15" Width="34" TextAlignment="Right" Text="100" FontSize="9" FontWeight="SemiBold" Foreground="#FF888888"/>
-                <TextBlock x:Name="VLbl90" Canvas.Left="0" Canvas.Top="36" Width="34" TextAlignment="Right" Text="90" FontSize="9.5" FontWeight="Bold" Foreground="#FFFFB547"/>
-                <StackPanel x:Name="VLbl80" Canvas.Left="0" Canvas.Top="57" Width="34">
-                  <TextBlock x:Name="VLbl80a" Text="80" FontSize="10.5" FontWeight="Bold" Foreground="#FF49DF93" TextAlignment="Right" Margin="0,-1,0,-2"/>
-                  <TextBlock x:Name="VLbl80b" Text="DAILY" FontSize="7" FontWeight="Bold" Foreground="#FF49DF93" TextAlignment="Right"/>
-                </StackPanel>
-                <TextBlock x:Name="VLblBot" Canvas.Left="0" Canvas.Top="121" Width="34" TextAlignment="Right" Text="50" FontSize="9" FontWeight="SemiBold" Foreground="#FF888888"/>
-                <Rectangle x:Name="VTrack" Canvas.Left="60" Canvas.Top="22" Width="12" Height="106" RadiusX="6" RadiusY="6" Fill="#FF2A2A2A"/>
-                <Rectangle x:Name="VFill" Canvas.Left="60" Canvas.Top="128" Width="12" Height="0" RadiusX="6" RadiusY="6" Fill="#FFE82127"/>
-                <Rectangle x:Name="VTick90" Canvas.Left="52" Canvas.Top="42" Width="28" Height="2" Fill="#FFFFB547"/>
-                <Rectangle x:Name="VTick80" Canvas.Left="50" Canvas.Top="63" Width="32" Height="3" Fill="#FF49DF93"/>
-                <Border x:Name="VThumb" Canvas.Left="37" Canvas.Top="40" Width="58" Height="42" CornerRadius="12" Background="#FFFFFFFF" BorderBrush="#FF0B0B0B" BorderThickness="2">
-                  <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                    <TextBlock x:Name="VPct" Text="--" FontSize="19" FontWeight="Bold" Foreground="#FF0B0B0B" HorizontalAlignment="Center" Margin="0,-3,0,-3"/>
-                    <TextBlock x:Name="VMi" Text="" FontSize="9" FontWeight="Bold" Foreground="#FF3A3A3A" HorizontalAlignment="Center"/>
-                  </StackPanel>
-                </Border>
-              </Canvas>
-            </Grid>
-            <!-- v4.2: CHARGING AMPS slider (same build as the limit slider) -->
-            <Border x:Name="AmpsSep" Height="1" Background="#FF222222" Margin="0,8,0,6"/>
-            <DockPanel LastChildFill="True">
-              <TextBlock x:Name="AmpsNow" DockPanel.Dock="Right" Text="" FontSize="10" FontWeight="SemiBold" Foreground="#FFCCCCCC" VerticalAlignment="Center"/>
-              <TextBlock x:Name="AmpsHdr" Text="CHARGING AMPS" FontSize="11" FontWeight="Bold" Foreground="#FF9A9A9A"/>
-            </DockPanel>
-            <Canvas x:Name="AmpsDark" Width="306" Height="40" HorizontalAlignment="Center" Margin="0,4,0,0" Background="Transparent">
-              <Rectangle x:Name="AmpsTrack" Canvas.Left="13" Canvas.Top="16" Width="280" Height="8" RadiusX="4" RadiusY="4" Fill="#FF2A2A2A"/>
-              <Rectangle x:Name="AmpsFill" Canvas.Left="13" Canvas.Top="16" Width="0" Height="8" RadiusX="4" RadiusY="4" Fill="#FFE82127"/>
-              <Border x:Name="AmpsThumb" Canvas.Left="0" Canvas.Top="0" Width="20" Height="40" CornerRadius="6" Background="#FFFFFFFF"
-                      BorderBrush="#FF0B0B0B" BorderThickness="2" Cursor="SizeWE" ToolTip="Drag to set the charging current (amps)">
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                  <Rectangle x:Name="AGrip1" Width="2" Height="16" Fill="#FF555555" Margin="0,0,3,0"/>
-                  <Rectangle x:Name="AGrip2" Width="2" Height="16" Fill="#FF555555"/>
-                </StackPanel>
-              </Border>
-            </Canvas>
-            <Grid Margin="0,3,0,0">
-              <TextBlock x:Name="AmpsMinLbl" Text="5 A" FontSize="10" FontWeight="SemiBold" Foreground="#FF8A8A8A" HorizontalAlignment="Left" VerticalAlignment="Center"/>
-              <TextBlock x:Name="AmpsVal" Text="-- A" FontSize="18" FontWeight="Bold" Foreground="#FFFFFFFF" HorizontalAlignment="Center"/>
-              <TextBlock x:Name="AmpsMaxLbl" Text="-- A max" FontSize="10" FontWeight="SemiBold" Foreground="#FF8A8A8A" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-            </Grid>
-            <UniformGrid Columns="2" Rows="1" Margin="0,8,0,0">
-              <Button x:Name="ChgStartBtn" Style="{StaticResource CtlBtn}" Height="44" Margin="0,0,3,0" Padding="3,2,3,2" ToolTip="Start charging (car must be plugged in)">
-                <StackPanel HorizontalAlignment="Center">
-                  <TextBlock x:Name="ChgStartTxt" Text="START CHARGING" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center"/>
-                  <TextBlock x:Name="ChgStartSub" Text="" FontSize="8.5" FontWeight="SemiBold" Foreground="#FF888888" HorizontalAlignment="Center"/>
-                </StackPanel>
-              </Button>
-              <Button x:Name="ChgStopBtn" Style="{StaticResource CtlBtn}" Height="44" Margin="3,0,0,0" Padding="3,2,3,2" ToolTip="Stop charging">
-                <StackPanel HorizontalAlignment="Center">
-                  <TextBlock x:Name="ChgStopTxt" Text="STOP CHARGING" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center"/>
-                  <TextBlock x:Name="ChgStopSub" Text="" FontSize="8.5" FontWeight="SemiBold" Foreground="#FF888888" HorizontalAlignment="Center"/>
-                </StackPanel>
-              </Button>
-            </UniformGrid>
-          </StackPanel>
-        </Border>
-
-        <UniformGrid Columns="3" Rows="1" Margin="0,0,0,6">
-          <Border x:Name="Tile0" CornerRadius="8" Background="#FF151515" Margin="0,0,4,0" Padding="5,5,5,5">
-            <StackPanel>
-              <TextBlock x:Name="TileLbl0" Text="POWER" FontSize="9" FontWeight="SemiBold" Foreground="#FF7A7A7A" HorizontalAlignment="Center"/>
-              <Viewbox StretchDirection="DownOnly" Stretch="Uniform" Height="24"><TextBlock x:Name="TileVal0" Text="—" FontSize="17" FontWeight="Bold" Foreground="#FFE82127"/></Viewbox>
-              <Viewbox StretchDirection="DownOnly" Stretch="Uniform"><TextBlock x:Name="TileSub0" Text=" " FontSize="9" Foreground="#FF888888"/></Viewbox>
-            </StackPanel>
-          </Border>
-          <Border x:Name="Tile1" CornerRadius="8" Background="#FF151515" Margin="2,0,2,0" Padding="5,5,5,5">
-            <StackPanel>
-              <TextBlock x:Name="TileLbl1" Text="TO FULL" FontSize="9" FontWeight="SemiBold" Foreground="#FF7A7A7A" HorizontalAlignment="Center"/>
-              <Viewbox StretchDirection="DownOnly" Stretch="Uniform" Height="24"><TextBlock x:Name="TileVal1" Text="—" FontSize="17" FontWeight="Bold" Foreground="#FFE82127"/></Viewbox>
-              <Viewbox StretchDirection="DownOnly" Stretch="Uniform"><TextBlock x:Name="TileSub1" Text=" " FontSize="9" Foreground="#FF888888"/></Viewbox>
-            </StackPanel>
-          </Border>
-          <Border x:Name="Tile2" CornerRadius="8" Background="#FF151515" Margin="4,0,0,0" Padding="5,5,5,5">
-            <StackPanel>
-              <TextBlock x:Name="TileLbl2" Text="STARTED" FontSize="9" FontWeight="SemiBold" Foreground="#FF7A7A7A" HorizontalAlignment="Center"/>
-              <Viewbox StretchDirection="DownOnly" Stretch="Uniform" Height="24"><TextBlock x:Name="TileVal2" Text="—" FontSize="17" FontWeight="Bold" Foreground="#FFE82127"/></Viewbox>
-              <Viewbox StretchDirection="DownOnly" Stretch="Uniform"><TextBlock x:Name="TileSub2" Text=" " FontSize="9" Foreground="#FF888888"/></Viewbox>
-            </StackPanel>
-          </Border>
-                </UniformGrid>
-
+        <!-- v4.3.17: order = TESLA CONTROLS, START / STOP CHARGING, BATTERY + CHARGING AMPS, tiles, day-rate line, CHARGE HISTORY & TOTALS -->
         <Border x:Name="CtlCard" CornerRadius="10" Background="#FF111111" BorderBrush="#FF222222" BorderThickness="1" Padding="12,6,12,8" Margin="0,0,0,6">
           <StackPanel>
             <Grid x:Name="CtlHdrRow" Margin="0,0,0,6">
@@ -1879,6 +1698,220 @@ function Open-Url433 {
                 <TextBlock x:Name="CtlResult" Grid.Column="1" Text="Ready" FontSize="10" TextWrapping="Wrap" VerticalAlignment="Center" Foreground="#FF888888"/>
               </Grid>
             </Border>
+          </StackPanel>
+        </Border>
+        <!-- v4.3.17: START / STOP CHARGING right under TESLA CONTROLS (moved out of the battery card) -->
+        <UniformGrid x:Name="ChgBtnRow" Columns="2" Rows="1" Margin="0,0,0,6">
+          <Button x:Name="ChgStartBtn" Style="{StaticResource CtlBtn}" Height="44" Margin="0,0,3,0" Padding="3,2,3,2" ToolTip="Start charging (car must be plugged in)">
+            <StackPanel HorizontalAlignment="Center">
+              <TextBlock x:Name="ChgStartTxt" Text="START CHARGING" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center"/>
+              <TextBlock x:Name="ChgStartSub" Text="" FontSize="8.5" FontWeight="SemiBold" Foreground="#FF888888" HorizontalAlignment="Center"/>
+            </StackPanel>
+          </Button>
+          <Button x:Name="ChgStopBtn" Style="{StaticResource CtlBtn}" Height="44" Margin="3,0,0,0" Padding="3,2,3,2" ToolTip="Stop charging">
+            <StackPanel HorizontalAlignment="Center">
+              <TextBlock x:Name="ChgStopTxt" Text="STOP CHARGING" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center"/>
+              <TextBlock x:Name="ChgStopSub" Text="" FontSize="8.5" FontWeight="SemiBold" Foreground="#FF888888" HorizontalAlignment="Center"/>
+            </StackPanel>
+          </Button>
+        </UniformGrid>
+
+        <Border x:Name="BattCard" CornerRadius="10" Background="#FF111111" BorderBrush="#FF222222" BorderThickness="1" Padding="12,7,12,8" Margin="0,0,0,6">
+          <StackPanel>
+            <DockPanel LastChildFill="True">
+              <TextBlock x:Name="BattState" DockPanel.Dock="Right" Text="" FontSize="10" FontWeight="SemiBold" Foreground="#FF888888" VerticalAlignment="Center"/>
+              <TextBlock x:Name="BattHdr" Text="BATTERY" FontSize="12.5" FontWeight="Bold" Foreground="#FF9A9A9A"/>
+            </DockPanel>
+            <Grid x:Name="BattMain">
+              <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="96"/></Grid.ColumnDefinitions>
+              <StackPanel x:Name="BattLeft">
+            <Grid Height="46">
+              <StackPanel x:Name="BattTop" Orientation="Horizontal">
+                <TextBlock x:Name="BattPct" Text="--" FontSize="38" FontWeight="Bold" Foreground="#FFFFFFFF" VerticalAlignment="Bottom"/>
+                <StackPanel VerticalAlignment="Bottom" Margin="10,0,0,8">
+                  <TextBlock x:Name="BattRange" Text="" FontSize="19" FontWeight="SemiBold" Foreground="#FFFFFFFF"/>
+                  <TextBlock x:Name="BattRangeCap" Text="" FontSize="8" FontWeight="SemiBold" Foreground="#FF888888" Margin="0,-1,0,0"/>
+                </StackPanel>
+              </StackPanel>
+              <StackPanel x:Name="DragBox" Orientation="Vertical" HorizontalAlignment="Left" VerticalAlignment="Bottom" Visibility="Collapsed">
+                <TextBlock x:Name="DragCap" Text="SET LIMIT" FontSize="9.5" FontWeight="SemiBold" Foreground="#FF888888"/>
+                <TextBlock x:Name="DragVal" Text="" FontSize="25" FontWeight="Bold" Foreground="#FFFFFFFF" Margin="0,-3,0,0"/>
+              </StackPanel>
+            </Grid>
+            <Canvas x:Name="BarDark" Width="206" Height="40" HorizontalAlignment="Left" Margin="0,4,0,0" Background="Transparent">
+              <Rectangle x:Name="BarTrack" Canvas.Left="13" Canvas.Top="16" Width="180" Height="8" RadiusX="4" RadiusY="4" Fill="#FF2A2A2A"/>
+              <Rectangle x:Name="BarFrom" Canvas.Left="13" Canvas.Top="16" Width="0" Height="8" RadiusX="4" RadiusY="4" Fill="#FFE82127" Opacity="0.35"/>
+              <Rectangle x:Name="BarFill" Canvas.Left="13" Canvas.Top="16" Width="0" Height="8" RadiusX="4" RadiusY="4" Fill="#FFE82127"/>
+              <Rectangle x:Name="FromTick" Canvas.Left="13" Canvas.Top="10" Width="2" Height="20" Fill="#FFCCCCCC" Opacity="0.8"/>
+              <Border x:Name="LimitThumb" Canvas.Left="0" Canvas.Top="9" Width="4" Height="22" CornerRadius="2" Background="#FFFFFFFF" BorderThickness="0" ToolTip="Charge limit (set it with the slider on the right)"/>
+              <Grid x:Name="BarBall" Canvas.Left="0" Canvas.Top="7" Width="26" Height="26">
+                <Ellipse x:Name="BarBallDot" Fill="#FFE82127" Stroke="#FF0B0B0B" StrokeThickness="2.5"/>
+                <TextBlock x:Name="BarBallText" Text="" FontSize="8" FontWeight="Bold" Foreground="#FF0B0B0B" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+              </Grid>
+            </Canvas>
+            <Grid Margin="0,5,0,0" Width="206" HorizontalAlignment="Left">
+              <StackPanel HorizontalAlignment="Left">
+                <TextBlock x:Name="FromCap" Text="FROM" FontSize="9" FontWeight="SemiBold" Foreground="#FF8A8A8A"/>
+                <TextBlock x:Name="FromMi" Text="" FontSize="11" FontWeight="SemiBold" Foreground="#FFCCCCCC"/>
+                <TextBlock x:Name="BarStartLbl" Text="--" FontSize="18" FontWeight="Bold" Foreground="#FFFFFFFF" Margin="0,-2,0,0"/>
+              </StackPanel>
+              <StackPanel HorizontalAlignment="Right">
+                <TextBlock x:Name="LimitCap" Text="LIMIT" FontSize="9" FontWeight="SemiBold" Foreground="#FF8A8A8A" HorizontalAlignment="Right"/>
+                <TextBlock x:Name="LimitMi" Text="" FontSize="11" FontWeight="SemiBold" Foreground="#FFCCCCCC" HorizontalAlignment="Right"/>
+                <TextBlock x:Name="BarLimitLbl" Text="--" FontSize="18" FontWeight="Bold" Foreground="#FFFFFFFF" HorizontalAlignment="Right" Margin="0,-2,0,0"/>
+              </StackPanel>
+            </Grid>
+              </StackPanel>
+              <!-- v4.3: vertical CHARGE LIMIT slider, % + miles on the thumb -->
+              <Canvas x:Name="VLim" Grid.Column="1" Width="96" Height="150" VerticalAlignment="Top" Background="Transparent" Cursor="SizeNS"
+                      ToolTip="Drag (or use the mouse wheel) to set the charge limit">
+                <TextBlock x:Name="VLblTop" Canvas.Left="0" Canvas.Top="15" Width="34" TextAlignment="Right" Text="100" FontSize="9" FontWeight="SemiBold" Foreground="#FF888888"/>
+                <TextBlock x:Name="VLbl90" Canvas.Left="0" Canvas.Top="36" Width="34" TextAlignment="Right" Text="90" FontSize="9.5" FontWeight="Bold" Foreground="#FFFFB547"/>
+                <StackPanel x:Name="VLbl80" Canvas.Left="0" Canvas.Top="57" Width="34">
+                  <TextBlock x:Name="VLbl80a" Text="80" FontSize="10.5" FontWeight="Bold" Foreground="#FF49DF93" TextAlignment="Right" Margin="0,-1,0,-2"/>
+                  <TextBlock x:Name="VLbl80b" Text="DAILY" FontSize="7" FontWeight="Bold" Foreground="#FF49DF93" TextAlignment="Right"/>
+                </StackPanel>
+                <TextBlock x:Name="VLblBot" Canvas.Left="0" Canvas.Top="121" Width="34" TextAlignment="Right" Text="50" FontSize="9" FontWeight="SemiBold" Foreground="#FF888888"/>
+                <Rectangle x:Name="VTrack" Canvas.Left="60" Canvas.Top="22" Width="12" Height="106" RadiusX="6" RadiusY="6" Fill="#FF2A2A2A"/>
+                <Rectangle x:Name="VFill" Canvas.Left="60" Canvas.Top="128" Width="12" Height="0" RadiusX="6" RadiusY="6" Fill="#FFE82127"/>
+                <Rectangle x:Name="VTick90" Canvas.Left="52" Canvas.Top="42" Width="28" Height="2" Fill="#FFFFB547"/>
+                <Rectangle x:Name="VTick80" Canvas.Left="50" Canvas.Top="63" Width="32" Height="3" Fill="#FF49DF93"/>
+                <Border x:Name="VThumb" Canvas.Left="37" Canvas.Top="40" Width="58" Height="42" CornerRadius="12" Background="#FFFFFFFF" BorderBrush="#FF0B0B0B" BorderThickness="2">
+                  <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <TextBlock x:Name="VPct" Text="--" FontSize="19" FontWeight="Bold" Foreground="#FF0B0B0B" HorizontalAlignment="Center" Margin="0,-3,0,-3"/>
+                    <TextBlock x:Name="VMi" Text="" FontSize="9" FontWeight="Bold" Foreground="#FF3A3A3A" HorizontalAlignment="Center"/>
+                  </StackPanel>
+                </Border>
+              </Canvas>
+            </Grid>
+            <!-- v4.2: CHARGING AMPS slider (same build as the limit slider) -->
+            <Border x:Name="AmpsSep" Height="1" Background="#FF222222" Margin="0,8,0,6"/>
+            <DockPanel LastChildFill="True">
+              <TextBlock x:Name="AmpsNow" DockPanel.Dock="Right" Text="" FontSize="10" FontWeight="SemiBold" Foreground="#FFCCCCCC" VerticalAlignment="Center"/>
+              <TextBlock x:Name="AmpsHdr" Text="CHARGING AMPS" FontSize="11" FontWeight="Bold" Foreground="#FF9A9A9A"/>
+            </DockPanel>
+            <Canvas x:Name="AmpsDark" Width="306" Height="40" HorizontalAlignment="Center" Margin="0,4,0,0" Background="Transparent">
+              <Rectangle x:Name="AmpsTrack" Canvas.Left="13" Canvas.Top="16" Width="280" Height="8" RadiusX="4" RadiusY="4" Fill="#FF2A2A2A"/>
+              <Rectangle x:Name="AmpsFill" Canvas.Left="13" Canvas.Top="16" Width="0" Height="8" RadiusX="4" RadiusY="4" Fill="#FFE82127"/>
+              <Border x:Name="AmpsThumb" Canvas.Left="0" Canvas.Top="0" Width="20" Height="40" CornerRadius="6" Background="#FFFFFFFF"
+                      BorderBrush="#FF0B0B0B" BorderThickness="2" Cursor="SizeWE" ToolTip="Drag to set the charging current (amps)">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                  <Rectangle x:Name="AGrip1" Width="2" Height="16" Fill="#FF555555" Margin="0,0,3,0"/>
+                  <Rectangle x:Name="AGrip2" Width="2" Height="16" Fill="#FF555555"/>
+                </StackPanel>
+              </Border>
+            </Canvas>
+            <Grid Margin="0,3,0,0">
+              <TextBlock x:Name="AmpsMinLbl" Text="5 A" FontSize="10" FontWeight="SemiBold" Foreground="#FF8A8A8A" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+              <TextBlock x:Name="AmpsVal" Text="-- A" FontSize="18" FontWeight="Bold" Foreground="#FFFFFFFF" HorizontalAlignment="Center"/>
+              <TextBlock x:Name="AmpsMaxLbl" Text="-- A max" FontSize="10" FontWeight="SemiBold" Foreground="#FF8A8A8A" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+            </Grid>
+          </StackPanel>
+        </Border>
+
+        <UniformGrid Columns="3" Rows="1" Margin="0,0,0,6">
+          <Border x:Name="Tile0" CornerRadius="8" Background="#FF151515" Margin="0,0,4,0" Padding="5,5,5,5">
+            <StackPanel>
+              <TextBlock x:Name="TileLbl0" Text="POWER" FontSize="9" FontWeight="SemiBold" Foreground="#FF7A7A7A" HorizontalAlignment="Center"/>
+              <Viewbox StretchDirection="DownOnly" Stretch="Uniform" Height="24"><TextBlock x:Name="TileVal0" Text="—" FontSize="17" FontWeight="Bold" Foreground="#FFE82127"/></Viewbox>
+              <Viewbox StretchDirection="DownOnly" Stretch="Uniform"><TextBlock x:Name="TileSub0" Text=" " FontSize="9" Foreground="#FF888888"/></Viewbox>
+            </StackPanel>
+          </Border>
+          <Border x:Name="Tile1" CornerRadius="8" Background="#FF151515" Margin="2,0,2,0" Padding="5,5,5,5">
+            <StackPanel>
+              <TextBlock x:Name="TileLbl1" Text="TO FULL" FontSize="9" FontWeight="SemiBold" Foreground="#FF7A7A7A" HorizontalAlignment="Center"/>
+              <Viewbox StretchDirection="DownOnly" Stretch="Uniform" Height="24"><TextBlock x:Name="TileVal1" Text="—" FontSize="17" FontWeight="Bold" Foreground="#FFE82127"/></Viewbox>
+              <Viewbox StretchDirection="DownOnly" Stretch="Uniform"><TextBlock x:Name="TileSub1" Text=" " FontSize="9" Foreground="#FF888888"/></Viewbox>
+            </StackPanel>
+          </Border>
+          <Border x:Name="Tile2" CornerRadius="8" Background="#FF151515" Margin="4,0,0,0" Padding="5,5,5,5">
+            <StackPanel>
+              <TextBlock x:Name="TileLbl2" Text="STARTED" FontSize="9" FontWeight="SemiBold" Foreground="#FF7A7A7A" HorizontalAlignment="Center"/>
+              <Viewbox StretchDirection="DownOnly" Stretch="Uniform" Height="24"><TextBlock x:Name="TileVal2" Text="—" FontSize="17" FontWeight="Bold" Foreground="#FFE82127"/></Viewbox>
+              <Viewbox StretchDirection="DownOnly" Stretch="Uniform"><TextBlock x:Name="TileSub2" Text=" " FontSize="9" Foreground="#FF888888"/></Viewbox>
+            </StackPanel>
+          </Border>
+                </UniformGrid>
+        <!-- v4.3: RATE STATUS (peak/day pill + Stop, off-peak pill, or a neutral line) -->
+        <Border x:Name="PeakBanner" CornerRadius="10" Background="#30FFB547" BorderBrush="#FFFFB547" BorderThickness="1.5" Padding="10,7,10,8" Margin="0,0,0,6" Visibility="Collapsed">
+          <StackPanel>
+            <DockPanel LastChildFill="True">
+              <TextBlock x:Name="PeakClose" DockPanel.Dock="Right" Text="&#xE711;" FontFamily="Segoe MDL2 Assets" FontSize="11" Foreground="#FFCCCCCC" Cursor="Hand" Margin="6,2,0,0" VerticalAlignment="Top" ToolTip="Fold to a single line for this charge session"/>
+              <TextBlock x:Name="PeakIcon" DockPanel.Dock="Left" Text="&#xE7BA;" FontFamily="Segoe MDL2 Assets" FontSize="17" Foreground="#FFFFB547" Margin="0,1,8,0" VerticalAlignment="Top"/>
+              <StackPanel>
+                <TextBlock x:Name="PeakTitle" Text="" FontSize="12.5" FontWeight="Bold" TextWrapping="Wrap" Foreground="#FFFFFFFF"/>
+                <TextBlock x:Name="PeakSub" Text="" FontSize="10" TextWrapping="Wrap" Margin="0,2,0,0" Foreground="#FFCCCCCC"/>
+              </StackPanel>
+            </DockPanel>
+            <Grid x:Name="PeakActions" Margin="0,6,0,0">
+              <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+              <Button x:Name="PeakStopBtn" Style="{StaticResource CtlBtn}" Height="32" Padding="10,0,10,0" ToolTip="Stop charging now (asks to confirm)">
+                <TextBlock x:Name="PeakStopTxt" Text="&#x25A0; STOP CHARGING" FontSize="11.5" FontWeight="Bold" HorizontalAlignment="Center"/>
+              </Button>
+              <TextBlock x:Name="PeakTip" Grid.Column="1" Text="" FontSize="9.5" TextWrapping="Wrap" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="#FF888888"/>
+            </Grid>
+          </StackPanel>
+        </Border>
+        <!-- v4.3.17: CHARGE HISTORY & TOTALS dropdown (Last night + sessions, Last 7 / 30 days, TOTALS). Starts collapsed; open / closed saved in config.json ui.historyOpen -->
+        <Border x:Name="RowsCard" CornerRadius="10" Background="#FF111111" BorderBrush="#FF222222" BorderThickness="1" Padding="10,3,10,3" Margin="0,0,0,6">
+          <StackPanel>
+            <Button x:Name="ChgHistBtn" Style="{StaticResource HistHdrBtn}" Height="24" Padding="0" ToolTip="Show Last night, Last 7 days, Last 30 days and TOTALS">
+              <DockPanel LastChildFill="True">
+                <TextBlock x:Name="ChgHistArrow" DockPanel.Dock="Right" Text="&#x25B8;" FontFamily="Segoe UI Symbol" FontSize="12" FontWeight="Bold" Foreground="#FF9A9A9A" VerticalAlignment="Center" Margin="7,0,0,1"/>
+                <TextBlock x:Name="ChgHistSum" DockPanel.Dock="Right" Text="" FontSize="10.5" FontWeight="SemiBold" Foreground="#FFCCCCCC" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                <TextBlock x:Name="ChgHistHdr" Text="CHARGE HISTORY &amp; TOTALS" FontSize="11" FontWeight="Bold" Foreground="#FF9A9A9A" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+              </DockPanel>
+            </Button>
+            <StackPanel x:Name="ChgHistBody" Visibility="Collapsed">
+            <Border x:Name="ChgHistSep" Height="1" Background="#FF222222" Margin="0,1,0,1"/>
+            <Grid x:Name="NightRow" Height="19">
+              <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="62"/></Grid.ColumnDefinitions>
+              <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock x:Name="NightLbl" Text="Tonight" FontSize="11.5" FontWeight="SemiBold" Foreground="#FFCCCCCC" VerticalAlignment="Center"/>
+                <TextBlock x:Name="NightCap" Text="" FontSize="9" Foreground="#FF666666" Margin="6,1,0,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="150"/>
+              </StackPanel>
+              <TextBlock x:Name="NightKwh" Grid.Column="1" Text="— kWh" FontSize="9.5" Foreground="#FF666666" VerticalAlignment="Center" Margin="4,1,0,0"/>
+              <TextBlock x:Name="NightCost" Grid.Column="2" Text="$—" FontSize="13" FontWeight="Bold" Foreground="#FFFFFFFF" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+            </Grid>
+            <!-- v4.3.5: SESSIONS of the current / last 11 PM -> 11 AM window (one line each) -->
+            <StackPanel x:Name="SessBox" Visibility="Collapsed" Margin="8,0,0,2">
+              <TextBlock x:Name="SessHdr" Text="Sessions" FontSize="9" FontWeight="SemiBold" Foreground="#FF888888"/>
+              <StackPanel x:Name="SessList"/>
+            </StackPanel>
+            <Border x:Name="RowSep1" Height="1" Background="#FF222222" Margin="0,1,0,1"/>
+            <Grid x:Name="D7Row" Height="19">
+              <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="62"/></Grid.ColumnDefinitions>
+              <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock x:Name="D7Lbl" Text="Last 7 days" FontSize="11.5" FontWeight="SemiBold" Foreground="#FFCCCCCC" VerticalAlignment="Center"/>
+                <TextBlock x:Name="D7Cap" Text="" FontSize="9" Foreground="#FF666666" Margin="6,1,0,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="150"/>
+              </StackPanel>
+              <TextBlock x:Name="D7Kwh" Grid.Column="1" Text="— kWh" FontSize="9.5" Foreground="#FF666666" VerticalAlignment="Center" Margin="4,1,0,0"/>
+              <TextBlock x:Name="D7Cost" Grid.Column="2" Text="$—" FontSize="13" FontWeight="Bold" Foreground="#FFFFFFFF" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+            </Grid>
+            <Border x:Name="RowSep2" Height="1" Background="#FF222222" Margin="0,1,0,1"/>
+            <Grid x:Name="D30Row" Height="19">
+              <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="62"/></Grid.ColumnDefinitions>
+              <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock x:Name="D30Lbl" Text="Last 30 days" FontSize="11.5" FontWeight="SemiBold" Foreground="#FFCCCCCC" VerticalAlignment="Center"/>
+                <TextBlock x:Name="D30Cap" Text="" FontSize="9" Foreground="#FF666666" Margin="6,1,0,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="150"/>
+              </StackPanel>
+              <TextBlock x:Name="D30Kwh" Grid.Column="1" Text="— kWh" FontSize="9.5" Foreground="#FF666666" VerticalAlignment="Center" Margin="4,1,0,0"/>
+              <TextBlock x:Name="D30Cost" Grid.Column="2" Text="$—" FontSize="13" FontWeight="Bold" Foreground="#FFFFFFFF" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+            </Grid>
+            <!-- v4.3.10: TOTALS pop-up (running totals for this week / month / year, month by month) -->
+            <Border x:Name="RowSep3" Height="1" Background="#FF222222" Margin="0,1,0,2"/>
+            <Button x:Name="TotBtn" Style="{StaticResource TotRowBtn}" Height="22" Margin="0,0,0,2" Padding="8,0,8,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Cursor="Hand" ToolTip="Charging totals: this week, this month, this year, month by month">
+              <DockPanel>
+                <TextBlock DockPanel.Dock="Right" Text="&#xE76C;" FontFamily="Segoe MDL2 Assets" FontSize="9" VerticalAlignment="Center" Foreground="#FF888888"/>
+                <TextBlock x:Name="TotBtnSum" DockPanel.Dock="Right" Text="" FontSize="9.5" Foreground="#FF888888" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                  <Border Width="15" Height="15" CornerRadius="8" Background="#FF49DF93" Margin="0,0,6,0"><TextBlock Text="&#x24;" FontSize="10" FontWeight="Bold" Foreground="#FF06140C" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+                  <TextBlock Text="TOTALS" FontSize="10.5" FontWeight="Bold" Foreground="#FFFFFFFF" VerticalAlignment="Center"/>
+                  <TextBlock Text="week · month · year" FontSize="9.5" Foreground="#FF888888" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                </StackPanel>
+              </DockPanel>
+            </Button>
+            </StackPanel>
           </StackPanel>
         </Border>
 
@@ -2211,11 +2244,11 @@ function Apply-Theme {
         $ui['Tile' + $i].CornerRadius = [System.Windows.CornerRadius]::new($th.TileRadius)
         $ui['TileLbl' + $i].Foreground = T 'Caption'
     }
-    foreach ($n in 'RowSep1', 'RowSep2', 'RowSep3') { $ui[$n].Background = T 'Sep' }
+    foreach ($n in 'RowSep1', 'RowSep2', 'RowSep3', 'ChgHistSep') { $ui[$n].Background = T 'Sep' }
     foreach ($n in 'NightLbl', 'D7Lbl', 'D30Lbl') { $ui[$n].Foreground = T 'TextSoft' }
     foreach ($n in 'NightCap', 'D7Cap', 'D30Cap', 'NightKwh', 'D7Kwh', 'D30Kwh') { $ui[$n].Foreground = T 'Caption2' }
     $ui.TiresAsOf.Foreground = T 'TextSoft'; $ui.TiresRec.Foreground = T 'Caption'; $ui.RemindSetup.Foreground = T 'Caption'
-    foreach ($n in 'TiresHdr', 'BattHdr', 'CtlHdr', 'SeatsHdr', 'AmpsHdr') { $ui[$n].Foreground = T 'TextSoft' }
+    foreach ($n in 'TiresHdr', 'BattHdr', 'CtlHdr', 'SeatsHdr', 'AmpsHdr', 'ChgHistHdr', 'ChgHistArrow') { $ui[$n].Foreground = T 'TextSoft' }
     foreach ($n in 'SeatsNote', 'AmpsMinLbl', 'AmpsMaxLbl', 'WheelCap') { $ui[$n].Foreground = T 'Caption' }
     foreach ($n in 'SeatCapFL', 'SeatCapFR', 'SeatCapRL', 'SeatCapRR') { $ui[$n].Foreground = T 'Caption2' }
     $ui.AmpsNow.Foreground = T 'TextSoft'; $ui.AmpsVal.Foreground = T 'Text'; $ui.AmpsTrack.Fill = T 'BarTrack'; $ui.AmpsSep.Background = T 'Sep'
@@ -2690,6 +2723,7 @@ function Render-View {
         $ui.D30Cap.Text = $(if ($null -ne $v.d30.sessions) { ('{0} charges · {1}' -f $v.d30.sessions, $cap) } else { $cap })
     } else { $ui.D30Cost.Text = '$—'; $ui.D30Kwh.Text = '— kWh'; $ui.D30Cap.Text = '' }
     Render-HeroRoll $v
+    try { Update-ChgHist } catch {}
     $ui.RateNote.Text = [string]$v.rateNote
     $ui.StatusNote.Text = [string]$v.statusNote
     Confirm-Fit
@@ -7280,6 +7314,34 @@ function Show-Totals {
 function Close-Totals { Set-Visible $ui.TotOverlay $false; Stop-TotLoad }
 function Invoke-TotKey { param([string]$Key) if ($ui.TotOverlay.Visibility -eq 'Visible' -and $Key -eq 'Escape') { Close-Totals; return $true }; return $false }
 $ui.TotBtn.Add_Click({ try { Show-Totals } catch { Write-WidgetLog ('totals: ' + $_.Exception.Message) } })
+# ---------------- v4.3.17: CHARGE HISTORY & TOTALS dropdown ----------------
+# Last night (+ sessions), Last 7 days, Last 30 days and the TOTALS row fold into one row under the info section.
+# Starts collapsed (header shows last night's $); click opens / closes it; open / closed is saved in config.json ui.historyOpen.
+$script:ChgHist = @{ open = $false }
+function Get-ChgHistCfg { try { if ($null -ne $script:Cfg -and $null -ne $script:Cfg.ui -and $null -ne $script:Cfg.ui.PSObject.Properties['historyOpen']) { return [bool]$script:Cfg.ui.historyOpen } } catch {}; return $false }
+function Update-ChgHist {
+    $o = [bool]$script:ChgHist.open
+    $ui.ChgHistArrow.Text = $(if ($o) { [string][char]0x25BE } else { [string][char]0x25B8 })
+    $sum = ''
+    if (-not $o) { $c = [string]$ui.NightCost.Text; if ($c -match '\d') { $sum = ([string]$ui.NightLbl.Text + '  ' + $c) } }
+    $ui.ChgHistSum.Text = $sum
+    $ui.ChgHistBtn.ToolTip = $(if ($o) { 'Hide the charge history and totals' } else { 'Show Last night, Last 7 days, Last 30 days and TOTALS' })
+}
+function Set-ChgHistOpen {
+    param([bool]$Open, [bool]$Save = $true)
+    $script:ChgHist.open = $Open
+    Set-Visible $ui.ChgHistBody $Open
+    Update-ChgHist
+    if ($Save) {
+        $o = [ordered]@{}; try { $raw = Read-Config; if ($null -ne $raw -and $null -ne $raw.ui) { foreach ($p in $raw.ui.PSObject.Properties) { $o[$p.Name] = $p.Value } } } catch {}
+        $o['historyOpen'] = $Open
+        try { Save-ConfigProp 'ui' $o; $script:Cfg = Read-Config } catch { Write-WidgetLog ('history dropdown save failed: ' + $_.Exception.Message) }
+    }
+    try { if ($window.IsLoaded) { Confirm-Fit } } catch {}
+}
+$ui.ChgHistBtn.Add_Click({ try { Set-ChgHistOpen (-not [bool]$script:ChgHist.open) } catch { Write-WidgetLog ('history dropdown: ' + $_.Exception.Message) } })
+try { Set-ChgHistOpen (Get-ChgHistCfg) $false } catch { Write-WidgetLog ('history dropdown init: ' + $_.Exception.Message) }
+
 $ui.TotClose.Add_Click({ Close-Totals })
 $ui.TotStop.Add_Click({ Stop-TotLoad })
 $ui.TotRefresh.Add_Click({ try { $script:Tot.status = ''; [void](Start-TotLoad -All) } catch { Write-WidgetLog ('totals refresh: ' + $_.Exception.Message) } })
@@ -7316,6 +7378,8 @@ function Start-SelfTest {
     }
     $script:SelfSteps = New-Object System.Collections.Queue
     $add = { param($name, $answers, $sb) $script:SelfSteps.Enqueue([pscustomobject]@{ name = $name; answers = $answers; run = $sb }) }
+    # v4.3.17: record the dropdown's start state, then open it (not saved) so the older steps can snapshot the history rows
+    $script:SelfRec.v4317pre = [ordered]@{ open = [bool]$script:ChgHist.open; body = [string]$ui.ChgHistBody.Visibility; arrow = $ui.ChgHistArrow.Text; savedSetting = $(try { [string](Read-Config).ui.historyOpen } catch { '' }) }; Set-ChgHistOpen $true $false
     # ---- v4.3.3 steps (DRY RUN: nothing is sent to the car, nothing announced) ----
     $script:Shot433 = { param($n, [switch]$Full) $f = 'tessdesk-v433-' + $n + '.png'; if ($Full) { Save-RootPng (Join-Path $script:SelfDir $f) -Full } else { Save-RootPng (Join-Path $script:SelfDir $f) }; $script:SelfRec.shots += $f }
     $script:SelfRec.v433 = [ordered]@{ carTrunkOpen = $car.trunkOpen; carSentry = $car.sentry; frunkButton = ($null -ne $ui['FrunkBtn']) }
@@ -8245,6 +8309,44 @@ function Start-SelfTest {
     & $add 'v4.3.16 back to 3 / 3 min, close' @() { Stop-LeaveSoon; $script:LeaveFakeStart = $null; Set-LeaveMin $ui.LeaveWinMin 3; Set-LeaveMin $ui.LeaveUnlockMin 3
         $raw = Get-Content -LiteralPath $ConfigPath -Raw -Encoding UTF8 | ConvertFrom-Json; $script:SelfRec.v4316.finalSaved = @($raw.leavingSoon.windowsAfterMin, $raw.leavingSoon.unlockAfterMin)
         $script:SelfRec.v4316.hookLine = ((Get-Content -LiteralPath (Join-Path $scriptDir 'TessDesk.ps1') -Encoding UTF8 | Where-Object { $_ -like "try { . 'C:\Users\vanwi\cb_compact_addon.ps1'*" }).Count) }
+    # ---- v4.3.17: layout (TESLA CONTROLS first, START / STOP under it) + CHARGE HISTORY & TOTALS dropdown (remembered in config.json ui.historyOpen) ----
+    $script:SelfRec.v4317 = [ordered]@{ appVersion = $AppVersion; footer = $ui.FooterVersion.Text; footerBrand = $ui.FooterText.Text; footerBold = [string]$ui.FooterText.FontWeight; atStart = $script:SelfRec.v4317pre }
+    $script:Shot4317 = { param($n) $f = 'tessdesk-v4317-' + $n + '.png'; Save-RootPng (Join-Path $script:SelfDir $f); $script:SelfRec.shots += $f }
+    $script:Y4317 = { param($el) if ($null -eq $el -or -not $el.IsVisible) { return $null }; return [math]::Round($el.TranslatePoint([System.Windows.Point]::new(0, 0), $ui.MainGrid).Y, 1) }
+    $script:Cfg4317 = { $raw = Get-Content -LiteralPath $ConfigPath -Raw -Encoding UTF8 | ConvertFrom-Json; if ($null -ne $raw.ui -and $null -ne $raw.ui.PSObject.Properties['historyOpen']) { return [string]$raw.ui.historyOpen }; return '(not set)' }
+    $script:Hist4317 = { $window.UpdateLayout(); [ordered]@{ open = [bool]$script:ChgHist.open; body = [string]$ui.ChgHistBody.Visibility; arrow = $ui.ChgHistArrow.Text; title = $ui.ChgHistHdr.Text; sum = $ui.ChgHistSum.Text
+        night = ($ui.NightLbl.Text + '  ' + $ui.NightCost.Text); saved = (& $script:Cfg4317); cardHeight = [math]::Round($ui.RowsCard.ActualHeight, 1); totBtnVisible = [bool]$ui.TotBtn.IsVisible
+        uiKeys = @((Get-Content -LiteralPath $ConfigPath -Raw -Encoding UTF8 | ConvertFrom-Json).ui.PSObject.Properties | ForEach-Object { $_.Name }) } }
+    $script:Click4317 = { param($b) $b.RaiseEvent((New-Object System.Windows.RoutedEventArgs([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent))) }
+    & $add 'v4.3.17 layout order (hero, TESLA CONTROLS, START / STOP, battery, amps, tiles, day rate, history dropdown)' @() {
+        Stop-LeaveSoon; Set-ChgHistOpen $false $false; Render-View; $ui.BodyScroll.ScrollToVerticalOffset(0); $window.UpdateLayout()
+        $names = @('HeroCost', 'Roll7Cost', 'Roll60Cost', 'CtlCard', 'LeaveBtn', 'LeaveWaitRow', 'AnnNowBtn', 'ChgBtnRow', 'BattCard', 'VLim', 'AmpsHdr', 'Tile0', 'PeakBanner', 'RowsCard', 'SeatsCard', 'TiresCard', 'DrivesCard')
+        $ys = [ordered]@{}; foreach ($n in $names) { $ys[$n] = & $script:Y4317 $ui[$n] }
+        $chk = @('HeroCost', 'CtlCard', 'ChgBtnRow', 'BattCard', 'AmpsHdr', 'Tile0', 'PeakBanner', 'RowsCard', 'SeatsCard'); $seq = @($chk | Where-Object { $null -ne $ys[$_] })
+        $inOrder = $true; for ($i = 1; $i -lt $seq.Count; $i++) { if ($ys[$seq[$i]] -le $ys[$seq[$i - 1]]) { $inOrder = $false } }
+        $ctlBottom = $ys['CtlCard'] + $ui.CtlCard.ActualHeight + $ui.CtlCard.Margin.Bottom
+        $script:SelfRec.v4317.order = [ordered]@{ y = $ys; checked = $seq; inOrder = $inOrder; chgRightUnderControls = ([math]::Abs($ys['ChgBtnRow'] - $ctlBottom) -lt 1.5)
+            bodyStack = @($ui.BodyStack.Children | ForEach-Object { if ($_.Name) { $_.Name } else { $_.GetType().Name } }); chgButtonsParent = [string]$ui.ChgStartBtn.Parent.Name
+            ctlInScrollTop = ($ui.BodyStack.Children.IndexOf($ui.CtlCard) -eq 0); heroRowStillTop = ([System.Windows.Controls.Grid]::GetRow($ui.HeroRow.Parent) -eq 1); layout = (Get-LayoutCheck) }
+        & $script:Shot4317 'layout-top' }
+    & $add 'v4.3.17 dropdown: starts collapsed when nothing is saved (header shows last night $)' @() {
+        $raw = Get-Content -LiteralPath $ConfigPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        if ($null -ne $raw.ui -and $null -ne $raw.ui.PSObject.Properties['historyOpen']) { $raw.ui.PSObject.Properties.Remove('historyOpen'); $raw | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $ConfigPath -Encoding UTF8 }
+        $script:Cfg = Read-Config; Set-ChgHistOpen (Get-ChgHistCfg) $false; Render-View
+        $script:SelfRec.v4317.fresh = (& $script:Hist4317); $ui.RowsCard.BringIntoView(); $window.UpdateLayout(); & $script:Shot4317 'collapsed' }
+    & $add 'v4.3.17 dropdown: click opens it and saves historyOpen = true' @() {
+        & $script:Click4317 $ui.ChgHistBtn; $script:SelfRec.v4317.opened = (& $script:Hist4317)
+        $ui.RowsCard.BringIntoView(); $window.UpdateLayout(); & $script:Shot4317 'expanded' }
+    & $add 'v4.3.17 dropdown: remembered after a restart (config re-read, starts open)' @() {
+        $script:ChgHist.open = $false; $ui.ChgHistBody.Visibility = 'Collapsed'; $script:Cfg = Read-Config
+        Set-ChgHistOpen (Get-ChgHistCfg) $false; $script:SelfRec.v4317.reloadOpen = (& $script:Hist4317) }
+    & $add 'v4.3.17 dropdown: TOTALS pop-up still opens from the expanded row, X closes' @() {
+        & $script:Click4317 $ui.TotBtn; $window.UpdateLayout(); $vis = [string]$ui.TotOverlay.Visibility; & $script:Shot4317 'totals'
+        & $script:Click4317 $ui.TotClose; $script:SelfRec.v4317.totals = [ordered]@{ opened = $vis; status = $ui.TotStatus.Text; closed = ([string]$ui.TotOverlay.Visibility -ne 'Visible') } }
+    & $add 'v4.3.17 dropdown: click closes it, saves false; restart starts collapsed' @() {
+        & $script:Click4317 $ui.ChgHistBtn; $r = [ordered]@{ closed = (& $script:Hist4317) }
+        $script:ChgHist.open = $true; $ui.ChgHistBody.Visibility = 'Visible'; $script:Cfg = Read-Config; Set-ChgHistOpen (Get-ChgHistCfg) $false
+        $r.reloadClosed = (& $script:Hist4317); $script:SelfRec.v4317.close = $r; $ui.BodyScroll.ScrollToVerticalOffset(0); $window.UpdateLayout(); & $script:Shot4317 'final' }
     & $add 'live refresh status' @() { $script:SelfRec.live = (Get-LiveStatus); $script:SelfRec.liveBadge = $ui.UpdBadge.Text; $script:SelfRec.tiresHeader = [ordered]@{ hdr = $ui.TiresHdr.Text; rec = $ui.TiresRec.Text; asOf = $ui.TiresAsOf.Text } }
     & $add 'theme snapshots' @() { Save-Snapshots $script:SelfDir; $script:SelfRec.shots += @($script:LastSnapshot.files | ForEach-Object { Split-Path -Leaf $_ }) }
     Start-SelfTimer
