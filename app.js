@@ -933,11 +933,11 @@
     var canStart = !off && plugged && !chg, canStop = !off && cs === 'Charging';
     var stopSub = cs === 'Charging' ? 'TAP TO STOP' : (({ Complete: 'COMPLETE', Stopped: 'STOPPED', NoPower: 'NO POWER', Starting: 'STARTING\u2026', Disconnected: 'UNPLUGGED' })[cs] || 'NOT CHARGING');
     return '<div class="card chgbar k-' + k + '" id="chgBar" data-kind="' + k + '" title="Charging status: ' + word + ' \u00b7 ' + esc(sub) + '">' +
-      '<div class="cb-top"><div class="cb-st"><i class="cb-dot"></i><b id="chgWord">' + word + '</b></div>' +
-      '<div class="cb-btns"><button class="cbtn cb-b' + (chg ? ' state' : '') + '" id="cChgStart"' + (canStart ? '' : ' disabled') + '><b>\u25b6 START</b><small>' + (chg ? 'CHARGING' : (plugged ? 'TAP TO START' : 'UNPLUGGED')) + '</small></button>' +
-      '<button class="cbtn cb-b' + (canStop ? ' stop' : '') + '" id="cChgStop"' + (canStop ? '' : ' disabled') + '><b>\u25a0 STOP</b><small>' + esc(stopSub) + '</small></button></div></div>' +
+      '<div class="cb-top"><div class="cb-st"><i class="cb-dot"></i><b id="chgWord">' + word + '</b></div></div>' +
       '<div class="cb-stats" id="chgStats">' + st.map(function (x) { return '<div><b>' + esc(x[1]) + '</b><small>' + x[0] + '</small></div>'; }).join('') + '</div>' +
-      '<div class="cb-sub" id="chgSub">' + esc(sub) + '</div></div>';
+      '<div class="cb-sub" id="chgSub">' + esc(sub) + '</div>' +
+      '<div class="cb-btns"><button class="cbtn cb-b' + (chg ? ' state' : '') + '" id="cChgStart"' + (canStart ? '' : ' disabled') + '><b>\u25b6 START</b><small>' + (chg ? 'CHARGING' : (plugged ? 'TAP TO START' : 'UNPLUGGED')) + '</small></button>' +
+      '<button class="cbtn cb-b' + (canStop ? ' stop' : '') + '" id="cChgStop"' + (canStop ? '' : ' disabled') + '><b>\u25a0 STOP</b><small>' + esc(stopSub) + '</small></button></div></div>';
   }
   // ---------- v4.3.18: CHARGE HISTORY & TOTALS dropdown (Last night / 7 / 30 days + TOTALS). Starts collapsed; open/closed saved in localStorage td:histOpen ----------
   function histOpen() { return load('histOpen', false) === true; }
