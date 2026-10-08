@@ -654,3 +654,37 @@ body.tot-open { overflow: hidden; }
 .roll b { display: block; max-width: 100%; font-family: var(--hero-font); font-size: 18px; font-weight: 650; letter-spacing: -.01em; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; line-height: 1.15; }
 body.compact .hero-row { margin: 2px -6px 0; } body.compact .roll b { font-size: 15px; } body.compact .roll small { font-size: 8px; margin-bottom: 0; } body.compact .roll .ri + .ri { margin-top: 3px; }
 body.compact .roll.l { margin-right: 10px; } body.compact .roll.r { margin-left: 10px; } body.compact .roll.l::after { right: -5px; } body.compact .roll.r::after { left: -5px; }
+
+/* v4.3.16 LEAVING SOON (TESLA CONTROLS + leaving/ page; markup from leave.js) */
+.lv { margin-top: 8px; }
+.cbtn.lv-go { width: 100%; min-height: 58px; gap: 2px; }
+.cbtn.lv-go b { font-size: 17px; letter-spacing: .12em; }
+.cbtn.lv-go.on { background: color-mix(in srgb, var(--green) 26%, var(--card2)); border-color: var(--green); }
+.cbtn.lv-go.on:disabled { opacity: 1; } .cbtn.lv-go.on b { color: var(--green); }
+.lv-waits { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; margin-top: 8px; }
+.lv-w { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.lv-wl { font-size: 10px; font-weight: 800; letter-spacing: .12em; color: var(--muted); text-transform: uppercase; text-align: center; white-space: nowrap; }
+.lv-pm { display: grid; grid-template-columns: 40px minmax(0, 1fr) 40px; gap: 4px; align-items: center; }
+.lv-pm .cbtn.sq { min-height: 44px; font-size: 22px; padding: 0; }
+.lv-v { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+.lv-v input { width: 100%; max-width: 52px; text-align: center; font: 800 20px var(--font); padding: 3px 2px; border-radius: 8px; background: var(--card2); border: 1px solid #49df93; color: var(--text); outline: none; }
+.lv-v input:disabled { opacity: .6; }
+.lv-v small { font-size: 9px; font-weight: 800; letter-spacing: .1em; color: var(--muted); }
+.lv-run { margin-top: 8px; padding: 10px; border-radius: 12px; border: 1.5px solid var(--green); background: color-mix(in srgb, var(--bg) 60%, transparent); }
+.lv-run.amber { border-color: var(--amber); } .lv-run.err { border-color: #ff6b6b; }
+.lv-step { display: flex; gap: 8px; align-items: center; font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.3; }
+.lv-run.err .lv-step { color: #ff6b6b; } .lv-run.ok .lv-step { color: var(--green); }
+.lv-bar { height: 6px; border-radius: 99px; background: var(--track); margin: 8px 0 6px; overflow: hidden; }
+.lv-bar i { display: block; height: 100%; background: var(--green); transition: width .9s linear; }
+.lv-run.amber .lv-bar i { background: var(--amber); } .lv-run.err .lv-bar i { background: #ff6b6b; }
+.lv-dots { display: flex; gap: 6px; justify-content: space-between; font-size: 11px; color: var(--muted); font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.lv-dot.done { color: var(--green); } .lv-dot.cur { color: var(--text); } .lv-dot.undone { color: var(--amber); } .lv-dot.bad { color: #ff6b6b; }
+.lv-notes { margin-top: 6px; font-size: 11.5px; color: var(--muted); line-height: 1.35; } .lv-notes .bad { color: var(--amber); }
+.lv-btns { display: flex; gap: 8px; margin-top: 8px; }
+.cbtn.lv-stop, .cbtn.lv-x { flex: 1; min-height: 44px; }
+.cbtn.lv-stop.live { border-color: #ff6b6b; background: color-mix(in srgb, #ff6b6b 20%, var(--card2)); } .cbtn.lv-stop.live b { color: #ffd0d0; letter-spacing: .14em; }
+.lv-note { font-size: 11px; color: var(--muted); margin-top: 6px; text-align: center; line-height: 1.35; }
+.lv-note .dry { font-size: 10px; font-weight: 800; letter-spacing: .12em; color: var(--amber); }
+.lv-car { font-size: 12.5px; color: var(--muted); text-align: center; margin: 0 0 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lv-car .g { color: var(--green); font-weight: 700; } .lv-car .w { color: var(--amber); font-weight: 700; } .lv-car em { font-style: normal; opacity: .8; }
+body.compact .cbtn.lv-go { min-height: 42px; } body.compact .lv-pm .cbtn.sq { min-height: 34px; } body.compact .lv-waits { margin-top: 5px; gap: 5px; }

@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Leaving Soon</title>
+<meta name="description" content="Leaving Soon: climate on, windows closed, then unlock. A TessDesk mini app. Design by Van.">
+<meta name="theme-color" content="#170a0d">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Leaving">
+<meta name="application-name" content="Leaving Soon">
+<meta name="format-detection" content="telephone=no">
+<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="leaving.css">
+<script>window.TD_CONFIG = { variant: 'leaving', storagePrefix: 'td:' };</script>
+</head>
+<body class="tessie idle">
+<div class="lp" id="lp"></div>
+<script src="../leave.js"></script>
+<script src="leaving.js"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () { navigator.serviceWorker.register('../sw.js', { scope: '../' }).catch(function () {}); });
+}
+</script>
+</body>
+</html>

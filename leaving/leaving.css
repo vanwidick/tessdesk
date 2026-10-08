@@ -1,0 +1,35 @@
+/* Leaving Soon page v4.3.16: one phone screen, no scrolling. Shares ../style.css and the .lv styles with the main app. */
+html, body { height: 100%; overflow: hidden; }
+body { min-height: 0; }
+.lp { height: 100%; display: flex; flex-direction: column; width: min(calc(100% - 28px), 440px); margin: 0 auto;
+  padding: calc(env(safe-area-inset-top) + 12px) 0 calc(env(safe-area-inset-bottom) + 8px); }
+.lp-hd { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.lp-hd .brand { font-size: 17px; }
+.lp-hd a { color: var(--muted); font-size: 12px; text-decoration: none; border: 1px solid var(--line); border-radius: 99px; padding: 5px 10px; }
+.lp-main { flex: 1 1 auto; display: flex; flex-direction: column; justify-content: center; min-height: 0; }
+.lv-page .cbtn.lv-go { min-height: 120px; border-radius: 22px; border-width: 2px; }
+.lv-page .cbtn.lv-go b { font-size: 34px; letter-spacing: .14em; font-family: "Bebas Neue", var(--font); font-weight: 400; }
+.lv-page .cbtn.lv-go small { font-size: 12px; white-space: normal; }
+.lv-page .lv-waits { margin-top: 12px; gap: 10px; }
+.lv-page .lv-wl { font-size: 11px; }
+.lv-page .lv-pm { grid-template-columns: 52px minmax(0, 1fr) 52px; }
+.lv-page .lv-pm .cbtn.sq { min-height: 52px; font-size: 26px; }
+.lv-page .lv-v input { font-size: 24px; max-width: 58px; }
+.lv-page .lv-run { margin-top: 12px; padding: 12px; }
+.lv-page .lv-step { font-size: 16px; }
+.lv-page .cbtn.lv-stop, .lv-page .cbtn.lv-x { min-height: 64px; border-radius: 18px; }
+.lv-page .cbtn.lv-stop b, .lv-page .cbtn.lv-x b { font-size: 22px; letter-spacing: .16em; }
+.lv-page .lv-notes { max-height: 4.2em; overflow: hidden; }
+.lv-page .lv-note { margin-top: 10px; }
+.lp-ft { text-align: center; padding-top: 6px; }
+.lp-ft .dbv { font-size: 21px; font-weight: 400; letter-spacing: .22em; padding-left: .22em; }
+.lp-ft .dbv b { font-weight: 400; } .lp-ft .dbv span { color: var(--red); }
+.lp-ft .ver { font-size: 10.5px; border: 0; padding: 0; }
+.lp-setup { flex: 1 1 auto; overflow-y: auto; min-height: 0; }
+.lp-setup h2 { font-size: 18px; margin: 4px 0 6px; } .lp-setup p { color: var(--muted); font-size: 13px; margin: 0 0 10px; line-height: 1.4; }
+.lp-setup .field { margin-bottom: 10px; } .lp-setup .check { font-size: 12.5px; margin: 8px 0; display: flex; gap: 8px; align-items: flex-start; color: var(--muted); }
+.lp-setup .btn { margin: 8px 0; } .lp-setup .msg { font-size: 13px; min-height: 18px; }
+@media (max-height: 700px) {
+  .lv-page .cbtn.lv-go { min-height: 92px; } .lv-page .cbtn.lv-go b { font-size: 30px; }
+  .lv-page .lv-pm .cbtn.sq { min-height: 44px; } .lv-page .cbtn.lv-stop { min-height: 52px; } .lv-page .lv-notes { max-height: 2.8em; }
+}

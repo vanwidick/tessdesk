@@ -10,7 +10,9 @@
     var css = document.createElement('link'); css.rel = 'stylesheet'; css.href = '../style.css?v=' + v; document.head.appendChild(css);
     document.body.className = 'tessie idle';   // v4.1: Tessie look is always on
     document.getElementById('app').innerHTML = '';
-    var s = document.createElement('script'); s.src = '../app.js?v=' + v; document.body.appendChild(s);
+    var lv = document.createElement('script'); lv.src = '../leave.js?v=' + v;   // v4.3.16: Leaving Soon module first
+    lv.onload = lv.onerror = function () { var s = document.createElement('script'); s.src = '../app.js?v=' + v; document.body.appendChild(s); };
+    document.body.appendChild(lv);
     // A pass-through SW keeps the TEST app installable; it never caches anything.
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=' + v, { scope: './' }).catch(function () {});
   }
