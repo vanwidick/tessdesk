@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-# TessDesk v4.3.17 (layout: TESLA CONTROLS right under the big cost, START / STOP CHARGING under it, then battery / amps / tiles / day rate, CHARGE HISTORY & TOTALS dropdown; v4.3.16 LEAVING SOON: adjustable 'Windows after' / 'Unlock after' minutes, Stop undoes the steps already done; v4.3.15: climate on, close windows, unlock; rolling 7 / 14 days and 30 / 60 days $ beside the big amount; Restore / Remember at the top right with fade-in, like Paycheck Live; TOTALS pop-up: week / month / year running totals; CAMERAS panel from saved Sentry / Dashcam clips; checks for updates on open / wake; compact-when-OFF via cb_compact_addon.ps1) - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
+# TessDesk v4.3.18 (CHARGING STATUS bar under the big cost with START / STOP, fits 364x990 without scrolling; v4.3.17: TESLA CONTROLS under the big cost, CHARGE HISTORY & TOTALS dropdown; v4.3.16 LEAVING SOON: adjustable 'Windows after' / 'Unlock after' minutes, Stop undoes the steps already done; v4.3.15: climate on, close windows, unlock; rolling 7 / 14 days and 30 / 60 days $ beside the big amount; Restore / Remember at the top right with fade-in, like Paycheck Live; TOTALS pop-up: week / month / year running totals; CAMERAS panel from saved Sentry / Dashcam clips; checks for updates on open / wake; compact-when-OFF via cb_compact_addon.ps1) - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
 param(
     [string]$ConfigPath,
     [string]$Snapshot,    # optional: folder to write PNG snapshots of both themes
@@ -14,7 +14,7 @@ Add-Type -AssemblyName System.Xaml
 
 $ErrorActionPreference = 'Stop'
 $AppName    = 'TessDesk'
-$AppVersion = '4.3.17'
+$AppVersion = '4.3.18'
 $AppDate    = 'Oct 8, 2026'
 
 $scriptDir  = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -1320,6 +1320,16 @@ function Open-Url433 {
       </Setter>
     </Style>
     <!-- v4.3.17: CHARGE HISTORY & TOTALS dropdown header (flat, the whole row is clickable) -->
+    <Style x:Key="SkipCfChk" TargetType="CheckBox">
+      <Setter Property="FontSize" Value="9"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="Foreground" Value="#FFCCCCCC"/>
+      <Setter Property="Margin" Value="0,1,2,1"/>
+      <Setter Property="Padding" Value="1,0,0,0"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Focusable" Value="False"/>
+    </Style>
     <Style x:Key="HistHdrBtn" TargetType="Button">
       <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="Focusable" Value="False"/>
@@ -1504,16 +1514,50 @@ function Open-Url433 {
         <TextBlock x:Name="KwhLabel" Grid.Row="2" Text="" Foreground="#FFE82127" FontSize="16" FontWeight="SemiBold"
                    HorizontalAlignment="Center" Margin="0,0,0,4"/>
 
-        <!-- v4.3.17: grid row 3 (history card) moved into the scroll area as the CHARGE HISTORY & TOTALS dropdown -->
+        <!-- v4.3.18: CHARGING STATUS bar, fixed under the big cost (never scrolls): state word (CHARGING / NOT CHARGING / UNPLUGGED / COMPLETE), START / STOP on the right, then POWER, SESSION, FULL AT or ENDED, BATTERY -->
+        <Border x:Name="ChgCard" Grid.Row="3" CornerRadius="10" Background="#FF111111" BorderBrush="#FF222222" BorderThickness="2" Padding="10,5,8,5" Margin="0,2,0,6">
+          <Grid>
+            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <Grid x:Name="ChgHead" VerticalAlignment="Center" Margin="0,0,6,0">
+              <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+              <Ellipse x:Name="ChgDot" Width="13" Height="13" Fill="#FF49DF93" Stroke="#FF49DF93" StrokeThickness="2" VerticalAlignment="Center" Margin="0,1,7,0"/>
+              <Viewbox Grid.Column="1" StretchDirection="DownOnly" Stretch="Uniform" HorizontalAlignment="Left" VerticalAlignment="Center" Height="32">
+                <TextBlock x:Name="ChgState" Text="&#x2014;" FontSize="24" FontWeight="Black" Foreground="#FFFFFFFF"/>
+              </Viewbox>
+            </Grid>
+            <StackPanel x:Name="ChgBtnCol" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+              <Button x:Name="ChgStartBtn" Style="{StaticResource CtlBtn}" Width="70" Height="36" Margin="0,0,4,0" Padding="2,1,2,1" ToolTip="Start charging (car must be plugged in)">
+                <StackPanel HorizontalAlignment="Center">
+                  <TextBlock x:Name="ChgStartTxt" Text="&#x25B6; START" FontSize="11.5" FontWeight="Bold" HorizontalAlignment="Center"/>
+                  <TextBlock x:Name="ChgStartSub" Text="" FontSize="7" FontWeight="SemiBold" Foreground="#FF888888" HorizontalAlignment="Center"/>
+                </StackPanel>
+              </Button>
+              <Button x:Name="ChgStopBtn" Style="{StaticResource CtlBtn}" Width="70" Height="36" Padding="2,1,2,1" ToolTip="Stop charging (asks first)">
+                <StackPanel HorizontalAlignment="Center">
+                  <TextBlock x:Name="ChgStopTxt" Text="&#x25A0; STOP" FontSize="11.5" FontWeight="Bold" HorizontalAlignment="Center"/>
+                  <TextBlock x:Name="ChgStopSub" Text="" FontSize="7" FontWeight="SemiBold" Foreground="#FF888888" HorizontalAlignment="Center"/>
+                </StackPanel>
+              </Button>
+            </StackPanel>
+            <UniformGrid x:Name="ChgStats" Grid.Row="1" Grid.ColumnSpan="2" Columns="4" Rows="1" Margin="0,5,0,0">
+              <StackPanel Margin="0,0,2,0"><Viewbox StretchDirection="DownOnly" Height="20"><TextBlock x:Name="ChgV0" Text="&#x2014;" FontSize="15" FontWeight="Bold" Foreground="#FFFFFFFF"/></Viewbox><TextBlock x:Name="ChgL0" Text="POWER" FontSize="8" FontWeight="Bold" Foreground="#FFCCCCCC" HorizontalAlignment="Center"/></StackPanel>
+              <StackPanel Margin="2,0,2,0"><Viewbox StretchDirection="DownOnly" Height="20"><TextBlock x:Name="ChgV1" Text="&#x2014;" FontSize="15" FontWeight="Bold" Foreground="#FFFFFFFF"/></Viewbox><TextBlock x:Name="ChgL1" Text="SESSION" FontSize="8" FontWeight="Bold" Foreground="#FFCCCCCC" HorizontalAlignment="Center"/></StackPanel>
+              <StackPanel Margin="2,0,2,0"><Viewbox StretchDirection="DownOnly" Height="20"><TextBlock x:Name="ChgV2" Text="&#x2014;" FontSize="15" FontWeight="Bold" Foreground="#FFFFFFFF"/></Viewbox><TextBlock x:Name="ChgL2" Text="ENDED" FontSize="8" FontWeight="Bold" Foreground="#FFCCCCCC" HorizontalAlignment="Center"/></StackPanel>
+              <StackPanel Margin="2,0,0,0"><Viewbox StretchDirection="DownOnly" Height="20"><TextBlock x:Name="ChgV3" Text="&#x2014;" FontSize="15" FontWeight="Bold" Foreground="#FFFFFFFF"/></Viewbox><TextBlock x:Name="ChgL3" Text="BATTERY" FontSize="8" FontWeight="Bold" Foreground="#FFCCCCCC" HorizontalAlignment="Center"/></StackPanel>
+            </UniformGrid>
+            <TextBlock x:Name="ChgSub" Grid.Row="2" Grid.ColumnSpan="2" Text="" FontSize="9.5" FontWeight="SemiBold" Foreground="#FFCCCCCC" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,3,0,0"/>
+          </Grid>
+        </Border>
 
         <!-- v4.2: lower sections scroll (slim scrollbar) when they don't fit the screen -->
         <ScrollViewer x:Name="BodyScroll" Grid.Row="4" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
                       PanningMode="None" Focusable="False" Margin="0,0,-11,0">
           <StackPanel x:Name="BodyStack" Margin="0,0,5,0">
         <!-- v4.3.17: order = TESLA CONTROLS, START / STOP CHARGING, BATTERY + CHARGING AMPS, tiles, day-rate line, CHARGE HISTORY & TOTALS -->
-        <Border x:Name="CtlCard" CornerRadius="10" Background="#FF111111" BorderBrush="#FF222222" BorderThickness="1" Padding="12,6,12,8" Margin="0,0,0,6">
+        <Border x:Name="CtlCard" CornerRadius="10" Background="#FF111111" BorderBrush="#FF222222" BorderThickness="1" Padding="10,4,10,5" Margin="0,0,0,6">
           <StackPanel>
-            <Grid x:Name="CtlHdrRow" Margin="0,0,0,6">
+            <Grid x:Name="CtlHdrRow" Margin="0,0,0,3">
               <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
               <TextBlock x:Name="CtlHdr" Grid.ColumnSpan="3" Text="TESLA CONTROLS" FontSize="12.5" FontWeight="Bold" Foreground="#FF9A9A9A" HorizontalAlignment="Left" VerticalAlignment="Center"/>
               <!-- v4.3.15: LEAVING SOON, same line as the heading, over the Flash Lights column (right edge = Flash Lights box right edge) -->
@@ -1524,7 +1568,7 @@ function Open-Url433 {
               <TextBlock x:Name="CtlMode" Grid.Column="2" Text="" FontSize="10" FontWeight="Bold" Foreground="#FFFFB020" HorizontalAlignment="Right" VerticalAlignment="Center"/>
             </Grid>
             <!-- v4.3.16: Leaving Soon waits, minutes 0-30 (default 3, 0 = right away), saved in config.json leavingSoon -->
-            <StackPanel x:Name="LeaveWaitRow" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,-3,0,6">
+            <StackPanel x:Name="LeaveWaitRow" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,-1,0,4">
               <TextBlock x:Name="LeaveWinLbl" Text="Windows after" FontSize="9" FontWeight="SemiBold" Foreground="#FF9A9A9A" VerticalAlignment="Center" Margin="0,0,3,0"/>
               <Button x:Name="LeaveWinDn" Style="{StaticResource CtlBtn}" Width="14" Height="16" Padding="0" ToolTip="1 minute less"><TextBlock Text="&#x2212;" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-2,0,0"/></Button>
               <TextBox x:Name="LeaveWinMin" Text="3" Width="22" Height="16" Margin="2,0,2,0" FontSize="9.5" FontWeight="Bold" TextAlignment="Center" VerticalContentAlignment="Center" Padding="0" MaxLength="2"
@@ -1551,7 +1595,7 @@ function Open-Url433 {
               </Grid>
             </Border>
             <UniformGrid Columns="3" Rows="1">
-              <Button x:Name="LockBtn" Style="{StaticResource CtlBtn}" Height="56" Margin="0,0,3,0" Padding="4,4,4,4" ToolTip="Lock / unlock your Tesla">
+              <Button x:Name="LockBtn" Style="{StaticResource CtlBtn}" Height="54" Margin="0,0,3,0" Padding="4,4,4,4" ToolTip="Lock / unlock your Tesla">
                 <Grid>
                   <Grid.ColumnDefinitions><ColumnDefinition Width="22"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                   <TextBlock x:Name="LockIcon" Text="&#xE72E;" FontFamily="Segoe MDL2 Assets" FontSize="18" VerticalAlignment="Center" HorizontalAlignment="Center"/>
@@ -1561,7 +1605,7 @@ function Open-Url433 {
                   </StackPanel>
                 </Grid>
               </Button>
-              <Border x:Name="FlashBox" Height="56" Margin="3,0,3,0" CornerRadius="10" BorderThickness="1.5" BorderBrush="#FF49DF93" Background="#2649DF93" Padding="5,3,5,3" ToolTip="Flash the headlights (Tessie flash), 1-20 times with the pause you set (1-30 s). Asks first; Stop ends early.">
+              <Border x:Name="FlashBox" Height="54" Margin="3,0,3,0" CornerRadius="10" BorderThickness="1.5" BorderBrush="#FF49DF93" Background="#2649DF93" Padding="5,2,5,2" ToolTip="Flash the headlights (Tessie flash), 1-20 times with the pause you set (1-30 s). Asks first; Stop ends early.">
                 <StackPanel VerticalAlignment="Center">
                   <Viewbox StretchDirection="DownOnly" HorizontalAlignment="Center"><TextBlock x:Name="FlashTxt" Text="FLASH LIGHTS" FontSize="11" FontWeight="Bold"/></Viewbox>
                   <Grid Margin="0,2,0,1">
@@ -1577,7 +1621,7 @@ function Open-Url433 {
                   <Viewbox StretchDirection="DownOnly" HorizontalAlignment="Center"><TextBlock x:Name="FlashSub" Text="flashes · pause s" FontSize="8.5" FontWeight="SemiBold" Foreground="#FF888888"/></Viewbox>
                 </StackPanel>
               </Border>
-              <Button x:Name="ClimBtn" Style="{StaticResource CtlBtn}" Height="56" Margin="3,0,0,0" Padding="4,4,4,4" ToolTip="Turn climate (A/C) on or off">
+              <Button x:Name="ClimBtn" Style="{StaticResource CtlBtn}" Height="54" Margin="3,0,0,0" Padding="4,4,4,4" ToolTip="Turn climate (A/C) on or off">
                 <Grid>
                   <Grid.ColumnDefinitions><ColumnDefinition Width="22"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                   <TextBlock x:Name="ClimIcon" Text="❄" FontFamily="Segoe UI Symbol" FontSize="17" VerticalAlignment="Center" HorizontalAlignment="Center"/>
@@ -1590,8 +1634,8 @@ function Open-Url433 {
             </UniformGrid>
             <TextBlock x:Name="FlashStats" Text="" Visibility="Collapsed" FontSize="9" FontWeight="SemiBold" Foreground="#FF888888" HorizontalAlignment="Center" Margin="0,3,0,0"
                        ToolTip="Flash lights: response time of each flash request (sent until Tessie answered), average, and the measured gap between successful flashes"/>
-            <UniformGrid Columns="3" Rows="1" Margin="0,6,0,0">
-              <Button x:Name="HeatBtn" Style="{StaticResource CtlBtn}" Height="50" Margin="0,0,3,0" Padding="3,2,3,2" ToolTip="Heat = climate on with a warm set temperature (Tesla has no separate heater command)">
+            <UniformGrid Columns="3" Rows="1" Margin="0,4,0,0">
+              <Button x:Name="HeatBtn" Style="{StaticResource CtlBtn}" Height="44" Margin="0,0,3,0" Padding="3,2,3,2" ToolTip="Heat = climate on with a warm set temperature (Tesla has no separate heater command)">
                 <StackPanel HorizontalAlignment="Center">
                   <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                     <TextBlock x:Name="HeatIcon" Text="♨" FontFamily="Segoe UI Symbol" FontSize="13" Margin="0,0,4,0" VerticalAlignment="Center"/>
@@ -1600,7 +1644,7 @@ function Open-Url433 {
                   <Viewbox StretchDirection="DownOnly" HorizontalAlignment="Center" MaxWidth="96"><TextBlock x:Name="HeatSub" Text="" FontSize="9" FontWeight="SemiBold" Foreground="#FF888888"/></Viewbox>
                 </StackPanel>
               </Button>
-              <Button x:Name="DefrostBtn" Style="{StaticResource CtlBtn}" Height="50" Margin="3,0,3,0" Padding="3,2,3,2" ToolTip="Max defrost on / off">
+              <Button x:Name="DefrostBtn" Style="{StaticResource CtlBtn}" Height="44" Margin="3,0,3,0" Padding="3,2,3,2" ToolTip="Max defrost on / off">
                 <StackPanel HorizontalAlignment="Center">
                   <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                     <TextBlock x:Name="DefrostIcon" Text="❄" FontFamily="Segoe UI Symbol" FontSize="13" Margin="0,0,4,0" VerticalAlignment="Center"/>
@@ -1609,7 +1653,7 @@ function Open-Url433 {
                   <Viewbox StretchDirection="DownOnly" HorizontalAlignment="Center" MaxWidth="96"><TextBlock x:Name="DefrostSub" Text="" FontSize="9" FontWeight="SemiBold" Foreground="#FF888888"/></Viewbox>
                 </StackPanel>
               </Button>
-              <Button x:Name="CopBtn" Style="{StaticResource CtlBtn}" Height="50" Margin="3,0,0,0" Padding="3,2,3,2" ToolTip="Cabin Overheat Protection: off, on, fan only">
+              <Button x:Name="CopBtn" Style="{StaticResource CtlBtn}" Height="44" Margin="3,0,0,0" Padding="3,2,3,2" ToolTip="Cabin Overheat Protection: off, on, fan only">
                 <StackPanel HorizontalAlignment="Center">
                   <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                     <TextBlock x:Name="CopIcon" Text="☀" FontFamily="Segoe UI Symbol" FontSize="13" Margin="0,0,4,0" VerticalAlignment="Center"/>
@@ -1619,38 +1663,38 @@ function Open-Url433 {
                 </StackPanel>
               </Button>
             </UniformGrid>
-            <Grid Margin="0,6,0,0">
+            <Grid Margin="0,4,0,0">
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="6"/>
                 <ColumnDefinition Width="40"/><ColumnDefinition Width="*"/><ColumnDefinition Width="40"/>
               </Grid.ColumnDefinitions>
-              <Button x:Name="VentBtn" Grid.Column="0" Style="{StaticResource CtlBtn}" Height="44" Margin="0,0,3,0" Padding="2" ToolTip="Vent all windows">
+              <Button x:Name="VentBtn" Grid.Column="0" Style="{StaticResource CtlBtn}" Height="38" Margin="0,0,3,0" Padding="2" ToolTip="Vent all windows">
                 <StackPanel HorizontalAlignment="Center">
                   <TextBlock x:Name="VentTxt" Text="VENT" FontSize="13" FontWeight="Bold" HorizontalAlignment="Center"/>
                   <TextBlock x:Name="VentSub" Text="WINDOWS" FontSize="7.5" FontWeight="SemiBold" Foreground="#FF888888" HorizontalAlignment="Center"/>
                 </StackPanel>
               </Button>
-              <Button x:Name="CloseWinBtn" Grid.Column="1" Style="{StaticResource CtlBtn}" Height="44" Margin="3,0,0,0" Padding="2" ToolTip="Close all windows">
+              <Button x:Name="CloseWinBtn" Grid.Column="1" Style="{StaticResource CtlBtn}" Height="38" Margin="3,0,0,0" Padding="2" ToolTip="Close all windows">
                 <StackPanel HorizontalAlignment="Center">
                   <TextBlock x:Name="CloseWinTxt" Text="CLOSE" FontSize="13" FontWeight="Bold" HorizontalAlignment="Center"/>
                   <TextBlock x:Name="CloseWinSub" Text="WINDOWS" FontSize="7.5" FontWeight="SemiBold" Foreground="#FF888888" HorizontalAlignment="Center"/>
                 </StackPanel>
               </Button>
-              <Button x:Name="TempDownBtn" Grid.Column="3" Style="{StaticResource CtlBtn}" Height="44" Padding="0" ToolTip="Cooler">
+              <Button x:Name="TempDownBtn" Grid.Column="3" Style="{StaticResource CtlBtn}" Height="38" Padding="0" ToolTip="Cooler">
                 <TextBlock Text="−" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,-4,0,0"/>
               </Button>
               <StackPanel Grid.Column="4" VerticalAlignment="Center">
                 <TextBlock x:Name="TempVal" Text="--" FontSize="19" FontWeight="Bold" HorizontalAlignment="Center"/>
                 <TextBlock x:Name="TempCap" Text="SET TEMP" FontSize="7.5" FontWeight="SemiBold" Foreground="#FF7A7A7A" HorizontalAlignment="Center"/>
               </StackPanel>
-              <Button x:Name="TempUpBtn" Grid.Column="5" Style="{StaticResource CtlBtn}" Height="44" Padding="0" ToolTip="Warmer">
+              <Button x:Name="TempUpBtn" Grid.Column="5" Style="{StaticResource CtlBtn}" Height="38" Padding="0" ToolTip="Warmer">
                 <TextBlock Text="+" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,-3,0,0"/>
               </Button>
             </Grid>
             <!-- v4.3.3: OPEN TRUNK (rear only, asks first) + SENTRY MODE on/off (shows the car's state, asks first) -->
-            <Grid Margin="0,6,0,0">
+            <Grid Margin="0,4,0,0">
               <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-              <Button x:Name="TrunkBtn" Grid.Column="0" Style="{StaticResource CtlBtn}" Height="44" Margin="0,0,3,0" Padding="2" ToolTip="Open the rear trunk (asks Are you sure? first)">
+              <Button x:Name="TrunkBtn" Grid.Column="0" Style="{StaticResource CtlBtn}" Height="38" Margin="0,0,3,0" Padding="2" ToolTip="Open the rear trunk (asks Are you sure? first)">
                 <StackPanel HorizontalAlignment="Center">
                   <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                     <TextBlock x:Name="TrunkIcon" Text="&#xE7EF;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
@@ -1659,7 +1703,7 @@ function Open-Url433 {
                   <TextBlock x:Name="TrunkSub" Text="REAR" FontSize="7.5" FontWeight="SemiBold" Foreground="#FF888888" HorizontalAlignment="Center"/>
                 </StackPanel>
               </Button>
-              <Button x:Name="SentryBtn" Grid.Column="1" Style="{StaticResource CtlBtn}" Height="44" Margin="3,0,0,0" Padding="2" ToolTip="Sentry Mode on / off (shows the car's current state, asks first)">
+              <Button x:Name="SentryBtn" Grid.Column="1" Style="{StaticResource CtlBtn}" Height="38" Margin="3,0,0,0" Padding="2" ToolTip="Sentry Mode on / off (shows the car's current state, asks first)">
                 <StackPanel HorizontalAlignment="Center">
                   <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                     <TextBlock x:Name="SentryIcon" Text="&#xE7B3;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
@@ -1670,9 +1714,9 @@ function Open-Url433 {
               </Button>
             </Grid>
             <!-- v4.3: Announce on Alexa = one push, full status rundown; gear = Announce Setup -->
-            <Grid Margin="0,6,0,0">
+            <Grid Margin="0,4,0,0">
               <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="58"/></Grid.ColumnDefinitions>
-              <Button x:Name="AnnNowBtn" Style="{StaticResource CtlBtn}" Height="42" Margin="0,0,3,0" Padding="4,2,4,2" ToolTip="Announce on Alexa: one push speaks a full status rundown (asks to confirm)">
+              <Button x:Name="AnnNowBtn" Style="{StaticResource CtlBtn}" Height="38" Margin="0,0,3,0" Padding="4,2,4,2" ToolTip="Announce on Alexa: one push speaks a full status rundown (asks to confirm)">
                 <StackPanel HorizontalAlignment="Center">
                   <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                     <TextBlock Text="&#xE767;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
@@ -1681,14 +1725,14 @@ function Open-Url433 {
                   <TextBlock x:Name="AnnNowSub" Text="FULL STATUS" FontSize="7.5" FontWeight="SemiBold" Foreground="#FF888888" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                 </StackPanel>
               </Button>
-              <Button x:Name="AnnSetupBtn" Grid.Column="1" Style="{StaticResource CtlBtn}" Height="42" Margin="3,0,0,0" Padding="0" ToolTip="Announce Setup: rundown items, speakers (pick Echos, Test, Add speaker), charging-started announcement">
+              <Button x:Name="AnnSetupBtn" Grid.Column="1" Style="{StaticResource CtlBtn}" Height="38" Margin="3,0,0,0" Padding="0" ToolTip="Announce Setup: rundown items, speakers (pick Echos, Test, Add speaker), charging-started announcement">
                 <StackPanel HorizontalAlignment="Center">
                   <TextBlock Text="&#xE713;" FontFamily="Segoe MDL2 Assets" FontSize="15" HorizontalAlignment="Center"/>
                   <TextBlock x:Name="AnnSetupTxt" Text="SETUP" FontSize="8" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,2,0,0"/>
                 </StackPanel>
               </Button>
             </Grid>
-            <Border x:Name="CtlResultBox" CornerRadius="6" Background="#FF0F0F0F" Margin="0,6,0,0" Padding="8,4,8,4" MinHeight="26">
+            <Border x:Name="CtlResultBox" CornerRadius="6" Background="#FF0F0F0F" Margin="0,4,0,0" Padding="8,3,8,3" MinHeight="22">
               <Grid>
                 <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Ellipse x:Name="CtlSpin" Width="13" Height="13" StrokeThickness="2.2" Stroke="#FF49DF93" StrokeDashArray="5 3"
@@ -1698,23 +1742,25 @@ function Open-Url433 {
                 <TextBlock x:Name="CtlResult" Grid.Column="1" Text="Ready" FontSize="10" TextWrapping="Wrap" VerticalAlignment="Center" Foreground="#FF888888"/>
               </Grid>
             </Border>
+            <Border x:Name="SkipCfRow" Margin="0,4,0,0" Padding="6,1,4,1" CornerRadius="6" BorderThickness="1" BorderBrush="#33FFFFFF" ToolTip="Skip confirm: a checked action runs right away, with no Yes/No or Are-you-sure pop-up. Each one is saved in your settings and stays checked after restarts and updates.">
+              <DockPanel x:Name="SkipCfWrap" LastChildFill="True">
+                <TextBlock x:Name="SkipCfHdr" DockPanel.Dock="Left" Text="SKIP&#x0a;CONFIRM" FontSize="8.5" FontWeight="Bold" LineHeight="10" LineStackingStrategy="BlockLineHeight" Foreground="#FF9A9A9A" VerticalAlignment="Center" TextAlignment="Center" Margin="0,0,5,0"/>
+                <UniformGrid x:Name="SkipCfGrid" Columns="5" Rows="2">
+                  <CheckBox x:Name="SkipCf_unlock" Tag="unlock" Style="{StaticResource SkipCfChk}" ToolTip="Skip confirm for UNLOCK (the LOCKED button): unlocks right away"><Viewbox StretchDirection="DownOnly" HorizontalAlignment="Left"><TextBlock Text="Unlock"/></Viewbox></CheckBox>
+                  <CheckBox x:Name="SkipCf_leave" Tag="leave" Style="{StaticResource SkipCfChk}" ToolTip="Skip the 'Are you sure? Start Leaving Soon?' pop-up"><Viewbox StretchDirection="DownOnly" HorizontalAlignment="Left"><TextBlock Text="Leaving"/></Viewbox></CheckBox>
+                  <CheckBox x:Name="SkipCf_flash" Tag="flash" Style="{StaticResource SkipCfChk}" ToolTip="Skip confirm for FLASH LIGHTS"><Viewbox StretchDirection="DownOnly" HorizontalAlignment="Left"><TextBlock Text="Flash"/></Viewbox></CheckBox>
+                  <CheckBox x:Name="SkipCf_vent" Tag="vent" Style="{StaticResource SkipCfChk}" ToolTip="Skip confirm for VENT windows"><Viewbox StretchDirection="DownOnly" HorizontalAlignment="Left"><TextBlock Text="Vent"/></Viewbox></CheckBox>
+                  <CheckBox x:Name="SkipCf_trunk" Tag="trunk" Style="{StaticResource SkipCfChk}" ToolTip="Skip the 'Are you sure?' pop-up when opening or closing the TRUNK"><Viewbox StretchDirection="DownOnly" HorizontalAlignment="Left"><TextBlock Text="Trunk"/></Viewbox></CheckBox>
+                  <CheckBox x:Name="SkipCf_sentry" Tag="sentry" Style="{StaticResource SkipCfChk}" ToolTip="Skip confirm when turning SENTRY on or off"><Viewbox StretchDirection="DownOnly" HorizontalAlignment="Left"><TextBlock Text="Sentry"/></Viewbox></CheckBox>
+                  <CheckBox x:Name="SkipCf_announce" Tag="announce" Style="{StaticResource SkipCfChk}" ToolTip="Skip confirm for ANNOUNCE full status on Alexa"><Viewbox StretchDirection="DownOnly" HorizontalAlignment="Left"><TextBlock Text="Announce"/></Viewbox></CheckBox>
+                  <CheckBox x:Name="SkipCf_stopCharging" Tag="stopCharging" Style="{StaticResource SkipCfChk}" ToolTip="Skip 'Stop charging now?' (the STOP button in the charging bar)"><Viewbox StretchDirection="DownOnly" HorizontalAlignment="Left"><TextBlock Text="Stop chg"/></Viewbox></CheckBox>
+                  <CheckBox x:Name="SkipCf_limit" Tag="limit" Style="{StaticResource SkipCfChk}" ToolTip="Skip confirm when you drag the charge limit on the battery bar"><Viewbox StretchDirection="DownOnly" HorizontalAlignment="Left"><TextBlock Text="Limit"/></Viewbox></CheckBox>
+                  <CheckBox x:Name="SkipCf_amps" Tag="amps" Style="{StaticResource SkipCfChk}" ToolTip="Skip confirm when you set the charging amps"><Viewbox StretchDirection="DownOnly" HorizontalAlignment="Left"><TextBlock Text="Amps"/></Viewbox></CheckBox>
+                </UniformGrid>
+              </DockPanel>
+            </Border>
           </StackPanel>
         </Border>
-        <!-- v4.3.17: START / STOP CHARGING right under TESLA CONTROLS (moved out of the battery card) -->
-        <UniformGrid x:Name="ChgBtnRow" Columns="2" Rows="1" Margin="0,0,0,6">
-          <Button x:Name="ChgStartBtn" Style="{StaticResource CtlBtn}" Height="44" Margin="0,0,3,0" Padding="3,2,3,2" ToolTip="Start charging (car must be plugged in)">
-            <StackPanel HorizontalAlignment="Center">
-              <TextBlock x:Name="ChgStartTxt" Text="START CHARGING" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center"/>
-              <TextBlock x:Name="ChgStartSub" Text="" FontSize="8.5" FontWeight="SemiBold" Foreground="#FF888888" HorizontalAlignment="Center"/>
-            </StackPanel>
-          </Button>
-          <Button x:Name="ChgStopBtn" Style="{StaticResource CtlBtn}" Height="44" Margin="3,0,0,0" Padding="3,2,3,2" ToolTip="Stop charging">
-            <StackPanel HorizontalAlignment="Center">
-              <TextBlock x:Name="ChgStopTxt" Text="STOP CHARGING" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center"/>
-              <TextBlock x:Name="ChgStopSub" Text="" FontSize="8.5" FontWeight="SemiBold" Foreground="#FF888888" HorizontalAlignment="Center"/>
-            </StackPanel>
-          </Button>
-        </UniformGrid>
 
         <Border x:Name="BattCard" CornerRadius="10" Background="#FF111111" BorderBrush="#FF222222" BorderThickness="1" Padding="12,7,12,8" Margin="0,0,0,6">
           <StackPanel>
@@ -1809,7 +1855,8 @@ function Open-Url433 {
           </StackPanel>
         </Border>
 
-        <UniformGrid Columns="3" Rows="1" Margin="0,0,0,6">
+        <!-- v4.3.18: old POWER / DURATION / ENDED tiles replaced by the CHARGING STATUS bar; kept collapsed (Render-View still fills them) -->
+        <UniformGrid x:Name="TilesRow" Columns="3" Rows="1" Margin="0,0,0,6" Visibility="Collapsed">
           <Border x:Name="Tile0" CornerRadius="8" Background="#FF151515" Margin="0,0,4,0" Padding="5,5,5,5">
             <StackPanel>
               <TextBlock x:Name="TileLbl0" Text="POWER" FontSize="9" FontWeight="SemiBold" Foreground="#FF7A7A7A" HorizontalAlignment="Center"/>
@@ -2413,6 +2460,8 @@ function Build-LiveView {
         $v.bar = New-Bar $Win.socStartPct $s.limitPct $s.socPct
         $stLocal = ConvertFrom-Epoch $Win.startEpoch
     }
+    $dm = [math]::Max(0.0, ((ConvertFrom-Epoch $s.lastEpoch) - $stLocal).TotalMinutes)   # v4.3.18: status bar
+    $v | Add-Member -NotePropertyName chgInfo -NotePropertyValue ([ordered]@{ kw = $kw; sub = $kwSub; durMin = $dm; dur = (Format-Duration $dm); fullAt = $(if ($tf -eq 'Done') { 'Done' } elseif ($tfSub -like 'done ~*') { $tfSub.Substring(5) } else { $tf }); endedClock = '' }) -Force
     $v.tiles = @(@('CHARGING AT', $kw, $kwSub), @('TO FULL', $tf, $tfSub), @('STARTED', (Format-Clock $stLocal), $stLocal.ToString('ddd MMM d', $Inv)))
     $v.tires = $tires; $v.car = $car
     if (-not $Note -and $s.joinedMid) { $Note = 'Joined mid-session: earlier kWh priced at the current rate' }
@@ -2442,6 +2491,7 @@ function Build-IdleView {
     $endLocal = ConvertFrom-Epoch $last.endEpoch
     $pSub = ' '; if ($null -ne $car) { $pSub = Get-FriendlyChargeState ([string]$car.chargingState) }
     $durSub = 'last charge'; if ([string]$last.source -eq 'window') { $durSub = $(if ([int]$last.sessions -gt 1) { ('{0} sessions, 11 PM-11 AM' -f $last.sessions) } else { 'overnight charge' }) }
+    $v | Add-Member -NotePropertyName chgInfo -NotePropertyValue ([ordered]@{ kw = '0 kW'; sub = $durSub; durMin = $null; dur = $dur; fullAt = ''; endedClock = (Format-Clock $endLocal); endedDay = $endLocal.ToString('ddd MMM d', $Inv) }) -Force   # v4.3.18: status bar
     $v.tiles = @(@('POWER', 'Not charging', $pSub), @('DURATION', $dur, $durSub), @('ENDED', (Format-Clock $endLocal), $endLocal.ToString('ddd MMM d', $Inv)))
     $v.tires = $tires; $v.car = $car
     $v.statusNote = $Note
@@ -3181,18 +3231,57 @@ function Complete-TessieCommand {
     if ($null -ne $next) { if (-not (Start-TessieCommand $next.cmd $next.query $next.busy $next.okText $next.onOk $next.ann)) { $script:CtlQueue.Clear() } }
 }
 
+# ---------------- v4.3.18: SKIP CONFIRM (one saved checkbox per confirmed action; default unchecked) ----------------
+# config.json skipConfirm = { unlock, leave, flash, vent, trunk, sentry, announce, stopCharging, limit, amps } (true = run right away, no pop-up).
+# Updates only replace TessDesk.ps1, so the settings stay until unchecked.
+$SkipCfKeys = @('unlock', 'leave', 'flash', 'vent', 'trunk', 'sentry', 'announce', 'stopCharging', 'limit', 'amps')
+$script:SkipCf = [ordered]@{}; foreach ($k in $SkipCfKeys) { $script:SkipCf[$k] = $false }
+$script:SkipCfLog = @()
+$script:SkipCfLoading = $false
+function Get-SkipCfCfg {
+    $o = [ordered]@{}; foreach ($k in $SkipCfKeys) { $o[$k] = $false }
+    try { $raw = Read-Config; if ($null -ne $raw -and $null -ne $raw.PSObject.Properties['skipConfirm'] -and $null -ne $raw.skipConfirm) { foreach ($k in $SkipCfKeys) { $p = $raw.skipConfirm.PSObject.Properties[$k]; if ($null -ne $p) { $o[$k] = [bool]$p.Value } } } } catch {}
+    return $o
+}
+function Test-SkipConfirm {
+    param([string]$Key)
+    $on = [bool]$script:SkipCf[$Key]
+    if ($on) { $script:SkipCfLog = @(@($script:SkipCfLog) + $Key | Select-Object -Last 40); Write-WidgetLog ('skip confirm: ' + $Key + ' runs right away (checked in TESLA CONTROLS)') }
+    return $on
+}
+function Set-SkipConfirm {
+    param([string]$Key, [bool]$On, [bool]$Save = $true)
+    $script:SkipCf[$Key] = $On
+    $cb = $ui['SkipCf_' + $Key]; if ($null -ne $cb -and [bool]$cb.IsChecked -ne $On) { $script:SkipCfLoading = $true; try { $cb.IsChecked = $On } finally { $script:SkipCfLoading = $false } }
+    if ($Save) {
+        $o = [ordered]@{}; foreach ($k in $SkipCfKeys) { $o[$k] = [bool]$script:SkipCf[$k] }
+        try { Save-ConfigProp 'skipConfirm' $o; Write-WidgetLog ('skip confirm saved: ' + $Key + ' = ' + $On) } catch { Write-WidgetLog ('skip confirm save failed: ' + $_.Exception.Message) }
+    }
+}
+function Render-SkipCf {
+    $ui.SkipCfHdr.Foreground = T 'TextSoft'; $ui.SkipCfRow.BorderBrush = T 'BtnBorder'
+    foreach ($k in $SkipCfKeys) { $cb = $ui['SkipCf_' + $k]; $cb.Foreground = $(if ([bool]$cb.IsChecked) { T 'Amber' } else { T 'TextSoft' }) }
+}
+$script:SkipCf = Get-SkipCfCfg
+foreach ($k in $SkipCfKeys) {
+    $cb = $ui['SkipCf_' + $k]
+    $script:SkipCfLoading = $true; try { $cb.IsChecked = [bool]$script:SkipCf[$k] } finally { $script:SkipCfLoading = $false }
+    $h = { param($s9, $e9) try { if (-not $script:SkipCfLoading) { Set-SkipConfirm ([string]$s9.Tag) ([bool]$s9.IsChecked); Render-SkipCf } } catch { Write-WidgetLog ('skip confirm: ' + $_.Exception.Message) } }
+    $cb.Add_Checked($h); $cb.Add_Unchecked($h)
+}
+
 function Invoke-LockToggle {
     $car = Get-CtlCar
     $locked = Get-CtlValue 'locked' $(if ($null -ne $car) { $car.locked } else { $null })
     if ($null -ne $locked -and [bool]$locked) {
-        if (-not (Confirm-Ctl 'Unlock your Tesla?')) { Set-CtlResult 'idle' 'Unlock cancelled'; return }
+        if (-not (Test-SkipConfirm 'unlock') -and -not (Confirm-Ctl 'Unlock your Tesla?')) { Set-CtlResult 'idle' 'Unlock cancelled'; return }
         [void](Start-TessieCommand 'unlock' @{} 'Unlocking…' 'Unlocked' { Set-CtlOverride 'locked' $false } 'Your Tesla is now unlocked.')
     } else {
         [void](Start-TessieCommand 'lock' @{} 'Locking…' 'Locked' { Set-CtlOverride 'locked' $true } 'Your Tesla is now locked.')
     }
 }
 function Invoke-Vent {
-    if (-not (Confirm-Ctl 'Vent the windows on your Tesla?')) { Set-CtlResult 'idle' 'Vent cancelled'; return }
+    if (-not (Test-SkipConfirm 'vent') -and -not (Confirm-Ctl 'Vent the windows on your Tesla?')) { Set-CtlResult 'idle' 'Vent cancelled'; return }
     [void](Start-TessieCommand 'vent_windows' @{} 'Venting windows…' 'Windows vented' { Set-CtlOverride 'windowsOpen' $true })
 }
 function Invoke-CloseWindows { [void](Start-TessieCommand 'close_windows' @{} 'Closing windows…' 'Windows closed' { Set-CtlOverride 'windowsOpen' $false }) }
@@ -3238,7 +3327,7 @@ function Request-ChargeLimit {
     $label = ('{0}%' -f $p) + $(if ($null -ne $mi) { ' / ' + (Format-Miles $mi) } else { '' })
     if ($null -ne $script:BarLimitShown -and $p -eq [int]$script:BarLimitShown) { $script:VPend = $null; Set-CtlResult 'idle' ('Charge limit stays ' + $label); Render-View; return $p }
     if ($null -ne $script:BarLimitShown -and $p -eq [int]$script:BarLimitShown) { $script:VPend = $null }
-    $okc = Confirm-Ctl ('Set to {0}%?' -f $p) ('Charge limit ' + $label) 'Confirm' 'Cancel'
+    $okc = (Test-SkipConfirm 'limit') -or (Confirm-Ctl ('Set to {0}%?' -f $p) ('Charge limit ' + $label) 'Confirm' 'Cancel')
     $script:VPend = $null
     if (-not $okc) { Set-CtlResult 'idle' 'Charge limit unchanged'; Render-View; return $p }
     $okb = [scriptblock]::Create('Set-CtlOverride ''limit'' ' + $p)
@@ -3325,7 +3414,7 @@ function Invoke-FlashLights {
     if ($n -ne $script:FlashCountSaved) { $script:FlashCountSaved = $n; if (-not $SelfTest) { try { Save-ConfigProp 'flashCount' $n } catch { Write-WidgetLog ('flash count save failed: ' + $_.Exception.Message) } } }
     $p = Get-FlashPause; Set-FlashPause $p
     $plural = $(if ($n -eq 1) { '' } else { 'es' })
-    if (-not (Confirm-Ctl ('Flash the lights {0} time{1}?' -f $n, $(if ($n -eq 1) { '' } else { 's' })) ('{0} flash{1}, about {2} seconds apart. Tap Stop to end early.' -f $n, $plural, $p.ToString('0.#', $Inv)) 'Flash' 'Cancel')) { Set-CtlResult 'idle' 'Flash lights cancelled'; Render-Flash; return }
+    if (-not (Test-SkipConfirm 'flash') -and -not (Confirm-Ctl ('Flash the lights {0} time{1}?' -f $n, $(if ($n -eq 1) { '' } else { 's' })) ('{0} flash{1}, about {2} seconds apart. Tap Stop to end early.' -f $n, $plural, $p.ToString('0.#', $Inv)) 'Flash' 'Cancel')) { Set-CtlResult 'idle' 'Flash lights cancelled'; Render-Flash; return }
     $F = $script:Flash
     $F.total = $n; $F.done = 0; $F.running = $true; $F.stoppedEarly = $false; $F.pause = $p; $F.noWait = ($p -lt 3.0)
     $F.pendingAt = $null; $F.nextAt = $null; $F.sends = @(); $F.rtts = @()
@@ -3483,7 +3572,7 @@ function Start-LeaveSoon {
     Save-LeaveMins
     $m = Get-LeaveMins; $spm = Get-LeaveSecPerMin
     $sub = ('Climate turns on now, {0}, then {1}. Each step is announced on Alexa. Stop cancels the rest and undoes the steps already done.' -f (Format-LeaveIn $m[0] 'the windows close right away' 'the windows close {0} later'), (Format-LeaveIn $m[1] 'the car unlocks right after that' 'the car unlocks {0} after that'))
-    if (-not (Confirm-Ctl 'Are you sure? Start Leaving Soon?' $sub 'Start' 'Cancel')) { Set-CtlResult 'idle' 'Leaving Soon cancelled'; return }
+    if (-not (Test-SkipConfirm 'leave') -and -not (Confirm-Ctl 'Are you sure? Start Leaving Soon?' $sub 'Start' 'Cancel')) { Set-CtlResult 'idle' 'Leaving Soon cancelled'; return }
     $L.running = $true; $L.phase = 'snap'; $L.step = 0; $L.mins = @(0, $m[0], $m[1]); $L.waits = @(0, ($m[0] * $spm), ($m[1] * $spm)); $L.waitSec = $L.waits[1]
     $L.dueAt = Get-Date; $L.job = $null; $L.result = ''; $L.kind = 'busy'; $L.notes = @(); $L.log = @(); $L.ann = @(); $L.waitLog = @()
     $L.startedAt = Get-Date; $L.endedAt = $null; $L.hideAt = $null
@@ -3785,7 +3874,7 @@ function Invoke-ChargeStart {
 }
 function Invoke-ChargeStop {
     if ((Get-ChgState) -ne 'Charging') { Set-CtlResult 'idle' 'Not charging right now'; Render-Controls; return }
-    if (-not (Confirm-Ctl 'Stop charging now?')) { Set-CtlResult 'idle' 'Still charging'; return }
+    if (-not (Test-SkipConfirm 'stopCharging') -and -not (Confirm-Ctl 'Stop charging now?')) { Set-CtlResult 'idle' 'Still charging'; return }
     [void](Start-TessieCommand 'stop_charging' @{} 'Stopping charging…' 'Charging stopped' { Set-CtlOverride 'chargingState' 'Stopped' } 'Charging stopped.')
 }
 function Get-AmpsBounds {
@@ -3803,7 +3892,7 @@ function Request-ChargeAmps {
     $a = [int][math]::Max($b[0], [math]::Min($b[1], $Amps))
     $cur = Get-ShownAmps
     if ($null -ne $cur -and $a -eq [int]$cur) { Set-CtlResult 'idle' ('Charging amps stay ' + $a + ' A'); Render-View; return $a }
-    if (-not (Confirm-Ctl ('Set charging current to {0} A?' -f $a))) { Set-CtlResult 'idle' 'Charging amps unchanged'; Render-View; return $a }
+    if (-not (Test-SkipConfirm 'amps') -and -not (Confirm-Ctl ('Set charging current to {0} A?' -f $a))) { Set-CtlResult 'idle' 'Charging amps unchanged'; Render-View; return $a }
     $okb = [scriptblock]::Create('Set-CtlOverride ''amps'' ' + $a)
     [void](Start-TessieCommand 'set_charging_amps' @{ amps = [string]$a } ('Setting charging current ' + $a + ' A…') ('Charging current ' + $a + ' A') $okb ('Charging current set to ' + $a + ' amps.'))
     Render-View
@@ -3952,10 +4041,10 @@ function Invoke-Trunk {
     $car = Get-CtlCar
     $open = [bool](Get-CtlValue 'trunkOpen' $(if ($null -ne $car) { $car.trunkOpen } else { $null }))
     if ($open) {
-        if (-not (Confirm-Ctl 'Are you sure?' 'Close the rear trunk? Make sure nothing and no one is in the way.' 'Close trunk' 'Cancel')) { Set-CtlResult 'idle' 'Trunk left open'; return }
+        if (-not (Test-SkipConfirm 'trunk') -and -not (Confirm-Ctl 'Are you sure?' 'Close the rear trunk? Make sure nothing and no one is in the way.' 'Close trunk' 'Cancel')) { Set-CtlResult 'idle' 'Trunk left open'; return }
         [void](Start-TessieCommand 'activate_rear_trunk' @{} 'Closing the trunk…' 'Trunk closing' { Set-CtlOverride 'trunkOpen' $false } 'Your Tesla trunk is closing.')
     } else {
-        if (-not (Confirm-Ctl 'Are you sure?' 'Open the rear trunk?' 'Open trunk' 'Cancel')) { Set-CtlResult 'idle' 'Trunk not opened'; return }
+        if (-not (Test-SkipConfirm 'trunk') -and -not (Confirm-Ctl 'Are you sure?' 'Open the rear trunk?' 'Open trunk' 'Cancel')) { Set-CtlResult 'idle' 'Trunk not opened'; return }
         [void](Start-TessieCommand 'activate_rear_trunk' @{} 'Opening the trunk…' 'Trunk open' { Set-CtlOverride 'trunkOpen' $true } 'Your Tesla trunk is open.')
     }
 }
@@ -3963,10 +4052,10 @@ function Invoke-SentryToggle {
     $car = Get-CtlCar
     $on = [bool](Get-CtlValue 'sentry' $(if ($null -ne $car) { $car.sentry } else { $null }))
     if ($on) {
-        if (-not (Confirm-Ctl 'Turn Sentry Mode OFF?' 'The car stops watching and recording its surroundings.' 'Turn off' 'Cancel')) { Set-CtlResult 'idle' 'Sentry Mode stays on'; return }
+        if (-not (Test-SkipConfirm 'sentry') -and -not (Confirm-Ctl 'Turn Sentry Mode OFF?' 'The car stops watching and recording its surroundings.' 'Turn off' 'Cancel')) { Set-CtlResult 'idle' 'Sentry Mode stays on'; return }
         [void](Start-TessieCommand 'disable_sentry' @{} 'Turning Sentry Mode off…' 'Sentry Mode off' { Set-CtlOverride 'sentry' $false } 'Sentry Mode is now off.')
     } else {
-        if (-not (Confirm-Ctl 'Turn Sentry Mode ON?' 'The car watches and records its surroundings (uses some battery).' 'Turn on' 'Cancel')) { Set-CtlResult 'idle' 'Sentry Mode stays off'; return }
+        if (-not (Test-SkipConfirm 'sentry') -and -not (Confirm-Ctl 'Turn Sentry Mode ON?' 'The car watches and records its surroundings (uses some battery).' 'Turn on' 'Cancel')) { Set-CtlResult 'idle' 'Sentry Mode stays off'; return }
         [void](Start-TessieCommand 'enable_sentry' @{} 'Turning Sentry Mode on…' 'Sentry Mode on' { Set-CtlOverride 'sentry' $true } 'Sentry Mode is now on.')
     }
 }
@@ -4021,6 +4110,66 @@ function Set-StateBtn {
     $Sub.Text = $SubText
     $Sub.Foreground = $(if ($Active) { T 'Green' } else { T 'Caption' })
 }
+# ---------------- v4.3.18: CHARGING STATUS bar (under the big cost) ----------------
+# Same state logic as the START / STOP buttons and the glow (Get-ChgState, Get-GlowState). CHARGING = green + pulsing dot; COMPLETE = green;
+# NOT CHARGING (stopped / no power / unknown) and UNPLUGGED = red. Numbers come from the view (chgInfo from Build-LiveView / Build-IdleView) + the car's SOC.
+$script:ChgPulseKind = ''
+$script:ChgStatus = $null
+function Get-ChgStatus {
+    $v = $script:View; $car = Get-CtlCar
+    $cs = ''; try { $cs = [string](Get-ChgState) } catch {}
+    $glow = ''; try { $glow = [string](Get-GlowState) } catch {}
+    $kind = 'not'
+    if ($cs -eq 'Charging' -or $cs -eq 'Starting') { $kind = 'charging' }
+    elseif (-not $cs -and $glow -eq 'pulse') { $kind = 'charging' }
+    elseif ($cs -eq 'Complete') { $kind = 'complete' }
+    elseif ($cs -eq 'Disconnected') { $kind = 'unplugged' }
+    $word = @{ charging = 'CHARGING'; complete = 'COMPLETE'; unplugged = 'UNPLUGGED'; not = 'NOT CHARGING' }[$kind]
+    $ci = $null; if ($null -ne $v -and $null -ne $v.PSObject.Properties['chgInfo']) { $ci = $v.chgInfo }
+    $live = ($null -ne $ci -and $null -ne $ci.durMin)
+    $dur = $(if ($null -ne $ci -and $ci.dur) { [string]$ci.dur } else { '—' })
+    $soc = '—'; if ($null -ne $car -and $null -ne $car.socPct) { $soc = ('{0:N0}%' -f [double]$car.socPct) } elseif ([string]$ui.BattPct.Text -match '\d') { $soc = [string]$ui.BattPct.Text }
+    if ($kind -eq 'charging') {
+        $labels = @('POWER', 'SESSION', 'FULL AT', 'BATTERY')
+        $values = @($(if ($live -and $ci.kw) { [string]$ci.kw } else { '—' }), $(if ($live) { $dur } else { '—' }), $(if ($live -and $ci.fullAt) { [string]$ci.fullAt } else { '—' }), $soc)
+    } else {
+        $labels = @('POWER', $(if ($live) { 'SESSION' } else { 'LAST SESSION' }), 'ENDED', 'BATTERY')
+        $values = @('0 kW', $dur, $(if ($null -ne $ci -and $ci.endedClock) { [string]$ci.endedClock } else { '—' }), $soc)
+    }
+    $sub = ''
+    switch ($kind) {
+        'charging'  { $sub = $(if ($cs -eq 'Starting') { 'Starting…' } elseif ($live -and $ci.sub -and [string]$ci.sub -ne ' ') { [string]$ci.sub + ' · this session' } else { 'this session' }) }
+        'complete'  { $sub = 'Charge complete · still plugged in' }
+        'unplugged' { $sub = 'Plug in to charge' }
+        default     { $sub = $(if ($cs) { Get-FriendlyChargeState $cs } else { 'Charging state unknown' }) }
+    }
+    if ($kind -ne 'charging' -and -not $live -and $null -ne $ci -and $ci.sub -and [string]$ci.sub -ne ' ') { $sub += ' · ' + [string]$ci.sub }
+    return [ordered]@{ kind = $kind; state = $cs; word = $word; labels = $labels; values = $values; sub = $sub }
+}
+function Render-ChgStatus {
+    $st = Get-ChgStatus; $script:ChgStatus = $st
+    $key = $(if ($st.kind -eq 'charging' -or $st.kind -eq 'complete') { 'Green' } else { 'Red' })
+    $b = T $key; $c = $b.Color
+    $ui.ChgState.Text = $st.word; $ui.ChgState.Foreground = $b
+    $ui.ChgCard.BorderBrush = $b
+    $ui.ChgCard.Background = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromArgb($(if ($st.kind -eq 'charging') { 0x30 } else { 0x22 }), $c.R, $c.G, $c.B))
+    try { $ui.ChgCard.CornerRadius = [System.Windows.CornerRadius]::new($script:Theme.CardRadius) } catch {}
+    $ui.ChgDot.Stroke = $b; $ui.ChgDot.Fill = $(if ($st.kind -eq 'unplugged') { [System.Windows.Media.Brushes]::Transparent } else { $b })
+    for ($i = 0; $i -lt 4; $i++) { $ui['ChgL' + $i].Text = $st.labels[$i]; $ui['ChgV' + $i].Text = $st.values[$i]; $ui['ChgL' + $i].Foreground = T 'TextSoft'; $ui['ChgV' + $i].Foreground = T 'Text' }
+    $ui.ChgSub.Text = $st.sub; $ui.ChgSub.Foreground = T 'TextSoft'
+    $ui.ChgCard.ToolTip = ('Charging status: ' + $st.word + ' · ' + $st.sub)
+    if ($st.kind -ne $script:ChgPulseKind) {
+        $script:ChgPulseKind = $st.kind
+        $ui.ChgDot.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $null); $ui.ChgDot.Opacity = 1.0
+        if ($st.kind -eq 'charging') {
+            $a = New-Object System.Windows.Media.Animation.DoubleAnimation
+            $a.From = 1.0; $a.To = 0.2; $a.Duration = [System.Windows.Duration]::new([TimeSpan]::FromSeconds(0.9)); $a.AutoReverse = $true
+            $a.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever
+            $ui.ChgDot.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $a)
+        }
+    }
+}
+
 function Render-Controls42 {
     param([bool]$En)
     $car = Get-CtlCar; $have = ($null -ne $car)
@@ -4033,6 +4182,8 @@ function Render-Controls42 {
     Set-StateBtn $ui.ChgStopBtn $ui.ChgStopTxt $ui.ChgStopSub ($plugged -and -not $chg) $stopTxt
     if ($plugged -and -not $chg) { $ui.ChgStopBtn.BorderBrush = T 'TextSoft'; $ui.ChgStopTxt.Foreground = T 'Text'; $ui.ChgStopSub.Foreground = T 'TextSoft' }
     $ui.ChgStartBtn.IsEnabled = ($En -and $plugged -and -not $chg); $ui.ChgStopBtn.IsEnabled = ($En -and $chg)
+    try { Render-ChgStatus } catch { Write-WidgetLog ('charging status: ' + $_.Exception.Message) }
+    try { Render-SkipCf } catch { Write-WidgetLog ('skip confirm: ' + $_.Exception.Message) }
     # amps slider
     $b = Get-AmpsBounds; $a = Get-ShownAmps
     $ui.AmpsMinLbl.Text = ('{0} A' -f $b[0]); $ui.AmpsMaxLbl.Text = ('{0} A max' -f $b[1])
@@ -4794,7 +4945,7 @@ function Invoke-AnnounceNow {
         if (-not $SelfTest) { Show-AnnounceWindow }
         return $null
     }
-    if (-not (Confirm-Ctl 'Announce full status?' ('Alexa speaks the rundown on ' + (Get-TargetLabel)) 'Announce' 'Cancel')) { Set-CtlResult 'idle' 'Announcement cancelled'; return $null }
+    if (-not (Test-SkipConfirm 'announce') -and -not (Confirm-Ctl 'Announce full status?' ('Alexa speaks the rundown on ' + (Get-TargetLabel)) 'Announce' 'Cancel')) { Set-CtlResult 'idle' 'Announcement cancelled'; return $null }
     $rd = Get-Rundown; $script:LastRundown = $rd
     Write-WidgetLog ('rundown ({0} words, ~{1} s, {2} part(s)): {3}' -f $rd.words, $rd.seconds, @($rd.parts).Count, (@($rd.parts) -join ' || '))
     Set-CtlResult 'busy' ('Announcing on ' + (Get-TargetLabel) + '…')
@@ -8320,12 +8471,12 @@ function Start-SelfTest {
     $script:Click4317 = { param($b) $b.RaiseEvent((New-Object System.Windows.RoutedEventArgs([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent))) }
     & $add 'v4.3.17 layout order (hero, TESLA CONTROLS, START / STOP, battery, amps, tiles, day rate, history dropdown)' @() {
         Stop-LeaveSoon; Set-ChgHistOpen $false $false; Render-View; $ui.BodyScroll.ScrollToVerticalOffset(0); $window.UpdateLayout()
-        $names = @('HeroCost', 'Roll7Cost', 'Roll60Cost', 'CtlCard', 'LeaveBtn', 'LeaveWaitRow', 'AnnNowBtn', 'ChgBtnRow', 'BattCard', 'VLim', 'AmpsHdr', 'Tile0', 'PeakBanner', 'RowsCard', 'SeatsCard', 'TiresCard', 'DrivesCard')
+        $names = @('HeroCost', 'Roll7Cost', 'Roll60Cost', 'CtlCard', 'LeaveBtn', 'LeaveWaitRow', 'AnnNowBtn', 'ChgCard', 'BattCard', 'VLim', 'AmpsHdr', 'PeakBanner', 'RowsCard', 'SeatsCard', 'TiresCard', 'DrivesCard')
         $ys = [ordered]@{}; foreach ($n in $names) { $ys[$n] = & $script:Y4317 $ui[$n] }
-        $chk = @('HeroCost', 'CtlCard', 'ChgBtnRow', 'BattCard', 'AmpsHdr', 'Tile0', 'PeakBanner', 'RowsCard', 'SeatsCard'); $seq = @($chk | Where-Object { $null -ne $ys[$_] })
+        $chk = @('HeroCost', 'ChgCard', 'CtlCard', 'BattCard', 'AmpsHdr', 'PeakBanner', 'RowsCard', 'SeatsCard'); $seq = @($chk | Where-Object { $null -ne $ys[$_] })
         $inOrder = $true; for ($i = 1; $i -lt $seq.Count; $i++) { if ($ys[$seq[$i]] -le $ys[$seq[$i - 1]]) { $inOrder = $false } }
         $ctlBottom = $ys['CtlCard'] + $ui.CtlCard.ActualHeight + $ui.CtlCard.Margin.Bottom
-        $script:SelfRec.v4317.order = [ordered]@{ y = $ys; checked = $seq; inOrder = $inOrder; chgRightUnderControls = ([math]::Abs($ys['ChgBtnRow'] - $ctlBottom) -lt 1.5)
+        $script:SelfRec.v4317.order = [ordered]@{ y = $ys; checked = $seq; inOrder = $inOrder; chgBarAboveControls = ($ys['ChgCard'] -lt $ys['CtlCard'])
             bodyStack = @($ui.BodyStack.Children | ForEach-Object { if ($_.Name) { $_.Name } else { $_.GetType().Name } }); chgButtonsParent = [string]$ui.ChgStartBtn.Parent.Name
             ctlInScrollTop = ($ui.BodyStack.Children.IndexOf($ui.CtlCard) -eq 0); heroRowStillTop = ([System.Windows.Controls.Grid]::GetRow($ui.HeroRow.Parent) -eq 1); layout = (Get-LayoutCheck) }
         & $script:Shot4317 'layout-top' }
@@ -8347,6 +8498,127 @@ function Start-SelfTest {
         & $script:Click4317 $ui.ChgHistBtn; $r = [ordered]@{ closed = (& $script:Hist4317) }
         $script:ChgHist.open = $true; $ui.ChgHistBody.Visibility = 'Visible'; $script:Cfg = Read-Config; Set-ChgHistOpen (Get-ChgHistCfg) $false
         $r.reloadClosed = (& $script:Hist4317); $script:SelfRec.v4317.close = $r; $ui.BodyScroll.ScrollToVerticalOffset(0); $window.UpdateLayout(); & $script:Shot4317 'final' }
+        # ---- v4.3.18: CHARGING STATUS bar (each state, start / stop from the bar, DRY RUN) + fits 364x990 without scrolling ----
+    $script:SelfRec.v4318 = [ordered]@{ appVersion = $AppVersion; footer = $ui.FooterVersion.Text; footerBold = [string]$ui.FooterText.FontWeight; states = [ordered]@{} }
+    $script:Orig4318 = $script:View
+    $script:New4318 = { param($ref) $L = @($script:CtlLog); $i = -1; for ($k = 0; $k -lt $L.Count; $k++) { if ([object]::ReferenceEquals($L[$k], $ref)) { $i = $k } }; if ($null -ne $ref -and $i -lt 0) { return $L }; return @($L | Select-Object -Skip ($i + 1)) }   # CtlLog keeps only the last 12
+    $script:Shot4318 = { param($n) $f = 'tessdesk-v4318-' + $n + '.png'; Save-RootPng (Join-Path $script:SelfDir $f); $script:SelfRec.shots += $f }
+    $script:ElPng4318 = { param($el, $n)
+        $window.UpdateLayout(); $s = 2.0; $w = [int][math]::Ceiling($el.ActualWidth * $s); $h = [int][math]::Ceiling($el.ActualHeight * $s)
+        $bmp = New-Object System.Windows.Media.Imaging.RenderTargetBitmap($w, $h, (96 * $s), (96 * $s), [System.Windows.Media.PixelFormats]::Pbgra32)
+        $dv = New-Object System.Windows.Media.DrawingVisual; $dc = $dv.RenderOpen()
+        $dc.DrawRectangle((T 'RootBg'), $null, [System.Windows.Rect]::new(0, 0, $el.ActualWidth, $el.ActualHeight))
+        $dc.DrawRectangle((New-Object System.Windows.Media.VisualBrush($el)), $null, [System.Windows.Rect]::new(0, 0, $el.ActualWidth, $el.ActualHeight)); $dc.Close(); $bmp.Render($dv)
+        $enc = New-Object System.Windows.Media.Imaging.PngBitmapEncoder; $enc.Frames.Add([System.Windows.Media.Imaging.BitmapFrame]::Create($bmp))
+        $f = 'tessdesk-v4318-' + $n + '.png'; $fs = [IO.File]::Create((Join-Path $script:SelfDir $f)); try { $enc.Save($fs) } finally { $fs.Close() }; $script:SelfRec.shots += $f }
+    $script:Fake4318 = { param([string]$cs, [bool]$live)
+        $now = Get-EpochNow; $base = $null; if ($null -ne $script:Orig4318) { $base = $script:Orig4318.car }
+        $car = [pscustomobject]@{}; if ($null -ne $base) { foreach ($p in $base.PSObject.Properties) { $car | Add-Member -NotePropertyName $p.Name -NotePropertyValue $p.Value -Force } }
+        foreach ($kv in ([ordered]@{ chargingState = $cs; socPct = 58; limitPct = 80; volts = 240; amps = 32; fastCharger = $false; phases = 1 }).GetEnumerator()) { $car | Add-Member -NotePropertyName $kv.Key -NotePropertyValue $kv.Value -Force }
+        $tires = $null; if ($null -ne $script:Orig4318) { $tires = $script:Orig4318.tires }
+        $loc = Read-LocalJson
+        if ($live) { $s = [pscustomobject]@{ costUsdAllIn = 0.62; rateNow = 0.0305; kwhAdded = 5.1; socStartPct = 50; limitPct = 80; socPct = 58; chargerKw = 7.7; minutesToFull = 140; lastEpoch = $now; startEpoch = $now - 3960; joinedMid = $false }
+            return (Build-LiveView $s $car $tires $loc '' $null) }
+        $last = [pscustomobject]@{ startEpoch = $now - 36000; endEpoch = $now - 18000; costUsdAllIn = 1.63; kwhWall = 26.3; kwhAdded = 23.7; socStartPct = 44; socEndPct = 80; source = 'window'; sessions = 1 }
+        return (Build-IdleView $last $car $tires $loc '') }
+    $script:Rec4318 = { $window.UpdateLayout()
+        [ordered]@{ word = $ui.ChgState.Text; kind = $script:ChgStatus.kind; chargingState = $script:ChgStatus.state; color = [string]$ui.ChgState.Foreground; border = [string]$ui.ChgCard.BorderBrush
+            stats = @(0..3 | ForEach-Object { $ui['ChgL' + $_].Text + '=' + $ui['ChgV' + $_].Text }); sub = $ui.ChgSub.Text; dotPulsing = [bool]$ui.ChgDot.HasAnimatedProperties; dotFill = [string]$ui.ChgDot.Fill
+            start = [ordered]@{ enabled = $ui.ChgStartBtn.IsEnabled; sub = $ui.ChgStartSub.Text }; stop = [ordered]@{ enabled = $ui.ChgStopBtn.IsEnabled; sub = $ui.ChgStopSub.Text }
+            glow = [string]$script:GlowMode; theme = [string]$script:Theme.Name; wordFits = ($ui.ChgState.Parent.ActualHeight -gt 0 -and ($ui.ChgState.ActualWidth * ($ui.ChgState.Parent.ActualHeight / [math]::Max(1, $ui.ChgState.ActualHeight))) -le $ui.ChgHead.ActualWidth + 0.5) } }
+    $script:State4318 = { param([string]$name, [string]$cs, [bool]$live, [string]$shot)
+        $script:CtlOverride.Remove('chargingState'); $script:GlowForce = $null
+        $script:View = (& $script:Fake4318 $cs $live); Render-View; $ui.BodyScroll.ScrollToVerticalOffset(0); $window.UpdateLayout()
+        $script:SelfRec.v4318.states[$name] = (& $script:Rec4318)
+        if ($shot) { & $script:Shot4318 $shot; & $script:ElPng4318 $ui.ChgCard ($shot + '-bar') } }
+    & $add 'v4.3.18 status bar: CHARGING (live session, 7.7 kW)' @() { & $script:State4318 'charging' 'Charging' $true 'charging' }
+    & $add 'v4.3.18 status bar: NOT CHARGING (plugged in, stopped)' @() { & $script:State4318 'notCharging' 'Stopped' $false 'not-charging' }
+    & $add 'v4.3.18 status bar: UNPLUGGED' @() { & $script:State4318 'unplugged' 'Disconnected' $false 'unplugged' }
+    & $add 'v4.3.18 status bar: COMPLETE' @() { & $script:State4318 'complete' 'Complete' $false 'complete' }
+    & $add 'v4.3.18 status bar: NOT CHARGING (no power), CHARGING (starting), unknown state' @() {
+        & $script:State4318 'noPower' 'NoPower' $false ''; & $script:State4318 'starting' 'Starting' $false ''; & $script:State4318 'unknown' '' $false '' }
+    & $add 'v4.3.18 layout: fits 364x990 without scrolling (status bar, TESLA CONTROLS, top of BATTERY)' @() {
+        & $script:State4318 'layoutCharging' 'Charging' $true ''
+        $ui.BodyScroll.ScrollToVerticalOffset(0); $window.UpdateLayout()
+        $sc = $ui.BodyScroll; $vp = $sc.ViewportHeight; $mgH = $ui.MainGrid.ActualHeight
+        $vis = [ordered]@{}
+        foreach ($n in 'HeroCost', 'Roll60Cost', 'ChgCard', 'ChgState', 'ChgStartBtn', 'ChgStopBtn', 'ChgStats', 'ChgSub') { $el = $ui[$n]; $p = $el.TranslatePoint([System.Windows.Point]::new(0, 0), $ui.MainGrid); $vis[$n] = [ordered]@{ top = [math]::Round($p.Y, 1); bottom = [math]::Round($p.Y + $el.ActualHeight, 1); visible = ($el.IsVisible -and ($p.Y + $el.ActualHeight) -le ($sc.TranslatePoint([System.Windows.Point]::new(0, 0), $ui.MainGrid).Y) + 0.5) } }
+        foreach ($n in 'CtlCard', 'LeaveBtn', 'LeaveWaitRow', 'LockBtn', 'FlashBox', 'HeatBtn', 'VentBtn', 'TrunkBtn', 'AnnNowBtn', 'CtlResultBox', 'SkipCfRow', 'BattCard', 'BattHdr', 'BattPct', 'BarDark', 'VThumb', 'BarLimitLbl', 'AmpsHdr', 'PeakBanner', 'RowsCard') {
+            $el = $ui[$n]; $p = $el.TranslatePoint([System.Windows.Point]::new(0, 0), $sc); $vis[$n] = [ordered]@{ top = [math]::Round($p.Y, 1); bottom = [math]::Round($p.Y + $el.ActualHeight, 1); visible = ($el.IsVisible -and $p.Y -ge -0.5 -and ($p.Y + $el.ActualHeight) -le $vp + 0.5) } }
+        $need = @('ChgCard', 'ChgState', 'ChgStartBtn', 'ChgStopBtn', 'ChgStats', 'CtlCard', 'LeaveBtn', 'LockBtn', 'AnnNowBtn', 'CtlResultBox', 'SkipCfRow', 'BattHdr', 'BattPct')
+        $script:SelfRec.v4318.fit = [ordered]@{ window = ('{0}x{1}' -f $window.ActualWidth, $window.ActualHeight); viewport = [math]::Round($vp, 1); mainGrid = [math]::Round($mgH, 1)
+            allKeyVisible = (@($need | Where-Object { -not $vis[$_].visible }).Count -eq 0); notVisible = @($vis.Keys | Where-Object { -not $vis[$_].visible }); elements = $vis
+            tilesHidden = ([string]$ui.TilesRow.Visibility -eq 'Collapsed'); oldChgRowGone = ($null -eq $ui['ChgBtnRow']); chgButtonsParent = [string]$ui.ChgStartBtn.Parent.Name
+            ctlCardHeight = [math]::Round($ui.CtlCard.ActualHeight, 1); chgCardHeight = [math]::Round($ui.ChgCard.ActualHeight, 1); layout = (Get-LayoutCheck) }
+        & $script:Shot4318 'fit-990' }
+    & $add 'v4.3.18 STOP from the status bar: answer NO (nothing sent)' @($false) {
+        & $script:State4318 'stopNoBefore' 'Charging' $true ''; $script:N4318 = @($script:CtlLog)[-1]
+        $ui.ChgStopBtn.RaiseEvent((New-Object System.Windows.RoutedEventArgs([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent)))
+        $script:SelfRec.v4318.stopNo = [ordered]@{ enabledBefore = $script:SelfRec.v4318.states.stopNoBefore.stop.enabled; prompt = @($script:ConfirmPrompts)[-1]; commands = @(& $script:New4318 $script:N4318).Count; result = $script:CtlResultText } }
+    & $add 'v4.3.18 STOP from the status bar: answer YES (DRY RUN)' @($true) {
+        & $script:State4318 'stopBefore' 'Charging' $true ''; $script:N4318 = @($script:CtlLog)[-1]
+        $ui.ChgStopBtn.RaiseEvent((New-Object System.Windows.RoutedEventArgs([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent))) }
+    & $add 'v4.3.18 STOP result: stop_charging (dry run), bar shows NOT CHARGING' @() {
+        $new = @(& $script:New4318 $script:N4318)
+        $script:View = (& $script:Fake4318 'Charging' $true); Render-View; $window.UpdateLayout()
+        $script:SelfRec.v4318.stop = [ordered]@{ prompt = @($script:ConfirmPrompts)[-1]; cmds = @($new | ForEach-Object { $_.cmd + ':' + $(if ($_.dryRun) { 'dryRun' } else { 'REAL' }) + ':' + $(if ($_.ok) { 'ok' } else { 'FAIL' }) }); result = $script:CtlResultText; after = (& $script:Rec4318) }
+        & $script:Shot4318 'after-stop' }
+    & $add 'v4.3.18 START from the status bar (DRY RUN)' @() {
+        & $script:State4318 'startBefore' 'Stopped' $false ''; $script:N4318 = @($script:CtlLog)[-1]
+        $ui.ChgStartBtn.RaiseEvent((New-Object System.Windows.RoutedEventArgs([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent))) }
+    & $add 'v4.3.18 START result: start_charging (dry run), bar shows CHARGING' @() {
+        $new = @(& $script:New4318 $script:N4318)
+        $script:View = (& $script:Fake4318 'Stopped' $false); Render-View; $window.UpdateLayout()
+        $script:SelfRec.v4318.start = [ordered]@{ cmds = @($new | ForEach-Object { $_.cmd + ':' + $(if ($_.dryRun) { 'dryRun' } else { 'REAL' }) + ':' + $(if ($_.ok) { 'ok' } else { 'FAIL' }) }); result = $script:CtlResultText; after = (& $script:Rec4318) }
+        & $script:Shot4318 'after-start' }
+    & $add 'v4.3.18 back to the real view' @() { $script:CtlOverride.Remove('chargingState'); $script:View = $script:Orig4318; Render-View; $ui.BodyScroll.ScrollToVerticalOffset(0); $window.UpdateLayout(); $script:SelfRec.v4318.real = (& $script:Rec4318); & $script:Shot4318 'real' }
+    # ---- v4.3.18 SKIP CONFIRM: each checkbox, unchecked (asks, answer NO, nothing sent) and checked (no pop-up, runs, DRY RUN); saved across restarts ----
+    $script:SelfRec.v4318.skip = [ordered]@{ defaults = (Get-SkipCfCfg); uiDefaults = [ordered]@{}; actions = [ordered]@{} }
+    foreach ($k in $SkipCfKeys) { $script:SelfRec.v4318.skip.uiDefaults[$k] = [bool]$ui['SkipCf_' + $k].IsChecked }
+    $script:SkDefs = @(
+        [pscustomobject]@{ key = 'unlock'; cmd = 'unlock'; prep = { Set-CtlOverride 'locked' $true }; act = { Invoke-LockToggle } }
+        [pscustomobject]@{ key = 'vent'; cmd = 'vent_windows'; prep = { Set-CtlOverride 'windowsOpen' $false }; act = { Invoke-Vent } }
+        [pscustomobject]@{ key = 'trunk'; cmd = 'activate_rear_trunk'; prep = { Set-CtlOverride 'trunkOpen' $false }; act = { Invoke-Trunk } }
+        [pscustomobject]@{ key = 'sentry'; cmd = 'disable_sentry'; prep = { Set-CtlOverride 'sentry' $true }; act = { Invoke-SentryToggle } }
+        [pscustomobject]@{ key = 'flash'; cmd = 'flash'; prep = { $ui.FlashCount.Text = '1'; $ui.FlashPause.Text = '1.0' }; act = { Invoke-FlashLights } }
+        [pscustomobject]@{ key = 'stopCharging'; cmd = 'stop_charging'; prep = { Set-CtlOverride 'chargingState' 'Charging'; Render-View }; act = { $ui.ChgStopBtn.RaiseEvent((New-Object System.Windows.RoutedEventArgs([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent))) } }
+        [pscustomobject]@{ key = 'limit'; cmd = 'set_charge_limit'; prep = { }; act = { $b = Get-LimitBounds; $p = $(if ($null -ne $script:BarLimitShown -and [int]$script:BarLimitShown -eq 75) { 70 } else { 75 }); $p = [math]::Max($b[0], [math]::Min($b[1], $p)); [void](Request-ChargeLimit $p) } }
+        [pscustomobject]@{ key = 'amps'; cmd = 'set_charging_amps'; prep = { }; act = { $c = Get-ShownAmps; $b = Get-AmpsBounds; [void](Request-ChargeAmps $(if ($null -eq $c) { $b[1] - 1 } elseif ([int]$c -gt $b[0]) { [int]$c - 1 } else { [int]$c + 1 })) } }
+        [pscustomobject]@{ key = 'announce'; cmd = ''; prep = { }; act = { [void](Invoke-AnnounceNow) } }
+        [pscustomobject]@{ key = 'leave'; cmd = 'start_climate'; prep = { Set-CtlOverride 'climateOn' $false; Set-CtlOverride 'locked' $true }; act = { Start-LeaveSoon; & $script:Wait4315 { -not $script:Leave.running -and $null -eq $script:Leave.job } } }
+    )
+    $script:SkI = 0
+    $script:SkStart = {
+        $d = $script:SkDefs[$script:SkI]; & $d.prep
+        $script:SkRef = @($script:CtlLog)[-1]; $script:SkP0 = @($script:ConfirmPrompts).Count; $script:SkA0 = @($script:AnnLog).Count; $script:SkS0 = @($script:SkipCfLog).Count
+        & $d.act }
+    $script:SkRes = { param($on)
+        $d = $script:SkDefs[$script:SkI]; $new = @(& $script:New4318 $script:SkRef)
+        [ordered]@{ checked = [bool]$ui['SkipCf_' + $d.key].IsChecked; prompts = @(@($script:ConfirmPrompts) | Select-Object -Skip $script:SkP0); skipped = (@($script:SkipCfLog).Count - $script:SkS0)
+            cmds = @($new | ForEach-Object { $_.cmd + ':' + $(if ($_.dryRun) { 'dryRun' } else { 'REAL' }) + ':' + $(if ($_.ok) { 'ok' } else { 'FAIL' }) }); result = $script:CtlResultText
+            pass = $(if ($on) { (@(@($script:ConfirmPrompts) | Select-Object -Skip $script:SkP0).Count -eq 0) -and $(if ($d.cmd) { @($new | Where-Object { $_.cmd -eq $d.cmd -and $_.dryRun }).Count -ge 1 } else { $script:CtlResultText -like '*rundown composed*' }) } else { (@(@($script:ConfirmPrompts) | Select-Object -Skip $script:SkP0).Count -eq 1) -and $new.Count -eq 0 }) } }
+    foreach ($d0 in $script:SkDefs) {
+        & $add ('v4.3.18 skip confirm OFF: ' + $d0.key + ' asks first (answer NO, nothing sent)') @($false) {
+            $d = $script:SkDefs[$script:SkI]; $script:SelfRec.v4318.skip.actions[$d.key] = [ordered]@{}
+            Set-SkipConfirm $d.key $false; & $script:SkStart }
+        & $add ('v4.3.18 skip confirm OFF: ' + $d0.key + ' result') @() { $d = $script:SkDefs[$script:SkI]; $script:SelfRec.v4318.skip.actions[$d.key].off = (& $script:SkRes $false) }
+        & $add ('v4.3.18 skip confirm ON: tick the ' + $d0.key + ' checkbox, runs with no pop-up (DRY RUN)') @() {
+            $d = $script:SkDefs[$script:SkI]; $ui['SkipCf_' + $d.key].IsChecked = $true; $script:SelfRec.v4318.skip.actions[$d.key].savedOn = [bool](Get-SkipCfCfg)[$d.key]; & $script:SkStart }
+        & $add ('v4.3.18 skip confirm ON: ' + $d0.key + ' result') @() { $d = $script:SkDefs[$script:SkI]; $script:SelfRec.v4318.skip.actions[$d.key].on = (& $script:SkRes $true); $script:SkI++ }
+    }
+    & $add 'v4.3.18 skip confirm: all checked, saved (restart reads them back), snapshot' @() {
+        $window.UpdateLayout(); Render-SkipCf
+        $raw = Get-Content -LiteralPath $ConfigPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $script:SelfRec.v4318.skip.savedAllOn = [ordered]@{ config = $raw.skipConfirm; reload = (Get-SkipCfCfg); allOn = (@($SkipCfKeys | Where-Object { -not [bool](Get-SkipCfCfg)[$_] }).Count -eq 0) }
+        $script:CtlOverride.Remove('chargingState'); $script:View = $script:Orig4318; Render-View; $ui.BodyScroll.ScrollToVerticalOffset(0); $window.UpdateLayout()
+        & $script:Shot4318 'skip-confirm-on'; & $script:ElPng4318 $ui.CtlCard 'skip-confirm-controls'
+        $p = $ui.SkipCfRow.TranslatePoint([System.Windows.Point]::new(0, 0), $ui.BodyScroll)
+        $script:SelfRec.v4318.skip.rowVisible = ($ui.SkipCfRow.IsVisible -and $p.Y -ge -0.5 -and ($p.Y + $ui.SkipCfRow.ActualHeight) -le $ui.BodyScroll.ViewportHeight + 0.5); $script:SelfRec.v4318.skip.rowHeight = [math]::Round($ui.SkipCfRow.ActualHeight, 1) }
+    & $add 'v4.3.18 skip confirm: untick all (back to asking), saved' @() {
+        foreach ($k in $SkipCfKeys) { $ui['SkipCf_' + $k].IsChecked = $false }
+        $script:SelfRec.v4318.skip.savedAllOff = [ordered]@{ reload = (Get-SkipCfCfg); allOff = (@($SkipCfKeys | Where-Object { [bool](Get-SkipCfCfg)[$_] }).Count -eq 0) }
+        $script:CtlOverride.Remove('chargingState'); $script:View = $script:Orig4318; Render-View; $window.UpdateLayout(); & $script:ElPng4318 $ui.CtlCard 'skip-confirm-off'
+        $acts = $script:SelfRec.v4318.skip.actions; $script:SelfRec.v4318.skip.allPass = (@($acts.Keys | Where-Object { -not ($acts[$_].off.pass -and $acts[$_].on.pass -and $acts[$_].savedOn) }).Count -eq 0) -and $script:SelfRec.v4318.skip.savedAllOn.allOn -and $script:SelfRec.v4318.skip.savedAllOff.allOff }
     & $add 'live refresh status' @() { $script:SelfRec.live = (Get-LiveStatus); $script:SelfRec.liveBadge = $ui.UpdBadge.Text; $script:SelfRec.tiresHeader = [ordered]@{ hdr = $ui.TiresHdr.Text; rec = $ui.TiresRec.Text; asOf = $ui.TiresAsOf.Text } }
     & $add 'theme snapshots' @() { Save-Snapshots $script:SelfDir; $script:SelfRec.shots += @($script:LastSnapshot.files | ForEach-Object { Split-Path -Leaf $_ }) }
     Start-SelfTimer
