@@ -5,7 +5,7 @@
   var CFG = window.TD_CONFIG || {};
   var VARIANT = CFG.variant || 'main';
   var P = CFG.storagePrefix || 'td:';
-  var VERSION = 'v4.3.16';
+  var VERSION = 'v4.3.18';
   var VERSION_DATE = 'Oct 8, 2026';
   var TZ = 'America/Chicago';
   var DEFAULT_API = 'https://api.tessie.com';
@@ -501,19 +501,15 @@
       meta = kwh(hero.added) + ' added \u00b7 ' + kwh(hc.wall) + ' from wall';
       if (!v.charging) meta += '<br>' + esc(dayLabel(hero.start)) + ' ' + clock(hero.start) + ' \u2192 ' + (sameDay(hero.start, hero.end) ? '' : esc(dayLabel(hero.end)) + ' ') + clock(hero.end);
     }
-    h += '<div class="hero"><span class="badge' + (v.charging ? ' on' : '') + '">' + (v.charging ? '\u25cf CHARGING' : esc((v.cs.charging_state || 'IDLE').toUpperCase())) + '</span>' +
+    h += '<div class="hero">' +   // v4.3.18: state badge moved into the CHARGING STATUS bar
       // v4.3.14: rolling 7 over 14 days (left) and 30 over 60 days (right) beside the big amount; money only, same rule as the Last 7 / 30 days rows
       '<div class="hero-row" id="heroRow">' + rollCol('l', 'rollL', ['7 DAYS', v.d7, 'roll7', 'Rolling last 7 days: home charging + Supercharger paid (same as the Last 7 days row)'], ['14 DAYS', v.d14, 'roll14', 'Rolling last 14 days: home charging + Supercharger paid']) +
       '<div class="money ' + col + '" id="heroMoney">' + (hc ? money(hc.cost) : '$--.--') + '<i class="bl"></i></div>' +
       rollCol('r', 'rollR', ['30 DAYS', v.d30, 'roll30', 'Rolling last 30 days: home charging + Supercharger paid (same as the Last 30 days row)'], ['60 DAYS', v.d60, 'roll60', 'Rolling last 60 days: home charging + Supercharger paid']) + '</div>' +
       '<div class="sub">' + (v.charging ? 'This charge' : 'Last charge') + (hero && hero.src === 'window' && hero.sessions > 1 ? ' \u00b7 ' + hero.sessions + ' sessions since ' + clock(hero.start) : '') + (rate ? ' \u00b7 ' + rate : '') + '</div>' +
       '<div class="meta">' + meta + '</div></div>';
-    // v4.3: RATE STATUS (peak/day pill + Stop, off-peak pill, or a neutral line)
-    h += peakBanner(rateStatus(v, cfg));
-    // v4.2: money rows right under the hero, compact
-    var nightSub = v.nightLabel === 'Tonight' ? 'since ' + clock(v.nightStart) : dayLabel(v.nightStart) + ', 11 PM \u2013 11 AM';
-    h += '<div class="card rows compact">' +
-      row(v.nightLabel, nightSub, v.night, true) + sessionsBlock(cfg, v.win) + row('Last 7 days', null, v.d7) + row('Last 30 days', null, v.d30) + totBtn() + '</div>';
+    // v4.3.18: CHARGING STATUS bar (START / STOP inside) right under the big amount, then TESLA CONTROLS (as desktop 4.3.18)
+    h += chgBar(v) + controlsCard(v.car);
 
     // battery: big % + range, 0-100% bar (ball = now, tick = where this charge started), draggable LIMIT handle
     var a = v.socStart, b = ctlVal('limit', v.limit), s = v.soc;
@@ -537,26 +533,11 @@
       '</div>' + vSlider(b, col, v.car, perPct) + '</div>' +
       ampsAndCharge(v.car, col) + '</div>';
 
-    // chips
-    var started = hero ? clock(hero.start) : '--';
-    if (v.charging) {
-      var vSub = v.cs.fast_charger_present ? 'DC fast charging' : (v.cs.charger_voltage > 50 && v.cs.charger_actual_current > 0 ?
-        Math.round(v.cs.charger_voltage) + ' V \u00b7 ' + Math.round(v.cs.charger_actual_current) + ' A' + (v.cs.charger_phases > 1 ? ' \u00b7 ' + v.cs.charger_phases + '-phase' : '') : '');
-      var done = v.cs.minutes_to_full_charge > 0 ? 'done ~' + clock(nowSec() + v.cs.minutes_to_full_charge * 60) : '';
-      h += '<div class="chips">' +
-        chip('CHARGING AT', v.cs.charger_power != null ? v.cs.charger_power + ' kW' : '--', vSub) +
-        chip('TO FULL', v.toFull || (v.cs.minutes_to_full_charge === 0 ? 'Done' : '--'), done) +
-        chip('STARTED', started, hero ? dayLabel(hero.start) : '') + '</div>';
-    } else {
-      h += '<div class="chips">' +
-        chip('POWER', 'Not charging', friendlyState(v.cs.charging_state), 'soft') +
-        chip('TO FULL', v.cs.charging_state === 'Complete' ? 'Done' : '--', v.cs.charging_state === 'Complete' ? 'at limit' : '') +
-        chip('ENDED', hero ? clock(hero.end) : '--', hero ? dayLabel(hero.end) : '') + '</div>';
-    }
+    // v4.3.18: old POWER / TO FULL / ENDED chips removed (in the status bar now); RATE STATUS line, then the CHARGE HISTORY & TOTALS dropdown
+    h += peakBanner(rateStatus(v, cfg)) + histCard(v, cfg);
 
     // tires
     var rec = v.tires.recF == null ? '' : (v.tires.recR != null && Math.abs(v.tires.recR - v.tires.recF) >= 0.5 ? 'Recommended ' + Math.round(v.tires.recF) + ' PSI front \u00b7 ' + Math.round(v.tires.recR) + ' PSI rear' : 'Recommended ' + Math.round(v.tires.recF) + ' PSI (all four)');
-    h += controlsCard(v.car);
     // v4.3.2: HEATED SEATS above the tires
     h += seatsCard(v.car);
     var remOk = !!(cfg.consent && cfg.consent.reminders);
@@ -616,7 +597,7 @@
       (window.TDLeave ? TDLeave.html('main') : '') +   // v4.3.16 LEAVING SOON (leave.js)
       '<div class="ann-row"><button class="cbtn ann" id="cAnnounce"><b>🔊 ANNOUNCE ON ALEXA</b><small>' + (annReady() ? 'full status rundown · ' + esc(targetsLabel(annTargets('rundown'))) : 'set up Alexa (Connected apps)') + '</small></button>' +
       '<button class="cbtn gear" id="cAnnSetup" aria-label="Announce on Alexa setup" title="Setup: what the rundown includes">' + ICON_GEAR + '<small>SETUP</small></button></div>' +
-      '<div class="ctl-msg ' + ctlMsg.kind + '">' + (ctlMsg.kind === 'busy' ? '<span class="spin"></span>' : '') + '<span>' + esc(!cmdOk ? 'Commands are off: you did not allow TessDesk to send vehicle commands (Settings \u2192 Permissions).' : (ctlMsg.text || (dry ? 'Dry run: buttons are simulated, nothing is sent' : 'Ready'))) + '</span></div></div>';
+      '<div class="ctl-msg ' + ctlMsg.kind + '">' + (ctlMsg.kind === 'busy' ? '<span class="spin"></span>' : '') + '<span>' + esc(!cmdOk ? 'Commands are off: you did not allow TessDesk to send vehicle commands (Settings \u2192 Permissions).' : (ctlMsg.text || (dry ? 'Dry run: buttons are simulated, nothing is sent' : 'Ready'))) + '</span></div>' + skipRow() + '</div>';
     return r;
   }
   // ---------- v4.3.3 OPEN TRUNK (rear only, no frunk) + SENTRY MODE ----------
@@ -628,13 +609,13 @@
   }
   function onTrunk() {
     var c = curCar(); if (!c) return; var open = !!ctlVal('trunkOpen', c.trunkOpen);
-    if (open) confirmBox('Are you sure?', 'Close trunk', 'Close the rear trunk? Make sure nothing and no one is in the way.').then(function (ok) { if (ok) runCmd('activate_rear_trunk', {}, 'Closing the trunk…', 'Trunk closing', function () { setOv('trunkOpen', false); }, 'Your Tesla trunk is closing.'); else { ctlMsg = { kind: 'idle', text: 'Trunk left open' }; render(); } });
-    else confirmBox('Are you sure?', 'Open trunk', 'Open the rear trunk?').then(function (ok) { if (ok) runCmd('activate_rear_trunk', {}, 'Opening the trunk…', 'Trunk open', function () { setOv('trunkOpen', true); }, 'Your Tesla trunk is open.'); else { ctlMsg = { kind: 'idle', text: 'Trunk not opened' }; render(); } });
+    if (open) askCf('trunk', 'Are you sure?', 'Close trunk', 'Close the rear trunk? Make sure nothing and no one is in the way.').then(function (ok) { if (ok) runCmd('activate_rear_trunk', {}, 'Closing the trunk…', 'Trunk closing', function () { setOv('trunkOpen', false); }, 'Your Tesla trunk is closing.'); else { ctlMsg = { kind: 'idle', text: 'Trunk left open' }; render(); } });
+    else askCf('trunk', 'Are you sure?', 'Open trunk', 'Open the rear trunk?').then(function (ok) { if (ok) runCmd('activate_rear_trunk', {}, 'Opening the trunk…', 'Trunk open', function () { setOv('trunkOpen', true); }, 'Your Tesla trunk is open.'); else { ctlMsg = { kind: 'idle', text: 'Trunk not opened' }; render(); } });
   }
   function onSentry() {
     var c = curCar(); if (!c) return; var on = !!ctlVal('sentry', c.sentry);
-    if (on) confirmBox('Turn Sentry Mode OFF?', 'Turn off', 'The car stops watching and recording its surroundings.').then(function (ok) { if (ok) runCmd('disable_sentry', {}, 'Turning Sentry Mode off…', 'Sentry Mode off', function () { setOv('sentry', false); }, 'Sentry Mode is now off.'); else { ctlMsg = { kind: 'idle', text: 'Sentry Mode stays on' }; render(); } });
-    else confirmBox('Turn Sentry Mode ON?', 'Turn on', 'The car watches and records its surroundings (uses some battery).').then(function (ok) { if (ok) runCmd('enable_sentry', {}, 'Turning Sentry Mode on…', 'Sentry Mode on', function () { setOv('sentry', true); }, 'Sentry Mode is now on.'); else { ctlMsg = { kind: 'idle', text: 'Sentry Mode stays off' }; render(); } });
+    if (on) askCf('sentry', 'Turn Sentry Mode OFF?', 'Turn off', 'The car stops watching and recording its surroundings.').then(function (ok) { if (ok) runCmd('disable_sentry', {}, 'Turning Sentry Mode off…', 'Sentry Mode off', function () { setOv('sentry', false); }, 'Sentry Mode is now off.'); else { ctlMsg = { kind: 'idle', text: 'Sentry Mode stays on' }; render(); } });
+    else askCf('sentry', 'Turn Sentry Mode ON?', 'Turn on', 'The car watches and records its surroundings (uses some battery).').then(function (ok) { if (ok) runCmd('enable_sentry', {}, 'Turning Sentry Mode on…', 'Sentry Mode on', function () { setOv('sentry', true); }, 'Sentry Mode is now on.'); else { ctlMsg = { kind: 'idle', text: 'Sentry Mode stays off' }; render(); } });
   }
 
   // ---------- v4.3.3 DRIVES: recent drives + location history (Tessie /drives, read-only) ----------
@@ -703,7 +684,7 @@
     if (ctlBusy || !cmdAllowed()) return;
     var el = document.getElementById('cFlashN'); var n = clampFlash(el ? el.value : flash.n); flash.n = n; save('flashCount', n);
     var pe = document.getElementById('cFlashP'); var p = setPause(pe ? pe.value : flash.pause);
-    confirmBox('Flash the lights ' + n + ' time' + (n === 1 ? '' : 's') + '?', 'Flash', n + ' flash' + (n === 1 ? '' : 'es') + ', about ' + p + ' seconds apart. Tap Stop to end early.').then(function (ok) {
+    askCf('flash', 'Flash the lights ' + n + ' time' + (n === 1 ? '' : 's') + '?', 'Flash', n + ' flash' + (n === 1 ? '' : 'es') + ', about ' + p + ' seconds apart. Tap Stop to end early.').then(function (ok) {
       if (!ok) { ctlMsg = { kind: 'idle', text: 'Flash lights cancelled' }; render(); return; }
       flash.running = true; flash.done = 0; flash.total = n; flash.noWait = p < 3; flash.pendingAt = null; flash.nextAt = 0; flash.sends = []; flash.rtts = []; flashStep();
     });
@@ -757,10 +738,10 @@
   }
   function onLock() {
     var c = curCar(); if (!c) return; var locked = ctlVal('locked', c.locked);
-    if (locked) confirmBox('Unlock your Tesla?', 'Unlock').then(function (ok) { if (ok) runCmd('unlock', {}, 'Unlocking\u2026', 'Unlocked', function () { setOv('locked', false); }, 'Your Tesla is now unlocked.'); else { ctlMsg = { kind: 'idle', text: 'Unlock cancelled' }; render(); } });
+    if (locked) askCf('unlock', 'Unlock your Tesla?', 'Unlock').then(function (ok) { if (ok) runCmd('unlock', {}, 'Unlocking\u2026', 'Unlocked', function () { setOv('locked', false); }, 'Your Tesla is now unlocked.'); else { ctlMsg = { kind: 'idle', text: 'Unlock cancelled' }; render(); } });
     else runCmd('lock', {}, 'Locking\u2026', 'Locked', function () { setOv('locked', true); }, 'Your Tesla is now locked.');
   }
-  function onVent() { confirmBox('Vent the windows on your Tesla?', 'Vent').then(function (ok) { if (ok) runCmd('vent_windows', {}, 'Venting windows\u2026', 'Windows vented', function () { setOv('windowsOpen', true); }); else { ctlMsg = { kind: 'idle', text: 'Vent cancelled' }; render(); } }); }
+  function onVent() { askCf('vent', 'Vent the windows on your Tesla?', 'Vent').then(function (ok) { if (ok) runCmd('vent_windows', {}, 'Venting windows\u2026', 'Windows vented', function () { setOv('windowsOpen', true); }); else { ctlMsg = { kind: 'idle', text: 'Vent cancelled' }; render(); } }); }
   function onClose() { runCmd('close_windows', {}, 'Closing windows\u2026', 'Windows closed', function () { setOv('windowsOpen', false); }); }
   function onClim() {
     var c = curCar(); if (!c) return;
@@ -783,7 +764,7 @@
     p = Math.max(lastBatt.min, Math.min(lastBatt.max, Math.round(p)));
     if (p === lastBatt.limit) { ctlMsg = { kind: 'idle', text: 'Charge limit stays ' + limitLabel(p) }; render(); return; }
     var lbl = limitLabel(p); pendLimit = p; render();
-    confirmBox('Set to ' + p + '%?', 'Confirm', 'Charge limit ' + lbl + (p > 90 ? ' · above 90%: best only before a long trip' : (p === 80 ? ' · Daily' : ''))).then(function (ok) {
+    askCf('limit', 'Set to ' + p + '%?', 'Confirm', 'Charge limit ' + lbl + (p > 90 ? ' · above 90%: best only before a long trip' : (p === 80 ? ' · Daily' : ''))).then(function (ok) {
       pendLimit = null;
       if (!ok) { ctlMsg = { kind: 'idle', text: 'Charge limit unchanged' }; render(); return; }
       runCmd('set_charge_limit', { percent: p }, 'Setting charge limit ' + lbl + '\u2026', 'Charge limit ' + lbl, function () { setOv('limit', p); });
@@ -932,20 +913,70 @@
       '<div class="batt-drag hidden" id="ampsDrag"><small>SET AMPS</small><span id="ampsDragVal"></span></div>' +
       '<div class="bar amps" id="ampsBar"><div class="track"></div><div class="fill ' + col + '-bg" id="ampsFill" style="left:0;width:' + f + '%"></div>' +
       (a != null ? '<div class="thumb" id="ampsThumb" role="slider" aria-label="Charging amps" aria-valuemin="' + b[0] + '" aria-valuemax="' + b[1] + '" aria-valuenow="' + a + '" style="left:' + f + '%"><i></i><i></i></div>' : '') + '</div>' +
-      '<div class="amps-lb"><small>' + b[0] + ' A</small><b id="ampsVal">' + (a != null ? a + ' A' : '-- A') + '</b><small>' + b[1] + ' A max</small></div>' +
-      '<div class="chg-row"><button class="cbtn' + (chg ? ' state' : '') + '" id="cChgStart"' + ((dis || chg || !plugged) ? ' disabled' : '') + '><b>START CHARGING</b><small>' + (chg ? 'CHARGING NOW' : (plugged ? 'TAP TO START' : 'NOT PLUGGED IN')) + '</small></button>' +
-      '<button class="cbtn' + (plugged && !chg ? ' soft' : '') + '" id="cChgStop"' + ((dis || !chg) ? ' disabled' : '') + '><b>STOP CHARGING</b><small>' + esc(stopSub) + '</small></button></div>';
+      '<div class="amps-lb"><small>' + b[0] + ' A</small><b id="ampsVal">' + (a != null ? a + ' A' : '-- A') + '</b><small>' + b[1] + ' A max</small></div>';   // v4.3.18: START / STOP moved into the CHARGING STATUS bar
   }
+  // ---------- v4.3.18: CHARGING STATUS bar (as desktop 4.3.18): state word, POWER / SESSION or LAST SESSION / FULL AT or ENDED / BATTERY, compact START + STOP ----------
+  function chgKind(v) { var cs = chgState(v.car); return (cs === 'Charging' || cs === 'Starting' || (!cs && v.charging)) ? 'charging' : (cs === 'Complete' ? 'complete' : (cs === 'Disconnected' ? 'unplugged' : 'not')); }
+  function chgBar(v) {
+    var cs = chgState(v.car), k = chgKind(v), hero = v.hero, live = !!(v.charging && hero), now = nowSec(), chg = k === 'charging';
+    var plugged = !!cs && cs !== 'Disconnected', off = ctlBusy || !cmdAllowed(), soc = v.soc != null ? v.soc + '%' : '--', st, sub;
+    var word = { charging: 'CHARGING', complete: 'COMPLETE', unplugged: 'UNPLUGGED', not: 'NOT CHARGING' }[k];
+    if (chg) {
+      st = [['POWER', live && v.cs.charger_power != null ? v.cs.charger_power + ' kW' : '--'], ['SESSION', live ? (fmtMins((now - hero.start) / 60) || '--') : '--'],
+        ['FULL AT', live && v.cs.minutes_to_full_charge > 0 ? clock(now + v.cs.minutes_to_full_charge * 60) : (live && v.cs.minutes_to_full_charge === 0 ? 'Done' : '--')], ['BATTERY', soc]];
+      var vs = v.cs.fast_charger_present ? 'DC fast charging' : (v.cs.charger_voltage > 50 && v.cs.charger_actual_current > 0 ? Math.round(v.cs.charger_voltage) + ' V \u00b7 ' + Math.round(v.cs.charger_actual_current) + ' A' : '');
+      sub = (cs === 'Starting' || !live) ? 'Starting\u2026' : [vs, v.toFull ? v.toFull + ' to full' : '', 'this session'].filter(Boolean).join(' \u00b7 ');
+    } else {
+      st = [['POWER', '0 kW'], ['LAST SESSION', hero && hero.end > hero.start ? (fmtMins((hero.end - hero.start) / 60) || '--') : '--'], ['ENDED', hero ? clock(hero.end) : '--'], ['BATTERY', soc]];
+      sub = (k === 'complete' ? 'Charge complete \u00b7 still plugged in' : (k === 'unplugged' ? 'Plug in to charge' : (cs ? friendlyState(cs) : 'Charging state unknown'))) + (hero ? ' \u00b7 ended ' + dayLabel(hero.end) : '');
+    }
+    var canStart = !off && plugged && !chg, canStop = !off && cs === 'Charging';
+    var stopSub = cs === 'Charging' ? 'TAP TO STOP' : (({ Complete: 'COMPLETE', Stopped: 'STOPPED', NoPower: 'NO POWER', Starting: 'STARTING\u2026', Disconnected: 'UNPLUGGED' })[cs] || 'NOT CHARGING');
+    return '<div class="card chgbar k-' + k + '" id="chgBar" data-kind="' + k + '" title="Charging status: ' + word + ' \u00b7 ' + esc(sub) + '">' +
+      '<div class="cb-top"><div class="cb-st"><i class="cb-dot"></i><b id="chgWord">' + word + '</b></div>' +
+      '<div class="cb-btns"><button class="cbtn cb-b' + (chg ? ' state' : '') + '" id="cChgStart"' + (canStart ? '' : ' disabled') + '><b>\u25b6 START</b><small>' + (chg ? 'CHARGING' : (plugged ? 'TAP TO START' : 'UNPLUGGED')) + '</small></button>' +
+      '<button class="cbtn cb-b' + (canStop ? ' stop' : '') + '" id="cChgStop"' + (canStop ? '' : ' disabled') + '><b>\u25a0 STOP</b><small>' + esc(stopSub) + '</small></button></div></div>' +
+      '<div class="cb-stats" id="chgStats">' + st.map(function (x) { return '<div><b>' + esc(x[1]) + '</b><small>' + x[0] + '</small></div>'; }).join('') + '</div>' +
+      '<div class="cb-sub" id="chgSub">' + esc(sub) + '</div></div>';
+  }
+  // ---------- v4.3.18: CHARGE HISTORY & TOTALS dropdown (Last night / 7 / 30 days + TOTALS). Starts collapsed; open/closed saved in localStorage td:histOpen ----------
+  function histOpen() { return load('histOpen', false) === true; }
+  function setHistOpen(on) { save('histOpen', !!on); render(); }
+  function histCard(v, cfg) {
+    var open = histOpen(), nightSub = v.nightLabel === 'Tonight' ? 'since ' + clock(v.nightStart) : dayLabel(v.nightStart) + ', 11 PM \u2013 11 AM';
+    return '<div class="card rows compact hist' + (open ? ' open' : '') + '" id="chgHist"><button class="hist-hd" id="chgHistBtn" type="button" aria-expanded="' + open + '">' +
+      '<b>CHARGE HISTORY &amp; TOTALS</b><span id="chgHistSum">' + (open ? '' : esc(v.nightLabel) + '\u00a0 ' + money(v.night.cost)) + '</span><s id="chgHistArrow">' + (open ? '\u25be' : '\u25b8') + '</s></button>' +
+      '<div class="hist-body" id="chgHistBody"' + (open ? '' : ' hidden') + '>' +
+      row(v.nightLabel, nightSub, v.night, true) + sessionsBlock(cfg, v.win) + row('Last 7 days', null, v.d7) + row('Last 30 days', null, v.d30) + totBtn() + '</div></div>';
+  }
+  // ---------- v4.3.18: SKIP CONFIRM (one saved checkbox per action that asks Yes / No; localStorage td:skipConfirm, all off by default) ----------
+  var SKIP_KEYS = [['unlock', 'Unlock'], ['leave', 'Leaving'], ['flash', 'Flash'], ['vent', 'Vent'], ['trunk', 'Trunk'], ['sentry', 'Sentry'], ['announce', 'Announce'], ['stopCharging', 'Stop chg'], ['limit', 'Limit'], ['amps', 'Amps']];
+  var skipLog = [];
+  function skipMap() { var s = load('skipConfirm', null); return s && typeof s === 'object' ? s : {}; }
+  function skipCf(k) { return skipMap()[k] === true; }
+  function setSkipCf(k, on) { var s = skipMap(); s[k] = !!on; save('skipConfirm', s); }
+  function askCf(k, msg, yes, sub) { if (skipCf(k)) { skipLog.push(k); return Promise.resolve(true); } return confirmBox(msg, yes, sub); }
+  function skipRow() {
+    var s = skipMap();
+    return '<div class="skip-row" id="skipRow" title="Ticked: that action runs right away, with no Yes / No pop-up. Saved on this phone."><div class="sk-h">SKIP CONFIRM <small>ticked = no Yes / No pop-up</small></div><div class="sk-g">' +
+      SKIP_KEYS.map(function (x) { return '<label class="sk"><input type="checkbox" data-skip="' + x[0] + '" id="sk_' + x[0] + '"' + (s[x[0]] === true ? ' checked' : '') + '><span>' + x[1] + '</span></label>'; }).join('') + '</div></div>';
+  }
+  function bind4318() {
+    var h = document.getElementById('chgHistBtn'); if (h) h.onclick = function () { setHistOpen(!histOpen()); };
+    Array.prototype.forEach.call(document.querySelectorAll('[data-skip]'), function (c) { c.onchange = function () { setSkipCf(c.getAttribute('data-skip'), c.checked); }; });
+  }
+  window.TessDesk4318 = { skipLog: function () { return skipLog.slice(); }, skip: skipMap, keys: SKIP_KEYS.map(function (x) { return x[0]; }), histOpen: histOpen,
+    limit: function (p) { requestLimit(p); }, amps: function (a) { requestAmps(a); }, busy: function () { return ctlBusy; } };   // test hooks (same paths as the slider)
   function onChgStart() { var c = curCar(); if (!c || chgState(c) === 'Charging') return; runCmd('start_charging', {}, 'Starting charging\u2026', 'Charging started', function () { setOv('chargingState', 'Charging'); }, 'Your Tesla is now charging.'); }
   function onChgStop() {
     var c = curCar(); if (!c || chgState(c) !== 'Charging') return;
-    confirmBox('Stop charging now?', 'Stop').then(function (ok) { if (ok) runCmd('stop_charging', {}, 'Stopping charging\u2026', 'Charging stopped', function () { setOv('chargingState', 'Stopped'); }, 'Charging stopped.'); else { ctlMsg = { kind: 'idle', text: 'Still charging' }; render(); } });
+    askCf('stopCharging', 'Stop charging now?', 'Stop').then(function (ok) { if (ok) runCmd('stop_charging', {}, 'Stopping charging\u2026', 'Charging stopped', function () { setOv('chargingState', 'Stopped'); }, 'Charging stopped.'); else { ctlMsg = { kind: 'idle', text: 'Still charging' }; render(); } });
   }
   function requestAmps(a) {
     if (!lastAmps) return;
     a = Math.max(lastAmps.min, Math.min(lastAmps.max, Math.round(a)));
     if (a === lastAmps.cur) { ctlMsg = { kind: 'idle', text: 'Charging amps stay ' + a + ' A' }; render(); return; }
-    confirmBox('Set charging current to ' + a + ' A?', 'Set ' + a + ' A').then(function (ok) {
+    askCf('amps', 'Set charging current to ' + a + ' A?', 'Set ' + a + ' A').then(function (ok) {
       if (!ok) { ctlMsg = { kind: 'idle', text: 'Charging amps unchanged' }; render(); return; }
       runCmd('set_charging_amps', { amps: a }, 'Setting charging current ' + a + ' A\u2026', 'Charging current ' + a + ' A', function () { setOv('amps', a); }, 'Charging current set to ' + a + ' amps.');
     });
@@ -1302,6 +1333,7 @@
     bindVSlider(); bindAmps();
     on('cAnnounce', onAnnounce); on('cAnnSetup', openAnnSetup); on('pkStop', onChgStop);
     on('pkHide', function () { var p = peakState(compute(getCfg()), getCfg()); if (p) save('peakHide', p.key); render(); }); on('pkShow', function () { save('peakHide', ''); render(); });
+    bind4318();   // v4.3.18
     if (busy) setSpin(true);
   }
 
@@ -1697,7 +1729,7 @@
   function onAnnounce() {
     if (!annConsent() || !annCfg().token || !annCfg().device) { tdToast(!annConsent() ? 'Accept the Alexa disclosure first (Connected apps).' : 'Set up Voice Monkey first (Connected apps).', 'err'); openConnectedApps(); return; }
     var r = buildRundown(); if (!r || !r.parts.length) { tdToast('Nothing to announce yet (no car data, or every item is off in Setup).', 'err'); return; }
-    confirmBox('Announce full status?', 'Announce', r.parts.length + ' announcement' + (r.parts.length > 1 ? 's' : '') + ' \u00b7 about ' + r.seconds + ' s on ' + targetsLabel(annTargets('rundown'))).then(function (ok) {
+    askCf('announce', 'Announce full status?', 'Announce', r.parts.length + ' announcement' + (r.parts.length > 1 ? 's' : '') + ' \u00b7 about ' + r.seconds + ' s on ' + targetsLabel(annTargets('rundown'))).then(function (ok) {
       if (!ok) return; sendRundown(r);
     });
   }

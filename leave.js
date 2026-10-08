@@ -149,6 +149,8 @@
       d.onclick = function (e) { if (e.target === d) done(false); };
     });
   }
+  function skipLeave() { var s = load('skipConfirm', null); return !!(s && s.leave === true); }   // v4.3.18: td:skipConfirm (shared with the main app's SKIP CONFIRM row)
+  function setSkipLeave(on) { var s = load('skipConfirm', null); if (!s || typeof s !== 'object') s = {}; s.leave = !!on; save('skipConfirm', s); }
   function start() {
     var L = st(); if (active(L)) return;
     if (!hasSetup()) { msg = 'Set up your Tessie token first.'; paint(); return; }
@@ -156,7 +158,7 @@
     readInputs(); var m = mins();
     var sub = 'Climate turns on now, ' + inTxt(m[0], 'the windows close right away', 'the windows close {0} later') + ', then ' + inTxt(m[1], 'the car unlocks right after that', 'the car unlocks {0} after that') +
       '. Each step is announced on Alexa. Stop cancels the rest and undoes the steps already done. Keep this page open during the countdown.';
-    return confirmBox('Are you sure? Start Leaving Soon?', 'Start', sub).then(function (yes) {
+    return (skipLeave() ? Promise.resolve(true) : confirmBox('Are you sure? Start Leaving Soon?', 'Start', sub)).then(function (yes) {   // v4.3.18 SKIP CONFIRM
       if (!yes) { msg = 'Leaving Soon cancelled'; paint(); return false; }
       if (active(st())) return false;
       var s = spm(), now = Date.now();
@@ -365,6 +367,7 @@
         (L.phase === 'expired' && L.done.length ? '<button class="cbtn lv-x" data-lv="close" id="lvClose"><b>CLOSE</b></button>' : '') + '</div></div>';
     }
     h += '<div class="lv-note">' + (msg ? '<b>' + esc(msg) + '</b> \u00b7 ' : '') + 'Keep this page open during the countdown. If the screen locks, the next step runs when you come back to this page.' + (dry() ? ' <span class="dry">DRY RUN</span>' : '') + '</div>';
+    if (kind === 'page') h += '<label class="lv-skip"><input type="checkbox" data-lvskip="1" id="lvSkip"' + (skipLeave() ? ' checked' : '') + '><span>Skip confirm</span><small>start with no Yes / No pop-up</small></label>';   // v4.3.18
     if (kind === 'page') h = carLine() + h;
     return h;
   }
@@ -387,16 +390,17 @@
     if (a === 'start') start(); else if (a === 'stop') stop(); else if (a === 'close') dismiss();
     else if (a === 'w-') bump('w', -1); else if (a === 'w+') bump('w', 1); else if (a === 'u-') bump('u', -1); else if (a === 'u+') bump('u', 1);
   });
+  document.addEventListener('change', function (e) { var t = e.target; if (t && t.getAttribute && t.getAttribute('data-lvskip')) setSkipLeave(t.checked); });   // v4.3.18
   document.addEventListener('input', function (e) { var t = e.target; if (t && t.getAttribute && t.getAttribute('data-lvin')) t.value = t.value.replace(/[^0-9]/g, '').slice(0, 2); });
   document.addEventListener('change', function (e) { var t = e.target; if (t && t.getAttribute && t.getAttribute('data-lvin')) { readInputs(); t.blur(); paint(); } });
   document.addEventListener('keydown', function (e) { var t = e.target; if (t && t.getAttribute && t.getAttribute('data-lvin') && e.key === 'Enter') { readInputs(); t.blur(); paint(); } });
   function wake() { var L = st(); if (active(L)) { ensureTimer(); tick(); } else paint(); if (opts.ownRefresh && document.visibilityState === 'visible') readCar(false); }
   document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') wake(); });
   window.addEventListener('pageshow', wake); window.addEventListener('focus', wake);
-  window.addEventListener('storage', function (e) { if (e.key === P + 'leave' || e.key === P + 'leaveMins' || e.key === P + 'cache') { if (active(st())) ensureTimer(); paint(); } });
+  window.addEventListener('storage', function (e) { if (e.key === P + 'leave' || e.key === P + 'leaveMins' || e.key === P + 'cache' || e.key === P + 'skipConfirm') { if (active(st())) ensureTimer(); paint(); } });
 
   window.TDLeave = {
-    version: 'v4.3.16',
+    version: 'v4.3.18', skipLeave: function () { return skipLeave(); },
     init: function (o) { opts = o || {}; if (active(st())) { ensureTimer(); setTimeout(tick, 0); } return window.TDLeave; },
     html: html, paint: paint, start: start, stop: stop, dismiss: dismiss, tick: tick, mins: mins, setMins: function (w, u) { setMins(w, u); paint(); },
     state: st, active: function () { return active(st()); }, cmdLog: cmdLog, hasSetup: hasSetup, cmdAllowed: cmdAllowed, readCar: readCar, car: car,
