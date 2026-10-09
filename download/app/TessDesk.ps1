@@ -1,11 +1,11 @@
 ﻿#Requires -Version 5.1
-# TessDesk v4.3.21 (HEALTH HISTORY under START / STOP with CALIBRATION INFO; health history logged by the app itself; v4.3.20: HEALTH HISTORY dropdown, one entry per day, kept indefinitely; v4.3.19: 30% wider; PLUG-IN REMINDER; TRIPS; MORNING READY CHECK; PSO BILL MATCH with on/off; BATTERY HEALTH TREND + TIPS; LEAVING SOON 'Start after' delay; v4.3.18 CHARGING STATUS bar under the big cost with START / STOP, fits 364x990 without scrolling; v4.3.17: TESLA CONTROLS under the big cost, CHARGE HISTORY & TOTALS dropdown; v4.3.16 LEAVING SOON: adjustable 'Windows after' / 'Unlock after' minutes, Stop undoes the steps already done; v4.3.15: climate on, close windows, unlock; rolling 7 / 14 days and 30 / 60 days $ beside the big amount; Restore / Remember at the top right with fade-in, like Paycheck Live; TOTALS pop-up: week / month / year running totals; CAMERAS panel from saved Sentry / Dashcam clips; checks for updates on open / wake; compact-when-OFF via cb_compact_addon.ps1) - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
+# TessDesk v4.3.22 (CHARGE column in HEALTH HISTORY: highest charge % per day + Home / AC / Supercharger; v4.3.21: HEALTH HISTORY under START / STOP with CALIBRATION INFO; health history logged by the app itself; v4.3.20: HEALTH HISTORY dropdown, one entry per day, kept indefinitely; v4.3.19: 30% wider; PLUG-IN REMINDER; TRIPS; MORNING READY CHECK; PSO BILL MATCH with on/off; BATTERY HEALTH TREND + TIPS; LEAVING SOON 'Start after' delay; v4.3.18 CHARGING STATUS bar under the big cost with START / STOP, fits 364x990 without scrolling; v4.3.17: TESLA CONTROLS under the big cost, CHARGE HISTORY & TOTALS dropdown; v4.3.16 LEAVING SOON: adjustable 'Windows after' / 'Unlock after' minutes, Stop undoes the steps already done; v4.3.15: climate on, close windows, unlock; rolling 7 / 14 days and 30 / 60 days $ beside the big amount; Restore / Remember at the top right with fade-in, like Paycheck Live; TOTALS pop-up: week / month / year running totals; CAMERAS panel from saved Sentry / Dashcam clips; checks for updates on open / wake; compact-when-OFF via cb_compact_addon.ps1) - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
 param(
     [string]$ConfigPath,
     [string]$Snapshot,    # optional: folder to write PNG snapshots of both themes
     [switch]$Quick433,    # with -SelfTest: run only the v4.3.3 steps (trunk, sentry, drives, paused-session energy)
     [switch]$Quick432,
-    [switch]$Quick4321,   # with -SelfTest: run only the v4.3.21 steps (health history under START / STOP, calibration, fresh install) + a short smoke check    # with -SelfTest: run only the v4.3.2 steps (glow states, seats, flash lights, last charge)
+    [switch]$Quick4322,   # with -SelfTest: run only the v4.3.21 + v4.3.22 steps (health history, calibration, CHARGE column, fresh installs) + a short smoke check    # with -SelfTest: run only the v4.3.2 steps (glow states, seats, flash lights, last charge)
     [switch]$SelfTest     # test run: controls forced to DRY RUN (nothing is sent to the car), snapshots, selftest.json, then exit
 )
 Add-Type -AssemblyName PresentationFramework
@@ -15,7 +15,7 @@ Add-Type -AssemblyName System.Xaml
 
 $ErrorActionPreference = 'Stop'
 $AppName    = 'TessDesk'
-$AppVersion = '4.3.21'
+$AppVersion = '4.3.22'
 $AppDate    = 'Oct 9, 2026'
 
 $scriptDir  = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -924,6 +924,7 @@ function Invoke-LivePoll {
                                          recentSessions = $recent; lastCharge = $lastCharge; lastTires = $tires; lastCar = $car }
         Update-DrivesCache $Token $nowE
         try { Update-HealthCache $Token $nowE } catch { Write-WidgetLog ('battery health: ' + $_.Exception.Message) }   # v4.3.21: also while charging
+        try { Update-ChargeHist $Token $nowE } catch { Write-WidgetLog ('charge history: ' + $_.Exception.Message) }   # v4.3.22
         Save-WidgetState
         $winNow = $null; try { $winNow = Get-HomeWindowCharge $script:State } catch { Write-WidgetLog ('window charge: ' + $_.Exception.Message) }
         $script:LastWindow = $winNow
@@ -955,6 +956,7 @@ function Invoke-LivePoll {
     $script:LastWindow = $(if ($null -ne $last -and [string]$last.source -eq 'window') { $last } else { $null })
     Update-DrivesCache $Token $nowE
     try { Update-HealthCache $Token $nowE } catch { Write-WidgetLog ('battery health: ' + $_.Exception.Message) }
+    try { Update-ChargeHist $Token $nowE } catch { Write-WidgetLog ('charge history: ' + $_.Exception.Message) }   # v4.3.22
     Save-WidgetState
     return [pscustomobject]@{ mode = 'idle'; last = $last; car = $car; tires = $tires }
 }
@@ -1576,11 +1578,12 @@ function Open-Url433 {
                 <TextBlock x:Name="HHistCalNote" FontSize="9.5" TextWrapping="Wrap" Margin="0,0,0,2"/>
                 <TextBlock x:Name="HHistTip" FontSize="9.5" TextWrapping="Wrap" Margin="0,0,0,5"/>
                 <Grid Margin="0,0,8,2">
-                  <Grid.ColumnDefinitions><ColumnDefinition Width="146"/><ColumnDefinition Width="60"/><ColumnDefinition Width="62"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="124"/><ColumnDefinition Width="50"/><ColumnDefinition Width="54"/><ColumnDefinition Width="68"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                   <TextBlock x:Name="HHistC0" Text="DATE" FontSize="9" FontWeight="Bold" Foreground="#FF8A8A8A"/>
                   <TextBlock x:Name="HHistC1" Grid.Column="1" Text="HEALTH" FontSize="9" FontWeight="Bold" Foreground="#FF8A8A8A" HorizontalAlignment="Right"/>
                   <TextBlock x:Name="HHistC2" Grid.Column="2" Text="CHANGE" FontSize="9" FontWeight="Bold" Foreground="#FF8A8A8A" HorizontalAlignment="Right"/>
-                  <TextBlock x:Name="HHistC3" Grid.Column="3" Text="CAPACITY" FontSize="9" FontWeight="Bold" Foreground="#FF8A8A8A" HorizontalAlignment="Right"/>
+                  <TextBlock x:Name="HHistC4" Grid.Column="3" Text="CHARGE" FontSize="9" FontWeight="Bold" Foreground="#FF8A8A8A" HorizontalAlignment="Right" ToolTip="Highest charge % reached that day. H = home, AC = other AC charger, SC = Supercharger, DC = DC fast; amber = fast charging"/>
+                  <TextBlock x:Name="HHistC3" Grid.Column="4" Text="CAPACITY" FontSize="9" FontWeight="Bold" Foreground="#FF8A8A8A" HorizontalAlignment="Right"/>
                 </Grid>
                 <ScrollViewer x:Name="HHistScroll" MaxHeight="240" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" PanningMode="None" Focusable="False">
                   <StackPanel x:Name="HHistList" Margin="0,0,8,0"/>
@@ -8210,6 +8213,95 @@ function Get-HHistOpen { $c = Get-Cfg4319 'healthHistory'; try { if ($null -ne $
 function Set-HHistOpen { param([bool]$On) Save-Cfg4319 'healthHistory' ([ordered]@{ open = $On }); $script:HHistSig = ''; Render-HealthHist }
 $script:HHistAll = $false; $script:HHistSig = ''; $script:HHistSeeded = $false
 function Format-HDay { param([string]$D) try { return [DateTime]::ParseExact($D, 'yyyy-MM-dd', $Inv).ToString('ddd MMM d, yyyy', $Inv) } catch { return $D } }
+# ---- v4.3.22: CHARGE column in HEALTH HISTORY: the highest charge % reached each day (end SoC of that day's charges) + the charge type.
+# H = home (the Home spot in settings, else the spot where most AC charging happens), AC = other AC charger, SC = Supercharger, DC = other DC fast charger.
+# Fully in the app: Tessie /{vin}/charges with the user's own token. First run asks for everything (10 years, 400 days if that fails); then every 6 h from 2 days before the last fetch (catches up after time away). Offline: the saved file is shown.
+$ChargeHistPath = Join-Path $scriptDir 'charge-history.json'
+$script:ChargeSandbox = $null; $script:OwnChargesMock = $null; $script:ChgHistNext = 0; $script:ChgHistSpan = $null
+function Get-CHPath { if ($null -ne $script:ChargeSandbox) { return $script:ChargeSandbox }; return $ChargeHistPath }
+function Read-OwnCharges {
+    if ($SelfTest -and $null -ne $script:OwnChargesMock) { return $script:OwnChargesMock }
+    try { $p = Get-CHPath; if (Test-Path -LiteralPath $p) { $j = Get-Content -LiteralPath $p -Raw -Encoding UTF8 | ConvertFrom-Json
+            if ($j.vin -and $script:VIN -and [string]$j.vin -ne [string]$script:VIN) { return $null }   # another car's charges
+            return $j } } catch {}; return $null }
+function Get-ChargeHome {
+    param($Results, $Prev)
+    $h = Get-Cfg4319 'home'
+    try { if ($null -ne $h -and $null -ne $h.lat -and $null -ne $h.lon) { return [pscustomobject]@{ lat = [double]$h.lat; lon = [double]$h.lon; src = 'settings' } } } catch {}
+    if ($null -ne $Prev -and $null -ne $Prev.lat -and $null -ne $Prev.lon) { return [pscustomobject]@{ lat = [double]$Prev.lat; lon = [double]$Prev.lon; src = [string]$Prev.src } }
+    $cnt = @{}; $la = @{}; $lo = @{}
+    foreach ($c in @($Results)) {
+        if ($null -eq $c -or $c.is_supercharger -or $c.is_fast_charger -or $null -eq $c.latitude -or $null -eq $c.longitude) { continue }
+        $k = [string]::Format($Inv, '{0:F3},{1:F3}', [double]$c.latitude, [double]$c.longitude)
+        $cnt[$k] = 1 + $(if ($cnt.ContainsKey($k)) { $cnt[$k] } else { 0 }); $la[$k] = [double]$c.latitude; $lo[$k] = [double]$c.longitude
+    }
+    if ($cnt.Count -eq 0) { return $null }
+    $best = @($cnt.Keys | Sort-Object { -$cnt[$_] }, { $_ })[0]
+    return [pscustomobject]@{ lat = $la[$best]; lon = $lo[$best]; src = 'most AC charging' }
+}
+function ConvertTo-ChargeDays {
+    param($Results, $HomeLL)   # -> hashtable d -> day (d, max, t, fast, fastMax, n, s)
+    $days = @{}
+    foreach ($c in @($Results | Sort-Object { [int64]$_.ended_at })) {
+        if ($null -eq $c -or $null -eq $c.ended_at -or $null -eq $c.ending_battery) { continue }
+        $d = (ConvertFrom-Epoch ([int64]$c.ended_at)).ToString('yyyy-MM-dd')
+        $t = $(if ($c.is_supercharger) { 'SC' } elseif ($c.is_fast_charger) { 'DC' } elseif ($null -ne $HomeLL -and $null -ne $c.latitude -and $null -ne $c.longitude -and (Get-DistMi ([double]$c.latitude) ([double]$c.longitude) ([double]$HomeLL.lat) ([double]$HomeLL.lon)) -le 0.15) { 'H' } else { 'AC' })
+        $e = [int][math]::Round([double]$c.ending_battery); $fast = ($t -eq 'SC' -or $t -eq 'DC')
+        $o = $days[$d]; if ($null -eq $o) { $o = [ordered]@{ d = $d; max = -1; t = ''; fast = $false; fastMax = $null; n = 0; s = @() }; $days[$d] = $o }
+        $o.n = $o.n + 1
+        if ($fast) { $o.fast = $true; if ($null -eq $o.fastMax -or $e -gt $o.fastMax) { $o.fastMax = $e } }
+        if ($e -gt $o.max -or ($e -eq $o.max -and $fast)) { $o.max = $e; $o.t = $t }
+        $sb = $(if ($null -ne $c.starting_battery) { [string][int][math]::Round([double]$c.starting_battery) } else { '?' })
+        $o.s = @($o.s) + ('{0} {1}-{2}% {3}' -f (ConvertFrom-Epoch ([int64]$c.ended_at)).ToString('h:mm tt', $Inv), $sb, $e, $t)
+    }
+    return $days
+}
+function Update-ChargeHist {
+    param([string]$Token, [int64]$NowE)
+    if (-not $script:VIN -or -not $Token -or $NowE -lt $script:ChgHistNext) { return }
+    if ($SelfTest -and $null -eq $script:ChargeSandbox) { return }   # self-test: only the sandboxed fresh-install test fetches (mocked)
+    $j = Read-OwnCharges; $have = @{}; $fa = [int64]0; $prevHome = $null
+    if ($null -ne $j) { foreach ($x in @($j.days)) { if ($null -ne $x -and $x.d) { $have[[string]$x.d] = $x } }; $fa = [int64](Get-Val $j.fetchedAt 0); $prevHome = $j.home }
+    if ($fa -gt 0 -and ($NowE - $fa) -lt 6 * 3600) { $script:ChgHistNext = $fa + 6 * 3600; return }
+    $first = ($fa -le 0)
+    $fromDay = $(if ($first) { (ConvertFrom-Epoch ($NowE - 3650 * 86400)).Date } else { (ConvertFrom-Epoch ([math]::Max($fa - 2 * 86400, $NowE - 400 * 86400))).Date })
+    $from = [int64](ConvertTo-EpochLocal $fromDay); $span = [int][math]::Round(($NowE - $from) / 86400)
+    try {
+        try { $r = Invoke-Tessie ("/$($script:VIN)/charges?from=$from&to=$NowE&distance_format=mi&format=json") $Token }
+        catch { if (-not $first) { throw }; $fromDay = (ConvertFrom-Epoch ($NowE - 400 * 86400)).Date; $from = [int64](ConvertTo-EpochLocal $fromDay); $span = 400
+            $r = Invoke-Tessie ("/$($script:VIN)/charges?from=$from&to=$NowE&distance_format=mi&format=json") $Token }
+    } catch { Write-WidgetLog ('charge history fetch failed: ' + $_.Exception.Message); $script:ChgHistNext = $NowE + 1800; return }
+    $script:ChgHistSpan = $span
+    $res = @($r.results); $homeLL = Get-ChargeHome $res $(if ($first) { $null } else { $prevHome })
+    $new = ConvertTo-ChargeDays $res $homeLL; $fromD = $fromDay.ToString('yyyy-MM-dd')
+    $all = @{}; foreach ($k in $have.Keys) { if ($k -le $fromD) { $all[$k] = $have[$k] } }   # later days are replaced with the fresh data (the first day may be partly before 'from', so it is kept unless the new data has it)
+    foreach ($k in $new.Keys) { $all[$k] = $new[$k] }
+    try {
+        $p = Get-CHPath; $tmp = $p + '.tmp'
+        [ordered]@{ note = 'TessDesk charge history (one entry per day: highest charge % reached and the charge type; from Tessie /charges with your own token; kept indefinitely)'; vin = [string]$script:VIN; fetchedAt = $NowE; span = $span
+            home = $homeLL; days = @($all.Keys | Sort-Object | ForEach-Object { $all[$_] }) } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $tmp -Encoding UTF8
+        Move-Item -LiteralPath $tmp -Destination $p -Force
+    } catch { Write-WidgetLog ('charge history save: ' + $_.Exception.Message) }
+    $script:ChgHistNext = $NowE + 6 * 3600; $script:HHistSig = ''
+}
+function Get-ChargeDayMap {
+    $j = Read-OwnCharges; $m = @{}; if ($null -eq $j) { return $m }
+    foreach ($x in @($j.days)) { if ($null -ne $x -and $x.d) { $m[[string]$x.d] = $x } }
+    return $m
+}
+function Format-ChargeDay { param($C) if ($null -eq $C -or $null -eq $C.max -or [int]$C.max -lt 0) { return [string][char]0x2014 }; return ([string]$C.t + ' ' + [int]$C.max + '%') }
+function New-HChgCell {
+    param($C)
+    $sp = New-Object System.Windows.Controls.StackPanel; $sp.Orientation = 'Horizontal'; $sp.HorizontalAlignment = 'Right'
+    if ($null -eq $C -or $null -eq $C.max -or [int]$C.max -lt 0) { [void]$sp.Children.Add((New-Tb4319 ([string][char]0x2014) 10.5 (T 'Caption'))); return $sp }
+    $fastT = ($C.t -eq 'SC' -or $C.t -eq 'DC')
+    $tb = New-Tb4319 (Format-ChargeDay $C) 10.5 $(if ($fastT) { T 'Amber' } else { T 'TextSoft' }) $(if ($fastT) { 'Bold' } else { 'SemiBold' })
+    [void]$sp.Children.Add($tb)
+    if ($C.fast -and -not $fastT) { $z = New-Tb4319 ([string][char]0x26A1) 10 (T 'Amber') 'Bold'; $z.Margin = '2,0,0,0'; [void]$sp.Children.Add($z) }
+    $names = @{ H = 'home'; AC = 'AC charger'; SC = 'Supercharger'; DC = 'DC fast charger' }
+    $sp.ToolTip = ('Highest charge reached: ' + [int]$C.max + '% (' + $names[[string]$C.t] + ')' + $(if ($C.fast -and -not $fastT) { '; fast charging this day too (up to ' + $C.fastMax + '%)' } else { '' }) + "`n" + [int]$C.n + ' charge' + $(if ([int]$C.n -eq 1) { '' } else { 's' }) + ' ended this day: ' + ((@($C.s) | Select-Object -First 8) -join ', '))
+    return $sp
+}
 function Render-HealthHist {
     $st = $script:State; $h = $null; if ($null -ne $st) { $h = $st.health }
     # seed the saved history once per session from Tessie's past daily points (the next 6-hourly fetch adds today's entry as well)
@@ -8229,7 +8321,7 @@ function Render-HealthHist {
     Set-Visible $ui.HHistBody $open
     $ui.HHistList.Children.Clear()
     if (-not $open) { return }
-    foreach ($n in 'HHistC0', 'HHistC1', 'HHistC2', 'HHistC3') { $ui[$n].Foreground = T 'Caption' }
+    foreach ($n in 'HHistC0', 'HHistC1', 'HHistC2', 'HHistC3', 'HHistC4') { $ui[$n].Foreground = T 'Caption' }
     $ui.HHistSummary.Inlines.Clear()
     if ($null -ne $sum) {
         $add = { param($t, $b, [string]$w = 'Normal') $x = New-Object System.Windows.Documents.Run($t); $x.Foreground = $b; $x.FontWeight = $w; $ui.HHistSummary.Inlines.Add($x) }
@@ -8243,10 +8335,11 @@ function Render-HealthHist {
     $show = $(if ($script:HHistAll) { $rows } else { @($rows | Select-Object -First 30) })
     foreach ($r in $show) {
         $g = New-Object System.Windows.Controls.Grid; $g.Margin = '0,1,0,1'
-        foreach ($wd in 146, 60, 62) { $cd = New-Object System.Windows.Controls.ColumnDefinition; $cd.Width = [System.Windows.GridLength]::new($wd); [void]$g.ColumnDefinitions.Add($cd) }
+        $cm = Get-ChargeDayMap   # v4.3.22
+        foreach ($wd in 124, 50, 54, 68) { $cd = New-Object System.Windows.Controls.ColumnDefinition; $cd.Width = [System.Windows.GridLength]::new($wd); [void]$g.ColumnDefinitions.Add($cd) }
         $cd = New-Object System.Windows.Controls.ColumnDefinition; $cd.Width = [System.Windows.GridLength]::new(1, [System.Windows.GridUnitType]::Star); [void]$g.ColumnDefinitions.Add($cd)
-        $c = @((New-HDateCell $r), (New-Tb4319 ('{0:N1}%' -f [double]$r.health) 10.5 (T 'Text') 'Bold'), (New-Tb4319 (Format-HDelta $r.delta) 10.5 (Get-HDeltaBrush $r.delta) 'SemiBold'), (New-Tb4319 $(if ($null -ne $r.cap) { '{0:N2} kWh' -f [double]$r.cap } else { '--' }) 10.5 (T 'TextSoft')))
-        for ($i = 0; $i -lt 4; $i++) { if ($i -ge 1) { $c[$i].HorizontalAlignment = 'Right' }; [System.Windows.Controls.Grid]::SetColumn($c[$i], $i); [void]$g.Children.Add($c[$i]) }
+        $c = @((New-HDateCell $r), (New-Tb4319 ('{0:N1}%' -f [double]$r.health) 10.5 (T 'Text') 'Bold'), (New-Tb4319 (Format-HDelta $r.delta) 10.5 (Get-HDeltaBrush $r.delta) 'SemiBold'), (New-HChgCell $cm[[string]$r.d]), (New-Tb4319 $(if ($null -ne $r.cap) { '{0:N2} kWh' -f [double]$r.cap } else { '--' }) 10.5 (T 'TextSoft')))
+        for ($i = 0; $i -lt 5; $i++) { if ($i -ge 1) { $c[$i].HorizontalAlignment = 'Right' }; [System.Windows.Controls.Grid]::SetColumn($c[$i], $i); [void]$g.Children.Add($c[$i]) }
         if ($null -ne $r.range) { $g.ToolTip = ('Est. full-pack range {0:N0} mi' -f [double]$r.range) }
         [void]$ui.HHistList.Children.Add($g)
     }
@@ -8505,6 +8598,89 @@ function Start-SelfTest {
             @($r.calEvents) -contains 'spike' -and @($r.calEvents) -contains 'step' -and $r.sameDayNoRefetch -eq 3 -and $r.afterAway -eq 35 -and $r.secondSpan -eq 400 -and $r.offlineEntries -eq 35 -and $r.offlineRows -eq 35 -and $r.offlineHealth -eq 88 -and
             $r.allOwnToken -and $r.apiBase -like 'https://api.tessie.com*' -and $r.productionPath -eq (Join-Path $scriptDir 'battery-health-history.json') -and @($r.hardcoded).Count -eq 0)
         $script:SelfRec.v4321.fresh = $r }
+    # ---- v4.3.22: CHARGE column in HEALTH HISTORY (DRY RUN: nothing is sent to the car, nothing announced) ----
+    $script:SelfRec.v4322 = [ordered]@{ appVersion = $AppVersion }
+    $script:ChgCells4322 = { $o = @{}; foreach ($g in @($ui.HHistList.Children)) { $d = [string]$g.Children[0].Children[0].Text; $o[$d] = (@($g.Children[3].Children | ForEach-Object { $_.Text }) -join '') }; return $o }
+    & $add 'v4.3.22 pure: charge days (highest end %, type H / AC / SC / DC, fast flag, local day, ties go to fast, no charge = dash)' @() {
+        $ep = { param($s) [int64](ConvertTo-EpochLocal ([DateTime]::ParseExact($s, 'yyyy-MM-dd HH:mm', $Inv))) }
+        $hl = [pscustomobject]@{ lat = 40.0; lon = -100.0; src = 'test' }
+        $mk = { param($s, $e, $sb, $eb, $la, $lo, $sc, $fc) [pscustomobject]@{ started_at = (& $ep $s); ended_at = (& $ep $e); starting_battery = $sb; ending_battery = $eb; latitude = $la; longitude = $lo; is_supercharger = $sc; is_fast_charger = $fc } }
+        $res = @((& $mk '2026-01-04 21:30' '2026-01-05 05:53' 60 100 40.0 -100.0 $false $false), (& $mk '2026-01-05 08:03' '2026-01-05 08:11' 73 82 41.0 -101.0 $true $true),
+            (& $mk '2026-01-06 10:00' '2026-01-06 10:40' 22 95 41.0 -101.0 $true $true), (& $mk '2026-01-07 12:00' '2026-01-07 14:00' 50 70 40.5 -100.5 $false $false),
+            (& $mk '2026-01-08 09:00' '2026-01-08 09:30' 10 80 41.2 -101.2 $false $true), (& $mk '2026-01-08 20:00' '2026-01-08 23:30' 70 80 40.0 -100.0 $false $false),
+            (& $mk '2026-01-09 22:00' '2026-01-09 23:55' 40 78 40.0001 -100.0001 $false $false), [pscustomobject]@{ started_at = 1; ended_at = $null; ending_battery = 50 })
+        $d = ConvertTo-ChargeDays $res $hl
+        $r = [ordered]@{ days = (@($d.Keys | Sort-Object | ForEach-Object { $_ + '=' + (Format-ChargeDay $d[$_]) + $(if ($d[$_].fast) { '+fast' } else { '' }) }) -join ', ')
+            n5 = $d['2026-01-05'].n; s5 = @($d['2026-01-05'].s); none = (Format-ChargeDay $null); none2 = (Format-ChargeDay $d['2026-01-10']) }
+        $hh = Get-ChargeHome @($res[0], $res[5], $res[6], $res[3], $res[1]) $null; $r.homeGuess = $(if ($null -ne $hh) { '{0},{1} {2}' -f $hh.lat, $hh.lon, $hh.src } else { $null })
+        $r.pass = ($r.days -eq '2026-01-05=H 100%+fast, 2026-01-06=SC 95%+fast, 2026-01-07=AC 70%, 2026-01-08=DC 80%+fast, 2026-01-09=H 78%' -and $r.n5 -eq 2 -and $r.s5[0] -like '5:53 AM 60-100% H' -and $r.none -eq [string][char]0x2014 -and $r.none2 -eq [string][char]0x2014 -and
+            ($null -ne (Get-Cfg4319 'home') -or $r.homeGuess -like '40*,-100* most AC charging'))
+        $script:SelfRec.v4322.pure = $r }
+    & $add 'v4.3.22 UI: CHARGE column in the expanded HEALTH HISTORY, real Tessie charges (Mar 16 - Oct 8, 2026), CAL tags + summary kept' @() {
+        $f = Join-Path $scriptDir 'charges-real-test.json'; $r = [ordered]@{ fixture = (Test-Path -LiteralPath $f) }
+        $res = @(); if ($r.fixture) { $res = @(([System.IO.File]::ReadAllText($f) | ConvertFrom-Json).results) }
+        $hl = Get-ChargeHome $res $null; $days = ConvertTo-ChargeDays $res $hl
+        $script:OwnChargesMock = [pscustomobject]@{ vin = $script:VIN; fetchedAt = (Get-EpochNow); home = $hl; days = @($days.Keys | Sort-Object | ForEach-Object { [pscustomobject]$days[$_] }) }
+        $r.charges = $res.Count; $r.chargeDays = $days.Count; $r.home = $(if ($hl) { '{0:N4},{1:N4} ({2})' -f $hl.lat, $hl.lon, $hl.src } else { $null })
+        $r.fastDays = @($days.Keys | Sort-Object | Where-Object { $days[$_].fast } | ForEach-Object { $_ + ' ' + (Format-ChargeDay $days[$_]) + ' fast up to ' + $days[$_].fastMax + '%' })
+        Save-Cfg4319 'healthHistory' ([ordered]@{ open = $true }); $script:HHistAll = $false; $script:HHistSig = ''; Render-HealthHist; $ui.BodyScroll.ScrollToVerticalOffset(0); $window.UpdateLayout()
+        $hdr = @('HHistC0', 'HHistC1', 'HHistC2', 'HHistC4', 'HHistC3' | ForEach-Object { $ui[$_].Text }); $cells30 = & $script:ChgCells4322
+        & $script:ElPng4321 $ui.ChgCard 'v4322-chg-expanded'; Save-RootPng (Join-Path $script:SelfDir 'tessdesk-v4322-window-expanded.png'); $script:SelfRec.shots += 'tessdesk-v4322-window-expanded.png'
+        $script:HHistAll = $true; $script:HHistSig = ''; Render-HealthHist; $window.UpdateLayout(); $cells = & $script:ChgCells4322
+        $want = [ordered]@{ 'Sun Mar 29, 2026' = 'H 100%' + [char]0x26A1; 'Sun Jul 26, 2026' = 'H 86%' + [char]0x26A1; 'Mon Jul 27, 2026' = 'H 80%'; 'Sat Mar 28, 2026' = 'H 80%' }
+        $r.check = [ordered]@{}; foreach ($k in $want.Keys) { $r.check[$k] = [string]$cells[$k] }
+        $dash = @($cells.Values | Where-Object { $_ -eq [string][char]0x2014 }).Count; $r.rows = $cells.Count; $r.dashRows = $dash; $r.withCharge = $cells.Count - $dash
+        $r.header = $hdr -join ' | '; $r.first30 = @($cells30.Keys | Sort-Object -Descending | Select-Object -First 6 | ForEach-Object { $_ + ' ' + $cells30[$_] })
+        $r.calTags = @($ui.HHistList.Children | Where-Object { $_.Children[0].Children.Count -gt 1 }).Count; $r.summary = $ui.HHistSummary.Text; $r.calLine = (($ui.HHistCal.Inlines | ForEach-Object { $_.Text }) -join '')
+        $tgt = @($ui.HHistList.Children | Where-Object { [string]$_.Children[0].Children[0].Text -eq 'Sun Jul 26, 2026' })
+        if ($tgt.Count) { $tgt[0].BringIntoView(); $window.UpdateLayout(); & $script:ElPng4321 $ui.ChgCard 'v4322-chg-jul26' }
+        $tgt = @($ui.HHistList.Children | Where-Object { [string]$_.Children[0].Children[0].Text -eq 'Sun Mar 29, 2026' })
+        if ($tgt.Count) { $tgt[0].BringIntoView(); $window.UpdateLayout(); & $script:ElPng4321 $ui.ChgCard 'v4322-chg-mar29' }
+        $mis = @($want.Keys | Where-Object { $r.check[$_] -ne $want[$_] })
+        $r.mismatch = $mis
+        # a day without a charge shows a dash (Van charged every day in this range, so drop Oct 8 from a copy of the data just for this check)
+        $script:OwnChargesMock = [pscustomobject]@{ vin = $script:VIN; fetchedAt = (Get-EpochNow); days = @($script:OwnChargesMock.days | Where-Object { $_.d -ne '2026-10-08' }) }; $script:HHistAll = $false; $script:HHistSig = ''; Render-HealthHist; $window.UpdateLayout()
+        $c2 = & $script:ChgCells4322; $r.noChargeDay = [string]$c2['Thu Oct 8, 2026']
+        $r.pass = ($r.fixture -and $r.charges -gt 400 -and $r.header -eq 'DATE | HEALTH | CHANGE | CHARGE | CAPACITY' -and $mis.Count -eq 0 -and $r.noChargeDay -eq [string][char]0x2014 -and $r.withCharge -gt 100 -and $r.calTags -eq 3 -and $r.calLine -like 'Calibration: last detected Jul 26, 2026*' -and $r.summary -like 'Change: 30 days*')
+        $script:OwnChargesMock = $null; $script:HHistAll = $false; $script:HHistSig = ''
+        $script:SelfRec.v4322.ui = $r }
+    & $add 'v4.3.22 fresh install: charge history seeds from Tessie with the new token (10 years), catches up after days away, keeps the last data offline (no box)' @() {
+        $tmp = Join-Path $env:TEMP ('td4322-fresh-' + [guid]::NewGuid().ToString('N').Substring(0, 8)); New-Item -ItemType Directory $tmp -Force | Out-Null
+        $keep = @($script:VIN, ${function:Invoke-Tessie}, $script:ChgHistNext)
+        $hc = Get-Cfg4319 'home'; $script:FHome = $(if ($null -ne $hc -and $null -ne $hc.lat) { @([double]$hc.lat, [double]$hc.lon) } else { @(40.0, -100.0) })
+        $script:ChargeSandbox = Join-Path $tmp 'charge-history.json'; $script:FreshCalls = New-Object System.Collections.ArrayList; $script:FreshOnline = $true; $script:FreshNow = Get-EpochNow; $script:FreshFail10y = $false
+        ${function:Invoke-Tessie} = { param([string]$Path, [string]$Token)
+            [void]$script:FreshCalls.Add($Token + ' ' + $Path); if (-not $script:FreshOnline) { throw 'offline (self-test)' }
+            if ($Path -notlike '/TESTVIN0000FRESH2/charges*') { throw ('unexpected path ' + $Path) }
+            $q = @{}; foreach ($kv in ($Path.Split('?')[1] -split '&')) { $a = $kv.Split('='); $q[$a[0]] = $a[1] }
+            if ($script:FreshFail10y -and ([int64]$q['to'] - [int64]$q['from']) -gt 401 * 86400) { throw 'too large (self-test)' }
+            $res = @(); for ($i = 40; $i -ge 0; $i--) { $e = $script:FreshNow - $i * 86400 + 3600; if ($e -lt [int64]$q['from'] -or $e -gt [int64]$q['to']) { continue }
+                $sc = ($i % 10 -eq 3); $res += [pscustomobject]@{ started_at = $e - 7200; ended_at = $e; starting_battery = 30; ending_battery = $(if ($sc) { 90 } else { 80 }); latitude = $(if ($sc) { 1.0 } else { $script:FHome[0] }); longitude = $(if ($sc) { 1.0 } else { $script:FHome[1] }); is_supercharger = $sc; is_fast_charger = $sc } }
+            return [pscustomobject]@{ results = $res } }
+        $r = [ordered]@{}
+        try {
+            $script:VIN = 'TESTVIN0000FRESH2'; $script:ChgHistNext = 0
+            $r.emptyAtStart = ($null -eq (Read-OwnCharges))
+            Update-ChargeHist 'NEW-TEST-TOKEN' $script:FreshNow
+            $j = Get-Content -LiteralPath $script:ChargeSandbox -Raw -Encoding UTF8 | ConvertFrom-Json; $r.seededDays = @($j.days).Count; $r.vin = $j.vin; $r.firstSpan = $script:ChgHistSpan; $r.home = $j.home.src
+            $r.labels = @(@($j.days) | Select-Object -Last 4 | ForEach-Object { Format-ChargeDay $_ })
+            Update-ChargeHist 'NEW-TEST-TOKEN' ($script:FreshNow + 3600); $r.sameDayCalls = $script:FreshCalls.Count
+            $script:ChgHistNext = 0; $script:FreshNow += 3 * 86400; Update-ChargeHist 'NEW-TEST-TOKEN' $script:FreshNow
+            $j = Get-Content -LiteralPath $script:ChargeSandbox -Raw -Encoding UTF8 | ConvertFrom-Json; $r.afterAwayDays = @($j.days).Count; $r.catchUpSpan = $script:ChgHistSpan
+            $script:FreshOnline = $false; $script:ChgHistNext = 0; $script:FreshNow += 7 * 3600; Update-ChargeHist 'NEW-TEST-TOKEN' $script:FreshNow
+            $r.offlineDays = @((Read-OwnCharges).days).Count; $r.offlineRetryMin = [int](($script:ChgHistNext - $script:FreshNow) / 60)
+            Remove-Item -LiteralPath $script:ChargeSandbox -Force; $script:FreshOnline = $true; $script:FreshFail10y = $true; $script:ChgHistNext = 0; Update-ChargeHist 'NEW-TEST-TOKEN' $script:FreshNow; $r.fallbackSpan = $script:ChgHistSpan; $r.fallbackDays = @((Read-OwnCharges).days).Count
+            $r.calls = @($script:FreshCalls); $r.allOwnToken = (@($script:FreshCalls | Where-Object { $_ -notlike 'NEW-TEST-TOKEN /TESTVIN0000FRESH2/charges?*' }).Count -eq 0)
+            $r.productionPath = $ChargeHistPath
+            $code = (@('Update-ChargeHist', 'Read-OwnCharges', 'Get-ChargeHome', 'ConvertTo-ChargeDays', 'Get-ChargeDayMap', 'New-HChgCell', 'Get-CHPath') | ForEach-Object { (Get-Item ('function:' + $_)).ScriptBlock.ToString() }) -join "`n"
+            $r.hardcoded = @(@('/workspace', '/home/box', 'Grok', 'tdpub', '7SAYGDEE', 'vanwi', 'routine', '36.10', '-96.03') | Where-Object { $code -like ('*' + $_ + '*') })
+        } finally {
+            $script:VIN = $keep[0]; ${function:Invoke-Tessie} = $keep[1]; $script:ChgHistNext = $keep[2]; $script:ChargeSandbox = $null
+            try { Remove-Item -LiteralPath $tmp -Recurse -Force } catch {}
+        }
+        $r.pass = ($r.emptyAtStart -and $r.seededDays -eq 40 -and $r.vin -eq 'TESTVIN0000FRESH2' -and $r.firstSpan -ge 3650 -and $r.sameDayCalls -eq 1 -and $r.afterAwayDays -eq 43 -and $r.catchUpSpan -le 6 -and $r.offlineDays -eq 43 -and $r.offlineRetryMin -eq 30 -and
+            $r.fallbackSpan -le 401 -and $r.fallbackDays -eq 40 -and $r.allOwnToken -and $r.productionPath -eq (Join-Path $scriptDir 'charge-history.json') -and @($r.hardcoded).Count -eq 0 -and @($r.labels | Where-Object { $_ -notmatch '^(H 80%|SC 90%)$' }).Count -eq 0)
+        $script:SelfRec.v4322.fresh = $r }
     & $add 'v4.3.21 smoke: versions, footer, hook line, width, all cards render, no real commands' @() {
         $me = [System.IO.File]::ReadAllText((Join-Path $scriptDir 'TessDesk.ps1')); $L = $me -split "`r?`n"
         $hook = @($L | Where-Object { $_ -like "try { . 'C:\Users\vanwi\cb_compact_addon.ps1'; Enable-CbCompactMode -Window `$window -Name 'TESSDESK'*" }).Count
@@ -8514,10 +8690,15 @@ function Start-SelfTest {
         $real = @($script:CtlLog | Where-Object { $_.dry -eq $false -or $_.real -eq $true }).Count
         $r = $script:SelfRec.v4321
         $r.smoke = [ordered]@{ appVersion = $AppVersion; footer = $ui.FooterVersion.Text; brand = $ui.FooterText.Text; bold = [string]$ui.FooterText.FontWeight; hookLines = $hook; hookBeforeShowDialog = $before; width = $window.Width; renderError = $err; dryRun = $CTL_DRYRUN; realCmdLog = $real
-            pass = ($AppVersion -eq '4.3.21' -and $ui.FooterVersion.Text -like ('*4.3.21*' + $AppDate) -and [string]$ui.FooterText.FontWeight -eq 'Bold' -and $hook -eq 1 -and $before -and $null -eq $err -and $CTL_DRYRUN -and [math]::Abs($window.Width - $winW) -lt 1) }
+            pass = ($AppVersion -eq '4.3.22' -and $ui.FooterVersion.Text -like ('*4.3.22*' + $AppDate) -and [string]$ui.FooterText.FontWeight -eq 'Bold' -and $hook -eq 1 -and $before -and $null -eq $err -and $CTL_DRYRUN -and [math]::Abs($window.Width - $winW) -lt 1) }
         $fails = @(); foreach ($k in 'pure', 'collapsed', 'place', 'expanded', 'calTags', 'showAll', 'fresh', 'smoke') { if ($null -eq $r[$k] -or -not $r[$k].pass) { $fails += $k } }
         $r.summary = [ordered]@{ fails = $fails; allPass = ($fails.Count -eq 0) } }
-    if ($Quick4321) { return (Start-SelfTimer) }
+    & $add 'v4.3.22 summary' @() {
+        $r = $script:SelfRec.v4322; $r.smoke = $script:SelfRec.v4321.smoke; $fails = @()
+        foreach ($k in 'pure', 'ui', 'fresh', 'smoke') { if ($null -eq $r[$k] -or -not $r[$k].pass) { $fails += $k } }
+        $r.v4321Steps = $script:SelfRec.v4321.summary
+        $r.summary = [ordered]@{ fails = $fails; allPass = ($fails.Count -eq 0 -and $script:SelfRec.v4321.summary.allPass) } }
+    if ($Quick4322) { return (Start-SelfTimer) }
     # v4.3.17: record the dropdown's start state, then open it (not saved) so the older steps can snapshot the history rows
     $script:SelfRec.v4317pre = [ordered]@{ open = [bool]$script:ChgHist.open; body = [string]$ui.ChgHistBody.Visibility; arrow = $ui.ChgHistArrow.Text; savedSetting = $(try { [string](Read-Config).ui.historyOpen } catch { '' }) }; Set-ChgHistOpen $true $false
     # ---- v4.3.3 steps (DRY RUN: nothing is sent to the car, nothing announced) ----

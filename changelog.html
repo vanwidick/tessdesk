@@ -31,9 +31,19 @@
   <p class="lead">Every TessDesk version (desktop widget and phone app), newest first.</p>
 
   <!-- Add each new version at the top: <section class="rel new"> ... -->
-  <section class="rel new" id="v4.3.21">
-    <h2>v4.3.21 <small>Oct 9, 2026 (desktop and phone)</small></h2>
+  <section class="rel new" id="v4.3.22">
+    <h2>v4.3.22 <small>Oct 9, 2026 (desktop and phone)</small></h2>
     <span class="tag">LATEST</span>
+    <ul>
+      <li><b>CHARGE column</b> in HEALTH HISTORY (in the CHARGING card): for each day, the highest charge % reached that day and where: <b>H</b> home, <b>AC</b> another AC charger, <b>SC</b> Supercharger, <b>DC</b> DC fast. Fast charging is shown in amber, with a small lightning mark on days that also had fast charging. A dash means no charge ended that day.</li>
+      <li>Everything else stays: health %, change, capacity, the CAL tags and the summaries.</li>
+      <li>The charge history runs fully inside the app with your own Tessie token and car: the first run fetches every past charge Tessie has, then it updates every 6 hours, catches up on missed days when you come back, and shows the last data when you are offline. The car is never woken for it.</li>
+      <li>Desktop v4.3.22, Windows download: TessDesk Setup 4.4.22. Phone app v4.3.22: open TessDesk on your phone and tap the refresh banner.</li>
+    </ul>
+  </section>
+
+  <section class="rel" id="v4.3.21">
+    <h2>v4.3.21 <small>Oct 9, 2026 (desktop and phone)</small></h2>
     <ul>
       <li><b>HEALTH HISTORY</b> moved into the CHARGING card, right under START / STOP and above the charging amps. It works as before: starts closed, remembers open or closed, shows the latest % and the 30-day change, and opens to the list, the summary and Show all. BATTERY HEALTH keeps the big %, kWh, sparkline and tips.</li>
       <li><b>Calibration info</b>: days that look like a BMS recalibration (a jump of 1.5 points or more, or a one-day spike that goes back the next day) get a small <b>CAL</b> tag. These are changes in the estimate, not in the battery. A Calibration line shows the last one and how many days ago it was, plus a short tip: now and then charge from about 10-20% to 90-100% and let the car sleep for an hour or more.</li>

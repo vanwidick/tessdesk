@@ -1,10 +1,10 @@
-/* Leaving Soon page v4.3.21 (DESIGN BY VAN). Uses ../leave.js (same Leaving Soon logic as TESLA CONTROLS in the main app).
+/* Leaving Soon page v4.3.22 (DESIGN BY VAN). Uses ../leave.js (same Leaving Soon logic as TESLA CONTROLS in the main app).
    Settings come from the main TessDesk app's localStorage on this site (td:cfg). If they are missing (for example an iPhone
    Home Screen app keeps its own storage), a short one-time setup asks for the Tessie token (and optional Voice Monkey token);
    it is saved only in this browser (td:leaveCfg) and sent only to api.tessie.com / api-v3.voicemonkey.io. */
 (function () {
   'use strict';
-  var VERSION = 'v4.3.21', VERSION_DATE = 'Oct 9, 2026', P = 'td:', L = window.TDLeave, root = document.getElementById('lp'), setup = false;
+  var VERSION = 'v4.3.22', VERSION_DATE = 'Oct 9, 2026', P = 'td:', L = window.TDLeave, root = document.getElementById('lp'), setup = false;
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function load(k, d) { try { var v = localStorage.getItem(P + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }
   function save(k, v) { try { localStorage.setItem(P + k, JSON.stringify(v)); } catch (e) {} }

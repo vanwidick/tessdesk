@@ -2,7 +2,7 @@
    Everything (name, Tessie token, vehicle, rates) is stored in localStorage on this device only. */
 (function () {
   'use strict';
-/* TessDesk phone v4.3.21 (DESIGN BY VAN). v4.3.21: HEALTH HISTORY under START / STOP in the CHARGING card + CALIBRATION INFO; history runs fully in the app. v4.3.20: HEALTH HISTORY dropdown. Pure logic + UI for: PLUG-IN REMINDER, TRIPS, MORNING READY CHECK,
+/* TessDesk phone v4.3.22 (DESIGN BY VAN). v4.3.22: CHARGE column in HEALTH HISTORY (highest charge % per day + Home / AC / Supercharger). v4.3.21: HEALTH HISTORY under START / STOP in the CHARGING card + CALIBRATION INFO; history runs fully in the app. v4.3.20: HEALTH HISTORY dropdown. Pure logic + UI for: PLUG-IN REMINDER, TRIPS, MORNING READY CHECK,
    PSO BILL MATCH (on/off switch), BATTERY HEALTH TREND + TIPS. No Alexa, no toasts (in-app banners only),
    cached data only (never wakes the car). The same functions are unit-tested headlessly. */
 (function (g) {
@@ -329,12 +329,13 @@
     if (!hhSeeded && h && h.at && h.healthPct != null) { hhSeeded = true; try { own = hhMerge(own, h, hhLocalDay(h.at)); sv('healthHist', own); if (vin) sv('healthHistVin', vin); } catch (e) {} }
     var rows = hhRows(h, own), s = hhSummary(rows), open = !!ld('healthHistOpen', false), all = !!g.__hhAll, ci = hhCalInfo(rows, hhLocalDay(Date.now() / 1000));
     g.__hhCal = ci;
+    var chm = {}; ((chOwn(vin) || {}).days || []).forEach(function (x) { if (x && x.d) chm[x.d] = x; });   // v4.3.22
     var out = '<div class="hhist' + (open ? ' open' : '') + '" id="hhist"><button class="hhbtn" id="hhToggle" type="button" aria-expanded="' + open + '"><b>HEALTH HISTORY ' + (open ? '\u25be' : '\u25b8') + '</b><span>' + (s ? '<i>' + s.latest.toFixed(1) + '%</i> \u00b7 30 days ' + hhDelta(s.d30) : 'builds up day by day') + '</span></button>';
     if (!open) return out + '</div>';
     out += '<div class="hhsum">' + (s ? 'Change: 30 days ' + hhDelta(s.d30) + ' \u00b7 90 days ' + hhDelta(s.d90) + ' \u00b7 since ' + hhDay(s.firstD) + ' ' + hhDelta(s.first) + ' \u00b7 ' + s.count + (s.count === 1 ? ' entry' : ' entries') : 'No history yet: one entry is logged per day from Tessie.') + '</div>';
     if (rows.length) out += hhCalHtml(ci, rows.length);   // v4.3.21
-    out += '<div class="hhrow hhhead"><span>DATE</span><span>HEALTH</span><span>CHANGE</span><span>CAPACITY</span></div><div class="hhlist" id="hhList">';
-    (all ? rows : rows.slice(0, 30)).forEach(function (r) { out += '<div class="hhrow"' + (r.range != null ? ' title="Est. full-pack range ' + Math.round(r.range) + ' mi"' : '') + '><span>' + hhDay(r.d, !ci.tags[r.d]) + (ci.tags[r.d] ? '<i class="calt" title="Likely BMS recalibration (' + ci.tags[r.d] + '): the estimate changed, not the battery">CAL</i>' : '') + '</span><b>' + r.health.toFixed(1) + '%</b>' + hhDelta(r.delta) + '<span>' + (r.cap != null ? r.cap.toFixed(2) + ' kWh' : '--') + '</span></div>'; });
+    out += '<div class="hhrow hhhead"><span>DATE</span><span>HEALTH</span><span>CHANGE</span><span title="Highest charge % reached that day. H = home, AC = other AC, SC = Supercharger, DC = DC fast; amber = fast charging">CHARGE</span><span>kWh</span></div><div class="hhlist" id="hhList">';
+    (all ? rows : rows.slice(0, 30)).forEach(function (r) { out += '<div class="hhrow"' + (r.range != null ? ' title="Est. full-pack range ' + Math.round(r.range) + ' mi"' : '') + '><span>' + hhDayS(r.d, !ci.tags[r.d]) + (ci.tags[r.d] ? '<i class="calt" title="Likely BMS recalibration (' + ci.tags[r.d] + '): the estimate changed, not the battery">CAL</i>' : '') + '</span><b>' + r.health.toFixed(1) + '%</b>' + hhDelta(r.delta) + chCell(chm[r.d]) + '<span>' + (r.cap != null ? r.cap.toFixed(2) : '--') + '</span></div>'; });
     out += '</div>';
     if (rows.length > 30) out += '<button class="cbtn hhall" id="hhAll" type="button">' + (all ? 'Show last 30' : 'Show all (' + rows.length + ')') + '</button>';
     return out + '</div>';
@@ -372,6 +373,43 @@
   // v4.3.21: the history belongs to one car (td:healthHistVin); another car's history is not shown. Existing 4.3.20 history (no VIN yet) is kept.
   function hhOwn(vin) { var hv = ld('healthHistVin', null); return (hv && vin && hv !== vin) ? [] : (ld('healthHist', null) || []); }
   API.hhCal = hhCal; API.hhCalInfo = hhCalInfo; API.hhOwn = hhOwn; API.hhLocalDay = function (t) { return hhLocalDay(t); };
+  // ---- v4.3.22: CHARGE column in HEALTH HISTORY: highest charge % reached each day (end SoC of the charges that ended that day) + type.
+  // H = home (Home spot in settings, else the spot where most AC charging happens), AC = other AC, SC = Supercharger, DC = other DC fast. Kept per car in td:chargeHist.
+  function chDist(a, b, c, d) { var r = Math.PI / 180, x = (d - b) * r * Math.cos((a + c) / 2 * r), y = (c - a) * r; return Math.sqrt(x * x + y * y) * 6371000; }
+  function chHome(res, cfgHome, prev) {
+    if (cfgHome && cfgHome.lat != null && cfgHome.lon != null) return { lat: +cfgHome.lat, lon: +cfgHome.lon, src: 'settings' };
+    if (prev && prev.lat != null && prev.lon != null) return prev;
+    var cnt = {}, at = {}, best = null;
+    (res || []).forEach(function (c) { if (!c || c.is_supercharger || c.is_fast_charger || c.latitude == null || c.longitude == null) return; var k = (+c.latitude).toFixed(3) + ',' + (+c.longitude).toFixed(3); cnt[k] = (cnt[k] || 0) + 1; at[k] = [+c.latitude, +c.longitude]; });
+    Object.keys(cnt).sort().forEach(function (k) { if (best == null || cnt[k] > cnt[best]) best = k; });
+    return best == null ? null : { lat: at[best][0], lon: at[best][1], src: 'most AC charging' };
+  }
+  function chDays(res, home) {
+    var days = {};
+    (res || []).slice().sort(function (a, b) { return (a && a.ended_at || 0) - (b && b.ended_at || 0); }).forEach(function (c) {
+      if (!c || c.ended_at == null || c.ending_battery == null) return;
+      var d = hhLocalDay(+c.ended_at), t = c.is_supercharger ? 'SC' : (c.is_fast_charger ? 'DC' : (home && c.latitude != null && c.longitude != null && chDist(+c.latitude, +c.longitude, home.lat, home.lon) <= 241 ? 'H' : 'AC'));
+      var e = Math.round(+c.ending_battery), fast = t === 'SC' || t === 'DC', o = days[d] || (days[d] = { d: d, max: -1, t: '', fast: false, fastMax: null, n: 0 });
+      o.n++; if (fast) { o.fast = true; if (o.fastMax == null || e > o.fastMax) o.fastMax = e; }
+      if (e > o.max || (e === o.max && fast)) { o.max = e; o.t = t; }
+    });
+    return days;
+  }
+  function chOwn(vin) { var j = ld('chargeHist', null); return (j && (!j.vin || !vin || j.vin === vin)) ? j : null; }
+  function chMerge(own, res, fromD, vin, cfgHome, t, span) {
+    var home = chHome(res, cfgHome, own && own.home), nd = chDays(res, home), all = {};
+    ((own && own.days) || []).forEach(function (x) { if (x && x.d && x.d <= fromD) all[x.d] = x;   /* the first day may be partly before 'from': keep it unless the new data has it */ });
+    Object.keys(nd).forEach(function (k) { all[k] = nd[k]; });
+    return { vin: vin, fetchedAt: t, span: span, home: home, days: Object.keys(all).sort().map(function (k) { return all[k]; }) };
+  }
+  function chLabel(c) { return (!c || c.max == null || c.max < 0) ? '\u2014' : c.t + ' ' + c.max + '%'; }
+  function chCell(c) {
+    if (!c || c.max == null || c.max < 0) return '<span class="hhc none">\u2014</span>';
+    var ft = c.t === 'SC' || c.t === 'DC', nm = { H: 'home', AC: 'AC charger', SC: 'Supercharger', DC: 'DC fast charger' }[c.t] || c.t;
+    return '<span class="hhc' + (ft ? ' f' : '') + '" title="Highest charge reached: ' + c.max + '% (' + nm + ')' + (c.fast && !ft ? '; fast charging this day too (up to ' + c.fastMax + '%)' : '') + ' \u00b7 ' + c.n + ' charge' + (c.n === 1 ? '' : 's') + '">' + chLabel(c) + (c.fast && !ft ? '<i>\u26a1</i>' : '') + '</span>';
+  }
+  function hhDayS(d, dow) { var p = String(d).split('-'), dt = new Date(Date.UTC(+p[0], +p[1] - 1, +p[2], 12)), cy = new Date().getFullYear(); return (dow ? HH_DOW[dt.getUTCDay()] + ' ' : '') + HH_MON[+p[1] - 1] + ' ' + (+p[2]) + (+p[0] !== cy ? " '" + p[0].slice(2) : ''); }
+  API.chHome = chHome; API.chDays = chDays; API.chOwn = chOwn; API.chMerge = chMerge; API.chLabel = chLabel;
   API.hhMerge = hhMerge; API.hhRows = hhRows; API.hhSummary = hhSummary; API.healthHistHtml = healthHistHtml;
   API.plugHtml = plugHtml; API.readyHtml = readyHtml; API.billHtml = billHtml; API.healthHtml = healthHtml; API.tripsHtml = tripsHtml; API.bannerOf = bannerOf;
   API.bind4319 = function () {
@@ -388,7 +426,7 @@
   var CFG = window.TD_CONFIG || {};
   var VARIANT = CFG.variant || 'main';
   var P = CFG.storagePrefix || 'td:';
-  var VERSION = 'v4.3.21';
+  var VERSION = 'v4.3.22';
   var VERSION_DATE = 'Oct 9, 2026';
   var TZ = 'America/Chicago';
   var DEFAULT_API = 'https://api.tessie.com';
@@ -633,6 +671,18 @@
           cache.health = { healthPct: mine.health_percent, capacity: mine.capacity, original: mine.original_capacity, maxRange: mine.max_range, at: t, points: pts }; cache.healthAt = t; cache.healthSpan = span; logDay();
         }, function () { cache.health = { healthPct: mine.health_percent, capacity: mine.capacity, original: mine.original_capacity, maxRange: mine.max_range, at: t, points: old }; cache.healthAt = t; logDay(); });
       }, function () { cache.healthAt = t - HEALTH_EVERY_S + 1800; });
+      /* v4.3.22: charge history for the CHARGE column, fully in the app with the user's own token + VIN: the first run asks Tessie for 10 years of charges (400 days if that fails),
+         then every 6 h from 2 days before the last fetch (catches up after time away); offline the saved history stays (retry in 30 min). */
+      var pch = null;
+      if (window.TD4319 && t >= (window.__tdChRetry || 0)) { var chO = TD4319.chOwn(cfg.vin), chFirst = !chO || !chO.fetchedAt;
+        if (chFirst || t - chO.fetchedAt > HEALTH_EVERY_S) {
+          var dS = function (s) { var c = ct(s); return Math.floor(s / 60) * 60 - (c.h * 3600 + c.mi * 60); }, chSpan = 0;
+          var getC = function (f) { chSpan = Math.round((t - f) / 86400); return api('/' + cfg.vin + '/charges?from=' + f + '&to=' + t + '&distance_format=mi&format=json').then(function (r) { return { r: r, f: f }; }); };
+          pch = getC(chFirst ? dS(t - 3650 * 86400) : dS(Math.max(chO.fetchedAt - 2 * 86400, t - 400 * 86400))).then(null, function (e) { if (chFirst) return getC(dS(t - 400 * 86400)); throw e; }).then(function (x) {
+            try { save('chargeHist', TD4319.chMerge(chFirst ? null : chO, (x.r && x.r.results) || [], TD4319.hhLocalDay(x.f), cfg.vin, cfg.home, t, chSpan)); } catch (e) {}
+          }, function () { window.__tdChRetry = t + 1800; });
+        } }
+      if (pch) ph = Promise.all([ph, pch]);
       var pd = !needDrives ? null : api('/' + cfg.vin + '/drives?from=' + (t - 30 * 86400) + '&to=' + t + '&distance_format=mi&format=json')
         .then(function (r) { cache.drives = (r && r.results) || []; cache.drivesAt = t; drivesErr = null; return ph; }, function (e) { drivesErr = String(e.message || e); cache.drivesAt = t - CHARGES_EVERY_S + 300; return ph; });
       if (!needCharges) return pd;

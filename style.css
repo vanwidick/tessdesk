@@ -832,3 +832,8 @@ body:not(.compact) .lv-pm { grid-template-columns: 44px minmax(0, 1fr) 44px; }
 .chgbar .hhlist { max-height: 46vh; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
 .calt { display: inline-block; margin-left: 5px; padding: 0 4px; border: 1px solid var(--amber, #f5b942); border-radius: 4px; color: var(--amber, #f5b942); font-size: 9.5px; font-weight: 700; line-height: 1.35; letter-spacing: .03em; vertical-align: 1px; }
 @media (max-width: 374px) { .calt { margin-left: 3px; padding: 0 3px; font-size: 9px; } }
+/* v4.3.22: CHARGE column (DATE | HEALTH | CHANGE | CHARGE | kWh), fits 360 / 390 / 430 */
+.hhrow { grid-template-columns: minmax(0,1fr) 46px 44px 58px 40px; gap: 5px; }
+.hhc { color: var(--muted); font-weight: 600; } .hhc.f { color: var(--amber, #FFB020); font-weight: 800; } .hhc.none { color: var(--muted); opacity: .7; }
+.hhc i { font-style: normal; color: var(--amber, #FFB020); margin-left: 1px; font-size: 10px; }
+@media (max-width: 374px) { .hhrow { grid-template-columns: minmax(0,1fr) 42px 40px 55px 37px; gap: 3px; font-size: 11px; } }
