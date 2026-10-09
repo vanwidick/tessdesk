@@ -837,3 +837,17 @@ body:not(.compact) .lv-pm { grid-template-columns: 44px minmax(0, 1fr) 44px; }
 .hhc { color: var(--muted); font-weight: 600; } .hhc.f { color: var(--amber, #FFB020); font-weight: 800; } .hhc.none { color: var(--muted); opacity: .7; }
 .hhc i { font-style: normal; color: var(--amber, #FFB020); margin-left: 1px; font-size: 10px; }
 @media (max-width: 374px) { .hhrow { grid-template-columns: minmax(0,1fr) 42px 40px 55px 37px; gap: 3px; font-size: 11px; } }
+/* v4.3.23: CHARGING SCHEDULE in the CHARGING card: START AT / FINISH BY, native time pickers (15-minute steps), target %, estimate + sync status; fits 360 / 390 / 430 */
+.sch { display: grid; grid-template-columns: auto minmax(0,1fr) 64px; gap: 6px 6px; align-items: center; margin: 8px 0 2px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: color-mix(in srgb, var(--text) 5%, transparent); }
+.sch-t { display: flex; align-items: center; gap: 6px; min-height: 44px; cursor: pointer; color: var(--muted); }
+.sch-t input { width: 20px; height: 20px; margin: 0; accent-color: var(--green); }
+.sch-t b { font-size: 12px; font-weight: 800; letter-spacing: .04em; white-space: nowrap; }
+.sch-t.on b { color: var(--green); } .sch-t.over b { color: var(--muted); text-decoration: line-through; opacity: .8; }
+.sch-in { min-width: 0; width: 100%; height: 44px; box-sizing: border-box; font: 600 16px var(--font); color: var(--text); background: var(--card2); border: 1px solid var(--line); border-radius: 8px; padding: 0 6px; color-scheme: dark; }
+.sch-in.dim { color: var(--muted); }
+.sch-in:disabled { opacity: .45; }
+.sch-st { font-style: normal; font-size: 11px; font-weight: 700; text-align: right; line-height: 1.2; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; word-break: break-word; }
+.sch-st.gr { color: var(--green); } .sch-st.am { color: var(--amber); } .sch-st.rd { color: var(--red); } .sch-st.mu { color: var(--muted); }
+.sch-e { grid-column: 1 / -1; font-size: 12px; font-weight: 600; color: var(--muted); line-height: 1.3; }
+@media (max-width: 374px) { .sch { grid-template-columns: auto minmax(0,1fr) 60px; gap: 6px 4px; padding: 6px 6px; } .sch-t b { font-size: 11px; } .sch-in { padding: 0 3px; } }
+.sch-p { -webkit-appearance: none; appearance: none; text-align: center; text-align-last: center; padding: 0 2px; }

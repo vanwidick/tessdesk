@@ -1,18 +1,18 @@
 {
  "app": "TessDesk",
- "version": "4.3.22",
+ "version": "4.3.23",
  "date": "Oct 9, 2026",
- "setup": "4.4.22",
- "changelog": "https://vanwidick.github.io/tessdesk/changelog.html#v4.3.22",
+ "setup": "4.4.23",
+ "changelog": "https://vanwidick.github.io/tessdesk/changelog.html#v4.3.23",
  "download": "https://vanwidick.github.io/tessdesk/download.html",
  "desktop": {
-  "version": "4.3.22",
+  "version": "4.3.23",
   "files": [
    {
     "name": "TessDesk.ps1",
     "url": "https://vanwidick.github.io/tessdesk/download/app/TessDesk.ps1",
-    "sha256": "1661fd72efce3ccca63d4fade81376e5b2c5b43aab707a0d07e324fd8af3a8d2",
-    "bytes": 894873
+    "sha256": "75eaa95a9877681c00914077260bf77e398b8237f674eb5531d3d618fe24da03",
+    "bytes": 942996
    },
    {
     "name": "TessDesk-Announce.ps1",
@@ -41,8 +41,8 @@
   ]
  },
  "phone": {
-  "version": "4.3.22",
-  "cache": "tessdesk-v4.3.22",
+  "version": "4.3.23",
+  "cache": "tessdesk-v4.3.23",
   "date": "Oct 9, 2026"
  }
 }

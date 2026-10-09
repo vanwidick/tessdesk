@@ -2,7 +2,7 @@
    Everything (name, Tessie token, vehicle, rates) is stored in localStorage on this device only. */
 (function () {
   'use strict';
-/* TessDesk phone v4.3.22 (DESIGN BY VAN). v4.3.22: CHARGE column in HEALTH HISTORY (highest charge % per day + Home / AC / Supercharger). v4.3.21: HEALTH HISTORY under START / STOP in the CHARGING card + CALIBRATION INFO; history runs fully in the app. v4.3.20: HEALTH HISTORY dropdown. Pure logic + UI for: PLUG-IN REMINDER, TRIPS, MORNING READY CHECK,
+/* TessDesk phone v4.3.23 (DESIGN BY VAN). v4.3.23: CHARGING SCHEDULE in the CHARGING card (START AT + FINISH BY, set on the car through Tessie). v4.3.22: CHARGE column in HEALTH HISTORY (highest charge % per day + Home / AC / Supercharger). v4.3.21: HEALTH HISTORY under START / STOP in the CHARGING card + CALIBRATION INFO; history runs fully in the app. v4.3.20: HEALTH HISTORY dropdown. Pure logic + UI for: PLUG-IN REMINDER, TRIPS, MORNING READY CHECK,
    PSO BILL MATCH (on/off switch), BATTERY HEALTH TREND + TIPS. No Alexa, no toasts (in-app banners only),
    cached data only (never wakes the car). The same functions are unit-tested headlessly. */
 (function (g) {
@@ -426,7 +426,7 @@
   var CFG = window.TD_CONFIG || {};
   var VARIANT = CFG.variant || 'main';
   var P = CFG.storagePrefix || 'td:';
-  var VERSION = 'v4.3.22';
+  var VERSION = 'v4.3.23';
   var VERSION_DATE = 'Oct 9, 2026';
   var TZ = 'America/Chicago';
   var DEFAULT_API = 'https://api.tessie.com';
@@ -921,7 +921,7 @@
   function testBanner() { return VARIANT === 'test' ? '<div class="test-banner">TEST BUILD</div>' : ''; }
 
   function render() {
-    if (dragging) return;
+    if (dragging || schPicking()) return;   // v4.3.23: keep an open time / % picker
     if (window.__TD4319bind) window.__TD4319bind({ ct: ct, ctEpoch: ctEpoch, nowSec: nowSec, clock: clock, dayLabel: dayLabel, cache: cache, sessionCost: sessionCost, fromCharge: fromCharge, render: render });
     applyTheme();
     var cfg = getCfg();
@@ -1366,6 +1366,186 @@
   }
   // ---------- v4.3.18: CHARGING STATUS bar (as desktop 4.3.18): state word, POWER / SESSION or LAST SESSION / FULL AT or ENDED / BATTERY, compact START + STOP ----------
   function chgKind(v) { var cs = chgState(v.car); return (cs === 'Charging' || cs === 'Starting' || (!cs && v.charging)) ? 'charging' : (cs === 'Complete' ? 'complete' : (cs === 'Disconnected' ? 'unplugged' : 'not')); }
+  // ---------- v4.3.23: CHARGING SCHEDULE in the CHARGING card (same rules as the desktop) ----------
+  // START AT  -> set_scheduled_charging enable=true time=<minutes after midnight>
+  // FINISH BY -> set_scheduled_charging enable=false, set_scheduled_departure enable=true departure_time=<finish> off_peak_charging_enabled=true end_off_peak_time=<finish>,
+  //              set_charge_limit percent=<target> only if it differs from the car's limit. FINISH BY off -> departure off, START AT applied again.
+  // The controls show the car's own schedule from the cached state (never wakes the car). A change is sent ~2 s after the last change, after a confirm
+  // unless 'Sched' is ticked in SKIP CONFIRM. Fully in the app with the user's own token (works with the PC off). Last picks: localStorage td:chargeSchedule.
+  var sched = { want: null, dirty: false, status: 'idle', reason: '', applied: null, appliedAt: 0, timer: null, sync: false, syncs: 0, log: [], lastSteps: [], seenStart: null, est: null, rate: null };
+  function schFmt(m) { if (m == null) return '\u2014'; m = ((Math.round(m) % 1440) + 1440) % 1440; var h = Math.floor(m / 60), mi = m % 60; return (h % 12 || 12) + ':' + (mi < 10 ? '0' : '') + mi + ' ' + (h < 12 ? 'AM' : 'PM'); }
+  function schHHMM(m) { m = ((Math.round(m) % 1440) + 1440) % 1440; var h = Math.floor(m / 60), mi = m % 60; return (h < 10 ? '0' : '') + h + ':' + (mi < 10 ? '0' : '') + mi; }
+  function schEpMin(e) { if (e == null || !(e > 0)) return null; var c = ct(e); return c.h * 60 + c.mi; }
+  function schCar(cs) {
+    var o = { known: false, mode: '', startMin: null, finishMin: null, limit: null, soc: null, offPeak: null, precond: false, limitMin: 50, limitMax: 100 };
+    if (!cs) return o;
+    if (cs.charge_limit_soc != null) o.limit = +cs.charge_limit_soc; if (cs.battery_level != null) o.soc = +cs.battery_level;
+    if (cs.charge_limit_soc_min != null) o.limitMin = +cs.charge_limit_soc_min; if (cs.charge_limit_soc_max != null) o.limitMax = +cs.charge_limit_soc_max;
+    if (!cs.scheduled_charging_mode) return o;
+    o.known = true; o.mode = String(cs.scheduled_charging_mode);
+    o.startMin = cs.scheduled_charging_start_time_minutes != null ? +cs.scheduled_charging_start_time_minutes : (cs.scheduled_charging_start_time_app != null ? +cs.scheduled_charging_start_time_app : schEpMin(cs.scheduled_charging_start_time));
+    if (o.startMin != null) sched.seenStart = o.startMin;   // the car leaves the start time out while it is charging
+    o.finishMin = cs.scheduled_departure_time_minutes != null ? +cs.scheduled_departure_time_minutes : schEpMin(cs.scheduled_departure_time);
+    o.offPeak = cs.off_peak_charging_enabled == null ? null : !!cs.off_peak_charging_enabled; o.precond = !!cs.preconditioning_enabled;
+    return o;
+  }
+  function schCs() { return window.__schCsMock || (cache.state && cache.state.charge_state) || null; }
+  function schCfg() { var d = { startOn: true, startMin: 1380, finishOn: false, finishMin: 600, target: null }, c = load('chargeSchedule', null); if (c && typeof c === 'object') Object.keys(d).forEach(function (k) { if (c[k] != null) d[k] = c[k]; }); return d; }
+  function schFromCar(C) {
+    var f = schCfg(), w = { startOn: !!f.startOn, startMin: +f.startMin, finishOn: !!f.finishOn, finishMin: +f.finishMin, target: C.limit != null ? C.limit : (f.target != null ? +f.target : 80) };
+    if (C.known) {
+      w.finishOn = C.mode === 'DepartBy';
+      if (C.mode === 'StartAt') { w.startOn = true; if (C.startMin != null) w.startMin = C.startMin; else if (sched.seenStart != null) w.startMin = sched.seenStart; }
+      else if (C.mode === 'Off') { w.startOn = false; if (C.startMin != null) w.startMin = C.startMin; }
+      if (C.finishMin != null && (C.mode === 'DepartBy' || load('chargeSchedule', null) == null)) w.finishMin = C.finishMin;
+    }
+    return w;
+  }
+  function schMatch(W, C) {
+    if (!C.known) return false;
+    if (W.finishOn) return C.mode === 'DepartBy' && C.finishMin === W.finishMin && (C.limit == null || C.limit === W.target);
+    if (W.startOn) return C.mode === 'StartAt' && C.startMin === W.startMin;
+    return C.mode === 'Off';
+  }
+  function schShown() {
+    var C = schCar(schCs());
+    if (sched.want && (sched.dirty || sched.sync)) return sched.want;
+    if (sched.applied && nowSec() - sched.appliedAt < 900 && !schMatch(sched.applied, C)) return sched.applied;
+    return schFromCar(C);
+  }
+  function schSteps(W, C) {
+    var s = [], b = function (v) { return v ? 'true' : 'false'; };
+    if (W.finishOn) {
+      if (!C.known || C.mode === 'StartAt') s.push({ cmd: 'set_scheduled_charging', query: { enable: 'false', time: String(W.startMin) }, busy: 'Turning off START AT\u2026' });
+      if (!C.known || C.mode !== 'DepartBy' || C.finishMin !== W.finishMin || C.offPeak !== true)
+        s.push({ cmd: 'set_scheduled_departure', query: { enable: 'true', departure_time: String(W.finishMin), preconditioning_enabled: b(C.precond), preconditioning_weekdays_only: 'false', off_peak_charging_enabled: 'true', off_peak_charging_weekdays_only: 'false', end_off_peak_time: String(W.finishMin) }, busy: 'Setting FINISH BY ' + schFmt(W.finishMin) + '\u2026' });
+      if (W.target != null && (C.limit == null || C.limit !== W.target)) s.push({ cmd: 'set_charge_limit', query: { percent: String(W.target) }, busy: 'Setting charge limit ' + W.target + '%\u2026', limit: W.target });
+    } else {
+      if (!C.known || C.mode === 'DepartBy') s.push({ cmd: 'set_scheduled_departure', query: { enable: 'false', departure_time: String(W.finishMin) }, busy: 'Turning off FINISH BY\u2026' });
+      if (W.startOn) { if (!C.known || C.mode !== 'StartAt' || C.startMin !== W.startMin) s.push({ cmd: 'set_scheduled_charging', query: { enable: 'true', time: String(W.startMin) }, busy: 'Setting START AT ' + schFmt(W.startMin) + '\u2026' }); }
+      else if (!C.known || C.mode === 'StartAt') s.push({ cmd: 'set_scheduled_charging', query: { enable: 'false', time: String(W.startMin) }, busy: 'Turning off START AT\u2026' });
+    }
+    return s;
+  }
+  function schStepStr(s) { return s.cmd + '?' + Object.keys(s.query).sort().map(function (k) { return k + '=' + s.query[k]; }).join('&'); }
+  function schRate(list) {
+    var kw = [], kpp = [];
+    (list || []).forEach(function (c) {
+      if (!c || c.is_supercharger || c.is_fast_charger || !c.started_at || !c.ended_at || c.energy_added == null) return;
+      var h = (c.ended_at - c.started_at) / 3600, k = +c.energy_added;
+      if (h >= 0.5 && k > 2) kw.push(k / h);
+      if (c.starting_battery != null && c.ending_battery != null) { var d = c.ending_battery - c.starting_battery; if (d >= 10) kpp.push(k / d); }
+    });
+    var med = function (a) { if (!a.length) return null; a = a.slice().sort(function (x, y) { return x - y; }); var m = Math.floor(a.length / 2); return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2; };
+    var o = { kw: med(kw), kwhPerPct: med(kpp), n: kw.length, nPct: kpp.length };
+    if (o.kwhPerPct == null && cache.health && cache.health.capacity > 20) o.kwhPerPct = cache.health.capacity / 100;
+    return o;
+  }
+  function schEst(W, C, R) {
+    var tg = W.target != null ? W.target : C.limit, o = { text: '', hours: null, startMin: null, doneMin: null, kwh: null };
+    var need = (C.soc != null && tg != null) ? tg - C.soc : null, can = need != null && need > 0 && R && R.kw > 0.5 && R.kwhPerPct != null;
+    if (can) { o.kwh = Math.round(need * R.kwhPerPct * 10) / 10; o.hours = o.kwh / R.kw; }
+    var r5 = function (m) { return (((Math.round(m / 5) * 5) % 1440) + 1440) % 1440; };
+    if (W.finishOn) {
+      if (can) { o.startMin = r5(W.finishMin - o.hours * 60); o.text = 'Finishes ~' + schFmt(W.finishMin) + ' at ' + tg + '% (est. start ' + schFmt(o.startMin) + ')'; }
+      else if (need != null && need <= 0) o.text = 'Finishes by ' + schFmt(W.finishMin) + ' \u00b7 already at ' + Math.round(C.soc) + '% (target ' + tg + '%)';
+      else o.text = 'Finishes by ' + schFmt(W.finishMin) + (tg != null ? ' at ' + tg + '%' : '');
+    } else if (W.startOn) {
+      if (can) { o.doneMin = r5(W.startMin + o.hours * 60); o.text = 'Starts ' + schFmt(W.startMin) + ' nightly \u00b7 ~' + o.hours.toFixed(1) + ' h to ' + tg + '% (done ~' + schFmt(o.doneMin) + ')'; }
+      else o.text = 'Starts ' + schFmt(W.startMin) + ' nightly';
+    } else o.text = 'No schedule \u00b7 charges as soon as it is plugged in';
+    return o;
+  }
+  function schStatus(C) {
+    if (!cmdAllowed() && sched.status !== 'failed') return ['Commands off', 'mu'];
+    switch (sched.status) {
+      case 'syncing': return ['Syncing\u2026', 'am'];
+      case 'pending': return ['Change pending\u2026', 'am'];
+      case 'failed': return ['Failed: ' + sched.reason, 'rd'];
+      case 'cancelled': return ['Not sent (cancelled)', 'mu'];
+    }
+    if (!C.known) return ['Car schedule unknown', 'mu'];
+    return [sched.status === 'synced' ? 'Synced' + (load('dryRun', false) ? ' (dry run)' : '') : 'Synced', 'gr'];
+  }
+  function schCarText(C) {
+    if (!C.known) return 'unknown (no schedule data in the cached state yet)';
+    if (C.mode === 'StartAt') return 'START AT ' + (C.startMin != null ? schFmt(C.startMin) : '(time not in the car\u2019s report right now' + (sched.seenStart != null ? '; last seen ' + schFmt(sched.seenStart) : '') + ')') + ' (scheduled charging)';
+    if (C.mode === 'DepartBy') return 'FINISH BY ' + schFmt(C.finishMin) + ' (scheduled departure' + (C.offPeak ? ', off-peak charging' : '') + ')' + (C.limit != null ? ', limit ' + C.limit + '%' : '');
+    if (C.mode === 'Off') return 'Off (no schedule)';
+    return C.mode;
+  }
+  function schHtml() {
+    var C = schCar(schCs()), W = schShown(), off = !cmdAllowed() || sched.sync, st = schStatus(C);
+    sched.rate = schRate(window.__schChargesMock || cache.charges); sched.est = schEst(W, C, sched.rate);
+    var startLive = W.startOn && !W.finishOn, tg = W.target != null ? W.target : 80, opts = '';
+    for (var p = Math.max(50, C.limitMin); p <= Math.min(100, C.limitMax); p += 5) opts += '<option value="' + p + '"' + (p === tg ? ' selected' : '') + '>' + p + '%</option>';
+    if (tg % 5) opts = '<option value="' + tg + '" selected>' + tg + '%</option>' + opts;
+    var dis = off ? ' disabled' : '';
+    return '<div class="sch" id="schBox" title="Car schedule now: ' + esc(schCarText(C)) + '">' +
+      '<label class="sch-t' + (startLive ? ' on' : (W.startOn ? ' over' : '')) + '"><input type="checkbox" id="schStart" data-sch="1"' + (W.startOn ? ' checked' : '') + dis + '><b>START AT</b></label>' +
+      '<input class="sch-in' + (startLive ? '' : ' dim') + '" type="time" step="900" id="schStartT" data-sch="1" value="' + schHHMM(W.startMin) + '"' + dis + ' aria-label="START AT time">' +
+      '<em class="sch-st ' + st[1] + '" id="schSync">' + esc(st[0]) + '</em>' +
+      '<label class="sch-t' + (W.finishOn ? ' on' : '') + '"><input type="checkbox" id="schFin" data-sch="1"' + (W.finishOn ? ' checked' : '') + dis + '><b>FINISH BY</b></label>' +
+      '<input class="sch-in' + (W.finishOn ? '' : ' dim') + '" type="time" step="900" id="schFinT" data-sch="1" value="' + schHHMM(W.finishMin) + '"' + dis + ' aria-label="FINISH BY time">' +
+      '<select class="sch-in sch-p' + (W.finishOn ? '' : ' dim') + '" id="schTgt" data-sch="1"' + dis + ' aria-label="FINISH BY target %">' + opts + '</select>' +
+      '<div class="sch-e" id="schEst">' + esc(sched.est.text) + '</div></div>';
+  }
+  function schSet(ch) {
+    if (sched.sync) return;
+    var cur = schShown(), w = { startOn: cur.startOn, startMin: cur.startMin, finishOn: cur.finishOn, finishMin: cur.finishMin, target: cur.target }, C = schCar(schCs());
+    Object.keys(ch).forEach(function (k) { w[k] = ch[k]; });
+    w.startMin = ((Math.round(w.startMin) % 1440) + 1440) % 1440; w.finishMin = ((Math.round(w.finishMin) % 1440) + 1440) % 1440;
+    if (w.target != null) w.target = Math.max(C.limitMin, Math.min(C.limitMax, Math.round(w.target)));
+    sched.want = w; sched.dirty = true; sched.status = 'pending'; sched.reason = '';
+    clearTimeout(sched.timer); sched.timer = setTimeout(function () { sched.timer = null; schSync(); }, window.__schDebounceMs || 2000);
+    render();
+  }
+  function schSummary(W) { return W.finishOn ? 'FINISH BY ' + schFmt(W.finishMin) + ' at ' + W.target + '% (off-peak; START AT paused)' : (W.startOn ? 'START AT ' + schFmt(W.startMin) + ' nightly' : 'No schedule (charge when plugged in)'); }
+  function schSync() {
+    var w = sched.want; if (!w || !sched.dirty) return;
+    var C = schCar(schCs()), steps = schSteps(w, C); sched.lastSteps = steps.map(schStepStr);
+    if (!steps.length) { sched.dirty = false; sched.want = null; sched.status = 'synced'; sched.reason = 'already set on the car'; render(); return; }
+    if (ctlBusy) { sched.timer = setTimeout(function () { sched.timer = null; schSync(); }, 2000); return; }
+    var sum = schSummary(w);
+    askCf('schedule', 'Update the car\u2019s charging schedule?', 'Update', sum).then(function (ok) {
+      if (!ok) { sched.dirty = false; sched.want = null; sched.status = 'cancelled'; sched.reason = 'cancelled'; ctlMsg = { kind: 'idle', text: 'Charging schedule unchanged' }; render(); return; }
+      if (ctlBusy || !cmdAllowed()) { sched.dirty = false; sched.want = null; sched.status = 'failed'; sched.reason = !cmdAllowed() ? 'Commands are off (Settings to change)' : 'another command is running'; render(); return; }
+      sched.sync = true; sched.status = 'syncing'; sched.syncs++; sched.log.push('sync: ' + sum + ' -> ' + sched.lastSteps.join(' ; ')); if (sched.log.length > 20) sched.log.shift();
+      ctlBusy = true; var i = 0;
+      var step = function () {
+        var s = steps[i]; ctlMsg = { kind: 'busy', text: s.busy + (load('dryRun', false) ? ' (dry run)' : '') }; render();
+        command(s.cmd, s.query).then(function (j) {
+          sched.log.push(s.cmd + ' ok'); if (s.limit != null) setOv('limit', s.limit); i++;
+          if (i < steps.length) { step(); return; }
+          ctlBusy = false; liveInfo.lastCmd = nowSec(); sched.sync = false; sched.applied = w; sched.appliedAt = nowSec(); sched.dirty = false; sched.want = null; sched.status = 'synced'; sched.reason = 'sent ' + clock(nowSec());
+          save('chargeSchedule', { startOn: w.startOn, startMin: w.startMin, finishOn: w.finishOn, finishMin: w.finishMin, target: w.target });
+          ctlMsg = { kind: 'ok', text: '\u2713 Charging schedule: ' + sum + ' \u00b7 ' + clock(nowSec()) + (j && j.dryRun ? ' (dry run, not sent)' : '') };
+          if (!(j && j.dryRun)) setTimeout(function () { refresh(true); }, 6000);
+          render();
+        }, function (e) {
+          var why = String(e.message || e).slice(0, 90); sched.log.push(s.cmd + ' FAILED ' + why);
+          ctlBusy = false; sched.sync = false; sched.dirty = false; sched.want = null; sched.status = 'failed'; sched.reason = s.cmd + ': ' + why;
+          ctlMsg = { kind: 'err', text: '\u2715 ' + s.cmd + ' failed: ' + why }; render();
+        });
+      };
+      step();
+    });
+  }
+  function schMinOf(v) { var m = /^(\d{1,2}):(\d{2})/.exec(v || ''); return m ? (+m[1]) * 60 + (+m[2]) : null; }
+  function schBind() {
+    var g = function (id) { return document.getElementById(id); };
+    var on = function (id, f) { var e = g(id); if (e) e.onchange = function () { try { e.blur(); } catch (x) {} f(e); }; };
+    on('schStart', function (e) { schSet({ startOn: e.checked }); });
+    on('schFin', function (e) { schSet({ finishOn: e.checked }); });
+    on('schStartT', function (e) { var m = schMinOf(e.value); if (m != null) schSet({ startMin: m, startOn: true }); });
+    on('schFinT', function (e) { var m = schMinOf(e.value); if (m != null) schSet({ finishMin: m, finishOn: true }); });
+    on('schTgt', function (e) { schSet({ target: +e.value, finishOn: true }); });
+  }
+  function schPicking() { var a = document.activeElement; return !!(a && a.getAttribute && a.getAttribute('data-sch') && (a.tagName === 'INPUT' && a.type === 'time' || a.tagName === 'SELECT')); }
+  window.TD4323 = { fmt: schFmt, car: function (cs) { return schCar(cs); }, steps: function (W, cs) { return schSteps(W, schCar(cs)).map(schStepStr); }, rate: schRate, est: function (W, cs, R) { return schEst(W, schCar(cs), R); },
+    shown: schShown, set: schSet, sync: schSync, state: function () { return { status: sched.status, reason: sched.reason, dirty: sched.dirty, sync: sched.sync, syncs: sched.syncs, log: sched.log.slice(), lastSteps: sched.lastSteps.slice(), est: sched.est, rate: sched.rate, car: schCarText(schCar(schCs())) }; },
+    reset: function () { clearTimeout(sched.timer); sched.timer = null; sched.want = null; sched.dirty = false; sched.status = 'idle'; sched.reason = ''; sched.applied = null; sched.seenStart = null; render(); },
+    timerOn: function () { return !!sched.timer; }, flush: function () { if (sched.timer) { clearTimeout(sched.timer); sched.timer = null; schSync(); } } };
   function chgBar(v) {
     var cs = chgState(v.car), k = chgKind(v), hero = v.hero, live = !!(v.charging && hero), now = nowSec(), chg = k === 'charging';
     var plugged = !!cs && cs !== 'Disconnected', off = ctlBusy || !cmdAllowed(), soc = v.soc != null ? v.soc + '%' : '--', st, sub;
@@ -1386,7 +1566,7 @@
       '<div class="cb-stats" id="chgStats">' + st.map(function (x) { return '<div><b>' + esc(x[1]) + '</b><small>' + x[0] + '</small></div>'; }).join('') + '</div>' +
       '<div class="cb-sub" id="chgSub">' + esc(sub) + '</div>' +
       '<div class="cb-btns"><button class="cbtn cb-b' + (chg ? ' state' : '') + '" id="cChgStart"' + (canStart ? '' : ' disabled') + '><b>\u25b6 START</b><small>' + (chg ? 'CHARGING' : (plugged ? 'TAP TO START' : 'UNPLUGGED')) + '</small></button>' +
-      '<button class="cbtn cb-b' + (canStop ? ' stop' : '') + '" id="cChgStop"' + (canStop ? '' : ' disabled') + '><b>\u25a0 STOP</b><small>' + esc(stopSub) + '</small></button></div>' + (window.TD4319 ? TD4319.healthHistHtml(cache.health, (getCfg() || {}).vin) : '') + '</div>';   // v4.3.21: HEALTH HISTORY under START / STOP, above the amps
+      '<button class="cbtn cb-b' + (canStop ? ' stop' : '') + '" id="cChgStop"' + (canStop ? '' : ' disabled') + '><b>\u25a0 STOP</b><small>' + esc(stopSub) + '</small></button></div>' + schHtml() + (window.TD4319 ? TD4319.healthHistHtml(cache.health, (getCfg() || {}).vin) : '') + '</div>';   // v4.3.21: HEALTH HISTORY under START / STOP, above the amps
   }
   // ---------- v4.3.18: CHARGE HISTORY & TOTALS dropdown (Last night / 7 / 30 days + TOTALS). Starts collapsed; open/closed saved in localStorage td:histOpen ----------
   function histOpen() { return load('histOpen', false) === true; }
@@ -1399,7 +1579,7 @@
       row(v.nightLabel, nightSub, v.night, true) + sessionsBlock(cfg, v.win) + row('Last 7 days', null, v.d7) + row('Last 30 days', null, v.d30) + totBtn() + '</div></div>';
   }
   // ---------- v4.3.18: SKIP CONFIRM (one saved checkbox per action that asks Yes / No; localStorage td:skipConfirm, all off by default) ----------
-  var SKIP_KEYS = [['unlock', 'Unlock'], ['leave', 'Leaving'], ['flash', 'Flash'], ['vent', 'Vent'], ['trunk', 'Trunk'], ['sentry', 'Sentry'], ['announce', 'Announce'], ['stopCharging', 'Stop chg'], ['limit', 'Limit'], ['amps', 'Amps']];
+  var SKIP_KEYS = [['unlock', 'Unlock'], ['leave', 'Leaving'], ['flash', 'Flash'], ['vent', 'Vent'], ['trunk', 'Trunk'], ['sentry', 'Sentry'], ['announce', 'Announce'], ['stopCharging', 'Stop chg'], ['limit', 'Limit'], ['amps', 'Amps'], ['schedule', 'Sched']];
   var skipLog = [];
   function skipMap() { var s = load('skipConfirm', null); return s && typeof s === 'object' ? s : {}; }
   function skipCf(k) { return skipMap()[k] === true; }
@@ -1411,6 +1591,7 @@
       SKIP_KEYS.map(function (x) { return '<label class="sk"><input type="checkbox" data-skip="' + x[0] + '" id="sk_' + x[0] + '"' + (s[x[0]] === true ? ' checked' : '') + '><span>' + x[1] + '</span></label>'; }).join('') + '</div></div>';
   }
   function bind4318() {
+    schBind();   // v4.3.23
     var h = document.getElementById('chgHistBtn'); if (h) h.onclick = function () { setHistOpen(!histOpen()); };
     Array.prototype.forEach.call(document.querySelectorAll('[data-skip]'), function (c) { c.onchange = function () { setSkipCf(c.getAttribute('data-skip'), c.checked); }; });
   }
