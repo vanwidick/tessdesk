@@ -823,3 +823,12 @@ body:not(.compact) .lv-pm { grid-template-columns: 44px minmax(0, 1fr) 44px; }
 .hhrow.hhhead { font-size: 10px; font-weight: 700; letter-spacing: .05em; color: var(--muted); border-bottom: 1px solid rgba(255,255,255,.12); }
 .hhall { display: block; margin: 8px auto 2px; min-height: 44px; padding: 0 18px; }
 @media (max-width: 374px) { .hhrow { grid-template-columns: minmax(0,1fr) 47px 42px 63px; gap: 4px; font-size: 11px; } .hhrow.hhhead { font-size: 10px; } .hhbtn { padding: 6px 10px; } }
+/* v4.3.21: HEALTH HISTORY attached to the CHARGING card (under START / STOP, above the amps slider) + CALIBRATION INFO */
+.chgbar .hhist { margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,.10); }
+.chgbar .hhbtn { background: rgba(0,0,0,.18); }
+.hhcal { font-size: 11px; color: var(--muted); margin: 0 2px 4px; line-height: 1.5; }
+.hhcal b { color: var(--text); font-weight: 600; } .hhcal em { font-style: normal; font-weight: 700; color: var(--amber, #f5b942); }
+.hhnote { font-size: 10.5px; color: var(--muted); margin: 0 2px 4px; line-height: 1.45; opacity: .9; }
+.chgbar .hhlist { max-height: 46vh; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+.calt { display: inline-block; margin-left: 5px; padding: 0 4px; border: 1px solid var(--amber, #f5b942); border-radius: 4px; color: var(--amber, #f5b942); font-size: 9.5px; font-weight: 700; line-height: 1.35; letter-spacing: .03em; vertical-align: 1px; }
+@media (max-width: 374px) { .calt { margin-left: 3px; padding: 0 3px; font-size: 9px; } }

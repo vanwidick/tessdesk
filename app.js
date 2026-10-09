@@ -2,7 +2,7 @@
    Everything (name, Tessie token, vehicle, rates) is stored in localStorage on this device only. */
 (function () {
   'use strict';
-/* TessDesk phone v4.3.20 (DESIGN BY VAN). v4.3.20: HEALTH HISTORY dropdown in BATTERY HEALTH. Pure logic + UI for: PLUG-IN REMINDER, TRIPS, MORNING READY CHECK,
+/* TessDesk phone v4.3.21 (DESIGN BY VAN). v4.3.21: HEALTH HISTORY under START / STOP in the CHARGING card + CALIBRATION INFO; history runs fully in the app. v4.3.20: HEALTH HISTORY dropdown. Pure logic + UI for: PLUG-IN REMINDER, TRIPS, MORNING READY CHECK,
    PSO BILL MATCH (on/off switch), BATTERY HEALTH TREND + TIPS. No Alexa, no toasts (in-app banners only),
    cached data only (never wakes the car). The same functions are unit-tested headlessly. */
 (function (g) {
@@ -260,7 +260,6 @@
     if (h && h.healthPct != null) out += '<div class="healthrow"><div class="hpct"><b>' + (+h.healthPct).toFixed(1) + '%</b><small>HEALTH</small></div><div class="hlines"><b>' + (h.capacity != null && h.original != null ? (+h.capacity).toFixed(1) + ' of ' + (+h.original).toFixed(1) + ' kWh capacity' : '') + '</b><span>' + (h.maxRange != null ? 'Full-pack range ' + Math.round(h.maxRange) + ' mi (est.)' : '') + '</span><em>' + (tr ? 'Full-pack range ' + Math.round(tr.fromRange) + ' \u2192 ' + Math.round(tr.toRange) + ' mi since ' + esc(tr.since.slice(0, 7)) + ' (' + (tr.deltaPct >= 0 ? '+' : '') + tr.deltaPct.toFixed(1) + '%)' : 'Trend: history builds up day by day') + '</em></div>' +
       '<div class="spark"><svg viewBox="0 0 130 36" width="130" height="36">' + (pts ? '<polyline points="' + pts + '" fill="none" stroke="var(--green)" stroke-width="1.8" stroke-linejoin="round"/>' : '') + '</svg><small>' + (series.length >= 2 ? 'max range \u00b7 ' + series.length + ' days' : 'trend: needs 2+ days') + '</small></div></div>';
     else out += '<div class="hlines"><span>Battery health loads from Tessie (every 6 h).</span></div>';
-    out += healthHistHtml(h);   // v4.3.20
     var nowE = g.nowSec(), trips = ((g.cache && g.cache.drives) || []).map(convertTrip);
     var ss = withCost(v, cfg);
     var tips = batteryTips(ss, { limit: v.limit }, trips, nowE);
@@ -325,19 +324,54 @@
   function hhDay(d, dow) { var p = String(d).split('-'), dt = new Date(Date.UTC(+p[0], +p[1] - 1, +p[2], 12)); return (dow ? HH_DOW[dt.getUTCDay()] + ' ' : '') + HH_MON[+p[1] - 1] + ' ' + (+p[2]) + ', ' + p[0]; }
   function hhLocalDay(t) { var c = g.ct(t); return c.y + '-' + (c.mo < 10 ? '0' : '') + c.mo + '-' + (c.d < 10 ? '0' : '') + c.d; }
   var hhSeeded = false;
-  function healthHistHtml(h) {
-    var own = ld('healthHist', null) || [];
-    if (!hhSeeded && h && h.at && h.healthPct != null) { hhSeeded = true; try { own = hhMerge(own, h, hhLocalDay(h.at)); sv('healthHist', own); } catch (e) {} }
-    var rows = hhRows(h, own), s = hhSummary(rows), open = !!ld('healthHistOpen', false), all = !!g.__hhAll;
+  function healthHistHtml(h, vin) {
+    var own = hhOwn(vin);
+    if (!hhSeeded && h && h.at && h.healthPct != null) { hhSeeded = true; try { own = hhMerge(own, h, hhLocalDay(h.at)); sv('healthHist', own); if (vin) sv('healthHistVin', vin); } catch (e) {} }
+    var rows = hhRows(h, own), s = hhSummary(rows), open = !!ld('healthHistOpen', false), all = !!g.__hhAll, ci = hhCalInfo(rows, hhLocalDay(Date.now() / 1000));
+    g.__hhCal = ci;
     var out = '<div class="hhist' + (open ? ' open' : '') + '" id="hhist"><button class="hhbtn" id="hhToggle" type="button" aria-expanded="' + open + '"><b>HEALTH HISTORY ' + (open ? '\u25be' : '\u25b8') + '</b><span>' + (s ? '<i>' + s.latest.toFixed(1) + '%</i> \u00b7 30 days ' + hhDelta(s.d30) : 'builds up day by day') + '</span></button>';
     if (!open) return out + '</div>';
     out += '<div class="hhsum">' + (s ? 'Change: 30 days ' + hhDelta(s.d30) + ' \u00b7 90 days ' + hhDelta(s.d90) + ' \u00b7 since ' + hhDay(s.firstD) + ' ' + hhDelta(s.first) + ' \u00b7 ' + s.count + (s.count === 1 ? ' entry' : ' entries') : 'No history yet: one entry is logged per day from Tessie.') + '</div>';
+    if (rows.length) out += hhCalHtml(ci, rows.length);   // v4.3.21
     out += '<div class="hhrow hhhead"><span>DATE</span><span>HEALTH</span><span>CHANGE</span><span>CAPACITY</span></div><div class="hhlist" id="hhList">';
-    (all ? rows : rows.slice(0, 30)).forEach(function (r) { out += '<div class="hhrow"' + (r.range != null ? ' title="Est. full-pack range ' + Math.round(r.range) + ' mi"' : '') + '><span>' + hhDay(r.d, true) + '</span><b>' + r.health.toFixed(1) + '%</b>' + hhDelta(r.delta) + '<span>' + (r.cap != null ? r.cap.toFixed(2) + ' kWh' : '--') + '</span></div>'; });
+    (all ? rows : rows.slice(0, 30)).forEach(function (r) { out += '<div class="hhrow"' + (r.range != null ? ' title="Est. full-pack range ' + Math.round(r.range) + ' mi"' : '') + '><span>' + hhDay(r.d, !ci.tags[r.d]) + (ci.tags[r.d] ? '<i class="calt" title="Likely BMS recalibration (' + ci.tags[r.d] + '): the estimate changed, not the battery">CAL</i>' : '') + '</span><b>' + r.health.toFixed(1) + '%</b>' + hhDelta(r.delta) + '<span>' + (r.cap != null ? r.cap.toFixed(2) + ' kWh' : '--') + '</span></div>'; });
     out += '</div>';
     if (rows.length > 30) out += '<button class="cbtn hhall" id="hhAll" type="button">' + (all ? 'Show last 30' : 'Show all (' + rows.length + ')') + '</button>';
     return out + '</div>';
   }
+  // ---- v4.3.21: CALIBRATION INFO. A day-to-day change of 1.5+ points is a likely BMS estimate recalibration (not a real health change);
+  // a one-day spike that goes back the next day (to within 1.5 of the day before) is one event (spike day + revert day). Runs locally on the user's own history.
+  var HH_CAL = 1.5;
+  function hhCal(asc) {
+    var tags = {}, ev = [], i = 1, e = 1e-9;
+    while (i < asc.length) {
+      var d1 = asc[i].health - asc[i - 1].health;
+      if (Math.abs(d1) >= HH_CAL - e) {
+        if (i + 1 < asc.length) { var d2 = asc[i + 1].health - asc[i].health;
+          if (Math.abs(d2) >= HH_CAL - e && (d2 > 0) !== (d1 > 0) && Math.abs(asc[i + 1].health - asc[i - 1].health) < HH_CAL) {
+            tags[asc[i].d] = 'spike'; tags[asc[i + 1].d] = 'revert'; ev.push({ d: asc[i].d, kind: 'spike', from: asc[i - 1].health, to: asc[i].health, back: asc[i + 1].d, backTo: asc[i + 1].health }); i += 2; continue; } }
+        tags[asc[i].d] = 'step'; ev.push({ d: asc[i].d, kind: 'step', from: asc[i - 1].health, to: asc[i].health, back: null, backTo: null });
+      }
+      i++;
+    }
+    return { tags: tags, events: ev };
+  }
+  function hhCalInfo(rows, todayD) {   // rows newest first; todayD 'yyyy-mm-dd' (local)
+    var c = hhCal(rows.slice().reverse()), last = c.events.length ? c.events[c.events.length - 1] : null;
+    var ds = last ? Math.floor((Date.parse(todayD + 'T12:00:00Z') - Date.parse(last.d + 'T12:00:00Z')) / 86400000 + 0.5) : null;
+    return { tags: c.tags, events: c.events, last: last, daysSince: ds };
+  }
+  function hhCalHtml(ci, n) {
+    var out = '<div class="hhcal" id="hhCal"><b>Calibration:</b> ';
+    if (ci.last) { var l = ci.last, what = l.kind === 'spike' ? 'one-day spike ' + l.from.toFixed(1) + '% \u2192 ' + l.to.toFixed(1) + '%, back to ' + l.backTo.toFixed(1) + '% the next day' : l.from.toFixed(1) + '% \u2192 ' + l.to.toFixed(1) + '% in one day';
+      out += '<em>last detected ' + hhDay(l.d) + '</em> (' + what + ') \u00b7 ' + ci.daysSince + ' day' + (ci.daysSince === 1 ? '' : 's') + ' ago \u00b7 ' + ci.events.length + ' detected: ' + ci.events.map(function (x) { return hhDay(x.d); }).join(', ') + '</div>' +
+        '<div class="hhnote" id="hhCalNote">CAL = likely BMS recalibration (a jump of 1.5+ points, or a one-day spike that went back): the estimate changed, not the battery.</div>'; }
+    else out += 'no recalibration jumps detected in ' + n + ' entries</div>';
+    return out + '<div class="hhnote" id="hhTip">Tip: to help the BMS calibrate, now and then charge from a low level (about 10-20%) to 90-100%, then let the car sleep for an hour or more.</div>';
+  }
+  // v4.3.21: the history belongs to one car (td:healthHistVin); another car's history is not shown. Existing 4.3.20 history (no VIN yet) is kept.
+  function hhOwn(vin) { var hv = ld('healthHistVin', null); return (hv && vin && hv !== vin) ? [] : (ld('healthHist', null) || []); }
+  API.hhCal = hhCal; API.hhCalInfo = hhCalInfo; API.hhOwn = hhOwn; API.hhLocalDay = function (t) { return hhLocalDay(t); };
   API.hhMerge = hhMerge; API.hhRows = hhRows; API.hhSummary = hhSummary; API.healthHistHtml = healthHistHtml;
   API.plugHtml = plugHtml; API.readyHtml = readyHtml; API.billHtml = billHtml; API.healthHtml = healthHtml; API.tripsHtml = tripsHtml; API.bannerOf = bannerOf;
   API.bind4319 = function () {
@@ -354,8 +388,8 @@
   var CFG = window.TD_CONFIG || {};
   var VARIANT = CFG.variant || 'main';
   var P = CFG.storagePrefix || 'td:';
-  var VERSION = 'v4.3.20';
-  var VERSION_DATE = 'Oct 8, 2026';
+  var VERSION = 'v4.3.21';
+  var VERSION_DATE = 'Oct 9, 2026';
   var TZ = 'America/Chicago';
   var DEFAULT_API = 'https://api.tessie.com';
   var REFRESH_MS = 60000, CHARGES_EVERY_S = 15 * 60, HEALTH_EVERY_S = 6 * 3600, HTTP_TIMEOUT_MS = 15000, CMD_TIMEOUT_MS = 90000;
@@ -587,12 +621,17 @@
       var needHealth = force || !cache.health || (t - (cache.healthAt || 0)) > HEALTH_EVERY_S;
       var ph = !needHealth ? null : api('/battery_health?distance_format=mi').then(function (r) {
         var mine = ((r && r.results) || []).filter(function (x) { return x && x.vin === cfg.vin; })[0];
-        return mine ? api('/' + cfg.vin + '/battery_health?from=' + (t - 400 * 86400) + '&to=' + t + '&distance_format=mi').then(function (h) {
-          var by = {}, pts = []; ((h && h.results) || []).forEach(function (p) { if (p && p.timestamp && p.max_range != null) by[String(p.timestamp).slice(0, 10)] = p; });
+        if (!mine) return null;
+        /* v4.3.21: runs fully in the app with the user's own token + VIN: the first run seeds up to 10 years of Tessie's daily points (400 days if that fails),
+           later runs fetch 400 days (catches up on missed days); today is logged even if the history call fails; never a day after the user's today. */
+        var own0 = window.TD4319 ? TD4319.hhOwn(cfg.vin) : [], span = own0.length < 2 ? 3650 : 400, old = (cache.health && cache.health.points) || [];
+        var hist = function (d) { return api('/' + cfg.vin + '/battery_health?from=' + (t - d * 86400) + '&to=' + t + '&distance_format=mi'); };
+        var logDay = function () { try { save('healthHist', TD4319.hhMerge(TD4319.hhOwn(cfg.vin), cache.health, TD4319.hhLocalDay(t))); save('healthHistVin', cfg.vin); } catch (e) {} };
+        return hist(span).then(null, function (e) { if (span > 400) { span = 400; return hist(400); } throw e; }).then(function (h) {
+          var by = {}, pts = [], today = TD4319.hhLocalDay(t); ((h && h.results) || []).forEach(function (p) { if (p && p.timestamp && p.max_range != null) { var k = String(p.timestamp).slice(0, 10); if (k <= today) by[k] = p; } });
           Object.keys(by).sort().forEach(function (d) { pts.push({ d: d, range: Math.round(+by[d].max_range * 100) / 100, cap: by[d].capacity != null ? Math.round(+by[d].capacity * 100) / 100 : null }); });
-          cache.health = { healthPct: mine.health_percent, capacity: mine.capacity, original: mine.original_capacity, maxRange: mine.max_range, at: t, points: pts }; cache.healthAt = t;
-          try { var c4 = ct(t), day = c4.y + '-' + (c4.mo < 10 ? '0' : '') + c4.mo + '-' + (c4.d < 10 ? '0' : '') + c4.d; save('healthHist', window.TD4319.hhMerge(load('healthHist', []) || [], cache.health, day)); } catch (e) {}   /* v4.3.20: local day, seeded from Tessie's past days, deduped by date, kept indefinitely */
-        }, function () { cache.health = { healthPct: mine.health_percent, capacity: mine.capacity, original: mine.original_capacity, maxRange: mine.max_range, at: t, points: (cache.health && cache.health.points) || [] }; cache.healthAt = t; }) : null;
+          cache.health = { healthPct: mine.health_percent, capacity: mine.capacity, original: mine.original_capacity, maxRange: mine.max_range, at: t, points: pts }; cache.healthAt = t; cache.healthSpan = span; logDay();
+        }, function () { cache.health = { healthPct: mine.health_percent, capacity: mine.capacity, original: mine.original_capacity, maxRange: mine.max_range, at: t, points: old }; cache.healthAt = t; logDay(); });
       }, function () { cache.healthAt = t - HEALTH_EVERY_S + 1800; });
       var pd = !needDrives ? null : api('/' + cfg.vin + '/drives?from=' + (t - 30 * 86400) + '&to=' + t + '&distance_format=mi&format=json')
         .then(function (r) { cache.drives = (r && r.results) || []; cache.drivesAt = t; drivesErr = null; return ph; }, function (e) { drivesErr = String(e.message || e); cache.drivesAt = t - CHARGES_EVERY_S + 300; return ph; });
@@ -1297,7 +1336,7 @@
       '<div class="cb-stats" id="chgStats">' + st.map(function (x) { return '<div><b>' + esc(x[1]) + '</b><small>' + x[0] + '</small></div>'; }).join('') + '</div>' +
       '<div class="cb-sub" id="chgSub">' + esc(sub) + '</div>' +
       '<div class="cb-btns"><button class="cbtn cb-b' + (chg ? ' state' : '') + '" id="cChgStart"' + (canStart ? '' : ' disabled') + '><b>\u25b6 START</b><small>' + (chg ? 'CHARGING' : (plugged ? 'TAP TO START' : 'UNPLUGGED')) + '</small></button>' +
-      '<button class="cbtn cb-b' + (canStop ? ' stop' : '') + '" id="cChgStop"' + (canStop ? '' : ' disabled') + '><b>\u25a0 STOP</b><small>' + esc(stopSub) + '</small></button></div></div>';
+      '<button class="cbtn cb-b' + (canStop ? ' stop' : '') + '" id="cChgStop"' + (canStop ? '' : ' disabled') + '><b>\u25a0 STOP</b><small>' + esc(stopSub) + '</small></button></div>' + (window.TD4319 ? TD4319.healthHistHtml(cache.health, (getCfg() || {}).vin) : '') + '</div>';   // v4.3.21: HEALTH HISTORY under START / STOP, above the amps
   }
   // ---------- v4.3.18: CHARGE HISTORY & TOTALS dropdown (Last night / 7 / 30 days + TOTALS). Starts collapsed; open/closed saved in localStorage td:histOpen ----------
   function histOpen() { return load('histOpen', false) === true; }
