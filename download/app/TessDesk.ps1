@@ -1,10 +1,11 @@
 ﻿#Requires -Version 5.1
-# TessDesk v4.3.19 (30% wider; PLUG-IN REMINDER; TRIPS; MORNING READY CHECK; PSO BILL MATCH with on/off; BATTERY HEALTH TREND + TIPS; LEAVING SOON 'Start after' delay; v4.3.18 CHARGING STATUS bar under the big cost with START / STOP, fits 364x990 without scrolling; v4.3.17: TESLA CONTROLS under the big cost, CHARGE HISTORY & TOTALS dropdown; v4.3.16 LEAVING SOON: adjustable 'Windows after' / 'Unlock after' minutes, Stop undoes the steps already done; v4.3.15: climate on, close windows, unlock; rolling 7 / 14 days and 30 / 60 days $ beside the big amount; Restore / Remember at the top right with fade-in, like Paycheck Live; TOTALS pop-up: week / month / year running totals; CAMERAS panel from saved Sentry / Dashcam clips; checks for updates on open / wake; compact-when-OFF via cb_compact_addon.ps1) - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
+# TessDesk v4.3.20 (HEALTH HISTORY dropdown in BATTERY HEALTH, one entry per day, kept indefinitely; v4.3.19: 30% wider; PLUG-IN REMINDER; TRIPS; MORNING READY CHECK; PSO BILL MATCH with on/off; BATTERY HEALTH TREND + TIPS; LEAVING SOON 'Start after' delay; v4.3.18 CHARGING STATUS bar under the big cost with START / STOP, fits 364x990 without scrolling; v4.3.17: TESLA CONTROLS under the big cost, CHARGE HISTORY & TOTALS dropdown; v4.3.16 LEAVING SOON: adjustable 'Windows after' / 'Unlock after' minutes, Stop undoes the steps already done; v4.3.15: climate on, close windows, unlock; rolling 7 / 14 days and 30 / 60 days $ beside the big amount; Restore / Remember at the top right with fade-in, like Paycheck Live; TOTALS pop-up: week / month / year running totals; CAMERAS panel from saved Sentry / Dashcam clips; checks for updates on open / wake; compact-when-OFF via cb_compact_addon.ps1) - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
 param(
     [string]$ConfigPath,
     [string]$Snapshot,    # optional: folder to write PNG snapshots of both themes
     [switch]$Quick433,    # with -SelfTest: run only the v4.3.3 steps (trunk, sentry, drives, paused-session energy)
-    [switch]$Quick432,    # with -SelfTest: run only the v4.3.2 steps (glow states, seats, flash lights, last charge)
+    [switch]$Quick432,
+    [switch]$Quick4320,   # with -SelfTest: run only the v4.3.20 steps (health history) + a short smoke check    # with -SelfTest: run only the v4.3.2 steps (glow states, seats, flash lights, last charge)
     [switch]$SelfTest     # test run: controls forced to DRY RUN (nothing is sent to the car), snapshots, selftest.json, then exit
 )
 Add-Type -AssemblyName PresentationFramework
@@ -14,7 +15,7 @@ Add-Type -AssemblyName System.Xaml
 
 $ErrorActionPreference = 'Stop'
 $AppName    = 'TessDesk'
-$AppVersion = '4.3.19'
+$AppVersion = '4.3.20'
 $AppDate    = 'Oct 8, 2026'
 
 $scriptDir  = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -1916,6 +1917,7 @@ function Open-Url433 {
               </Border>
             </StackPanel>
             <!-- v4.3.19: BATTERY HEALTH TREND + TIPS -->
+            <StackPanel x:Name="HealthBox">
             <Border x:Name="HealthSep" Height="1" Background="#FF222222" Margin="0,8,0,5"/>
             <DockPanel LastChildFill="True">
               <TextBlock x:Name="HealthAsOf" DockPanel.Dock="Right" Text="" FontSize="9.5" FontWeight="SemiBold" Foreground="#FF888888" VerticalAlignment="Center"/>
@@ -1940,8 +1942,30 @@ function Open-Url433 {
                 <TextBlock x:Name="HealthSparkCap" Text="" FontSize="8.5" Foreground="#FF888888" HorizontalAlignment="Center" Margin="0,2,0,0"/>
               </StackPanel>
             </Grid>
+            <!-- v4.3.20: HEALTH HISTORY dropdown (starts collapsed; open/closed saved in config.json healthHistory.open) -->
+            <Border x:Name="HHistBtn" Margin="0,7,0,0" Padding="9,6,9,6" CornerRadius="6" Background="#14FFFFFF" BorderBrush="#FF333333" BorderThickness="1" Cursor="Hand" ToolTip="Show or hide the daily battery health history (remembered)">
+              <DockPanel LastChildFill="True">
+                <TextBlock x:Name="HHistSum" DockPanel.Dock="Right" FontSize="10.5" VerticalAlignment="Center"/>
+                <TextBlock x:Name="HHistHdr" Text="HEALTH HISTORY &#x25B8;" FontSize="10.5" FontWeight="Bold" Foreground="#FFFFFFFF" VerticalAlignment="Center"/>
+              </DockPanel>
+            </Border>
+            <StackPanel x:Name="HHistBody" Visibility="Collapsed" Margin="2,5,2,0">
+              <TextBlock x:Name="HHistSummary" FontSize="10" TextWrapping="Wrap" Margin="0,0,0,5"/>
+              <Grid Margin="0,0,0,2">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="118"/><ColumnDefinition Width="62"/><ColumnDefinition Width="64"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <TextBlock x:Name="HHistC0" Text="DATE" FontSize="9" FontWeight="Bold" Foreground="#FF8A8A8A"/>
+                <TextBlock x:Name="HHistC1" Grid.Column="1" Text="HEALTH" FontSize="9" FontWeight="Bold" Foreground="#FF8A8A8A" HorizontalAlignment="Right"/>
+                <TextBlock x:Name="HHistC2" Grid.Column="2" Text="CHANGE" FontSize="9" FontWeight="Bold" Foreground="#FF8A8A8A" HorizontalAlignment="Right"/>
+                <TextBlock x:Name="HHistC3" Grid.Column="3" Text="CAPACITY" FontSize="9" FontWeight="Bold" Foreground="#FF8A8A8A" HorizontalAlignment="Right"/>
+              </Grid>
+              <StackPanel x:Name="HHistList"/>
+              <Button x:Name="HHistAllBtn" Style="{StaticResource CtlBtn}" Height="24" Margin="0,5,0,2" Padding="10,0,10,0" HorizontalAlignment="Center" Visibility="Collapsed" ToolTip="Show every logged day, or only the last 30">
+                <TextBlock x:Name="HHistAllTxt" Text="Show all" FontSize="10.5" FontWeight="Bold"/>
+              </Button>
+            </StackPanel>
             <TextBlock x:Name="TipsHdr" Text="TIPS FROM YOUR DATA" FontSize="9.5" FontWeight="Bold" Foreground="#FF9A9A9A" Margin="0,6,0,1"/>
             <StackPanel x:Name="TipsList"/>
+            </StackPanel>
             <!-- v4.3.19: plug-in reminder setting (on by default) -->
             <Border x:Name="PlugSetSep" Height="1" Background="#FF222222" Margin="0,7,0,5"/>
             <DockPanel x:Name="PlugSetRow" LastChildFill="True">
@@ -8033,9 +8057,8 @@ function Add-OwnHealthPoint {
     if ($SelfTest -or $null -eq $H -or $null -eq $H.maxRange) { return }
     try {
         $d = (ConvertFrom-Epoch $NowE).ToString('yyyy-MM-dd')
-        $pts = @(Read-OwnHealth | Where-Object { $null -ne $_ -and [string]$_.d -ne $d })
-        $pts += [pscustomobject]@{ d = $d; range = [math]::Round([double]$H.maxRange, 2); cap = $H.capacity; health = $H.healthPct; odo = $H.odometer }
-        [ordered]@{ note = 'TessDesk battery health history (one point per day, from Tessie /battery_health)'; points = @($pts | Sort-Object d | Select-Object -Last 800) } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $HealthHistPath -Encoding UTF8
+        $pts = Merge-HealthPoints @(Read-OwnHealth) $H $d   # v4.3.20: seeded with Tessie's past daily points, deduped by date, kept indefinitely
+        [ordered]@{ note = 'TessDesk battery health history (one entry per day: health %, capacity kWh, est. full-pack range; from Tessie /battery_health; kept indefinitely)'; points = @($pts) } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $HealthHistPath -Encoding UTF8
     } catch { Write-WidgetLog ('health history save: ' + $_.Exception.Message) }
 }
 function Get-HealthSeries {
@@ -8123,12 +8146,104 @@ function Render-Health {
     }
     Set-Visible $ui.TipsHdr ($tips.Count -gt 0)
 }
+# ---- v4.3.20: HEALTH HISTORY (one entry per day: health %, capacity kWh, est. full-pack range; kept indefinitely) ----
+# Health for Tessie's past daily points = capacity / original capacity (Tessie's own health_percent is capacity / original too).
+function Merge-HealthPoints {
+    param($Own, $H, [string]$Day)
+    $pts = @(@($Own) | Where-Object { $null -ne $_ -and $_.d -and [string]$_.d -ne $Day })
+    $have = @{}; $keep = @(); foreach ($p in $pts) { if (-not $have.ContainsKey([string]$p.d)) { $have[[string]$p.d] = $true; $keep += $p } }; $pts = $keep
+    $orig = $null; if ($null -ne $H -and $null -ne $H.original) { $orig = [double]$H.original }
+    if ($null -ne $H -and $null -ne $orig -and $orig -gt 0) {
+        foreach ($p in @($H.points)) {
+            if ($null -eq $p -or -not $p.d -or $null -eq $p.cap -or [string]$p.d -eq $Day -or $have.ContainsKey([string]$p.d)) { continue }
+            $pts += [pscustomobject]@{ d = [string]$p.d; range = $p.range; cap = $p.cap; health = [math]::Round([double]$p.cap / $orig * 100, 1); odo = $p.odo; src = 'tessie' }; $have[[string]$p.d] = $true
+        }
+    }
+    if ($null -ne $H -and $null -ne $H.healthPct -and $Day) { $pts += [pscustomobject]@{ d = $Day; range = $(if ($null -ne $H.maxRange) { [math]::Round([double]$H.maxRange, 2) } else { $null }); cap = $H.capacity; health = $H.healthPct; odo = $H.odometer; src = 'daily' } }
+    return @($pts | Sort-Object { [string]$_.d })
+}
+function Get-HealthHistory {
+    param($H, $Own)   # returns rows newest first: d, health, cap, range, delta (vs the previous, older entry)
+    $orig = $null; if ($null -ne $H -and $null -ne $H.original) { $orig = [double]$H.original }
+    $m = @{}
+    if ($null -ne $H -and $null -ne $orig -and $orig -gt 0) { foreach ($p in @($H.points)) { if ($null -eq $p -or -not $p.d -or $null -eq $p.cap) { continue }; $m[[string]$p.d] = [pscustomobject]@{ d = [string]$p.d; health = [math]::Round([double]$p.cap / $orig * 100, 1); cap = [double]$p.cap; range = $p.range } } }
+    foreach ($p in @($Own)) {
+        if ($null -eq $p -or -not $p.d) { continue }
+        $hp = $p.health; if ($null -eq $hp -and $null -ne $p.cap -and $null -ne $orig -and $orig -gt 0) { $hp = [double]$p.cap / $orig * 100 }
+        if ($null -eq $hp) { continue }
+        $m[[string]$p.d] = [pscustomobject]@{ d = [string]$p.d; health = [math]::Round([double]$hp, 1); cap = $(if ($null -ne $p.cap) { [double]$p.cap } else { $null }); range = $p.range }
+    }
+    $prev = $null; $rows = New-Object System.Collections.ArrayList
+    foreach ($k in @($m.Keys | Sort-Object)) { $r = $m[$k]; $dl = $(if ($null -ne $prev) { [math]::Round($r.health - $prev.health, 1) } else { $null }); $prev = $r; [void]$rows.Insert(0, [pscustomobject]@{ d = $r.d; health = $r.health; cap = $r.cap; range = $r.range; delta = $dl }) }
+    return $rows.ToArray()
+}
+function Get-HealthHistSummary {
+    param($Rows)
+    $r = @($Rows); if ($r.Count -eq 0) { return $null }
+    $last = $r[0]; $ld = [DateTime]::ParseExact([string]$last.d, 'yyyy-MM-dd', $Inv)
+    $o = [ordered]@{ latest = $last.health; latestD = $last.d; d30 = $null; d90 = $null; first = $null; firstD = $r[-1].d; count = $r.Count }
+    foreach ($n in 30, 90) { $cut = $ld.AddDays(-$n).ToString('yyyy-MM-dd'); $b = @($r | Where-Object { [string]$_.d -le $cut } | Select-Object -First 1); if ($b.Count -gt 0) { $o[('d' + $n)] = [math]::Round($last.health - $b[0].health, 1) } }
+    if ($r.Count -ge 2) { $o.first = [math]::Round($last.health - $r[-1].health, 1) }
+    return [pscustomobject]$o
+}
+function Format-HDelta { param($V) if ($null -eq $V) { return '--' }; $v = [double]$V; if ([math]::Abs($v) -lt 0.05) { return '0.0' }; return ($(if ($v -gt 0) { [string][char]0x25B2 } else { [string][char]0x25BC }) + ' ' + ('{0:N1}' -f [math]::Abs($v))) }
+function Get-HDeltaBrush { param($V) if ($null -eq $V -or [math]::Abs([double]$V) -lt 0.05) { return (T 'Caption') }; if ([double]$V -gt 0) { return (T 'Green') }; return (T 'Red') }
+function Get-HHistOpen { $c = Get-Cfg4319 'healthHistory'; try { if ($null -ne $c -and $null -ne $c.open) { return [bool]$c.open } } catch {}; return $false }
+function Set-HHistOpen { param([bool]$On) Save-Cfg4319 'healthHistory' ([ordered]@{ open = $On }); $script:HHistSig = ''; Render-HealthHist }
+$script:HHistAll = $false; $script:HHistSig = ''; $script:HHistSeeded = $false
+function Format-HDay { param([string]$D) try { return [DateTime]::ParseExact($D, 'yyyy-MM-dd', $Inv).ToString('ddd MMM d, yyyy', $Inv) } catch { return $D } }
+function Render-HealthHist {
+    $st = $script:State; $h = $null; if ($null -ne $st) { $h = $st.health }
+    # seed the saved history once per session from Tessie's past daily points (the next 6-hourly fetch adds today's entry as well)
+    if (-not $SelfTest -and -not $script:HHistSeeded -and $null -ne $h -and $null -ne $h.at) { $script:HHistSeeded = $true; Add-OwnHealthPoint $h ([int64]$h.at) }
+    $rows = @(Get-HealthHistory $h (Read-OwnHealth)); $sum = Get-HealthHistSummary $rows; $open = Get-HHistOpen
+    $script:HHist4320 = [pscustomobject]@{ rows = $rows; summary = $sum; open = $open; showAll = $script:HHistAll }
+    $sig = '{0}|{1}|{2}|{3}|{4}|{5}' -f $open, $script:HHistAll, $rows.Count, $(if ($rows.Count) { $rows[0].d + $rows[0].health } else { '' }), (T 'Text'), (T 'Green')
+    if ($sig -eq $script:HHistSig) { return }; $script:HHistSig = $sig
+    $ui.HHistBtn.Background = Get-Brush '#14FFFFFF'; $ui.HHistBtn.BorderBrush = T 'BtnBorder'; $ui.HHistHdr.Foreground = T 'Text'
+    $ui.HHistHdr.Text = 'HEALTH HISTORY ' + $(if ($open) { [string][char]0x25BE } else { [string][char]0x25B8 })
+    $ui.HHistSum.Inlines.Clear()
+    if ($null -ne $sum) {
+        $r1 = New-Object System.Windows.Documents.Run(('{0:N1}%' -f [double]$sum.latest)); $r1.FontWeight = 'Bold'; $r1.Foreground = T 'Text'; $ui.HHistSum.Inlines.Add($r1)
+        $r2 = New-Object System.Windows.Documents.Run('  ·  30 days '); $r2.Foreground = T 'Caption'; $ui.HHistSum.Inlines.Add($r2)
+        $r3 = New-Object System.Windows.Documents.Run((Format-HDelta $sum.d30)); $r3.FontWeight = 'Bold'; $r3.Foreground = Get-HDeltaBrush $sum.d30; $ui.HHistSum.Inlines.Add($r3)
+    } else { $r0 = New-Object System.Windows.Documents.Run('builds up day by day'); $r0.Foreground = T 'Caption'; $ui.HHistSum.Inlines.Add($r0) }
+    Set-Visible $ui.HHistBody $open
+    $ui.HHistList.Children.Clear()
+    if (-not $open) { return }
+    foreach ($n in 'HHistC0', 'HHistC1', 'HHistC2', 'HHistC3') { $ui[$n].Foreground = T 'Caption' }
+    $ui.HHistSummary.Inlines.Clear()
+    if ($null -ne $sum) {
+        $add = { param($t, $b, [string]$w = 'Normal') $x = New-Object System.Windows.Documents.Run($t); $x.Foreground = $b; $x.FontWeight = $w; $ui.HHistSummary.Inlines.Add($x) }
+        & $add 'Change: ' (T 'Caption') 'SemiBold'
+        & $add '30 days ' (T 'TextSoft'); & $add (Format-HDelta $sum.d30) (Get-HDeltaBrush $sum.d30) 'Bold'
+        & $add '  ·  90 days ' (T 'TextSoft'); & $add (Format-HDelta $sum.d90) (Get-HDeltaBrush $sum.d90) 'Bold'
+        & $add ('  ·  since ' + $(try { [DateTime]::ParseExact([string]$sum.firstD, 'yyyy-MM-dd', $Inv).ToString('MMM d, yyyy', $Inv) } catch { $sum.firstD }) + ' ') (T 'TextSoft'); & $add (Format-HDelta $sum.first) (Get-HDeltaBrush $sum.first) 'Bold'
+        & $add ('  ·  ' + $sum.count + ' entr' + $(if ($sum.count -eq 1) { 'y' } else { 'ies' })) (T 'Caption')
+    } else { $x = New-Object System.Windows.Documents.Run('No history yet: one entry is logged per day from Tessie.'); $x.Foreground = T 'Caption'; $ui.HHistSummary.Inlines.Add($x) }
+    $show = $(if ($script:HHistAll) { $rows } else { @($rows | Select-Object -First 30) })
+    foreach ($r in $show) {
+        $g = New-Object System.Windows.Controls.Grid; $g.Margin = '0,1,0,1'
+        foreach ($wd in 118, 62, 64) { $cd = New-Object System.Windows.Controls.ColumnDefinition; $cd.Width = [System.Windows.GridLength]::new($wd); [void]$g.ColumnDefinitions.Add($cd) }
+        $cd = New-Object System.Windows.Controls.ColumnDefinition; $cd.Width = [System.Windows.GridLength]::new(1, [System.Windows.GridUnitType]::Star); [void]$g.ColumnDefinitions.Add($cd)
+        $c = @((New-Tb4319 (Format-HDay $r.d) 10.5 (T 'TextSoft')), (New-Tb4319 ('{0:N1}%' -f [double]$r.health) 10.5 (T 'Text') 'Bold'), (New-Tb4319 (Format-HDelta $r.delta) 10.5 (Get-HDeltaBrush $r.delta) 'SemiBold'), (New-Tb4319 $(if ($null -ne $r.cap) { '{0:N2} kWh' -f [double]$r.cap } else { '--' }) 10.5 (T 'TextSoft')))
+        for ($i = 0; $i -lt 4; $i++) { if ($i -ge 1) { $c[$i].HorizontalAlignment = 'Right' }; [System.Windows.Controls.Grid]::SetColumn($c[$i], $i); [void]$g.Children.Add($c[$i]) }
+        if ($null -ne $r.range) { $g.ToolTip = ('Est. full-pack range {0:N0} mi' -f [double]$r.range) }
+        [void]$ui.HHistList.Children.Add($g)
+    }
+    Set-Visible $ui.HHistAllBtn ($rows.Count -gt 30)
+    $ui.HHistAllTxt.Text = $(if ($script:HHistAll) { 'Show last 30' } else { 'Show all (' + $rows.Count + ')' })
+    $ui.HHistAllBtn.Tag = [System.Windows.CornerRadius]::new(5); $ui.HHistAllBtn.Background = T 'BtnBg'; $ui.HHistAllBtn.BorderBrush = T 'BtnBorder'; $ui.HHistAllTxt.Foreground = T 'Text'
+}
+$ui.HHistBtn.Add_MouseLeftButtonUp({ try { Set-HHistOpen (-not (Get-HHistOpen)) } catch { Write-WidgetLog ('health history: ' + $_.Exception.Message) } })
+$ui.HHistAllBtn.Add_Click({ try { $script:HHistAll = -not $script:HHistAll; $script:HHistSig = ''; Render-HealthHist } catch { Write-WidgetLog ('health history all: ' + $_.Exception.Message) } })
 function Render-V4319 {
     foreach ($n in 'BillSep', 'HealthSep', 'PlugSetSep') { $ui[$n].Background = T 'Sep' }
     try { Render-PlugRem } catch { Write-WidgetLog ('plug reminder: ' + $_.Exception.Message) }
     try { Render-Ready } catch { Write-WidgetLog ('ready check: ' + $_.Exception.Message) }
     try { Render-Bill } catch { Write-WidgetLog ('bill match: ' + $_.Exception.Message) }
     try { Render-Health } catch { Write-WidgetLog ('battery health: ' + $_.Exception.Message) }
+    try { Render-HealthHist } catch { Write-WidgetLog ('health history: ' + $_.Exception.Message) }   # v4.3.20
     try { Render-Trips } catch { Write-WidgetLog ('trips: ' + $_.Exception.Message) }
 }
 # wiring
@@ -8180,6 +8295,82 @@ function Start-SelfTest {
     }
     $script:SelfSteps = New-Object System.Collections.Queue
     $add = { param($name, $answers, $sb) $script:SelfSteps.Enqueue([pscustomobject]@{ name = $name; answers = $answers; run = $sb }) }
+    # ---- v4.3.20: HEALTH HISTORY (DRY RUN: nothing is sent to the car, nothing announced) ----
+    $script:SelfRec.v4320 = [ordered]@{ appVersion = $AppVersion; footer = $ui.FooterVersion.Text; footerBrand = $ui.FooterText.Text; footerBold = [string]$ui.FooterText.FontWeight; width = $winW }
+    $script:ElPng4320 = { param($el, $n)
+        $window.UpdateLayout(); $sc = 2.0; $w = [int][math]::Ceiling($el.ActualWidth * $sc); $h = [int][math]::Ceiling($el.ActualHeight * $sc)
+        $bmp = New-Object System.Windows.Media.Imaging.RenderTargetBitmap($w, $h, (96 * $sc), (96 * $sc), [System.Windows.Media.PixelFormats]::Pbgra32)
+        $dv = New-Object System.Windows.Media.DrawingVisual; $dc = $dv.RenderOpen()
+        $dc.DrawRectangle((T 'CardBg'), $null, [System.Windows.Rect]::new(0, 0, $el.ActualWidth, $el.ActualHeight))
+        $dc.DrawRectangle((New-Object System.Windows.Media.VisualBrush($el)), $null, [System.Windows.Rect]::new(0, 0, $el.ActualWidth, $el.ActualHeight)); $dc.Close(); $bmp.Render($dv)
+        $enc = New-Object System.Windows.Media.Imaging.PngBitmapEncoder; $enc.Frames.Add([System.Windows.Media.Imaging.BitmapFrame]::Create($bmp))
+        $f = 'tessdesk-v4320-' + $n + '.png'; $fs = [IO.File]::Create((Join-Path $script:SelfDir $f)); try { $enc.Save($fs) } finally { $fs.Close() }; $script:SelfRec.shots += $f }
+    & $add 'v4.3.20 pure: merge (dedupe by date, seed from Tessie, keep all), newest first, change vs previous, 30/90/first summary' @() {
+        $H = [pscustomobject]@{ healthPct = 84.1; capacity = 66.28; original = 78.83; maxRange = 274.25; odometer = 54585; at = 0; points = @(
+            [pscustomobject]@{ d = '2026-06-01'; range = 276.0; cap = 66.0 }, [pscustomobject]@{ d = '2026-07-09'; range = 275.0; cap = 66.2 },
+            [pscustomobject]@{ d = '2026-09-08'; range = 274.0; cap = 65.9 }, [pscustomobject]@{ d = '2026-10-08'; range = 272.9; cap = 65.48 }) }
+        $own = @([pscustomobject]@{ d = '2026-09-08'; range = 274.5; cap = 66.2; health = 84.0 }, [pscustomobject]@{ d = '2026-09-08'; range = 1; cap = 1; health = 1 })
+        $m = @(Merge-HealthPoints $own $H '2026-10-08')
+        $rows = @(Get-HealthHistory $H $m); $s = Get-HealthHistSummary $rows
+        $big = @(0..899 | ForEach-Object { [pscustomobject]@{ d = (Get-Date '2023-01-01').AddDays($_).ToString('yyyy-MM-dd'); range = 280; cap = 67; health = 85.0 } })
+        $mb = @(Merge-HealthPoints $big $H '2026-10-08'); $json = [ordered]@{ points = @($mb) } | ConvertTo-Json -Depth 4; $back = @(($json | ConvertFrom-Json).points)
+        $e = @(Get-HealthHistory $null @()); $es = Get-HealthHistSummary $e
+        $fmt = @((Format-HDelta 0.3), (Format-HDelta -0.2), (Format-HDelta 0), (Format-HDelta $null))
+        $r = [ordered]@{ mergedDays = @($m | ForEach-Object { $_.d }); mergedHealth = @($m | ForEach-Object { $_.health }); rows = @($rows | ForEach-Object { '{0} {1} {2} {3}' -f $_.d, $_.health, $_.delta, $_.cap })
+            summary = $s; keepAll = @($mb).Count; keepAllRoundTrip = $back.Count; uniqueDays = @($mb | ForEach-Object { $_.d } | Sort-Object -Unique).Count; emptyRows = $e.Count; emptySummaryNull = ($null -eq $es); fmt = $fmt }
+        $r.pass = (($r.mergedDays -join ',') -eq '2026-06-01,2026-07-09,2026-09-08,2026-10-08' -and ($r.mergedHealth -join ',') -eq '83.7,84,84,84.1' -and
+            $rows[0].d -eq '2026-10-08' -and $rows[0].health -eq 84.1 -and $rows[0].delta -eq 0.1 -and $rows[1].delta -eq 0 -and $rows[2].delta -eq 0.3 -and $null -eq $rows[3].delta -and
+            $s.latest -eq 84.1 -and $s.d30 -eq 0.1 -and $s.d90 -eq 0.1 -and $s.first -eq 0.4 -and $s.count -eq 4 -and $s.firstD -eq '2026-06-01' -and
+            $r.keepAll -eq 904 -and $r.keepAllRoundTrip -eq 904 -and $r.uniqueDays -eq 904 -and $r.emptyRows -eq 0 -and $r.emptySummaryNull -and
+            $fmt[0] -eq ([string][char]0x25B2 + ' 0.3') -and $fmt[1] -eq ([string][char]0x25BC + ' 0.2') -and $fmt[2] -eq '0.0' -and $fmt[3] -eq '--')
+        $script:SelfRec.v4320.pure = $r }
+    & $add 'v4.3.20 UI: HEALTH HISTORY starts collapsed (latest % + 30-day change), big health % kept' @() {
+        $script:Keep4320 = $script:State.health
+        $real = ($null -ne $script:State.health -and $null -ne $script:State.health.healthPct -and @($script:State.health.points).Count -ge 2)
+        if (-not $real) {
+            $pts = @(0..44 | ForEach-Object { [pscustomobject]@{ d = (Get-Date '2026-08-25').AddDays($_).ToString('yyyy-MM-dd'); range = 275 - $_ * 0.05; cap = [math]::Round(66.6 - $_ * 0.01, 2) } })
+            $script:State.health = [pscustomobject]@{ healthPct = 84.1; capacity = 66.28; original = 78.83; degradation = 15.9; maxRange = 274.25; odometer = 54585; at = (ConvertTo-EpochLocal (Get-LocalNow)); points = $pts } }
+        $script:SelfRec.v4320.realData = $real
+        try { $script:Cfg.PSObject.Properties.Remove('healthHistory') } catch {}
+        $def = Get-HHistOpen; $script:HHistAll = $false; $script:HHistSig = ''
+        Render-V4319; $ui.HealthBox.BringIntoView(); $window.UpdateLayout()
+        $rows = @($script:HHist4320.rows)
+        $script:SelfRec.v4320.collapsed = [ordered]@{ defaultOpen = $def; body = [string]$ui.HHistBody.Visibility; hdr = $ui.HHistHdr.Text; sum = (($ui.HHistSum.Inlines | ForEach-Object { $_.Text }) -join ''); bigPct = $ui.HealthPct.Text; bigSize = $ui.HealthPct.FontSize; entries = $rows.Count; latest = $(if ($rows.Count) { $rows[0].d + ' ' + $rows[0].health } else { '' })
+            pass = ($def -eq $false -and [string]$ui.HHistBody.Visibility -eq 'Collapsed' -and $ui.HHistHdr.Text -like '*HEALTH HISTORY*' -and (($ui.HHistSum.Inlines | ForEach-Object { $_.Text }) -join '') -match '^\d+\.\d%  ·  30 days ' -and $ui.HealthPct.Text -match '^\d+\.\d%$' -and $ui.HealthPct.FontSize -ge 26 -and $rows.Count -ge 2) }
+        & $script:ElPng4320 $ui.HealthBox 'health-collapsed' }
+    & $add 'v4.3.20 UI: click opens it (saved), newest first, last 30 + Show all, summary 30 / 90 days / since first' @() {
+        $ui.HHistBtn.RaiseEvent((New-Object System.Windows.Input.MouseButtonEventArgs([System.Windows.Input.Mouse]::PrimaryDevice, 0, [System.Windows.Input.MouseButton]::Left) -Property @{ RoutedEvent = [System.Windows.UIElement]::MouseLeftButtonUpEvent }))
+        $window.UpdateLayout(); $rows = @($script:HHist4320.rows)
+        $saved = $null; try { $saved = [bool](Read-Config).healthHistory.open } catch {}
+        $first = $ui.HHistList.Children[0]; $firstTxt = @($first.Children | ForEach-Object { $_.Text }) -join ' | '
+        $sumTxt = ($ui.HHistSummary.Inlines | ForEach-Object { $_.Text }) -join ''
+        $script:SelfRec.v4320.expanded = [ordered]@{ open = Get-HHistOpen; saved = $saved; body = [string]$ui.HHistBody.Visibility; hdr = $ui.HHistHdr.Text; shown = $ui.HHistList.Children.Count; entries = $rows.Count; firstRow = $firstTxt; summary = $sumTxt; allBtn = [string]$ui.HHistAllBtn.Visibility; allTxt = $ui.HHistAllTxt.Text
+            newestFirst = ((@($rows | ForEach-Object { $_.d }) -join ',') -eq (@($rows | ForEach-Object { $_.d } | Sort-Object -Descending) -join ','))
+            pass = ((Get-HHistOpen) -and $saved -eq $true -and [string]$ui.HHistBody.Visibility -eq 'Visible' -and $ui.HHistList.Children.Count -eq [math]::Min(30, $rows.Count) -and $sumTxt -like '*30 days*' -and $sumTxt -like '*90 days*' -and $sumTxt -like '*since*' -and $firstTxt -like '*%*kWh*' -and
+                    ((@($rows | ForEach-Object { $_.d }) -join ',') -eq (@($rows | ForEach-Object { $_.d } | Sort-Object -Descending) -join ',')) -and (($rows.Count -le 30) -or ([string]$ui.HHistAllBtn.Visibility -eq 'Visible' -and $ui.HHistAllTxt.Text -like 'Show all*'))) }
+        $ui.HealthBox.BringIntoView(); $window.UpdateLayout(); & $script:ElPng4320 $ui.HealthBox 'health-expanded'; Save-RootPng (Join-Path $script:SelfDir 'tessdesk-v4320-window-health.png'); $script:SelfRec.shots += 'tessdesk-v4320-window-health.png' }
+    & $add 'v4.3.20 UI: Show all / Show last 30, then close (saved) and open state survives a re-read of config.json' @() {
+        $n = @($script:HHist4320.rows).Count
+        $ui.HHistAllBtn.RaiseEvent((New-Object System.Windows.RoutedEventArgs([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent))); $window.UpdateLayout(); $all = $ui.HHistList.Children.Count; $allTxt = $ui.HHistAllTxt.Text
+        $ui.HHistAllBtn.RaiseEvent((New-Object System.Windows.RoutedEventArgs([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent))); $window.UpdateLayout(); $back = $ui.HHistList.Children.Count
+        $ui.HHistBtn.RaiseEvent((New-Object System.Windows.Input.MouseButtonEventArgs([System.Windows.Input.Mouse]::PrimaryDevice, 0, [System.Windows.Input.MouseButton]::Left) -Property @{ RoutedEvent = [System.Windows.UIElement]::MouseLeftButtonUpEvent })); $window.UpdateLayout()
+        $closedSaved = $null; try { $closedSaved = [bool](Read-Config).healthHistory.open } catch {}
+        $script:SelfRec.v4320.showAll = [ordered]@{ entries = $n; all = $all; allTxt = $allTxt; back = $back; closedBody = [string]$ui.HHistBody.Visibility; closedSaved = $closedSaved
+            pass = ($all -eq $n -and $back -eq [math]::Min(30, $n) -and ($n -le 30 -or $allTxt -eq 'Show last 30') -and [string]$ui.HHistBody.Visibility -eq 'Collapsed' -and $closedSaved -eq $false) }
+        $script:State.health = $script:Keep4320; $script:HHistSig = ''; Render-V4319 }
+    & $add 'v4.3.20 smoke: versions, footer, hook line, width, all cards render, no real commands' @() {
+        $me = [System.IO.File]::ReadAllText((Join-Path $scriptDir 'TessDesk.ps1')); $L = $me -split "`r?`n"
+        $hook = @($L | Where-Object { $_ -like "try { . 'C:\Users\vanwi\cb_compact_addon.ps1'; Enable-CbCompactMode -Window `$window -Name 'TESSDESK'*" }).Count
+        $i = [array]::IndexOf($L, ('[void]$window.' + 'ShowDialog()')); $before = ($i -gt 0 -and $L[$i - 1] -like "try { . 'C:\Users\vanwi\cb_compact_addon.ps1'*")
+        $err = $null; try { Render-View } catch { $err = $_.Exception.Message }
+        $ui.BodyScroll.ScrollToVerticalOffset(0); $window.UpdateLayout(); Save-RootPng (Join-Path $script:SelfDir 'tessdesk-v4320-top.png'); $script:SelfRec.shots += 'tessdesk-v4320-top.png'
+        $real = @($script:CtlLog | Where-Object { $_.dry -eq $false -or $_.real -eq $true }).Count
+        $r = $script:SelfRec.v4320
+        $r.smoke = [ordered]@{ appVersion = $AppVersion; footer = $ui.FooterVersion.Text; brand = $ui.FooterText.Text; bold = [string]$ui.FooterText.FontWeight; hookLines = $hook; hookBeforeShowDialog = $before; width = $window.Width; renderError = $err; dryRun = $CTL_DRYRUN; realCmdLog = $real
+            pass = ($AppVersion -eq '4.3.20' -and $ui.FooterVersion.Text -like '*4.3.20*Oct 8, 2026*' -and [string]$ui.FooterText.FontWeight -eq 'Bold' -and $hook -eq 1 -and $before -and $null -eq $err -and $CTL_DRYRUN -and [math]::Abs($window.Width - $winW) -lt 1) }
+        $fails = @(); foreach ($k in 'pure', 'collapsed', 'expanded', 'showAll', 'smoke') { if ($null -eq $r[$k] -or -not $r[$k].pass) { $fails += $k } }
+        $r.summary = [ordered]@{ fails = $fails; allPass = ($fails.Count -eq 0) } }
+    if ($Quick4320) { return (Start-SelfTimer) }
     # v4.3.17: record the dropdown's start state, then open it (not saved) so the older steps can snapshot the history rows
     $script:SelfRec.v4317pre = [ordered]@{ open = [bool]$script:ChgHist.open; body = [string]$ui.ChgHistBody.Visibility; arrow = $ui.ChgHistArrow.Text; savedSetting = $(try { [string](Read-Config).ui.historyOpen } catch { '' }) }; Set-ChgHistOpen $true $false
     # ---- v4.3.3 steps (DRY RUN: nothing is sent to the car, nothing announced) ----

@@ -2,7 +2,7 @@
    Everything (name, Tessie token, vehicle, rates) is stored in localStorage on this device only. */
 (function () {
   'use strict';
-/* TessDesk phone v4.3.19 (DESIGN BY VAN). Pure logic + UI for: PLUG-IN REMINDER, TRIPS, MORNING READY CHECK,
+/* TessDesk phone v4.3.20 (DESIGN BY VAN). v4.3.20: HEALTH HISTORY dropdown in BATTERY HEALTH. Pure logic + UI for: PLUG-IN REMINDER, TRIPS, MORNING READY CHECK,
    PSO BILL MATCH (on/off switch), BATTERY HEALTH TREND + TIPS. No Alexa, no toasts (in-app banners only),
    cached data only (never wakes the car). The same functions are unit-tested headlessly. */
 (function (g) {
@@ -260,6 +260,7 @@
     if (h && h.healthPct != null) out += '<div class="healthrow"><div class="hpct"><b>' + (+h.healthPct).toFixed(1) + '%</b><small>HEALTH</small></div><div class="hlines"><b>' + (h.capacity != null && h.original != null ? (+h.capacity).toFixed(1) + ' of ' + (+h.original).toFixed(1) + ' kWh capacity' : '') + '</b><span>' + (h.maxRange != null ? 'Full-pack range ' + Math.round(h.maxRange) + ' mi (est.)' : '') + '</span><em>' + (tr ? 'Full-pack range ' + Math.round(tr.fromRange) + ' \u2192 ' + Math.round(tr.toRange) + ' mi since ' + esc(tr.since.slice(0, 7)) + ' (' + (tr.deltaPct >= 0 ? '+' : '') + tr.deltaPct.toFixed(1) + '%)' : 'Trend: history builds up day by day') + '</em></div>' +
       '<div class="spark"><svg viewBox="0 0 130 36" width="130" height="36">' + (pts ? '<polyline points="' + pts + '" fill="none" stroke="var(--green)" stroke-width="1.8" stroke-linejoin="round"/>' : '') + '</svg><small>' + (series.length >= 2 ? 'max range \u00b7 ' + series.length + ' days' : 'trend: needs 2+ days') + '</small></div></div>';
     else out += '<div class="hlines"><span>Battery health loads from Tessie (every 6 h).</span></div>';
+    out += healthHistHtml(h);   // v4.3.20
     var nowE = g.nowSec(), trips = ((g.cache && g.cache.drives) || []).map(convertTrip);
     var ss = withCost(v, cfg);
     var tips = batteryTips(ss, { limit: v.limit }, trips, nowE);
@@ -292,12 +293,60 @@
     return h;
   }
   function bannerOf(v) { var p = plugHtml(v); return (p.fresh ? '<div class="plugbanner" id="plugBanner"><b>PLUG IN TONIGHT</b><span>The car is home, unplugged and under its daily limit.</span></div>' : '') ; }
+  // ---- v4.3.20: HEALTH HISTORY (one entry per day: health %, capacity kWh, est. full-pack range; kept indefinitely) ----
+  // Seeded from Tessie's past daily points; their health = capacity / original capacity (Tessie's health_percent is the same ratio).
+  function r1(x) { return Math.round(x * 10) / 10; }
+  function hhMerge(own, h, day) {
+    var have = {}, pts = [];
+    (own || []).forEach(function (p) { if (p && p.d && p.d !== day && !have[p.d]) { have[p.d] = 1; pts.push(p); } });
+    var orig = h && h.original != null ? +h.original : null;
+    if (h && orig > 0) (h.points || []).forEach(function (p) { if (!p || !p.d || p.cap == null || p.d === day || have[p.d]) return; have[p.d] = 1; pts.push({ d: p.d, range: p.range, cap: p.cap, health: r1(+p.cap / orig * 100), src: 'tessie' }); });
+    if (h && h.healthPct != null && day) pts.push({ d: day, range: h.maxRange != null ? Math.round(+h.maxRange * 100) / 100 : null, cap: h.capacity, health: h.healthPct, src: 'daily' });
+    pts.sort(function (a, b) { return a.d < b.d ? -1 : (a.d > b.d ? 1 : 0); });
+    return pts;
+  }
+  function hhRows(h, own) {
+    var orig = h && h.original != null ? +h.original : null, m = {};
+    if (h && orig > 0) (h.points || []).forEach(function (p) { if (p && p.d && p.cap != null) m[p.d] = { d: p.d, health: r1(+p.cap / orig * 100), cap: +p.cap, range: p.range }; });
+    (own || []).forEach(function (p) { if (!p || !p.d) return; var hp = p.health != null ? +p.health : (p.cap != null && orig > 0 ? +p.cap / orig * 100 : null); if (hp == null) return; m[p.d] = { d: p.d, health: r1(hp), cap: p.cap != null ? +p.cap : null, range: p.range }; });
+    var rows = [], prev = null;
+    Object.keys(m).sort().forEach(function (k) { var r = m[k]; rows.unshift({ d: r.d, health: r.health, cap: r.cap, range: r.range, delta: prev ? r1(r.health - prev.health) : null }); prev = r; });
+    return rows;
+  }
+  function hhSummary(rows) {
+    if (!rows || !rows.length) return null;
+    var last = rows[0], o = { latest: last.health, latestD: last.d, d30: null, d90: null, first: null, firstD: rows[rows.length - 1].d, count: rows.length };
+    [30, 90].forEach(function (n) { var t = new Date(last.d + 'T12:00:00Z'); t.setUTCDate(t.getUTCDate() - n); var cut = t.toISOString().slice(0, 10); for (var i = 0; i < rows.length; i++) if (rows[i].d <= cut) { o['d' + n] = r1(last.health - rows[i].health); break; } });
+    if (rows.length >= 2) o.first = r1(last.health - rows[rows.length - 1].health);
+    return o;
+  }
+  function hhDelta(v) { if (v == null) return '<em class="hhd">--</em>'; if (Math.abs(v) < 0.05) return '<em class="hhd">0.0</em>'; return '<em class="hhd ' + (v > 0 ? 'up' : 'down') + '">' + (v > 0 ? '\u25b2 ' : '\u25bc ') + Math.abs(v).toFixed(1) + '</em>'; }
+  var HH_MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'], HH_DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  function hhDay(d, dow) { var p = String(d).split('-'), dt = new Date(Date.UTC(+p[0], +p[1] - 1, +p[2], 12)); return (dow ? HH_DOW[dt.getUTCDay()] + ' ' : '') + HH_MON[+p[1] - 1] + ' ' + (+p[2]) + ', ' + p[0]; }
+  function hhLocalDay(t) { var c = g.ct(t); return c.y + '-' + (c.mo < 10 ? '0' : '') + c.mo + '-' + (c.d < 10 ? '0' : '') + c.d; }
+  var hhSeeded = false;
+  function healthHistHtml(h) {
+    var own = ld('healthHist', null) || [];
+    if (!hhSeeded && h && h.at && h.healthPct != null) { hhSeeded = true; try { own = hhMerge(own, h, hhLocalDay(h.at)); sv('healthHist', own); } catch (e) {} }
+    var rows = hhRows(h, own), s = hhSummary(rows), open = !!ld('healthHistOpen', false), all = !!g.__hhAll;
+    var out = '<div class="hhist' + (open ? ' open' : '') + '" id="hhist"><button class="hhbtn" id="hhToggle" type="button" aria-expanded="' + open + '"><b>HEALTH HISTORY ' + (open ? '\u25be' : '\u25b8') + '</b><span>' + (s ? '<i>' + s.latest.toFixed(1) + '%</i> \u00b7 30 days ' + hhDelta(s.d30) : 'builds up day by day') + '</span></button>';
+    if (!open) return out + '</div>';
+    out += '<div class="hhsum">' + (s ? 'Change: 30 days ' + hhDelta(s.d30) + ' \u00b7 90 days ' + hhDelta(s.d90) + ' \u00b7 since ' + hhDay(s.firstD) + ' ' + hhDelta(s.first) + ' \u00b7 ' + s.count + (s.count === 1 ? ' entry' : ' entries') : 'No history yet: one entry is logged per day from Tessie.') + '</div>';
+    out += '<div class="hhrow hhhead"><span>DATE</span><span>HEALTH</span><span>CHANGE</span><span>CAPACITY</span></div><div class="hhlist" id="hhList">';
+    (all ? rows : rows.slice(0, 30)).forEach(function (r) { out += '<div class="hhrow"' + (r.range != null ? ' title="Est. full-pack range ' + Math.round(r.range) + ' mi"' : '') + '><span>' + hhDay(r.d, true) + '</span><b>' + r.health.toFixed(1) + '%</b>' + hhDelta(r.delta) + '<span>' + (r.cap != null ? r.cap.toFixed(2) + ' kWh' : '--') + '</span></div>'; });
+    out += '</div>';
+    if (rows.length > 30) out += '<button class="cbtn hhall" id="hhAll" type="button">' + (all ? 'Show last 30' : 'Show all (' + rows.length + ')') + '</button>';
+    return out + '</div>';
+  }
+  API.hhMerge = hhMerge; API.hhRows = hhRows; API.hhSummary = hhSummary; API.healthHistHtml = healthHistHtml;
   API.plugHtml = plugHtml; API.readyHtml = readyHtml; API.billHtml = billHtml; API.healthHtml = healthHtml; API.tripsHtml = tripsHtml; API.bannerOf = bannerOf;
   API.bind4319 = function () {
     var b = document.getElementById('billSw'); if (b) b.onclick = function () { var c = billCfg(); c.enabled = !(c.enabled !== false); sv('billMatch', c); g.render(); };
     var p = document.getElementById('plugSw'); if (p) p.onclick = function () { var c = plugCfg(); c.enabled = !(c.enabled !== false); sv('plugReminder', c); g.render(); };
     var s = document.getElementById('billSave'); if (s) s.onclick = function () { var c = billCfg(); var f = parseDate(document.getElementById('billFrom').value), t = parseDate(document.getElementById('billTo').value); c.from = f ? (f.y + '-' + pad(f.mo) + '-' + pad(f.d)) : document.getElementById('billFrom').value.trim(); c.to = t ? (t.y + '-' + pad(t.mo) + '-' + pad(t.d)) : document.getElementById('billTo').value.trim(); c.kwh = num(document.getElementById('billKwh').value); c.usd = num(document.getElementById('billUsd').value); sv('billMatch', c); g.render(); };
     var m = document.getElementById('tripsMore'); if (m) m.onclick = function () { sv('tripsMore', !ld('tripsMore', false)); g.render(); var el = document.getElementById('tripsCard'); if (el) el.scrollIntoView(); };
+    var hht = document.getElementById('hhToggle'); if (hht) hht.onclick = function () { sv('healthHistOpen', !ld('healthHistOpen', false)); g.render(); var el = document.getElementById('hhist'); if (el) el.scrollIntoView({ block: 'nearest' }); };   // v4.3.20
+    var hha = document.getElementById('hhAll'); if (hha) hha.onclick = function () { g.__hhAll = !g.__hhAll; g.render(); };
   };
   document.addEventListener('DOMContentLoaded', function () { });
 })(typeof window !== 'undefined' ? window : globalThis);
@@ -305,7 +354,7 @@
   var CFG = window.TD_CONFIG || {};
   var VARIANT = CFG.variant || 'main';
   var P = CFG.storagePrefix || 'td:';
-  var VERSION = 'v4.3.19';
+  var VERSION = 'v4.3.20';
   var VERSION_DATE = 'Oct 8, 2026';
   var TZ = 'America/Chicago';
   var DEFAULT_API = 'https://api.tessie.com';
@@ -542,7 +591,7 @@
           var by = {}, pts = []; ((h && h.results) || []).forEach(function (p) { if (p && p.timestamp && p.max_range != null) by[String(p.timestamp).slice(0, 10)] = p; });
           Object.keys(by).sort().forEach(function (d) { pts.push({ d: d, range: Math.round(+by[d].max_range * 100) / 100, cap: by[d].capacity != null ? Math.round(+by[d].capacity * 100) / 100 : null }); });
           cache.health = { healthPct: mine.health_percent, capacity: mine.capacity, original: mine.original_capacity, maxRange: mine.max_range, at: t, points: pts }; cache.healthAt = t;
-          try { var own = load('healthHist', []) || [], day = new Date().toISOString().slice(0, 10); own = own.filter(function (p) { return p.d !== day; }); own.push({ d: day, range: mine.max_range, cap: mine.capacity, health: mine.health_percent }); save('healthHist', own.slice(-800)); } catch (e) {}
+          try { var c4 = ct(t), day = c4.y + '-' + (c4.mo < 10 ? '0' : '') + c4.mo + '-' + (c4.d < 10 ? '0' : '') + c4.d; save('healthHist', window.TD4319.hhMerge(load('healthHist', []) || [], cache.health, day)); } catch (e) {}   /* v4.3.20: local day, seeded from Tessie's past days, deduped by date, kept indefinitely */
         }, function () { cache.health = { healthPct: mine.health_percent, capacity: mine.capacity, original: mine.original_capacity, maxRange: mine.max_range, at: t, points: (cache.health && cache.health.points) || [] }; cache.healthAt = t; }) : null;
       }, function () { cache.healthAt = t - HEALTH_EVERY_S + 1800; });
       var pd = !needDrives ? null : api('/' + cfg.vin + '/drives?from=' + (t - 30 * 86400) + '&to=' + t + '&distance_format=mi&format=json')
