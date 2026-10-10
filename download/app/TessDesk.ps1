@@ -1,11 +1,11 @@
 ﻿#Requires -Version 5.1
-# TessDesk v4.3.24 (FINISH BY defaults to 6:00 AM; v4.3.23: CHARGING SCHEDULE in START / STOP: START AT + FINISH BY, set on the car through Tessie; v4.3.22: CHARGE column in HEALTH HISTORY: highest charge % per day + Home / AC / Supercharger; v4.3.21: HEALTH HISTORY under START / STOP with CALIBRATION INFO; health history logged by the app itself; v4.3.20: HEALTH HISTORY dropdown, one entry per day, kept indefinitely; v4.3.19: 30% wider; PLUG-IN REMINDER; TRIPS; MORNING READY CHECK; PSO BILL MATCH with on/off; BATTERY HEALTH TREND + TIPS; LEAVING SOON 'Start after' delay; v4.3.18 CHARGING STATUS bar under the big cost with START / STOP, fits 364x990 without scrolling; v4.3.17: TESLA CONTROLS under the big cost, CHARGE HISTORY & TOTALS dropdown; v4.3.16 LEAVING SOON: adjustable 'Windows after' / 'Unlock after' minutes, Stop undoes the steps already done; v4.3.15: climate on, close windows, unlock; rolling 7 / 14 days and 30 / 60 days $ beside the big amount; Restore / Remember at the top right with fade-in, like Paycheck Live; TOTALS pop-up: week / month / year running totals; CAMERAS panel from saved Sentry / Dashcam clips; checks for updates on open / wake; compact-when-OFF via cb_compact_addon.ps1) - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
+# TessDesk v4.3.25 (CHARGING SCHEDULE reaches the car on firmware 2024.26+: charge schedules, checked after each send; v4.3.24: FINISH BY defaults to 6:00 AM; v4.3.23: CHARGING SCHEDULE in START / STOP: START AT + FINISH BY, set on the car through Tessie; v4.3.22: CHARGE column in HEALTH HISTORY: highest charge % per day + Home / AC / Supercharger; v4.3.21: HEALTH HISTORY under START / STOP with CALIBRATION INFO; health history logged by the app itself; v4.3.20: HEALTH HISTORY dropdown, one entry per day, kept indefinitely; v4.3.19: 30% wider; PLUG-IN REMINDER; TRIPS; MORNING READY CHECK; PSO BILL MATCH with on/off; BATTERY HEALTH TREND + TIPS; LEAVING SOON 'Start after' delay; v4.3.18 CHARGING STATUS bar under the big cost with START / STOP, fits 364x990 without scrolling; v4.3.17: TESLA CONTROLS under the big cost, CHARGE HISTORY & TOTALS dropdown; v4.3.16 LEAVING SOON: adjustable 'Windows after' / 'Unlock after' minutes, Stop undoes the steps already done; v4.3.15: climate on, close windows, unlock; rolling 7 / 14 days and 30 / 60 days $ beside the big amount; Restore / Remember at the top right with fade-in, like Paycheck Live; TOTALS pop-up: week / month / year running totals; CAMERAS panel from saved Sentry / Dashcam clips; checks for updates on open / wake; compact-when-OFF via cb_compact_addon.ps1) - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
 param(
     [string]$ConfigPath,
     [string]$Snapshot,    # optional: folder to write PNG snapshots of both themes
     [switch]$Quick433,    # with -SelfTest: run only the v4.3.3 steps (trunk, sentry, drives, paused-session energy)
     [switch]$Quick432,
-    [switch]$Quick4324,   # with -SelfTest: run only the v4.3.21 - v4.3.24 steps (health history, CHARGE column, CHARGING SCHEDULE, FINISH BY 6:00 AM default, dry run) + a short smoke check    # with -SelfTest: run only the v4.3.2 steps (glow states, seats, flash lights, last charge)
+    [switch]$Quick4325,   # with -SelfTest: run only the v4.3.21 - v4.3.25 steps (health history, CHARGE column, CHARGING SCHEDULE incl. the newer charge-schedule API + check after send, dry run) + a short smoke check    # with -SelfTest: run only the v4.3.2 steps (glow states, seats, flash lights, last charge)
     [switch]$SelfTest     # test run: controls forced to DRY RUN (nothing is sent to the car), snapshots, selftest.json, then exit
 )
 Add-Type -AssemblyName PresentationFramework
@@ -15,7 +15,7 @@ Add-Type -AssemblyName System.Xaml
 
 $ErrorActionPreference = 'Stop'
 $AppName    = 'TessDesk'
-$AppVersion = '4.3.24'
+$AppVersion = '4.3.25'
 $AppDate    = 'Oct 9, 2026'
 
 $scriptDir  = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -802,6 +802,7 @@ function Get-CarInfo {
         minC = $(if ($null -ne $cl -and $null -ne $cl.min_avail_temp) { [double]$cl.min_avail_temp } else { 15.0 })
         maxC = $(if ($null -ne $cl -and $null -ne $cl.max_avail_temp) { [double]$cl.max_avail_temp } else { 28.0 })
         tempUnits = $units
+        chgSched = $v.charge_schedule_data; fw = $(if ($null -ne $vs -and $null -ne $vs.car_version) { [string]$vs.car_version } else { $null })   # v4.3.25
         schedMode = [string]$cs.scheduled_charging_mode; schedStartEpoch = $cs.scheduled_charging_start_time; schedStartMin = $(if ($null -ne $cs.scheduled_charging_start_time_minutes) { $cs.scheduled_charging_start_time_minutes } else { $cs.scheduled_charging_start_time_app }); schedPending = $cs.scheduled_charging_pending
         departEpoch = $cs.scheduled_departure_time; departMin = $cs.scheduled_departure_time_minutes; offPeak = $cs.off_peak_charging_enabled; offPeakEndMin = $cs.off_peak_hours_end_time; precond = $cs.preconditioning_enabled
         ampsReq = $cs.charge_current_request; ampsMax = $cs.charge_current_request_max
@@ -8375,12 +8376,25 @@ function New-HChgCell {
 # The controls show the car's own schedule from the cached state (charge_state.scheduled_charging_mode / _start_time,
 # scheduled_departure_time; never wakes the car). A change is sent ~2 s after the last click (debounced), after a confirm
 # unless 'Schedule' is checked in SKIP CONFIRM. Your last picks are kept in config.json chargeSchedule.
+# v4.3.25: cars on firmware 2024.26+ (or whose state has charge_schedule_data.charge_schedules) use the newer charge-schedule
+# commands (developer.tessie.com add_charge_schedule: days_of_week, enabled, start_enabled/start_time, end_enabled/end_time,
+# one_time, lat, lon; id to update one). Their old scheduled_charging / departure fields are frozen, so the controls are read
+# from charge_schedules: START AT = a schedule start, FINISH BY = a schedule end (both on = one nightly window, e.g.
+# 11:00 PM - 6:00 AM). TessDesk keeps ONE enabled schedule (config.json chargeScheduleId); other enabled ones are turned off
+# (not deleted) when you change the schedule. Older cars keep the 4.3.23 commands. After every send the car is read again
+# (fresh, not the cache) and the status says Synced only if the car really has it; otherwise Failed + why. The last result
+# is kept in config.json chargeScheduleLast and shown again after a restart.
 $script:Sched = @{ dirty = $false; want = $null; status = 'idle'; reason = ''; applied = $null; appliedAt = 0; lastSteps = @(); log = @(); syncs = 0 }
 $script:SchedSync = $false
 $script:SchedCarMock = $null
 $script:SchedSessMock = $null
 $script:SchedSeenStart = $null
-$script:SchedCmds = @('set_scheduled_charging', 'set_scheduled_departure', 'set_charge_limit')
+$script:SchedCmds = @('set_scheduled_charging', 'set_scheduled_departure', 'set_charge_limit', 'add_charge_schedule')
+$script:SchedFreshMock = $null   # self-test: { param($Want, $Try) <state object> } instead of a real fresh read
+$script:SchedVerify = @{ job = $null; tries = 0; started = 0 }
+$script:SchedVerifyTimer = New-Object System.Windows.Threading.DispatcherTimer
+$script:SchedVerifyTimer.Interval = [TimeSpan]::FromSeconds(3)
+$script:SchedVerifyTimer.Add_Tick({ try { Step-SchedVerify } catch { $script:SchedVerifyTimer.Stop(); Complete-SchedVerify $null ('check failed: ' + $_.Exception.Message) } })
 $script:SchedTimer = New-Object System.Windows.Threading.DispatcherTimer
 $script:SchedTimer.Interval = [TimeSpan]::FromSeconds(2)
 $script:SchedTimer.Add_Tick({ try { $script:SchedTimer.Stop(); Invoke-SchedSync } catch { $script:Sched.status = 'failed'; $script:Sched.reason = $_.Exception.Message; Write-WidgetLog ('schedule: ' + $_.Exception.Message) } })
@@ -8398,6 +8412,24 @@ function Get-CarSched {
     if ($null -ne $p['socPct'] -and $null -ne $Car.socPct) { $o.soc = [double]$Car.socPct }
     if ($null -ne $p['limitMin'] -and $null -ne $Car.limitMin) { $o.limitMin = [int]$Car.limitMin }
     if ($null -ne $p['limitMax'] -and $null -ne $Car.limitMax) { $o.limitMax = [int]$Car.limitMax }
+    $o.api = 'legacy'; $o.schedules = @(); $o.schedTs = $null; $o.fw = $null; $o.startOn = $false; $o.finishOn = $false; $o.enabledCount = 0
+    if ($null -ne $p['fw'] -and $Car.fw) { $o.fw = [string]$Car.fw }
+    $csd = $(if ($null -ne $p['chgSched']) { $Car.chgSched } else { $null })
+    $hasList = ($null -ne $csd -and $null -ne $csd.PSObject.Properties['charge_schedules'])
+    if ($hasList -or (Test-FwNewSched $o.fw)) {
+        # v4.3.25: newer firmware: the schedule is the list of charge schedules (the old fields are frozen)
+        $o.api = 'new'; $o.known = $hasList; $o.mode = 'Schedules'
+        if ($hasList) {
+            $o.schedules = @(@($csd.charge_schedules) | Where-Object { $null -ne $_ } | ForEach-Object { [pscustomobject]@{ id = [int64]$_.id; days = [int]$_.days_of_week; startOn = [bool]$_.start_enabled; startMin = [int]$_.start_time; endOn = [bool]$_.end_enabled; endMin = [int]$_.end_time; oneTime = [bool]$_.one_time; enabled = [bool]$_.enabled; lat = $_.latitude; lon = $_.longitude } })
+            try { if ($null -ne $csd.timestamp) { $o.schedTs = [int64]$csd.timestamp.seconds } } catch {}
+        }
+        $on = @($o.schedules | Where-Object { $_.enabled }); $mine = Get-SchedMineId; $o.enabledCount = $on.Count
+        $s1 = @($on | Where-Object { $_.startOn } | Sort-Object { if ($_.id -eq $mine) { 0 } else { 1 } }) | Select-Object -First 1
+        $e1 = @($on | Where-Object { $_.endOn } | Sort-Object { if ($_.id -eq $mine) { 0 } else { 1 } }) | Select-Object -First 1
+        $o.startOn = ($null -ne $s1); $o.finishOn = ($null -ne $e1)
+        $o.startMin = $(if ($null -ne $s1) { [int]$s1.startMin } else { $null }); $o.finishMin = $(if ($null -ne $e1) { [int]$e1.endMin } else { $null })
+        return $o
+    }
     if ($null -eq $p['schedMode'] -or -not [string]$Car.schedMode) { return $o }
     $o.known = $true; $o.mode = [string]$Car.schedMode
     $o.startMin = $(if ($null -ne $Car.schedStartMin) { [int]$Car.schedStartMin } else { Get-EpochMin $Car.schedStartEpoch })
@@ -8407,6 +8439,33 @@ function Get-CarSched {
     if ($null -ne $Car.offPeakEndMin) { $o.offPeakEndMin = [int]$Car.offPeakEndMin }
     $o.precond = [bool]$Car.precond
     return $o
+}
+function Test-FwNewSched {
+    # firmware 2024.26 or newer ("2026.26.6.5 abc123" -> year 2026, week 26)
+    param([string]$Fw)
+    if (-not $Fw) { return $false }
+    $m = [regex]::Match($Fw, '^(\d{4})\.(\d+)'); if (-not $m.Success) { return $false }
+    $y = [int]$m.Groups[1].Value; $wk = [int]$m.Groups[2].Value
+    return ($y -gt 2024 -or ($y -eq 2024 -and $wk -ge 26))
+}
+function Get-SchedMineId { $v = $null; try { $v = Get-Cfg4319 'chargeScheduleId' } catch {}; if ($null -ne $v -and [string]$v -match '^\d+$') { return [int64]$v }; return [int64]-1 }
+function ConvertTo-SchedDays {
+    # Tesla days_of_week bit mask (Sunday = 1 ... Saturday = 64) -> Tessie's days list
+    param([int]$Mask)
+    if ($Mask -le 0 -or ($Mask -band 127) -eq 127) { return 'All' }
+    $n = @('Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday')
+    return ((@(0..6 | Where-Object { ($Mask -band (1 -shl $_)) -ne 0 }) | ForEach-Object { $n[$_] }) -join ',')
+}
+function Format-SchedCoord { param($V) return ([double]$V).ToString('0.0######', $Inv) }
+function Get-SchedHome {
+    # where the schedule applies: the kept schedule's own spot, else any schedule's, else HOME (config.json home or the default)
+    param($C, $Keep)
+    if ($null -ne $Keep -and $null -ne $Keep.lat -and $null -ne $Keep.lon) { return @((Format-SchedCoord $Keep.lat), (Format-SchedCoord $Keep.lon)) }
+    $x = @($C.schedules | Where-Object { $null -ne $_.lat -and $null -ne $_.lon }) | Select-Object -First 1
+    if ($null -ne $x) { return @((Format-SchedCoord $x.lat), (Format-SchedCoord $x.lon)) }
+    $lat = 36.10364; $lon = -96.03282
+    try { $h = Get-Cfg4319 'home'; if ($null -ne $h -and $null -ne $h.lat -and $null -ne $h.lon) { $lat = [double]$h.lat; $lon = [double]$h.lon } } catch {}
+    return @((Format-SchedCoord $lat), (Format-SchedCoord $lon))
 }
 # ---------------- v4.3.24: FINISH BY defaults to 6:00 AM ----------------
 # Fresh installs: 6:00 AM (FINISH BY stays OFF). An install that only has the old 4.3.23 default (10:00 AM with FINISH BY off) is moved to 6:00 AM once
@@ -8441,6 +8500,10 @@ function Get-SchedFromCar {
     param($C)
     $cfg = Get-SchedCfg
     $w = [ordered]@{ startOn = $cfg.startOn; startMin = $cfg.startMin; finishOn = $cfg.finishOn; finishMin = $cfg.finishMin; target = $(if ($null -ne $C.limit) { [int]$C.limit } elseif ($null -ne $cfg.target) { [int]$cfg.target } else { 80 }) }
+    if ($C.api -eq 'new') {
+        if ($C.known) { $w.startOn = [bool]$C.startOn; $w.finishOn = [bool]$C.finishOn; if ($null -ne $C.startMin) { $w.startMin = [int]$C.startMin }; if ($null -ne $C.finishMin) { $w.finishMin = [int]$C.finishMin } }
+        return $w
+    }
     if ($C.known) {
         $w.finishOn = ($C.mode -eq 'DepartBy')
         if ($C.mode -eq 'StartAt') { $w.startOn = $true; if ($null -ne $C.startMin) { $w.startMin = [int]$C.startMin } elseif ($null -ne $script:SchedSeenStart) { $w.startMin = [int]$script:SchedSeenStart } }
@@ -8452,18 +8515,58 @@ function Get-SchedFromCar {
 function Test-SchedMatch {
     param($W, $C)
     if (-not $C.known) { return $false }
+    if ($C.api -eq 'new') {
+        if ([bool]$C.startOn -ne [bool]$W.startOn -or [bool]$C.finishOn -ne [bool]$W.finishOn) { return $false }
+        if ([bool]$W.startOn -and $C.startMin -ne [int]$W.startMin) { return $false }
+        if ([bool]$W.finishOn -and ($C.finishMin -ne [int]$W.finishMin -or ($null -ne $W.target -and $null -ne $C.limit -and [int]$C.limit -ne [int]$W.target))) { return $false }
+        return $true
+    }
     if ($W.finishOn) { return ($C.mode -eq 'DepartBy' -and $C.finishMin -eq $W.finishMin -and ($null -eq $C.limit -or [int]$C.limit -eq [int]$W.target)) }
     if ($W.startOn) { return ($C.mode -eq 'StartAt' -and $C.startMin -eq $W.startMin) }
     return ($C.mode -eq 'Off')
 }
 function Get-SchedShown {
     $C = Get-CarSched (Get-SchedCar)
-    if ($null -ne $script:Sched.want -and ($script:Sched.dirty -or $script:SchedSync)) { return $script:Sched.want }
+    if ($null -ne $script:Sched.want -and ($script:Sched.dirty -or $script:SchedSync -or $script:Sched.status -eq 'verifying')) { return $script:Sched.want }
     if ($null -ne $script:Sched.applied -and ((Get-EpochNow) - [int64]$script:Sched.appliedAt) -lt 900 -and -not (Test-SchedMatch $script:Sched.applied $C)) { return $script:Sched.applied }
     return (Get-SchedFromCar $C)
 }
 function Get-SchedSteps {
     # the Tessie commands that turn what the car has (C) into what the controls show (W), in order
+    param($W, $C)
+    if ($C.api -eq 'new') { return @(Get-SchedStepsNew $W $C) }
+    return @(Get-SchedStepsLegacy $W $C)
+}
+function Get-SchedStepsNew {
+    # v4.3.25, firmware 2024.26+: one enabled charge schedule = START AT (start) and / or FINISH BY (end), every day, at home
+    param($W, $C)
+    $s = @(); $b = { param($v) $(if ($v) { 'true' } else { 'false' }) }
+    $want = ([bool]$W.startOn -or [bool]$W.finishOn); $list = @($C.schedules); $mine = Get-SchedMineId; $keep = $null
+    $exact = { param($x) $x.enabled -and -not $x.oneTime -and (([int]$x.days -band 127) -eq 127) -and [bool]$x.startOn -eq [bool]$W.startOn -and [bool]$x.endOn -eq [bool]$W.finishOn -and (-not $W.startOn -or [int]$x.startMin -eq [int]$W.startMin) -and (-not $W.finishOn -or [int]$x.endMin -eq [int]$W.finishMin) }
+    if ($want) {
+        $keep = @($list | Where-Object { $_.id -eq $mine }) | Select-Object -First 1
+        if ($null -eq $keep) { $keep = @($list | Where-Object { & $exact $_ }) | Select-Object -First 1 }
+        if ($null -eq $keep) { $keep = @($list | Where-Object { $_.enabled } | Sort-Object { if ($_.startOn -and $_.endOn) { 0 } else { 1 } }) | Select-Object -First 1 }
+        if ($null -eq $keep -or -not (& $exact $keep)) {
+            $ll = Get-SchedHome $C $keep
+            $q = @{ days_of_week = 'All'; enabled = 'true'; start_enabled = (& $b $W.startOn); end_enabled = (& $b $W.finishOn); one_time = 'false'; lat = $ll[0]; lon = $ll[1] }
+            if ($W.startOn) { $q.start_time = [string][int]$W.startMin }; if ($W.finishOn) { $q.end_time = [string][int]$W.finishMin }
+            if ($null -ne $keep) { $q.id = [string]$keep.id }
+            $what = $(if ($W.startOn -and $W.finishOn) { (Format-SchedMin $W.startMin) + '–' + (Format-SchedMin $W.finishMin) } elseif ($W.startOn) { 'START AT ' + (Format-SchedMin $W.startMin) } else { 'FINISH BY ' + (Format-SchedMin $W.finishMin) })
+            $s += [pscustomobject]@{ cmd = 'add_charge_schedule'; query = $q; busy = ('Setting charge schedule ' + $what + '…'); okText = ('Charge schedule ' + $what); onOk = $null; ann = '' }
+        }
+    }
+    foreach ($x in @($list | Where-Object { $_.enabled -and ($null -eq $keep -or $_.id -ne $keep.id) })) {
+        $q = @{ id = [string]$x.id; days_of_week = (ConvertTo-SchedDays $x.days); enabled = 'false'; start_enabled = (& $b $x.startOn); end_enabled = (& $b $x.endOn); one_time = (& $b $x.oneTime); lat = (Format-SchedCoord $x.lat); lon = (Format-SchedCoord $x.lon) }
+        if ($x.startOn) { $q.start_time = [string][int]$x.startMin }; if ($x.endOn) { $q.end_time = [string][int]$x.endMin }
+        $s += [pscustomobject]@{ cmd = 'add_charge_schedule'; query = $q; busy = 'Turning off another charge schedule…'; okText = 'Other charge schedule off'; onOk = $null; ann = '' }
+    }
+    if ([bool]$W.finishOn -and $null -ne $W.target -and ($null -eq $C.limit -or [int]$C.limit -ne [int]$W.target)) {
+        $s += [pscustomobject]@{ cmd = 'set_charge_limit'; query = @{ percent = [string][int]$W.target }; busy = ('Setting charge limit ' + [int]$W.target + '%…'); okText = ('Charge limit ' + [int]$W.target + '%'); onOk = [scriptblock]::Create('Set-CtlOverride ''limit'' ' + [int]$W.target); ann = '' } }
+    return @($s)
+}
+function Get-SchedStepsLegacy {
+    # older firmware (4.3.23 commands)
     param($W, $C)
     $s = @(); $b = { param($v) $(if ($v) { 'true' } else { 'false' }) }
     if ($W.finishOn) {
@@ -8503,6 +8606,15 @@ function Get-SchedEstimate {
     $need = $null; if ($null -ne $C.soc -and $null -ne $tg) { $need = [double]$tg - [double]$C.soc }
     $canEst = ($null -ne $need -and $need -gt 0 -and $null -ne $Rate -and $null -ne $Rate.kw -and [double]$Rate.kw -gt 0.5 -and $null -ne $Rate.kwhPerPct)
     if ($canEst) { $o.kwh = [math]::Round($need * [double]$Rate.kwhPerPct, 1); $o.hours = $o.kwh / [double]$Rate.kw }
+    if ($C.api -eq 'new' -and $W.finishOn -and $W.startOn) {
+        # v4.3.25: a charge window START AT -> FINISH BY
+        $st = Format-SchedMin $W.startMin; $fin = Format-SchedMin $W.finishMin; $win = ((([int]$W.finishMin - [int]$W.startMin) % 1440) + 1440) % 1440; if ($win -eq 0) { $win = 1440 }
+        if ($canEst -and $o.hours * 60 -le $win) { $o.doneMin = [int]((([math]::Round(([int]$W.startMin + $o.hours * 60) / 5) * 5) % 1440 + 1440) % 1440); $o.text = ('Charges {0}–{1} · ~{2:N1} h to {3}% (done ~{4})' -f $st, $fin, $o.hours, $tg, (Format-SchedMin $o.doneMin)) }
+        elseif ($canEst) { $reach = [math]::Min([double]$tg, [double]$C.soc + ($win / 60.0) * [double]$Rate.kw / [double]$Rate.kwhPerPct); $o.text = ('Charges {0}–{1} · ~{2:N0}% by {1} (needs ~{3:N1} h for {4}%)' -f $st, $fin, $reach, $o.hours, $tg) }
+        elseif ($null -ne $need -and $need -le 0) { $o.text = ('Charges {0}–{1} · already at {2:N0}% (target {3}%)' -f $st, $fin, [double]$C.soc, $tg) }
+        else { $o.text = ('Charges {0}–{1} nightly' -f $st, $fin) + $(if ($null -ne $tg) { ' to ' + $tg + '%' } else { '' }) }
+        return $o
+    }
     if ($W.finishOn) {
         $fin = Format-SchedMin $W.finishMin
         if ($canEst) { $o.startMin = [int]((([math]::Round(([int]$W.finishMin - $o.hours * 60) / 5) * 5) % 1440 + 1440) % 1440); $o.text = ('Finishes ~{0} at {1}% (est. start {2})' -f $fin, $tg, (Format-SchedMin $o.startMin)) }
@@ -8519,6 +8631,7 @@ function Get-SchedStatusText {
     $s = $script:Sched; $C = Get-CarSched (Get-SchedCar)
     switch ($s.status) {
         'syncing' { return @('Syncing…', 'Amber') }
+        'verifying' { return @('Checking the car…', 'Amber') }
         'pending' { return @('Change pending…', 'Amber') }
         'failed' { return @(('Failed: ' + $s.reason), 'Red') }
         'cancelled' { return @('Not sent (cancelled)', 'Caption') }
@@ -8537,24 +8650,30 @@ function Render-Sched {
     Set-SchedTxtCtl $ui.SchedStartChk ([bool]$W.startOn); Set-SchedTxtCtl $ui.SchedFinishChk ([bool]$W.finishOn)
     $ui.SchedStartVal.Text = Format-SchedMin $W.startMin; $ui.SchedFinishVal.Text = Format-SchedMin $W.finishMin
     $ui.SchedTgtVal.Text = $(if ($null -ne $W.target) { ([int]$W.target).ToString() + '%' } else { '—' })
-    $startLive = ([bool]$W.startOn -and -not [bool]$W.finishOn)
+    $startLive = ([bool]$W.startOn -and (-not [bool]$W.finishOn -or $C.api -eq 'new'))
     $ui.SchedStartChk.Foreground = $(if ($startLive) { T 'Green' } elseif ([bool]$W.startOn) { T 'Caption' } else { T 'TextSoft' })
     $ui.SchedFinishChk.Foreground = $(if ([bool]$W.finishOn) { T 'Green' } else { T 'TextSoft' })
     $ui.SchedStartVal.Foreground = $(if ($startLive) { T 'Text' } else { T 'Caption' })
     foreach ($n in 'SchedFinishVal', 'SchedTgtVal') { $ui[$n].Foreground = $(if ([bool]$W.finishOn) { T 'Text' } else { T 'Caption' }) }
-    $ui.SchedStartChk.ToolTip = $(if ([bool]$W.finishOn) { 'START AT is overridden while FINISH BY is on (it comes back when FINISH BY is turned off)' } else { 'Start charging at this time every night (the car''s own scheduled charging; works with the PC off)' })
-    foreach ($n in 'SchedStartChk', 'SchedFinishChk', 'SchedStartDn', 'SchedStartUp', 'SchedFinishDn', 'SchedFinishUp', 'SchedTgtDn', 'SchedTgtUp') { $ui[$n].IsEnabled = ($canSend -and $script:Sched.status -ne 'syncing') }
+    $ui.SchedStartChk.ToolTip = $(if ($C.api -eq 'new') { 'START AT: the car starts charging at this time every night (with FINISH BY on, it charges from START AT until FINISH BY)' } elseif ([bool]$W.finishOn) { 'START AT is overridden while FINISH BY is on (it comes back when FINISH BY is turned off)' } else { 'Start charging at this time every night (the car''s own scheduled charging; works with the PC off)' })
+    foreach ($n in 'SchedStartChk', 'SchedFinishChk', 'SchedStartDn', 'SchedStartUp', 'SchedFinishDn', 'SchedFinishUp', 'SchedTgtDn', 'SchedTgtUp') { $ui[$n].IsEnabled = ($canSend -and $script:Sched.status -ne 'syncing' -and $script:Sched.status -ne 'verifying') }
     foreach ($n in 'SchedStartBox', 'SchedFinishBox', 'SchedTgtBox') { $ui[$n].BorderBrush = T 'BtnBorder'; $ui[$n].Background = T 'BtnBg' }
     $rate = Get-HomeChargeRate $(if ($null -ne $script:SchedSessMock) { $script:SchedSessMock } elseif ($null -ne $script:State) { $script:State.recentSessions } else { @() })
     $est = Get-SchedEstimate $W $C $rate; $script:Sched.est = $est; $script:Sched.rate = $rate
     $ui.SchedEst.Text = $est.text; $ui.SchedEst.Foreground = T 'TextSoft'
     if (-not $canSend -and $script:Sched.status -ne 'failed') { $ui.SchedSync.Text = $(if (-not $CTL_ENABLED) { 'Controls off' } else { 'Commands off' }); $ui.SchedSync.Foreground = T 'Caption' }
     else { $st = Get-SchedStatusText; $ui.SchedSync.Text = $st[0]; $ui.SchedSync.Foreground = T $st[1] }
-    $ui.SchedSync.ToolTip = ('Car schedule now: ' + (Get-CarSchedText $C) + $(if ($script:Sched.reason) { "`nLast: " + $script:Sched.reason } else { '' }))
+    $l = $script:Sched.last
+    $ui.SchedSync.ToolTip = ('Car schedule now: ' + (Get-CarSchedText $C) + $(if ($script:Sched.reason) { "`nLast: " + $script:Sched.reason } else { '' }) + $(if ($null -ne $l) { "`nLast change: " + [string]$l.summary + ' · ' + $(if ([bool]$l.ok) { 'OK' } else { 'FAILED' }) + ' · ' + [string]$l.reason + ' (' + [string]$l.when + ')' } else { '' }))
     $ui.SchedBox.BorderBrush = T 'BtnBorder'
 }
 function Get-CarSchedText {
     param($C)
+    if ($C.api -eq 'new') {
+        if (-not $C.known) { return 'unknown (the car has not reported its charge schedules yet)' }
+        $t = $(if ($C.startOn -and $C.finishOn) { 'charge ' + (Format-SchedMin $C.startMin) + '–' + (Format-SchedMin $C.finishMin) } elseif ($C.startOn) { 'START AT ' + (Format-SchedMin $C.startMin) } elseif ($C.finishOn) { 'FINISH BY ' + (Format-SchedMin $C.finishMin) } else { 'no schedule' })
+        return ($t + ' (charge schedules: ' + $C.enabledCount + ' on, ' + @($C.schedules).Count + ' total)' + $(if ($null -ne $C.limit) { ', limit ' + $C.limit + '%' } else { '' }))
+    }
     if (-not $C.known) { return 'unknown (no schedule data in the cached state yet)' }
     switch ($C.mode) {
         'StartAt' { return ('START AT ' + $(if ($null -ne $C.startMin) { Format-SchedMin $C.startMin } else { '(time not in the car''s report right now' + $(if ($null -ne $script:SchedSeenStart) { '; last seen ' + (Format-SchedMin $script:SchedSeenStart) } else { '' }) + ')' }) + ' (scheduled charging)') }
@@ -8576,9 +8695,10 @@ function Set-SchedWant {
     $script:SchedTimer.Stop(); $script:SchedTimer.Start()
     Render-Sched $true
 }
-function Get-SchedSummary { param($W) if ($W.finishOn) { return ('FINISH BY ' + (Format-SchedMin $W.finishMin) + ' at ' + $W.target + '% (off-peak; START AT paused)') }; if ($W.startOn) { return ('START AT ' + (Format-SchedMin $W.startMin) + ' nightly') }; return 'No schedule (charge when plugged in)' }
+function Get-SchedSummary { param($W) if ($W.finishOn -and $W.startOn -and (Get-CarSched (Get-SchedCar)).api -eq 'new') { return ('Charge ' + (Format-SchedMin $W.startMin) + '–' + (Format-SchedMin $W.finishMin) + ' nightly to ' + $W.target + '%') }; if ($W.finishOn) { return ('FINISH BY ' + (Format-SchedMin $W.finishMin) + ' at ' + $W.target + '% (off-peak; START AT paused)') }; if ($W.startOn) { return ('START AT ' + (Format-SchedMin $W.startMin) + ' nightly') }; return 'No schedule (charge when plugged in)' }
 function Invoke-SchedSync {
     $w = $script:Sched.want; if ($null -eq $w -or -not $script:Sched.dirty) { return }
+    if ($script:Sched.status -eq 'verifying') { $script:SchedTimer.Stop(); $script:SchedTimer.Start(); return }
     $C = Get-CarSched (Get-SchedCar)
     $steps = @(Get-SchedSteps $w $C)
     $script:Sched.lastSteps = @($steps | ForEach-Object { $q = $_.query; $_.cmd + '?' + ((@($q.Keys | Sort-Object) | ForEach-Object { $_ + '=' + $q[$_] }) -join '&') })
@@ -8587,25 +8707,90 @@ function Invoke-SchedSync {
     $sum = Get-SchedSummary $w
     if (-not (Test-SkipConfirm 'schedule') -and -not (Confirm-Ctl ('Update the car''s charging schedule?' + "`n`n" + $sum))) {
         $script:Sched.dirty = $false; $script:Sched.want = $null; $script:Sched.status = 'cancelled'; $script:Sched.reason = 'cancelled'; Set-CtlResult 'idle' 'Charging schedule unchanged'; Render-Sched $true; return }
-    $script:SchedSync = $true; $script:Sched.status = 'syncing'; $script:Sched.syncs++
+    $script:SchedSync = $true; $script:Sched.status = 'syncing'; $script:Sched.syncs++; $script:Sched.sentAt = Get-EpochNow; $script:Sched.sum = $sum
     $script:Sched.log = @(@($script:Sched.log) + ('sync: ' + $sum + ' -> ' + ($script:Sched.lastSteps -join ' ; ')) | Select-Object -Last 20)
     Write-WidgetLog ('charging schedule: ' + $sum + ' (' + $steps.Count + ' command' + $(if ($steps.Count -ne 1) { 's' } else { '' }) + ')')
     $ok = Start-TessieSequence $steps
-    if (-not $ok) { $script:SchedSync = $false; $script:Sched.dirty = $false; $script:Sched.want = $null; $script:Sched.status = 'failed'; $script:Sched.reason = $(if ($script:CtlResultText) { ([string]$script:CtlResultText).TrimStart('✕ ') } else { 'could not send' }) }
+    if (-not $ok) { $lw = $script:Sched.want; $script:SchedSync = $false; $script:Sched.dirty = $false; $script:Sched.want = $null; $script:Sched.status = 'failed'; $script:Sched.reason = $(if ($script:CtlResultText) { ([string]$script:CtlResultText).TrimStart('✕ ') } else { 'could not send' }); Save-SchedLast $false $script:Sched.reason $lw }
     Render-Sched $true
 }
 function Complete-SchedStep {
     param($J, [bool]$Ok, [string]$Why, [bool]$More)
     $script:Sched.log = @(@($script:Sched.log) + ($J.cmd + ' ' + $(if ($Ok) { 'ok' } else { 'FAILED ' + $Why })) | Select-Object -Last 20)
-    if (-not $Ok) { $script:SchedSync = $false; $script:Sched.dirty = $false; $script:Sched.want = $null; $script:Sched.status = 'failed'; $script:Sched.reason = ($J.cmd + ': ' + $Why) }
-    elseif (-not $More) { $w = $script:Sched.want; try { Save-Cfg4319 'chargeSchedule' ([ordered]@{ startOn = [bool]$w.startOn; startMin = [int]$w.startMin; finishOn = [bool]$w.finishOn; finishMin = [int]$w.finishMin; target = $w.target }) } catch {}
-        $script:SchedSync = $false; $script:Sched.applied = $script:Sched.want; $script:Sched.appliedAt = Get-EpochNow; $script:Sched.dirty = $false; $script:Sched.want = $null; $script:Sched.status = 'synced'; $script:Sched.reason = ('sent ' + (Format-Clock (Get-LocalNow))) }
+    if (-not $Ok) { $lw = $script:Sched.want; $script:SchedSync = $false; $script:Sched.dirty = $false; $script:Sched.want = $null; $script:Sched.status = 'failed'; $script:Sched.reason = ($J.cmd + ': ' + $Why); Save-SchedLast $false $script:Sched.reason $lw }
+    elseif (-not $More) { $script:SchedSync = $false; $script:Sched.dirty = $false; Start-SchedVerify }   # v4.3.25: Synced only after the car confirms it
+    try { Render-Sched $true } catch {}
+}
+# ---- v4.3.25: after a send, read the car again (fresh, not the cache) and compare ----
+function Save-SchedLast {
+    param([bool]$Ok, [string]$Reason, $W)
+    $l = [ordered]@{ when = (Get-LocalNow).ToString('MMM d h:mm tt', $Inv); at = (Get-LocalNow).ToString('s'); ok = $Ok; summary = $(if ($null -ne $script:Sched.sum) { [string]$script:Sched.sum } else { '' }); reason = $Reason; steps = @($script:Sched.lastSteps); dryRun = [bool]$CTL_DRYRUN
+        want = $(if ($null -ne $W) { [ordered]@{ startOn = [bool]$W.startOn; startMin = [int]$W.startMin; finishOn = [bool]$W.finishOn; finishMin = [int]$W.finishMin; target = $W.target } } else { $null }) }
+    $script:Sched.last = [pscustomobject]$l
+    try { Save-Cfg4319 'chargeScheduleLast' $l } catch {}
+    try { Write-WidgetLog ('charging schedule result: ' + $(if ($Ok) { 'OK' } else { 'FAILED' }) + ' · ' + $Reason) } catch {}
+}
+function Restore-SchedLast {
+    # after a restart: show the last result again if it failed and the car still does not have what was asked
+    $l = $null; try { $l = Get-Cfg4319 'chargeScheduleLast' } catch {}
+    $script:Sched.last = $l
+    if ($null -eq $l -or [bool]$l.ok -or $script:Sched.status -ne 'idle') { return }
+    $C = Get-CarSched (Get-SchedCar); $lw = $null
+    if ($null -ne $l.want) { $lw = [ordered]@{ startOn = [bool]$l.want.startOn; startMin = [int]$l.want.startMin; finishOn = [bool]$l.want.finishOn; finishMin = [int]$l.want.finishMin; target = $l.want.target } }
+    if ($null -eq $lw -or -not (Test-SchedMatch $lw $C)) { $script:Sched.status = 'failed'; $script:Sched.reason = ([string]$l.reason + ' (' + [string]$l.when + ')') }
+}
+function Start-SchedVerify {
+    $script:Sched.status = 'verifying'; $script:SchedVerify.tries = 0; $script:SchedVerify.job = $null; $script:SchedVerify.started = Get-EpochNow
+    if ($CTL_DRYRUN -and $null -eq $script:SchedFreshMock) { Complete-SchedVerify $null 'dry'; return }
+    $script:SchedVerifyTimer.Stop(); $script:SchedVerifyTimer.Interval = [TimeSpan]::FromSeconds(3); $script:SchedVerifyTimer.Start()
+    try { Render-Sched $true } catch {}
+}
+function Step-SchedVerify {
+    $V = $script:SchedVerify; $script:SchedVerifyTimer.Stop()
+    if ($null -ne $script:SchedFreshMock) { $V.tries++; Complete-SchedVerify (& $script:SchedFreshMock $script:Sched.want $V.tries) ''; return }
+    if ($null -eq $V.job) {
+        $tok = $null; try { $tok = Get-TessieToken } catch {}
+        if (-not $tok -or -not $script:VIN) { Complete-SchedVerify $null 'no Tessie token / VIN to check the car'; return }
+        $V.tries++
+        $ps = [powershell]::Create(); [void]$ps.AddScript($script:StateFetchBlock).AddArgument(($ApiBase + '/' + $script:VIN + '/state?use_cache=false')).AddArgument($tok).AddArgument(40); $tok = $null
+        $V.job = @{ ps = $ps; async = $ps.BeginInvoke(); started = Get-EpochNow }
+        $script:SchedVerifyTimer.Interval = [TimeSpan]::FromSeconds(1); $script:SchedVerifyTimer.Start(); return
+    }
+    if (-not $V.job.async.IsCompleted) {
+        if ((Get-EpochNow) - [int64]$V.job.started -gt 45) { try { $V.job.ps.Stop(); $V.job.ps.Dispose() } catch {}; $V.job = $null; Complete-SchedVerify $null 'the car did not answer the check (timed out)'; return }
+        $script:SchedVerifyTimer.Start(); return
+    }
+    $res = $null; try { $o = $V.job.ps.EndInvoke($V.job.async); if ($o.Count -gt 0) { $res = $o[$o.Count - 1] } } catch {}
+    try { $V.job.ps.Dispose() } catch {}; $V.job = $null
+    if ($null -eq $res -or -not $res.ok) { Complete-SchedVerify $null ('could not read the car to check' + $(if ($null -ne $res -and $res.code) { ' (HTTP ' + $res.code + ')' } else { '' })); return }
+    Complete-SchedVerify $res.v ''
+}
+function Complete-SchedVerify {
+    param($V, [string]$Err)
+    $w = $script:Sched.want; $S = $script:Sched
+    if ($Err -eq 'dry') {
+        try { Save-Cfg4319 'chargeSchedule' ([ordered]@{ startOn = [bool]$w.startOn; startMin = [int]$w.startMin; finishOn = [bool]$w.finishOn; finishMin = [int]$w.finishMin; target = $w.target }) } catch {}
+        $S.applied = $w; $S.appliedAt = Get-EpochNow; $S.want = $null; $S.status = 'synced'; $S.reason = ('sent ' + (Format-Clock (Get-LocalNow)) + ' (dry run, not checked)'); Save-SchedLast $true $S.reason $w; try { Render-Sched $true } catch {}; return }
+    if ($null -eq $V) { $S.want = $null; $S.status = 'failed'; $S.reason = $Err; Save-SchedLast $false $Err $w; try { Render-Sched $true } catch {}; return }
+    $car = Get-CarInfo $V (Get-EpochNow); $C = Get-CarSched $car
+    if ($null -ne $script:SchedFreshMock) { $script:SchedCarMock = $car }
+    else { try { $script:Prefetch = @{ v = $V; at = (Get-EpochNow) }; Set-LiveFromState $V; if (-not $script:Dragging -and -not $script:CtlBusy) { Update-Ui } } catch { Write-WidgetLog ('schedule check view: ' + $_.Exception.Message) } }
+    $fresh = ($C.api -ne 'new' -or ($null -ne $C.schedTs -and [int64]$C.schedTs -ge [int64]$S.sentAt - 5))
+    if (-not $fresh -and $script:SchedVerify.tries -lt 3) { $script:SchedVerifyTimer.Interval = [TimeSpan]::FromSeconds(5); $script:SchedVerifyTimer.Start(); return }
+    if ($fresh -and (Test-SchedMatch $w $C)) {
+        try { Save-Cfg4319 'chargeSchedule' ([ordered]@{ startOn = [bool]$w.startOn; startMin = [int]$w.startMin; finishOn = [bool]$w.finishOn; finishMin = [int]$w.finishMin; target = $w.target }) } catch {}
+        if ($C.api -eq 'new') { $m = @($C.schedules | Where-Object { $_.enabled -and [bool]$_.startOn -eq [bool]$w.startOn -and [bool]$_.endOn -eq [bool]$w.finishOn -and (-not $w.startOn -or $_.startMin -eq [int]$w.startMin) -and (-not $w.finishOn -or $_.endMin -eq [int]$w.finishMin) }) | Select-Object -First 1; if ($null -ne $m) { try { Save-Cfg4319 'chargeScheduleId' ([string]$m.id) } catch {} } }
+        $S.applied = $w; $S.appliedAt = Get-EpochNow; $S.want = $null; $S.status = 'synced'; $S.reason = ('confirmed by the car ' + (Format-Clock (Get-LocalNow))); Save-SchedLast $true $S.reason $w
+    } else {
+        $why = $(if (-not $fresh) { 'the car did not report its charge schedules after the change' + $(if ($null -ne $C.schedTs) { ' (last report ' + $(if ((ConvertFrom-Epoch ([int64]$C.schedTs)).Date -eq (Get-LocalNow).Date) { Format-Clock (ConvertFrom-Epoch ([int64]$C.schedTs)) } else { (ConvertFrom-Epoch ([int64]$C.schedTs)).ToString('MMM d h:mm tt', $Inv) }) + ')' } else { '' }) } else { 'the car shows ' + (Get-CarSchedText $C) })
+        $S.want = $null; $S.applied = $null; $S.status = 'failed'; $S.reason = $why; Save-SchedLast $false $why $w
+    }
     try { Render-Sched $true } catch {}
 }
 function Get-SchedInfo {
     $C = Get-CarSched (Get-SchedCar); $W = Get-SchedShown
     return [ordered]@{ car = (Get-CarSchedText $C); carRaw = $C; shown = $W; status = $(if ($null -ne $ui['SchedSync']) { $ui.SchedSync.Text } else { '' }); estimate = $(if ($null -ne $ui['SchedEst']) { $ui.SchedEst.Text } else { '' })
-        dirty = $script:Sched.dirty; lastSteps = $script:Sched.lastSteps; log = $script:Sched.log }
+        dirty = $script:Sched.dirty; lastSteps = $script:Sched.lastSteps; log = $script:Sched.log; api = $C.api; schedules = $C.schedules; last = $script:Sched.last }
 }
 # controls: toggles, 15-minute steps for the times (buttons or mouse wheel), 5% steps for the target
 $ui.SchedStartChk.Add_Click({ try { Set-SchedWant @{ startOn = [bool]$ui.SchedStartChk.IsChecked } } catch { Write-WidgetLog ('schedule: ' + $_.Exception.Message) } })
@@ -8622,6 +8807,7 @@ foreach ($pair in @(@('SchedStartBox', 'startMin', 15), @('SchedFinishBox', 'fin
     $ui[$pair[0]].Tag = ($pair[1] + '|' + $pair[2])
     $ui[$pair[0]].Add_PreviewMouseWheel({ param($s9, $e9) try { if ($ui.SchedStartDn.IsEnabled) { $t = ([string]$s9.Tag).Split('|'); & $script:SchedStep $t[0] $(if ($e9.Delta -gt 0) { [int]$t[1] } else { - [int]$t[1] }); $e9.Handled = $true } } catch {} })
 }
+try { Restore-SchedLast } catch {}
 try { Render-Sched $true } catch {}
 function Render-HealthHist {
     $st = $script:State; $h = $null; if ($null -ne $st) { $h = $st.health }
@@ -9175,6 +9361,109 @@ function Start-SelfTest {
             $r.userPick.saved -eq 630 -and $r.finishOn.saved -eq 600 -and $r.markerSet.saved -eq 600 -and
             $r.card.startChk -and $r.card.start -eq '11:00 PM' -and -not $r.card.finishChk -and $r.card.finish -eq '6:00 AM' -and $r.card.sync -eq 'Synced' -and $r.card.sent -eq 0 -and -not $r.card.timerOn -and $r.fit.allVisible -and $r.netCommandsSent -eq 0)
         $script:SelfRec.v4324 = [ordered]@{ appVersion = $AppVersion; defaults = $r } }
+    # ---- v4.3.25: CHARGING SCHEDULE on the newer charge-schedule API + check after send (DRY RUN: nothing is sent, fresh reads are mocked) ----
+    $script:SelfRec.v4325 = [ordered]@{ appVersion = $AppVersion; dryRun = [bool]$CTL_DRYRUN }
+    $script:Keep4325 = @{ cs = (Get-Cfg4319 'chargeSchedule'); id = (Get-Cfg4319 'chargeScheduleId'); last = (Get-Cfg4319 'chargeScheduleLast') }
+    $script:Sc4325 = { param([int64]$Id, [bool]$StartOn, [int]$Start, [bool]$EndOn, [int]$End, [bool]$On)
+        '{"id":' + $Id + ',"name":"","days_of_week":127,"start_enabled":' + $StartOn.ToString().ToLower() + ',"start_time":' + $Start + ',"end_enabled":' + $EndOn.ToString().ToLower() + ',"end_time":' + $End + ',"one_time":false,"enabled":' + $On.ToString().ToLower() + ',"latitude":36.1036987,"longitude":-96.0327988}' }
+    $script:St4325 = { param([string[]]$Scheds, [int]$Limit, [int]$Soc, [int64]$Ts)
+        ('{"display_name":"Test","state":"online","charge_state":{"battery_level":' + $Soc + ',"charge_limit_soc":' + $Limit + ',"charging_state":"Stopped","scheduled_charging_mode":"DepartBy","scheduled_departure_time":1775066400,"off_peak_charging_enabled":false,"timestamp":' + ($Ts * 1000) + '},"vehicle_state":{"car_version":"2026.26.6.5 test"},"charge_schedule_data":{"charge_schedules":[' + ($Scheds -join ',') + '],"timestamp":{"seconds":' + $Ts + ',"nanos":0}}}') | ConvertFrom-Json }
+    $script:Unset4325 = { foreach ($k in 'chargeSchedule', 'chargeScheduleId', 'chargeScheduleLast') { if ($null -ne $script:Cfg.PSObject.Properties[$k]) { $script:Cfg.PSObject.Properties.Remove($k) } } }
+    $script:Reset4325 = { $script:Sched.status = 'idle'; $script:Sched.want = $null; $script:Sched.applied = $null; $script:Sched.dirty = $false; $script:Sched.reason = ''; $script:Sched.last = $null; $script:SchedSeenStart = $null }
+    $script:Has4325 = { param([string]$Line, [string[]]$Parts) foreach ($p in $Parts) { if (-not $Line.Contains($p)) { return $false } }; return $true }
+    & $add 'v4.3.25 pure: firmware detect, days, read charge_schedules (real fresh state), new-API steps (one schedule kept, others turned off), legacy fallback' @() {
+        $r = [ordered]@{}; & $script:Unset4325
+        $r.fw = @((Test-FwNewSched '2026.26.6.5 abc'), (Test-FwNewSched '2024.26.1'), (Test-FwNewSched '2024.20.3'), (Test-FwNewSched '2023.44.30'), (Test-FwNewSched '')) -join ','
+        $r.days = @((ConvertTo-SchedDays 127), (ConvertTo-SchedDays 62), (ConvertTo-SchedDays 65)) -join ' | '
+        $f = Join-Path $scriptDir 'sched-real-test.json'
+        if (Test-Path -LiteralPath $f) { $real = [System.IO.File]::ReadAllText($f) | ConvertFrom-Json; $C = Get-CarSched (Get-CarInfo $real (Get-EpochNow)); $W = Get-SchedFromCar $C
+            $r.real = [ordered]@{ api = $C.api; known = $C.known; startOn = $C.startOn; startMin = $C.startMin; finishOn = $C.finishOn; finishMin = $C.finishMin; on = $C.enabledCount; total = @($C.schedules).Count; limit = $C.limit; text = (Get-CarSchedText $C); shown = ('{0} {1} {2} {3} {4}' -f $W.startOn, (Format-SchedMin $W.startMin), $W.finishOn, (Format-SchedMin $W.finishMin), $W.target) } }
+        $now = Get-EpochNow; $A = & $script:Sc4325 900 $true 1380 $true 360 $true; $Bx = & $script:Sc4325 800 $false 0 $true 360 $true; $Cx = & $script:Sc4325 700 $false 0 $true 585 $false
+        $C3 = Get-CarSched (Get-CarInfo (& $script:St4325 @($A, $Bx, $Cx) 80 38 $now) $now); $C0 = Get-CarSched (Get-CarInfo (& $script:St4325 @() 80 38 $now) $now)
+        $W = { param($so, $sm, $fo, $fm, $t) [ordered]@{ startOn = $so; startMin = $sm; finishOn = $fo; finishMin = $fm; target = $t } }
+        $st = { param($w, $c) @(Get-SchedSteps $w $c | ForEach-Object { $q = $_.query; $_.cmd + '?' + ((@($q.Keys | Sort-Object) | ForEach-Object { $_ + '=' + $q[$_] }) -join '&') }) }
+        $r.cases = [ordered]@{ same = @(& $st (& $W $true 1380 $true 360 80) $C3); move = @(& $st (& $W $true 1380 $true 375 80) $C3); startOnly = @(& $st (& $W $true 1350 $false 360 80) $C3)
+            allOff = @(& $st (& $W $false 1380 $false 360 80) $C3); target90 = @(& $st (& $W $true 1380 $true 360 90) $C3); empty = @(& $st (& $W $true 1380 $true 360 80) $C0) }
+        $off800 = @('id=800', 'enabled=false', 'end_enabled=true', 'end_time=360', 'start_enabled=false', 'days_of_week=All', 'lat=36.1036987', 'lon=-96.0327988', 'one_time=false')
+        $c = $r.cases; $h = $script:Has4325
+        $r.caseOk = [ordered]@{
+            same = ($c.same.Count -eq 1 -and (& $h $c.same[0] $off800))
+            move = ($c.move.Count -eq 2 -and (& $h $c.move[0] @('add_charge_schedule?', 'id=900', 'enabled=true', 'start_enabled=true', 'start_time=1380', 'end_enabled=true', 'end_time=375', 'days_of_week=All', 'one_time=false')) -and (& $h $c.move[1] $off800))
+            startOnly = ($c.startOnly.Count -eq 2 -and (& $h $c.startOnly[0] @('id=900', 'start_enabled=true', 'start_time=1350', 'end_enabled=false')) -and -not $c.startOnly[0].Contains('end_time') -and (& $h $c.startOnly[1] $off800))
+            allOff = ($c.allOff.Count -eq 2 -and (& $h $c.allOff[0] @('id=900', 'enabled=false', 'start_time=1380', 'end_time=360')) -and (& $h $c.allOff[1] $off800))
+            target90 = ($c.target90.Count -eq 2 -and (& $h $c.target90[0] $off800) -and $c.target90[1] -eq 'set_charge_limit?percent=90')
+            empty = ($c.empty.Count -eq 1 -and (& $h $c.empty[0] @('add_charge_schedule?', 'enabled=true', 'start_time=1380', 'end_time=360', 'lat=36.10364', 'lon=-96.03282')) -and -not $c.empty[0].Contains('id=')) }
+        $legacy = & $script:Car4323 'StartAt' 1380 600 80 50 $false; $legacy | Add-Member -NotePropertyName fw -NotePropertyValue '2023.44.30' -Force
+        $CL = Get-CarSched $legacy; $r.legacy = [ordered]@{ api = $CL.api; steps = (@(& $st (& $W $true 1380 $true 600 80) $CL) -join ' ; ') }
+        $r.est = (Get-SchedEstimate (& $W $true 1380 $true 360 80) $C3 ([ordered]@{ kw = 3.0; kwhPerPct = 0.664 })).text
+        $r.pass = ($r.fw -eq 'True,True,False,False,False' -and $r.days -eq 'All | Monday,Tuesday,Wednesday,Thursday,Friday | Sunday,Saturday' -and @($r.caseOk.Values | Where-Object { -not $_ }).Count -eq 0 -and
+            $r.legacy.api -eq 'legacy' -and $r.legacy.steps -like 'set_scheduled_charging?enable=false*set_scheduled_departure?departure_time=600&enable=true*' -and $r.est -like 'Charges 11:00 PM–6:00 AM · ~*% by 6:00 AM (needs ~*h for 80%)' -and
+            $C3.api -eq 'new' -and $C3.startOn -and $C3.startMin -eq 1380 -and $C3.finishOn -and $C3.finishMin -eq 360 -and $C3.enabledCount -eq 2 -and
+            ($null -eq $r.real -or ($r.real.api -eq 'new' -and $r.real.known -and $r.real.startOn -and $r.real.startMin -eq 1380 -and $r.real.finishOn -and $r.real.finishMin -eq 360 -and $r.real.limit -eq 80)))
+        $script:SelfRec.v4325.pure = $r }
+    & $add 'v4.3.25 UI: new-API car (11:00 PM - 6:00 AM window) shows START AT 11:00 PM + FINISH BY 6:00 AM, both live, Synced; fit kept' @() {
+        & $script:Unset4325; & $script:Reset4325; $now = Get-EpochNow
+        $script:SchedCarMock = Get-CarInfo (& $script:St4325 @((& $script:Sc4325 900 $true 1380 $true 360 $true), (& $script:Sc4325 800 $false 0 $true 360 $true), (& $script:Sc4325 700 $false 0 $true 585 $false)) 80 38 $now) $now; $script:SchedSessMock = $script:Sess4323
+        Set-SkipConfirm 'schedule' $false $false; Save-Cfg4319 'healthHistory' ([ordered]@{ open = $false }); Render-HealthHist
+        Render-View; Render-Sched $true; $window.UpdateLayout()
+        $r = [ordered]@{ startChk = [bool]$ui.SchedStartChk.IsChecked; start = $ui.SchedStartVal.Text; finishChk = [bool]$ui.SchedFinishChk.IsChecked; finish = $ui.SchedFinishVal.Text; target = $ui.SchedTgtVal.Text; est = $ui.SchedEst.Text; sync = $ui.SchedSync.Text
+            startLive = ([string]$ui.SchedStartVal.Foreground -eq [string](T 'Text')); tip = [string]$ui.SchedSync.ToolTip }
+        $r.fit = & $script:Fit4323
+        & $script:ElPng4323 $ui.ChgCard 'tmp4325'; Move-Item -LiteralPath (Join-Path $script:SelfDir 'tessdesk-v4323-tmp4325.png') -Destination (Join-Path $script:SelfDir 'tessdesk-v4325-chg-schedule-window.png') -Force
+        $script:SelfRec.shots = @($script:SelfRec.shots | Where-Object { $_ -ne 'tessdesk-v4323-tmp4325.png' }) + 'tessdesk-v4325-chg-schedule-window.png'
+        $r.pass = ($r.startChk -and $r.start -eq '11:00 PM' -and $r.finishChk -and $r.finish -eq '6:00 AM' -and $r.target -eq '80%' -and $r.startLive -and $r.est -like 'Charges 11:00 PM–6:00 AM*' -and $r.sync -eq 'Synced' -and $r.tip -like '*charge 11:00 PM–6:00 AM (charge schedules: 2 on, 3 total)*' -and $r.fit.allVisible)
+        $script:SelfRec.v4325.ui = $r }
+    & $add 'v4.3.25 FINISH BY +15 min (confirm Yes) -> add_charge_schedule (update the kept one, turn the other off), fresh check matches -> Synced (dry run)' @($true) {
+        $r = [ordered]@{}; $script:From4325 = @($script:CtlLog).Count; $script:P4325 = @($script:ConfirmPrompts).Count
+        $script:SchedFreshMock = { param($W, $T) $n = Get-EpochNow; & $script:St4325 @((& $script:Sc4325 900 $true 1380 $true 375 $true), (& $script:Sc4325 800 $false 0 $true 360 $false), (& $script:Sc4325 700 $false 0 $true 585 $false)) 80 38 $n }
+        $ui.SchedFinishUp.RaiseEvent((New-Object System.Windows.RoutedEventArgs([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent)))
+        $r.pending = $ui.SchedSync.Text; $script:SchedTimer.Stop(); Invoke-SchedSync
+        $r.prompt = (@($script:ConfirmPrompts) | Select-Object -Skip $script:P4325) -join ' | '
+        $script:SelfRec.v4325.ok = $r }
+    & $add 'v4.3.25 FINISH BY change result' @() {
+        $r = $script:SelfRec.v4325.ok; $r.commands = @(& $script:Q4323 $script:From4325); $r.sync = $ui.SchedSync.Text; $r.reason = $script:Sched.reason; $r.tries = $script:SchedVerify.tries; $r.finish = $ui.SchedFinishVal.Text
+        $r.mineId = [string](Get-Cfg4319 'chargeScheduleId'); $l = Get-Cfg4319 'chargeScheduleLast'; $r.last = $(if ($null -ne $l) { [ordered]@{ ok = [bool]$l.ok; reason = [string]$l.reason; summary = [string]$l.summary } } else { $null })
+        $h = $script:Has4325
+        $r.pass = ($r.pending -eq 'Change pending…' -and $r.prompt -match '(?s)^Update the car.s charging schedule\?.*Charge 11:00 PM–6:15 AM nightly to 80%' -and $r.commands.Count -eq 2 -and
+            (& $h $r.commands[0] @('add_charge_schedule?', 'id=900', 'enabled=true', 'end_time=375', 'start_time=1380', '[dry]')) -and (& $h $r.commands[1] @('add_charge_schedule?', 'id=800', 'enabled=false', '[dry]')) -and
+            $r.sync -eq 'Synced (dry run)' -and $r.reason -like 'confirmed by the car*' -and $r.tries -eq 1 -and $r.finish -eq '6:15 AM' -and $r.mineId -eq '900' -and $null -ne $r.last -and $r.last.ok)
+        $script:SelfRec.v4325.ok = $r }
+    & $add 'v4.3.25 the car does not take the change (fresh check shows the old time) -> Failed + reason (dry run)' @($true) {
+        $r = [ordered]@{}; $script:From4325 = @($script:CtlLog).Count
+        $ui.SchedFinishUp.RaiseEvent((New-Object System.Windows.RoutedEventArgs([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent)))
+        $script:SchedTimer.Stop(); Invoke-SchedSync
+        $script:SelfRec.v4325.mismatch = $r }
+    & $add 'v4.3.25 mismatch result + the car never reports (stale schedule data): 3 checks, then Failed' @($true) {
+        $r = $script:SelfRec.v4325.mismatch; $r.commands = @(& $script:Q4323 $script:From4325); $r.sync = $ui.SchedSync.Text; $r.finishShown = $ui.SchedFinishVal.Text
+        $script:From4325 = @($script:CtlLog).Count
+        $script:SchedFreshMock = { param($W, $T) & $script:St4325 @((& $script:Sc4325 900 $true 1380 $true 375 $true), (& $script:Sc4325 800 $false 0 $true 360 $false)) 80 38 1785178507 }
+        $ui.SchedFinishUp.RaiseEvent((New-Object System.Windows.RoutedEventArgs([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent)))
+        $script:SchedTimer.Stop(); Invoke-SchedSync
+        $script:SelfRec.v4325.mismatch = $r }
+    & $add 'v4.3.25 stale result; last result kept across a restart' @() {
+        $r = $script:SelfRec.v4325.mismatch; $r.stale = [ordered]@{ sync = $ui.SchedSync.Text; tries = $script:SchedVerify.tries; cmds = @(& $script:Q4323 $script:From4325).Count }
+        $l = Get-Cfg4319 'chargeScheduleLast'; $r.saved = [ordered]@{ ok = [bool]$l.ok; reason = [string]$l.reason; want = $(if ($null -ne $l.want) { [int]$l.want.finishMin } else { $null }) }
+        # restart: fresh session state, the saved result comes back
+        & $script:Reset4325; Restore-SchedLast; Render-Sched $true
+        $r.afterRestart = [ordered]@{ sync = $ui.SchedSync.Text; tip = [string]$ui.SchedSync.ToolTip }
+        & $script:ElPng4323 $ui.ChgCard 'tmp4325f'; Move-Item -LiteralPath (Join-Path $script:SelfDir 'tessdesk-v4323-tmp4325f.png') -Destination (Join-Path $script:SelfDir 'tessdesk-v4325-chg-schedule-failed.png') -Force
+        $script:SelfRec.shots = @($script:SelfRec.shots | Where-Object { $_ -ne 'tessdesk-v4323-tmp4325f.png' }) + 'tessdesk-v4325-chg-schedule-failed.png'
+        $r.pass = ($r.commands.Count -eq 1 -and $r.commands[0].Contains('end_time=390') -and $r.sync -like 'Failed: the car shows charge 11:00 PM–6:15 AM*' -and $r.finishShown -eq '6:15 AM' -and
+            $r.stale.sync -like 'Failed: the car did not report its charge schedules after the change (last report Jul 27 1:55 PM)' -and $r.stale.tries -eq 3 -and $r.stale.cmds -eq 1 -and
+            -not $r.saved.ok -and $r.saved.reason -like 'the car did not report*' -and $r.saved.want -eq 390 -and $r.afterRestart.sync -like 'Failed: the car did not report*(*)' -and $r.afterRestart.tip -like '*Last change:*FAILED*')
+        # restore
+        $script:SchedFreshMock = $null; $script:SchedCarMock = $null; $script:SchedSessMock = $null; & $script:Reset4325; & $script:Unset4325
+        foreach ($k in 'chargeSchedule', 'chargeScheduleId', 'chargeScheduleLast') { $v = $script:Keep4325[$(switch ($k) { 'chargeSchedule' { 'cs' } 'chargeScheduleId' { 'id' } default { 'last' } })]; if ($null -ne $v) { Save-Cfg4319 $k $v } }
+        Restore-SchedLast; Render-Sched $true
+        $script:SelfRec.v4325.failKeep = $r }
+    & $add 'v4.3.25 real cached state: schedule as the car reports it (read only, nothing sent)' @() {
+        $car = Get-CtlCar; $C = Get-CarSched $car
+        $r = [ordered]@{ haveCar = ($null -ne $car); api = $C.api; car = (Get-CarSchedText $C); controls = ('START AT ' + $(if ([bool]$ui.SchedStartChk.IsChecked) { 'on ' } else { 'off ' }) + $ui.SchedStartVal.Text + ' · FINISH BY ' + $(if ([bool]$ui.SchedFinishChk.IsChecked) { 'on ' } else { 'off ' }) + $ui.SchedFinishVal.Text + ' ' + $ui.SchedTgtVal.Text); est = $ui.SchedEst.Text; sync = $ui.SchedSync.Text }
+        & $script:ElPng4323 $ui.ChgCard 'tmp4325r'; Move-Item -LiteralPath (Join-Path $script:SelfDir 'tessdesk-v4323-tmp4325r.png') -Destination (Join-Path $script:SelfDir 'tessdesk-v4325-chg-schedule-real.png') -Force
+        $script:SelfRec.shots = @($script:SelfRec.shots | Where-Object { $_ -ne 'tessdesk-v4323-tmp4325r.png' }) + 'tessdesk-v4325-chg-schedule-real.png'
+        $r.netCommandsSent = $script:NetCommandsSent; $r.announcementsSent = $script:AnnSent
+        $r.pass = ($r.netCommandsSent -eq 0 -and $r.announcementsSent -eq 0)
+        $script:SelfRec.v4325.real = $r }
     & $add 'v4.3.21 smoke: versions, footer, hook line, width, all cards render, no real commands' @() {
         $me = [System.IO.File]::ReadAllText((Join-Path $scriptDir 'TessDesk.ps1')); $L = $me -split "`r?`n"
         $hook = @($L | Where-Object { $_ -like "try { . 'C:\Users\vanwi\cb_compact_addon.ps1'; Enable-CbCompactMode -Window `$window -Name 'TESSDESK'*" }).Count
@@ -9184,7 +9473,7 @@ function Start-SelfTest {
         $real = @($script:CtlLog | Where-Object { $_.dry -eq $false -or $_.real -eq $true }).Count
         $r = $script:SelfRec.v4321
         $r.smoke = [ordered]@{ appVersion = $AppVersion; footer = $ui.FooterVersion.Text; brand = $ui.FooterText.Text; bold = [string]$ui.FooterText.FontWeight; hookLines = $hook; hookBeforeShowDialog = $before; width = $window.Width; renderError = $err; dryRun = $CTL_DRYRUN; realCmdLog = $real
-            pass = ($AppVersion -eq '4.3.24' -and $ui.FooterVersion.Text -like ('*4.3.24*' + $AppDate) -and [string]$ui.FooterText.FontWeight -eq 'Bold' -and $hook -eq 1 -and $before -and $null -eq $err -and $CTL_DRYRUN -and [math]::Abs($window.Width - $winW) -lt 1) }
+            pass = ($AppVersion -eq '4.3.25' -and $ui.FooterVersion.Text -like ('*4.3.25*' + $AppDate) -and [string]$ui.FooterText.FontWeight -eq 'Bold' -and $hook -eq 1 -and $before -and $null -eq $err -and $CTL_DRYRUN -and [math]::Abs($window.Width - $winW) -lt 1) }
         $fails = @(); foreach ($k in 'pure', 'collapsed', 'place', 'expanded', 'calTags', 'showAll', 'fresh', 'smoke') { if ($null -eq $r[$k] -or -not $r[$k].pass) { $fails += $k } }
         $r.summary = [ordered]@{ fails = $fails; allPass = ($fails.Count -eq 0) } }
     & $add 'v4.3.22 summary' @() {
@@ -9204,7 +9493,13 @@ function Start-SelfTest {
         if ($null -eq $r23 -or -not $r23.allPass) { $fails += 'v4323' }
         $r.v4323Steps = $r23; $r.netCommandsSent = $script:NetCommandsSent; $r.announcementsSent = $script:AnnSent
         $r.summary = [ordered]@{ fails = $fails; allPass = ($fails.Count -eq 0 -and $script:NetCommandsSent -eq 0 -and $script:AnnSent -eq 0) } }
-    if ($Quick4324) { return (Start-SelfTimer) }
+    & $add 'v4.3.25 summary' @() {
+        $r = $script:SelfRec.v4325; $fails = @()
+        foreach ($k in 'pure', 'ui', 'ok', 'failKeep', 'real') { if ($null -eq $r[$k] -or -not $r[$k].pass) { $fails += $k } }
+        $r24 = $script:SelfRec.v4324.summary; if ($null -eq $r24 -or -not $r24.allPass) { $fails += 'v4324' }
+        $r.v4324Steps = $r24; $r.netCommandsSent = $script:NetCommandsSent; $r.announcementsSent = $script:AnnSent
+        $r.summary = [ordered]@{ fails = $fails; allPass = ($fails.Count -eq 0 -and $script:NetCommandsSent -eq 0 -and $script:AnnSent -eq 0) } }
+    if ($Quick4325) { return (Start-SelfTimer) }
     # v4.3.17: record the dropdown's start state, then open it (not saved) so the older steps can snapshot the history rows
     $script:SelfRec.v4317pre = [ordered]@{ open = [bool]$script:ChgHist.open; body = [string]$ui.ChgHistBody.Visibility; arrow = $ui.ChgHistArrow.Text; savedSetting = $(try { [string](Read-Config).ui.historyOpen } catch { '' }) }; Set-ChgHistOpen $true $false
     # ---- v4.3.3 steps (DRY RUN: nothing is sent to the car, nothing announced) ----
@@ -10554,7 +10849,7 @@ function Start-SelfTimer {
         try {
             if ($null -ne $script:LeaveWaitFor) { if ((Get-Date) -gt $script:LeaveWaitUntil) { $script:LeaveWaitFor = $null; $script:SelfRec.steps += 'ERROR v4.3.15 leaving soon wait timed out' } elseif (-not [bool](& $script:LeaveWaitFor)) { return } else { $script:LeaveWaitFor = $null } }
             if ($null -ne $script:FlashWaitFor -and $script:FlashWaitFor -lt 99) { if ($script:Flash.running -and $script:Flash.done -lt $script:FlashWaitFor) { return } }
-            elseif ($null -ne $script:UpdJob -or (Test-CamBusy) -or (Test-TotBusy) -or $script:CtlBusy -or $script:TempTimer.IsEnabled -or $script:SeatTimer.IsEnabled -or $script:WheelTimer.IsEnabled) { return }
+            elseif ($null -ne $script:UpdJob -or (Test-CamBusy) -or (Test-TotBusy) -or $script:CtlBusy -or $script:TempTimer.IsEnabled -or $script:SeatTimer.IsEnabled -or $script:WheelTimer.IsEnabled -or ($null -ne $script:SchedVerifyTimer -and $script:SchedVerifyTimer.IsEnabled)) { return }
             if ($null -ne $script:FlashWaitFor -and $script:FlashWaitFor -ge 99 -and $script:Flash.running) { return }
             if ($script:SelfSteps.Count -eq 0) {
                 $script:SelfTimer.Stop()

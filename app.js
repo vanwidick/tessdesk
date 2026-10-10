@@ -2,7 +2,7 @@
    Everything (name, Tessie token, vehicle, rates) is stored in localStorage on this device only. */
 (function () {
   'use strict';
-/* TessDesk phone v4.3.24 (DESIGN BY VAN). v4.3.24: FINISH BY defaults to 6:00 AM. v4.3.23: CHARGING SCHEDULE in the CHARGING card (START AT + FINISH BY, set on the car through Tessie). v4.3.22: CHARGE column in HEALTH HISTORY (highest charge % per day + Home / AC / Supercharger). v4.3.21: HEALTH HISTORY under START / STOP in the CHARGING card + CALIBRATION INFO; history runs fully in the app. v4.3.20: HEALTH HISTORY dropdown. Pure logic + UI for: PLUG-IN REMINDER, TRIPS, MORNING READY CHECK,
+/* TessDesk phone v4.3.25 (DESIGN BY VAN). v4.3.25: CHARGING SCHEDULE reaches the car on firmware 2024.26+ (charge schedules, checked after each send). v4.3.24: FINISH BY defaults to 6:00 AM. v4.3.23: CHARGING SCHEDULE in the CHARGING card (START AT + FINISH BY, set on the car through Tessie). v4.3.22: CHARGE column in HEALTH HISTORY (highest charge % per day + Home / AC / Supercharger). v4.3.21: HEALTH HISTORY under START / STOP in the CHARGING card + CALIBRATION INFO; history runs fully in the app. v4.3.20: HEALTH HISTORY dropdown. Pure logic + UI for: PLUG-IN REMINDER, TRIPS, MORNING READY CHECK,
    PSO BILL MATCH (on/off switch), BATTERY HEALTH TREND + TIPS. No Alexa, no toasts (in-app banners only),
    cached data only (never wakes the car). The same functions are unit-tested headlessly. */
 (function (g) {
@@ -426,7 +426,7 @@
   var CFG = window.TD_CONFIG || {};
   var VARIANT = CFG.variant || 'main';
   var P = CFG.storagePrefix || 'td:';
-  var VERSION = 'v4.3.24';
+  var VERSION = 'v4.3.25';
   var VERSION_DATE = 'Oct 9, 2026';
   var TZ = 'America/Chicago';
   var DEFAULT_API = 'https://api.tessie.com';
@@ -1372,15 +1372,38 @@
   //              set_charge_limit percent=<target> only if it differs from the car's limit. FINISH BY off -> departure off, START AT applied again.
   // The controls show the car's own schedule from the cached state (never wakes the car). A change is sent ~2 s after the last change, after a confirm
   // unless 'Sched' is ticked in SKIP CONFIRM. Fully in the app with the user's own token (works with the PC off). Last picks: localStorage td:chargeSchedule.
-  var sched = { want: null, dirty: false, status: 'idle', reason: '', applied: null, appliedAt: 0, timer: null, sync: false, syncs: 0, log: [], lastSteps: [], seenStart: null, est: null, rate: null };
+  // v4.3.25: cars on firmware 2024.26+ (or whose state has charge_schedule_data.charge_schedules) use the newer charge-schedule command
+  // (add_charge_schedule: days_of_week, enabled, start_enabled/start_time, end_enabled/end_time, one_time, lat, lon; id to update). Their old
+  // scheduled_charging / departure fields are frozen, so the controls read charge_schedules: START AT = a start, FINISH BY = an end (both on =
+  // one nightly window). One enabled schedule is kept (td:chargeScheduleId); other enabled ones are turned off, not deleted. Older cars keep the
+  // 4.3.23 commands. After each send the car is read again (use_cache=false) and the status says Synced only if it matches; otherwise Failed + why.
+  // The last result is kept in td:chargeScheduleLast and shown again after a reload.
+  var sched = { want: null, dirty: false, status: 'idle', reason: '', applied: null, appliedAt: 0, timer: null, sync: false, syncs: 0, log: [], lastSteps: [], seenStart: null, est: null, rate: null, last: null, restored: false, tries: 0, sentAt: 0, sum: '' };
   function schFmt(m) { if (m == null) return '\u2014'; m = ((Math.round(m) % 1440) + 1440) % 1440; var h = Math.floor(m / 60), mi = m % 60; return (h % 12 || 12) + ':' + (mi < 10 ? '0' : '') + mi + ' ' + (h < 12 ? 'AM' : 'PM'); }
   function schHHMM(m) { m = ((Math.round(m) % 1440) + 1440) % 1440; var h = Math.floor(m / 60), mi = m % 60; return (h < 10 ? '0' : '') + h + ':' + (mi < 10 ? '0' : '') + mi; }
   function schEpMin(e) { if (e == null || !(e > 0)) return null; var c = ct(e); return c.h * 60 + c.mi; }
-  function schCar(cs) {
-    var o = { known: false, mode: '', startMin: null, finishMin: null, limit: null, soc: null, offPeak: null, precond: false, limitMin: 50, limitMax: 100 };
+  function schFwNew(fw) { var m = /^(\d{4})\.(\d+)/.exec(fw || ''); if (!m) return false; var y = +m[1], w = +m[2]; return y > 2024 || (y === 2024 && w >= 26); }
+  function schMine() { var v = load('chargeScheduleId', null); return v != null && /^\d+$/.test(String(v)) ? +v : -1; }
+  function schDays(mask) { if (!(mask > 0) || (mask & 127) === 127) return 'All'; var n = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'], o = []; for (var i = 0; i < 7; i++) if (mask & (1 << i)) o.push(n[i]); return o.join(','); }
+  function schCoord(v) { return String(Math.round(+v * 1e7) / 1e7); }
+  function schCar(cs, st) {
+    var o = { known: false, mode: '', startMin: null, finishMin: null, limit: null, soc: null, offPeak: null, precond: false, limitMin: 50, limitMax: 100, api: 'legacy', schedules: [], schedTs: null, startOn: false, finishOn: false, enabledCount: 0 };
     if (!cs) return o;
     if (cs.charge_limit_soc != null) o.limit = +cs.charge_limit_soc; if (cs.battery_level != null) o.soc = +cs.battery_level;
     if (cs.charge_limit_soc_min != null) o.limitMin = +cs.charge_limit_soc_min; if (cs.charge_limit_soc_max != null) o.limitMax = +cs.charge_limit_soc_max;
+    var csd = st && st.charge_schedule_data, has = !!(csd && Array.isArray(csd.charge_schedules)), fw = st && st.vehicle_state && st.vehicle_state.car_version;
+    if (has || schFwNew(fw)) {
+      // v4.3.25: newer firmware: the schedule is the list of charge schedules (the old fields are frozen)
+      o.api = 'new'; o.known = has; o.mode = 'Schedules';
+      if (has) {
+        o.schedules = csd.charge_schedules.filter(Boolean).map(function (x) { return { id: +x.id, days: +x.days_of_week, startOn: !!x.start_enabled, startMin: +x.start_time || 0, endOn: !!x.end_enabled, endMin: +x.end_time || 0, oneTime: !!x.one_time, enabled: !!x.enabled, lat: x.latitude, lon: x.longitude }; });
+        o.schedTs = csd.timestamp && csd.timestamp.seconds != null ? +csd.timestamp.seconds : null;
+      }
+      var mine = schMine(), on = o.schedules.filter(function (x) { return x.enabled; }), pick = function (f) { var m = on.filter(f); return m.filter(function (x) { return x.id === mine; })[0] || m[0] || null; };
+      var s1 = pick(function (x) { return x.startOn; }), e1 = pick(function (x) { return x.endOn; });
+      o.enabledCount = on.length; o.startOn = !!s1; o.finishOn = !!e1; o.startMin = s1 ? s1.startMin : null; o.finishMin = e1 ? e1.endMin : null;
+      return o;
+    }
     if (!cs.scheduled_charging_mode) return o;
     o.known = true; o.mode = String(cs.scheduled_charging_mode);
     o.startMin = cs.scheduled_charging_start_time_minutes != null ? +cs.scheduled_charging_start_time_minutes : (cs.scheduled_charging_start_time_app != null ? +cs.scheduled_charging_start_time_app : schEpMin(cs.scheduled_charging_start_time));
@@ -1389,7 +1412,9 @@
     o.offPeak = cs.off_peak_charging_enabled == null ? null : !!cs.off_peak_charging_enabled; o.precond = !!cs.preconditioning_enabled;
     return o;
   }
-  function schCs() { return window.__schCsMock || (cache.state && cache.state.charge_state) || null; }
+  function schCs() { return window.__schCsMock || (window.__schStMock && window.__schStMock.charge_state) || (cache.state && cache.state.charge_state) || null; }
+  function schSt() { return window.__schStMock || (window.__schCsMock ? null : cache.state) || null; }
+  function schC() { return schCar(schCs(), schSt()); }
   // v4.3.24: FINISH BY defaults to 6:00 AM. A saved schedule with no finish time, or only the old 10:00 AM default with FINISH BY off, moves to 6:00 AM once (td:chargeScheduleMig = 4324); a picked time is kept.
   var SCH_FIN_DEF = 360;
   function schMig() {
@@ -1405,6 +1430,7 @@
   function schCfg() { schMig(); var d = { startOn: true, startMin: 1380, finishOn: false, finishMin: SCH_FIN_DEF, target: null }, c = load('chargeSchedule', null); if (c && typeof c === 'object') Object.keys(d).forEach(function (k) { if (c[k] != null) d[k] = c[k]; }); return d; }
   function schFromCar(C) {
     var f = schCfg(), w = { startOn: !!f.startOn, startMin: +f.startMin, finishOn: !!f.finishOn, finishMin: +f.finishMin, target: C.limit != null ? C.limit : (f.target != null ? +f.target : 80) };
+    if (C.api === 'new') { if (C.known) { w.startOn = C.startOn; w.finishOn = C.finishOn; if (C.startMin != null) w.startMin = C.startMin; if (C.finishMin != null) w.finishMin = C.finishMin; } return w; }
     if (C.known) {
       w.finishOn = C.mode === 'DepartBy';
       if (C.mode === 'StartAt') { w.startOn = true; if (C.startMin != null) w.startMin = C.startMin; else if (sched.seenStart != null) w.startMin = sched.seenStart; }
@@ -1415,17 +1441,43 @@
   }
   function schMatch(W, C) {
     if (!C.known) return false;
+    if (C.api === 'new') return C.startOn === !!W.startOn && C.finishOn === !!W.finishOn && (!W.startOn || C.startMin === W.startMin) && (!W.finishOn || (C.finishMin === W.finishMin && (W.target == null || C.limit == null || C.limit === W.target)));
     if (W.finishOn) return C.mode === 'DepartBy' && C.finishMin === W.finishMin && (C.limit == null || C.limit === W.target);
     if (W.startOn) return C.mode === 'StartAt' && C.startMin === W.startMin;
     return C.mode === 'Off';
   }
   function schShown() {
-    var C = schCar(schCs());
-    if (sched.want && (sched.dirty || sched.sync)) return sched.want;
+    var C = schC();
+    if (sched.want && (sched.dirty || sched.sync || sched.status === 'verifying')) return sched.want;
     if (sched.applied && nowSec() - sched.appliedAt < 900 && !schMatch(sched.applied, C)) return sched.applied;
     return schFromCar(C);
   }
-  function schSteps(W, C) {
+  function schSteps(W, C) { return C.api === 'new' ? schStepsNew(W, C) : schStepsLegacy(W, C); }
+  function schStepsNew(W, C) {
+    // v4.3.25, firmware 2024.26+: one enabled charge schedule = START AT (start) and / or FINISH BY (end), every day, at home
+    var s = [], b = function (v) { return v ? 'true' : 'false'; }, want = !!(W.startOn || W.finishOn), list = C.schedules || [], mine = schMine(), keep = null;
+    var exact = function (x) { return x.enabled && !x.oneTime && (x.days & 127) === 127 && x.startOn === !!W.startOn && x.endOn === !!W.finishOn && (!W.startOn || x.startMin === W.startMin) && (!W.finishOn || x.endMin === W.finishMin); };
+    if (want) {
+      keep = list.filter(function (x) { return x.id === mine; })[0] || list.filter(exact)[0] || list.filter(function (x) { return x.enabled && x.startOn && x.endOn; })[0] || list.filter(function (x) { return x.enabled; })[0] || null;
+      if (!keep || !exact(keep)) {
+        var cfg = (typeof getCfg === 'function' && getCfg()) || {}, any = keep && keep.lat != null ? keep : list.filter(function (x) { return x.lat != null && x.lon != null; })[0];
+        var hm = any ? { lat: any.lat, lon: any.lon } : (cfg.home && cfg.home.lat != null ? cfg.home : HOME);
+        var q = { days_of_week: 'All', enabled: 'true', start_enabled: b(W.startOn), end_enabled: b(W.finishOn), one_time: 'false', lat: schCoord(hm.lat), lon: schCoord(hm.lon) };
+        if (W.startOn) q.start_time = String(W.startMin); if (W.finishOn) q.end_time = String(W.finishMin); if (keep) q.id = String(keep.id);
+        var what = W.startOn && W.finishOn ? schFmt(W.startMin) + '\u2013' + schFmt(W.finishMin) : (W.startOn ? 'START AT ' + schFmt(W.startMin) : 'FINISH BY ' + schFmt(W.finishMin));
+        s.push({ cmd: 'add_charge_schedule', query: q, busy: 'Setting charge schedule ' + what + '\u2026' });
+      }
+    }
+    list.forEach(function (x) {
+      if (!x.enabled || (keep && x.id === keep.id)) return;
+      var q = { id: String(x.id), days_of_week: schDays(x.days), enabled: 'false', start_enabled: b(x.startOn), end_enabled: b(x.endOn), one_time: b(x.oneTime), lat: schCoord(x.lat), lon: schCoord(x.lon) };
+      if (x.startOn) q.start_time = String(x.startMin); if (x.endOn) q.end_time = String(x.endMin);
+      s.push({ cmd: 'add_charge_schedule', query: q, busy: 'Turning off another charge schedule\u2026' });
+    });
+    if (W.finishOn && W.target != null && (C.limit == null || C.limit !== W.target)) s.push({ cmd: 'set_charge_limit', query: { percent: String(W.target) }, busy: 'Setting charge limit ' + W.target + '%\u2026', limit: W.target });
+    return s;
+  }
+  function schStepsLegacy(W, C) {
     var s = [], b = function (v) { return v ? 'true' : 'false'; };
     if (W.finishOn) {
       if (!C.known || C.mode === 'StartAt') s.push({ cmd: 'set_scheduled_charging', query: { enable: 'false', time: String(W.startMin) }, busy: 'Turning off START AT\u2026' });
@@ -1458,6 +1510,15 @@
     var need = (C.soc != null && tg != null) ? tg - C.soc : null, can = need != null && need > 0 && R && R.kw > 0.5 && R.kwhPerPct != null;
     if (can) { o.kwh = Math.round(need * R.kwhPerPct * 10) / 10; o.hours = o.kwh / R.kw; }
     var r5 = function (m) { return (((Math.round(m / 5) * 5) % 1440) + 1440) % 1440; };
+    if (C.api === 'new' && W.finishOn && W.startOn) {
+      // v4.3.25: a charge window START AT -> FINISH BY
+      var win = (((W.finishMin - W.startMin) % 1440) + 1440) % 1440 || 1440, wt = schFmt(W.startMin) + '\u2013' + schFmt(W.finishMin);
+      if (can && o.hours * 60 <= win) { o.doneMin = r5(W.startMin + o.hours * 60); o.text = 'Charges ' + wt + ' \u00b7 ~' + o.hours.toFixed(1) + ' h to ' + tg + '% (done ~' + schFmt(o.doneMin) + ')'; }
+      else if (can) o.text = 'Charges ' + wt + ' \u00b7 ~' + Math.round(Math.min(tg, C.soc + (win / 60) * R.kw / R.kwhPerPct)) + '% by ' + schFmt(W.finishMin) + ' (needs ~' + o.hours.toFixed(1) + ' h for ' + tg + '%)';
+      else if (need != null && need <= 0) o.text = 'Charges ' + wt + ' \u00b7 already at ' + Math.round(C.soc) + '% (target ' + tg + '%)';
+      else o.text = 'Charges ' + wt + ' nightly' + (tg != null ? ' to ' + tg + '%' : '');
+      return o;
+    }
     if (W.finishOn) {
       if (can) { o.startMin = r5(W.finishMin - o.hours * 60); o.text = 'Finishes ~' + schFmt(W.finishMin) + ' at ' + tg + '% (est. start ' + schFmt(o.startMin) + ')'; }
       else if (need != null && need <= 0) o.text = 'Finishes by ' + schFmt(W.finishMin) + ' \u00b7 already at ' + Math.round(C.soc) + '% (target ' + tg + '%)';
@@ -1472,6 +1533,7 @@
     if (!cmdAllowed() && sched.status !== 'failed') return ['Commands off', 'mu'];
     switch (sched.status) {
       case 'syncing': return ['Syncing\u2026', 'am'];
+      case 'verifying': return ['Checking the car\u2026', 'am'];
       case 'pending': return ['Change pending\u2026', 'am'];
       case 'failed': return ['Failed: ' + sched.reason, 'rd'];
       case 'cancelled': return ['Not sent (cancelled)', 'mu'];
@@ -1480,6 +1542,11 @@
     return [sched.status === 'synced' ? 'Synced' + (load('dryRun', false) ? ' (dry run)' : '') : 'Synced', 'gr'];
   }
   function schCarText(C) {
+    if (C.api === 'new') {
+      if (!C.known) return 'unknown (the car has not reported its charge schedules yet)';
+      return (C.startOn && C.finishOn ? 'charge ' + schFmt(C.startMin) + '\u2013' + schFmt(C.finishMin) : (C.startOn ? 'START AT ' + schFmt(C.startMin) : (C.finishOn ? 'FINISH BY ' + schFmt(C.finishMin) : 'no schedule'))) +
+        ' (charge schedules: ' + C.enabledCount + ' on, ' + C.schedules.length + ' total)' + (C.limit != null ? ', limit ' + C.limit + '%' : '');
+    }
     if (!C.known) return 'unknown (no schedule data in the cached state yet)';
     if (C.mode === 'StartAt') return 'START AT ' + (C.startMin != null ? schFmt(C.startMin) : '(time not in the car\u2019s report right now' + (sched.seenStart != null ? '; last seen ' + schFmt(sched.seenStart) : '') + ')') + ' (scheduled charging)';
     if (C.mode === 'DepartBy') return 'FINISH BY ' + schFmt(C.finishMin) + ' (scheduled departure' + (C.offPeak ? ', off-peak charging' : '') + ')' + (C.limit != null ? ', limit ' + C.limit + '%' : '');
@@ -1487,13 +1554,14 @@
     return C.mode;
   }
   function schHtml() {
-    var C = schCar(schCs()), W = schShown(), off = !cmdAllowed() || sched.sync, st = schStatus(C);
+    if (!sched.restored) { sched.restored = true; try { schRestore(); } catch (e) {} }
+    var C = schC(), W = schShown(), off = !cmdAllowed() || sched.sync || sched.status === 'verifying', st = schStatus(C), L = sched.last;
     sched.rate = schRate(window.__schChargesMock || cache.charges); sched.est = schEst(W, C, sched.rate);
-    var startLive = W.startOn && !W.finishOn, tg = W.target != null ? W.target : 80, opts = '';
+    var startLive = W.startOn && (!W.finishOn || C.api === 'new'), tg = W.target != null ? W.target : 80, opts = '';
     for (var p = Math.max(50, C.limitMin); p <= Math.min(100, C.limitMax); p += 5) opts += '<option value="' + p + '"' + (p === tg ? ' selected' : '') + '>' + p + '%</option>';
     if (tg % 5) opts = '<option value="' + tg + '" selected>' + tg + '%</option>' + opts;
     var dis = off ? ' disabled' : '';
-    return '<div class="sch" id="schBox" title="Car schedule now: ' + esc(schCarText(C)) + '">' +
+    return '<div class="sch" id="schBox" title="Car schedule now: ' + esc(schCarText(C)) + (L ? ' \u00b7 Last change: ' + esc(String(L.summary || '')) + ' \u00b7 ' + (L.ok ? 'OK' : 'FAILED') + ' \u00b7 ' + esc(String(L.reason || '')) + ' (' + esc(String(L.when || '')) + ')' : '') + '">' +
       '<label class="sch-t' + (startLive ? ' on' : (W.startOn ? ' over' : '')) + '"><input type="checkbox" id="schStart" data-sch="1"' + (W.startOn ? ' checked' : '') + dis + '><b>START AT</b></label>' +
       '<input class="sch-in' + (startLive ? '' : ' dim') + '" type="time" step="900" id="schStartT" data-sch="1" value="' + schHHMM(W.startMin) + '"' + dis + ' aria-label="START AT time">' +
       '<em class="sch-st ' + st[1] + '" id="schSync">' + esc(st[0]) + '</em>' +
@@ -1504,7 +1572,7 @@
   }
   function schSet(ch) {
     if (sched.sync) return;
-    var cur = schShown(), w = { startOn: cur.startOn, startMin: cur.startMin, finishOn: cur.finishOn, finishMin: cur.finishMin, target: cur.target }, C = schCar(schCs());
+    var cur = schShown(), w = { startOn: cur.startOn, startMin: cur.startMin, finishOn: cur.finishOn, finishMin: cur.finishMin, target: cur.target }, C = schC();
     Object.keys(ch).forEach(function (k) { w[k] = ch[k]; });
     w.startMin = ((Math.round(w.startMin) % 1440) + 1440) % 1440; w.finishMin = ((Math.round(w.finishMin) % 1440) + 1440) % 1440;
     if (w.target != null) w.target = Math.max(C.limitMin, Math.min(C.limitMax, Math.round(w.target)));
@@ -1512,36 +1580,72 @@
     clearTimeout(sched.timer); sched.timer = setTimeout(function () { sched.timer = null; schSync(); }, window.__schDebounceMs || 2000);
     render();
   }
-  function schSummary(W) { return W.finishOn ? 'FINISH BY ' + schFmt(W.finishMin) + ' at ' + W.target + '% (off-peak; START AT paused)' : (W.startOn ? 'START AT ' + schFmt(W.startMin) + ' nightly' : 'No schedule (charge when plugged in)'); }
+  function schSummary(W) { if (W.finishOn && W.startOn && schC().api === 'new') return 'Charge ' + schFmt(W.startMin) + '\u2013' + schFmt(W.finishMin) + ' nightly to ' + W.target + '%'; return W.finishOn ? 'FINISH BY ' + schFmt(W.finishMin) + ' at ' + W.target + '% (off-peak; START AT paused)' : (W.startOn ? 'START AT ' + schFmt(W.startMin) + ' nightly' : 'No schedule (charge when plugged in)'); }
   function schSync() {
     var w = sched.want; if (!w || !sched.dirty) return;
-    var C = schCar(schCs()), steps = schSteps(w, C); sched.lastSteps = steps.map(schStepStr);
+    if (sched.status === 'verifying') { sched.timer = setTimeout(function () { sched.timer = null; schSync(); }, 2000); return; }
+    var C = schC(), steps = schSteps(w, C); sched.lastSteps = steps.map(schStepStr);
     if (!steps.length) { sched.dirty = false; sched.want = null; sched.status = 'synced'; sched.reason = 'already set on the car'; render(); return; }
     if (ctlBusy) { sched.timer = setTimeout(function () { sched.timer = null; schSync(); }, 2000); return; }
     var sum = schSummary(w);
     askCf('schedule', 'Update the car\u2019s charging schedule?', 'Update', sum).then(function (ok) {
       if (!ok) { sched.dirty = false; sched.want = null; sched.status = 'cancelled'; sched.reason = 'cancelled'; ctlMsg = { kind: 'idle', text: 'Charging schedule unchanged' }; render(); return; }
-      if (ctlBusy || !cmdAllowed()) { sched.dirty = false; sched.want = null; sched.status = 'failed'; sched.reason = !cmdAllowed() ? 'Commands are off (Settings to change)' : 'another command is running'; render(); return; }
-      sched.sync = true; sched.status = 'syncing'; sched.syncs++; sched.log.push('sync: ' + sum + ' -> ' + sched.lastSteps.join(' ; ')); if (sched.log.length > 20) sched.log.shift();
+      if (ctlBusy || !cmdAllowed()) { sched.dirty = false; sched.want = null; sched.status = 'failed'; sched.reason = !cmdAllowed() ? 'Commands are off (Settings to change)' : 'another command is running'; sched.sum = sum; schSaveLast(false, sched.reason, w); render(); return; }
+      sched.sync = true; sched.status = 'syncing'; sched.syncs++; sched.sentAt = nowSec(); sched.sum = sum; sched.log.push('sync: ' + sum + ' -> ' + sched.lastSteps.join(' ; ')); if (sched.log.length > 20) sched.log.shift();
       ctlBusy = true; var i = 0;
       var step = function () {
         var s = steps[i]; ctlMsg = { kind: 'busy', text: s.busy + (load('dryRun', false) ? ' (dry run)' : '') }; render();
         command(s.cmd, s.query).then(function (j) {
           sched.log.push(s.cmd + ' ok'); if (s.limit != null) setOv('limit', s.limit); i++;
           if (i < steps.length) { step(); return; }
-          ctlBusy = false; liveInfo.lastCmd = nowSec(); sched.sync = false; sched.applied = w; sched.appliedAt = nowSec(); sched.dirty = false; sched.want = null; sched.status = 'synced'; sched.reason = 'sent ' + clock(nowSec());
-          save('chargeSchedule', { startOn: w.startOn, startMin: w.startMin, finishOn: w.finishOn, finishMin: w.finishMin, target: w.target });
-          ctlMsg = { kind: 'ok', text: '\u2713 Charging schedule: ' + sum + ' \u00b7 ' + clock(nowSec()) + (j && j.dryRun ? ' (dry run, not sent)' : '') };
-          if (!(j && j.dryRun)) setTimeout(function () { refresh(true); }, 6000);
-          render();
+          ctlBusy = false; liveInfo.lastCmd = nowSec(); sched.sync = false; sched.dirty = false;
+          ctlMsg = { kind: 'ok', text: '\u2713 Charging schedule sent: ' + sum + ' \u00b7 ' + clock(nowSec()) + (j && j.dryRun ? ' (dry run, not sent)' : '') + ' \u00b7 checking the car\u2026' };
+          schVerify(w, !!(j && j.dryRun));   // v4.3.25: Synced only after the car confirms it
         }, function (e) {
           var why = String(e.message || e).slice(0, 90); sched.log.push(s.cmd + ' FAILED ' + why);
-          ctlBusy = false; sched.sync = false; sched.dirty = false; sched.want = null; sched.status = 'failed'; sched.reason = s.cmd + ': ' + why;
+          ctlBusy = false; sched.sync = false; sched.dirty = false; sched.want = null; sched.status = 'failed'; sched.reason = s.cmd + ': ' + why; schSaveLast(false, sched.reason, w);
           ctlMsg = { kind: 'err', text: '\u2715 ' + s.cmd + ' failed: ' + why }; render();
         });
       };
       step();
     });
+  }
+  // ---- v4.3.25: after a send, read the car again (use_cache=false) and compare; the last result is kept ----
+  function schSaveLast(ok, reason, w) {
+    var d = new Date(), l = { when: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + clock(nowSec()), at: d.toISOString(), ok: !!ok, summary: sched.sum || '', reason: reason, steps: sched.lastSteps.slice(), dryRun: !!load('dryRun', false),
+      want: w ? { startOn: !!w.startOn, startMin: w.startMin, finishOn: !!w.finishOn, finishMin: w.finishMin, target: w.target } : null };
+    sched.last = l; save('chargeScheduleLast', l);
+  }
+  function schRestore() {
+    var l = load('chargeScheduleLast', null); sched.last = l;
+    if (!l || l.ok || sched.status !== 'idle') return;
+    if (!l.want || !schMatch(l.want, schC())) { sched.status = 'failed'; sched.reason = String(l.reason || '') + ' (' + String(l.when || '') + ')'; }
+  }
+  function schVerify(w, dry) {
+    sched.status = 'verifying'; sched.tries = 0; render();
+    var cfg = getCfg() || {};
+    var done = function (ok, reason, st) {
+      if (ok) {
+        save('chargeSchedule', { startOn: w.startOn, startMin: w.startMin, finishOn: w.finishOn, finishMin: w.finishMin, target: w.target });
+        var C = st ? schCar(st.charge_state, st) : null;
+        if (C && C.api === 'new') { var m = C.schedules.filter(function (x) { return x.enabled && x.startOn === !!w.startOn && x.endOn === !!w.finishOn && (!w.startOn || x.startMin === w.startMin) && (!w.finishOn || x.endMin === w.finishMin); })[0]; if (m) save('chargeScheduleId', String(m.id)); }
+        sched.applied = w; sched.appliedAt = nowSec(); sched.want = null; sched.status = 'synced'; sched.reason = reason;
+      } else { sched.applied = null; sched.want = null; sched.status = 'failed'; sched.reason = reason; }
+      schSaveLast(ok, reason, w); render();
+    };
+    if (dry && !window.__schFreshMock) { done(true, 'sent ' + clock(nowSec()) + ' (dry run, not checked)', null); return; }
+    var once = function () {
+      sched.tries++;
+      var p = window.__schFreshMock ? Promise.resolve(window.__schFreshMock(w, sched.tries)) : api('/' + cfg.vin + '/state?use_cache=false');
+      p.then(function (st) {
+        if (window.__schFreshMock) window.__schStMock = st; else { cache.state = st; cache.stateAt = nowSec(); try { save('cache', cache); } catch (e) {} }
+        var C = schCar(st && st.charge_state, st), fresh = C.api !== 'new' || (C.schedTs != null && C.schedTs >= sched.sentAt - 5);
+        if (!fresh && sched.tries < 3) { setTimeout(once, window.__schVerifyMs || 5000); return; }
+        if (fresh && schMatch(w, C)) done(true, 'confirmed by the car ' + clock(nowSec()), st);
+        else done(false, !fresh ? 'the car did not report its charge schedules after the change' + (C.schedTs ? ' (last report ' + (new Date(C.schedTs * 1000).toDateString() === new Date().toDateString() ? clock(C.schedTs) : new Date(C.schedTs * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + clock(C.schedTs)) + ')' : '') : 'the car shows ' + schCarText(C), st);
+      }, function (e) { done(false, 'could not read the car to check (' + String(e.message || e).slice(0, 60) + ')', null); });
+    };
+    setTimeout(once, window.__schVerifyMs || 3000);
   }
   function schMinOf(v) { var m = /^(\d{1,2}):(\d{2})/.exec(v || ''); return m ? (+m[1]) * 60 + (+m[2]) : null; }
   function schBind() {
@@ -1554,9 +1658,12 @@
     on('schTgt', function (e) { schSet({ target: +e.value, finishOn: true }); });
   }
   function schPicking() { var a = document.activeElement; return !!(a && a.getAttribute && a.getAttribute('data-sch') && (a.tagName === 'INPUT' && a.type === 'time' || a.tagName === 'SELECT')); }
+  window.TD4325 = { fwNew: schFwNew, days: schDays, car: function (st) { return schCar(st && st.charge_state, st); }, steps: function (W, st) { return schSteps(W, schCar(st && st.charge_state, st)).map(schStepStr); },
+    est: function (W, st, R) { return schEst(W, schCar(st && st.charge_state, st), R); }, text: function (st) { return schCarText(schCar(st && st.charge_state, st)); }, last: function () { return sched.last; },
+    restore: function () { sched.status = 'idle'; sched.reason = ''; sched.last = null; schRestore(); render(); }, state: function () { return { status: sched.status, reason: sched.reason, tries: sched.tries, sum: sched.sum }; } };
   window.TD4324 = { mig: schMig, cfg: schCfg, fromCar: function (cs) { return schFromCar(schCar(cs)); } };
   window.TD4323 = { fmt: schFmt, car: function (cs) { return schCar(cs); }, steps: function (W, cs) { return schSteps(W, schCar(cs)).map(schStepStr); }, rate: schRate, est: function (W, cs, R) { return schEst(W, schCar(cs), R); },
-    shown: schShown, set: schSet, sync: schSync, state: function () { return { status: sched.status, reason: sched.reason, dirty: sched.dirty, sync: sched.sync, syncs: sched.syncs, log: sched.log.slice(), lastSteps: sched.lastSteps.slice(), est: sched.est, rate: sched.rate, car: schCarText(schCar(schCs())) }; },
+    shown: schShown, set: schSet, sync: schSync, state: function () { return { status: sched.status, reason: sched.reason, dirty: sched.dirty, sync: sched.sync, syncs: sched.syncs, log: sched.log.slice(), lastSteps: sched.lastSteps.slice(), est: sched.est, rate: sched.rate, car: schCarText(schC()) }; },
     reset: function () { clearTimeout(sched.timer); sched.timer = null; sched.want = null; sched.dirty = false; sched.status = 'idle'; sched.reason = ''; sched.applied = null; sched.seenStart = null; render(); },
     timerOn: function () { return !!sched.timer; }, flush: function () { if (sched.timer) { clearTimeout(sched.timer); sched.timer = null; schSync(); } } };
   function chgBar(v) {
