@@ -2,7 +2,7 @@
    Everything (name, Tessie token, vehicle, rates) is stored in localStorage on this device only. */
 (function () {
   'use strict';
-/* TessDesk phone v4.3.23 (DESIGN BY VAN). v4.3.23: CHARGING SCHEDULE in the CHARGING card (START AT + FINISH BY, set on the car through Tessie). v4.3.22: CHARGE column in HEALTH HISTORY (highest charge % per day + Home / AC / Supercharger). v4.3.21: HEALTH HISTORY under START / STOP in the CHARGING card + CALIBRATION INFO; history runs fully in the app. v4.3.20: HEALTH HISTORY dropdown. Pure logic + UI for: PLUG-IN REMINDER, TRIPS, MORNING READY CHECK,
+/* TessDesk phone v4.3.24 (DESIGN BY VAN). v4.3.24: FINISH BY defaults to 6:00 AM. v4.3.23: CHARGING SCHEDULE in the CHARGING card (START AT + FINISH BY, set on the car through Tessie). v4.3.22: CHARGE column in HEALTH HISTORY (highest charge % per day + Home / AC / Supercharger). v4.3.21: HEALTH HISTORY under START / STOP in the CHARGING card + CALIBRATION INFO; history runs fully in the app. v4.3.20: HEALTH HISTORY dropdown. Pure logic + UI for: PLUG-IN REMINDER, TRIPS, MORNING READY CHECK,
    PSO BILL MATCH (on/off switch), BATTERY HEALTH TREND + TIPS. No Alexa, no toasts (in-app banners only),
    cached data only (never wakes the car). The same functions are unit-tested headlessly. */
 (function (g) {
@@ -426,7 +426,7 @@
   var CFG = window.TD_CONFIG || {};
   var VARIANT = CFG.variant || 'main';
   var P = CFG.storagePrefix || 'td:';
-  var VERSION = 'v4.3.23';
+  var VERSION = 'v4.3.24';
   var VERSION_DATE = 'Oct 9, 2026';
   var TZ = 'America/Chicago';
   var DEFAULT_API = 'https://api.tessie.com';
@@ -1390,14 +1390,26 @@
     return o;
   }
   function schCs() { return window.__schCsMock || (cache.state && cache.state.charge_state) || null; }
-  function schCfg() { var d = { startOn: true, startMin: 1380, finishOn: false, finishMin: 600, target: null }, c = load('chargeSchedule', null); if (c && typeof c === 'object') Object.keys(d).forEach(function (k) { if (c[k] != null) d[k] = c[k]; }); return d; }
+  // v4.3.24: FINISH BY defaults to 6:00 AM. A saved schedule with no finish time, or only the old 10:00 AM default with FINISH BY off, moves to 6:00 AM once (td:chargeScheduleMig = 4324); a picked time is kept.
+  var SCH_FIN_DEF = 360;
+  function schMig() {
+    if (+load('chargeScheduleMig', 0) >= 4324) return 'done before';
+    var c = load('chargeSchedule', null), r = 'no saved schedule (default 6:00 AM)';
+    if (c && typeof c === 'object') {
+      if (c.finishMin == null) { c.finishMin = SCH_FIN_DEF; save('chargeSchedule', c); r = 'no saved finish time -> 6:00 AM'; }
+      else if (+c.finishMin === 600 && !c.finishOn) { c.finishMin = SCH_FIN_DEF; save('chargeSchedule', c); r = 'old default 10:00 AM (FINISH BY off) -> 6:00 AM'; }
+      else r = 'kept ' + schFmt(+c.finishMin) + (c.finishOn ? ' (FINISH BY on)' : '');
+    }
+    save('chargeScheduleMig', 4324); return r;
+  }
+  function schCfg() { schMig(); var d = { startOn: true, startMin: 1380, finishOn: false, finishMin: SCH_FIN_DEF, target: null }, c = load('chargeSchedule', null); if (c && typeof c === 'object') Object.keys(d).forEach(function (k) { if (c[k] != null) d[k] = c[k]; }); return d; }
   function schFromCar(C) {
     var f = schCfg(), w = { startOn: !!f.startOn, startMin: +f.startMin, finishOn: !!f.finishOn, finishMin: +f.finishMin, target: C.limit != null ? C.limit : (f.target != null ? +f.target : 80) };
     if (C.known) {
       w.finishOn = C.mode === 'DepartBy';
       if (C.mode === 'StartAt') { w.startOn = true; if (C.startMin != null) w.startMin = C.startMin; else if (sched.seenStart != null) w.startMin = sched.seenStart; }
       else if (C.mode === 'Off') { w.startOn = false; if (C.startMin != null) w.startMin = C.startMin; }
-      if (C.finishMin != null && (C.mode === 'DepartBy' || load('chargeSchedule', null) == null)) w.finishMin = C.finishMin;
+      if (C.finishMin != null && C.mode === 'DepartBy') w.finishMin = C.finishMin;   // v4.3.24: an inactive departure time on the car does not replace the 6:00 AM default
     }
     return w;
   }
@@ -1542,6 +1554,7 @@
     on('schTgt', function (e) { schSet({ target: +e.value, finishOn: true }); });
   }
   function schPicking() { var a = document.activeElement; return !!(a && a.getAttribute && a.getAttribute('data-sch') && (a.tagName === 'INPUT' && a.type === 'time' || a.tagName === 'SELECT')); }
+  window.TD4324 = { mig: schMig, cfg: schCfg, fromCar: function (cs) { return schFromCar(schCar(cs)); } };
   window.TD4323 = { fmt: schFmt, car: function (cs) { return schCar(cs); }, steps: function (W, cs) { return schSteps(W, schCar(cs)).map(schStepStr); }, rate: schRate, est: function (W, cs, R) { return schEst(W, schCar(cs), R); },
     shown: schShown, set: schSet, sync: schSync, state: function () { return { status: sched.status, reason: sched.reason, dirty: sched.dirty, sync: sched.sync, syncs: sched.syncs, log: sched.log.slice(), lastSteps: sched.lastSteps.slice(), est: sched.est, rate: sched.rate, car: schCarText(schCar(schCs())) }; },
     reset: function () { clearTimeout(sched.timer); sched.timer = null; sched.want = null; sched.dirty = false; sched.status = 'idle'; sched.reason = ''; sched.applied = null; sched.seenStart = null; render(); },

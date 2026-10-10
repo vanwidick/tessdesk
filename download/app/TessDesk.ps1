@@ -1,11 +1,11 @@
 ﻿#Requires -Version 5.1
-# TessDesk v4.3.23 (CHARGING SCHEDULE in START / STOP: START AT + FINISH BY, set on the car through Tessie; v4.3.22: CHARGE column in HEALTH HISTORY: highest charge % per day + Home / AC / Supercharger; v4.3.21: HEALTH HISTORY under START / STOP with CALIBRATION INFO; health history logged by the app itself; v4.3.20: HEALTH HISTORY dropdown, one entry per day, kept indefinitely; v4.3.19: 30% wider; PLUG-IN REMINDER; TRIPS; MORNING READY CHECK; PSO BILL MATCH with on/off; BATTERY HEALTH TREND + TIPS; LEAVING SOON 'Start after' delay; v4.3.18 CHARGING STATUS bar under the big cost with START / STOP, fits 364x990 without scrolling; v4.3.17: TESLA CONTROLS under the big cost, CHARGE HISTORY & TOTALS dropdown; v4.3.16 LEAVING SOON: adjustable 'Windows after' / 'Unlock after' minutes, Stop undoes the steps already done; v4.3.15: climate on, close windows, unlock; rolling 7 / 14 days and 30 / 60 days $ beside the big amount; Restore / Remember at the top right with fade-in, like Paycheck Live; TOTALS pop-up: week / month / year running totals; CAMERAS panel from saved Sentry / Dashcam clips; checks for updates on open / wake; compact-when-OFF via cb_compact_addon.ps1) - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
+# TessDesk v4.3.24 (FINISH BY defaults to 6:00 AM; v4.3.23: CHARGING SCHEDULE in START / STOP: START AT + FINISH BY, set on the car through Tessie; v4.3.22: CHARGE column in HEALTH HISTORY: highest charge % per day + Home / AC / Supercharger; v4.3.21: HEALTH HISTORY under START / STOP with CALIBRATION INFO; health history logged by the app itself; v4.3.20: HEALTH HISTORY dropdown, one entry per day, kept indefinitely; v4.3.19: 30% wider; PLUG-IN REMINDER; TRIPS; MORNING READY CHECK; PSO BILL MATCH with on/off; BATTERY HEALTH TREND + TIPS; LEAVING SOON 'Start after' delay; v4.3.18 CHARGING STATUS bar under the big cost with START / STOP, fits 364x990 without scrolling; v4.3.17: TESLA CONTROLS under the big cost, CHARGE HISTORY & TOTALS dropdown; v4.3.16 LEAVING SOON: adjustable 'Windows after' / 'Unlock after' minutes, Stop undoes the steps already done; v4.3.15: climate on, close windows, unlock; rolling 7 / 14 days and 30 / 60 days $ beside the big amount; Restore / Remember at the top right with fade-in, like Paycheck Live; TOTALS pop-up: week / month / year running totals; CAMERAS panel from saved Sentry / Dashcam clips; checks for updates on open / wake; compact-when-OFF via cb_compact_addon.ps1) - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
 param(
     [string]$ConfigPath,
     [string]$Snapshot,    # optional: folder to write PNG snapshots of both themes
     [switch]$Quick433,    # with -SelfTest: run only the v4.3.3 steps (trunk, sentry, drives, paused-session energy)
     [switch]$Quick432,
-    [switch]$Quick4323,   # with -SelfTest: run only the v4.3.21 - v4.3.23 steps (health history, CHARGE column, CHARGING SCHEDULE, dry run) + a short smoke check    # with -SelfTest: run only the v4.3.2 steps (glow states, seats, flash lights, last charge)
+    [switch]$Quick4324,   # with -SelfTest: run only the v4.3.21 - v4.3.24 steps (health history, CHARGE column, CHARGING SCHEDULE, FINISH BY 6:00 AM default, dry run) + a short smoke check    # with -SelfTest: run only the v4.3.2 steps (glow states, seats, flash lights, last charge)
     [switch]$SelfTest     # test run: controls forced to DRY RUN (nothing is sent to the car), snapshots, selftest.json, then exit
 )
 Add-Type -AssemblyName PresentationFramework
@@ -15,7 +15,7 @@ Add-Type -AssemblyName System.Xaml
 
 $ErrorActionPreference = 'Stop'
 $AppName    = 'TessDesk'
-$AppVersion = '4.3.23'
+$AppVersion = '4.3.24'
 $AppDate    = 'Oct 9, 2026'
 
 $scriptDir  = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -1601,7 +1601,7 @@ function Open-Url433 {
                     <DockPanel>
                       <Button x:Name="SchedFinishDn" Style="{StaticResource SchedStepBtn}" DockPanel.Dock="Left" Content="&#x2039;"/>
                       <Button x:Name="SchedFinishUp" Style="{StaticResource SchedStepBtn}" DockPanel.Dock="Right" Content="&#x203A;"/>
-                      <TextBlock x:Name="SchedFinishVal" Text="10:00 AM" Width="50" FontSize="10.5" FontWeight="SemiBold" TextAlignment="Center" VerticalAlignment="Center"/>
+                      <TextBlock x:Name="SchedFinishVal" Text="6:00 AM" Width="50" FontSize="10.5" FontWeight="SemiBold" TextAlignment="Center" VerticalAlignment="Center"/>
                     </DockPanel>
                   </Border>
                   <CheckBox x:Name="SchedFinishChk" DockPanel.Dock="Right" Style="{StaticResource SkipCfChk}" VerticalAlignment="Center" Margin="0,0,3,0" ToolTip="FINISH BY: the car finishes charging by this time at the target % (overrides START AT while on)"><TextBlock Text="FINISH BY" FontSize="10" FontWeight="Bold" VerticalAlignment="Center"/></CheckBox>
@@ -8408,15 +8408,36 @@ function Get-CarSched {
     $o.precond = [bool]$Car.precond
     return $o
 }
+# ---------------- v4.3.24: FINISH BY defaults to 6:00 AM ----------------
+# Fresh installs: 6:00 AM (FINISH BY stays OFF). An install that only has the old 4.3.23 default (10:00 AM with FINISH BY off) is moved to 6:00 AM once
+# (marker config.json chargeScheduleMig = 4324); a time the user picked (or FINISH BY on) is kept. Only the app's saved pick changes; nothing is sent to the car.
+$script:SchedFinishDefault = 360
+function Invoke-SchedMig4324 {
+    $m = $null; try { $m = Get-Cfg4319 'chargeScheduleMig' } catch {}
+    if ($null -ne $m -and [int]$m -ge 4324) { return 'done before' }
+    $c = $null; try { $c = Get-Cfg4319 'chargeSchedule' } catch {}
+    $res = 'no saved schedule (default 6:00 AM)'
+    if ($null -ne $c) {
+        $q = $c.PSObject.Properties['finishMin']; $on = $c.PSObject.Properties['finishOn']
+        $fOn = ($null -ne $on -and [bool]$on.Value)
+        if ($null -eq $q -or $null -eq $q.Value) { $c | Add-Member -NotePropertyName finishMin -NotePropertyValue $script:SchedFinishDefault -Force; Save-Cfg4319 'chargeSchedule' $c; $res = 'no saved finish time -> 6:00 AM' }
+        elseif ([int]$q.Value -eq 600 -and -not $fOn) { $c.finishMin = $script:SchedFinishDefault; Save-Cfg4319 'chargeSchedule' $c; $res = 'old default 10:00 AM (FINISH BY off) -> 6:00 AM' }
+        else { $res = ('kept ' + (Format-SchedMin ([int]$q.Value)) + $(if ($fOn) { ' (FINISH BY on)' } else { '' })) }
+    }
+    Save-Cfg4319 'chargeScheduleMig' 4324
+    try { Write-WidgetLog ('charging schedule: FINISH BY default 4.3.24: ' + $res) } catch {}
+    return $res
+}
 function Get-SchedCfg {
-    $o = [ordered]@{ startOn = $true; startMin = 1380; finishOn = $false; finishMin = 600; target = $null }
+    if (-not $script:SchedMig4324Done) { $script:SchedMig4324Done = $true; try { [void](Invoke-SchedMig4324) } catch { Write-WidgetLog ('schedule default: ' + $_.Exception.Message) } }   # v4.3.24
+    $o = [ordered]@{ startOn = $true; startMin = 1380; finishOn = $false; finishMin = $script:SchedFinishDefault; target = $null }
     $c = $null; try { $c = Get-Cfg4319 'chargeSchedule' } catch {}
     if ($null -ne $c) { foreach ($k in @($o.Keys)) { $q = $c.PSObject.Properties[$k]; if ($null -ne $q -and $null -ne $q.Value) { $o[$k] = $q.Value } } }
     $o.startOn = [bool]$o.startOn; $o.finishOn = [bool]$o.finishOn; $o.startMin = [int]$o.startMin; $o.finishMin = [int]$o.finishMin
     return $o
 }
 function Get-SchedFromCar {
-    # the controls as the car has them (defaults for anything the car does not report: START AT 11:00 PM, FINISH BY 10:00 AM, target = car limit)
+    # the controls as the car has them (defaults for anything the car does not report: START AT 11:00 PM, FINISH BY 6:00 AM, target = car limit; the car's departure time is used only while FINISH BY is on in the car)
     param($C)
     $cfg = Get-SchedCfg
     $w = [ordered]@{ startOn = $cfg.startOn; startMin = $cfg.startMin; finishOn = $cfg.finishOn; finishMin = $cfg.finishMin; target = $(if ($null -ne $C.limit) { [int]$C.limit } elseif ($null -ne $cfg.target) { [int]$cfg.target } else { 80 }) }
@@ -8424,7 +8445,7 @@ function Get-SchedFromCar {
         $w.finishOn = ($C.mode -eq 'DepartBy')
         if ($C.mode -eq 'StartAt') { $w.startOn = $true; if ($null -ne $C.startMin) { $w.startMin = [int]$C.startMin } elseif ($null -ne $script:SchedSeenStart) { $w.startMin = [int]$script:SchedSeenStart } }
         elseif ($C.mode -eq 'Off') { $w.startOn = $false; if ($null -ne $C.startMin) { $w.startMin = [int]$C.startMin } }
-        if ($null -ne $C.finishMin -and ($C.mode -eq 'DepartBy' -or $null -eq (Get-Cfg4319 'chargeSchedule'))) { $w.finishMin = [int]$C.finishMin }
+        if ($null -ne $C.finishMin -and $C.mode -eq 'DepartBy') { $w.finishMin = [int]$C.finishMin }   # v4.3.24: an inactive departure time on the car does not replace the 6:00 AM default
     }
     return $w
 }
@@ -9048,6 +9069,7 @@ function Start-SelfTest {
         $script:SelfRec.v4323.pure = $r }
     & $add 'v4.3.23 UI: schedule row in START / STOP shows what the car has (START AT 11:00 PM), estimate, Synced; no-scroll fit kept' @() {
         $script:SchedCarMock = & $script:Car4323 'StartAt' 1380 600 80 50 $false; $script:SchedSessMock = $script:Sess4323
+        if ($null -ne $script:Cfg -and $null -ne $script:Cfg.PSObject.Properties['chargeSchedule']) { $script:Cfg.PSObject.Properties.Remove('chargeSchedule') }   # v4.3.24: start from the fresh-install default
         $script:Sched.status = 'idle'; $script:Sched.want = $null; $script:Sched.applied = $null; $script:Sched.dirty = $false
         Set-SkipConfirm 'schedule' $false $false
         Save-Cfg4319 'healthHistory' ([ordered]@{ open = $false }); $script:HHistAll = $false; $script:HHistSig = ''; Render-HealthHist
@@ -9057,7 +9079,7 @@ function Start-SelfTest {
         $r.fit = & $script:Fit4323
         & $script:ElPng4323 $ui.ChgCard 'chg-schedule-startat'; Save-RootPng (Join-Path $script:SelfDir 'tessdesk-v4323-window.png'); $script:SelfRec.shots += 'tessdesk-v4323-window.png'
         & $script:ElPng4323 $ui.SkipCfRow 'skip-confirm-row'
-        $r.pass = ($r.startChk -and -not $r.finishChk -and $r.start -eq '11:00 PM' -and $r.finish -eq '10:00 AM' -and $r.target -eq '80%' -and $r.est -like 'Starts 11:00 PM nightly*' -and $r.sync -eq 'Synced' -and $r.inChgCard -and $r.skipKeys -like '*,schedule' -and $r.skipLabel -eq 'Sched' -and $r.fit.allVisible)
+        $r.pass = ($r.startChk -and -not $r.finishChk -and $r.start -eq '11:00 PM' -and $r.finish -eq '6:00 AM' -and $r.target -eq '80%' -and $r.est -like 'Starts 11:00 PM nightly*' -and $r.sync -eq 'Synced' -and $r.inChgCard -and $r.skipKeys -like '*,schedule' -and $r.skipLabel -eq 'Sched' -and $r.fit.allVisible)
         $script:SelfRec.v4323.ui = $r }
     & $add 'v4.3.23 FINISH BY on + target 90% (debounced, confirm Yes) -> START AT off, departure with off-peak, limit 90 (dry run)' @($true) {
         $r = [ordered]@{ syncsBefore = $script:Sched.syncs }; $script:From4323 = @($script:CtlLog).Count; $script:P4323 = @($script:ConfirmPrompts).Count
@@ -9072,11 +9094,11 @@ function Start-SelfTest {
         $r = $script:SelfRec.v4323.finishOn; $r.commands = @(& $script:Q4323 $script:From4323); $r.syncText = $ui.SchedSync.Text; $r.est = $ui.SchedEst.Text; $r.finishChk = [bool]$ui.SchedFinishChk.IsChecked; $r.target = $ui.SchedTgtVal.Text
         $r.startDimmed = ([string]$ui.SchedStartVal.Foreground -eq [string](T 'Caption'))
         & $script:ElPng4323 $ui.ChgCard 'chg-schedule-finishby'
-        $exp = @('set_scheduled_charging?enable=false&time=1380 [dry]', 'set_scheduled_departure?departure_time=600&enable=true&end_off_peak_time=600&off_peak_charging_enabled=true&off_peak_charging_weekdays_only=false&preconditioning_enabled=false&preconditioning_weekdays_only=false [dry]', 'set_charge_limit?percent=90 [dry]')
-        $r.pass = ($r.pendingText -eq 'Change pending…' -and $r.timerOn -and $r.syncsWhilePending -eq $r.syncsBefore -and $r.shownTarget -eq '90%' -and $r.prompt -match '(?s)^Update the car.s charging schedule\?.*FINISH BY 10:00 AM at 90%' -and
-            ($r.commands -join '|') -eq ($exp -join '|') -and $r.syncText -eq 'Synced (dry run)' -and $r.finishChk -and $r.target -eq '90%' -and $r.est -match '^Finishes ~10:00 AM at 90% \(est\. start ' -and $r.startDimmed)
+        $exp = @('set_scheduled_charging?enable=false&time=1380 [dry]', 'set_scheduled_departure?departure_time=360&enable=true&end_off_peak_time=360&off_peak_charging_enabled=true&off_peak_charging_weekdays_only=false&preconditioning_enabled=false&preconditioning_weekdays_only=false [dry]', 'set_charge_limit?percent=90 [dry]')
+        $r.pass = ($r.pendingText -eq 'Change pending…' -and $r.timerOn -and $r.syncsWhilePending -eq $r.syncsBefore -and $r.shownTarget -eq '90%' -and $r.prompt -match '(?s)^Update the car.s charging schedule\?.*FINISH BY 6:00 AM at 90%' -and
+            ($r.commands -join '|') -eq ($exp -join '|') -and $r.syncText -eq 'Synced (dry run)' -and $r.finishChk -and $r.target -eq '90%' -and $r.est -match '^Finishes ~6:00 AM at 90% \(est\. start ' -and $r.startDimmed)
         # the car now reports FINISH BY (as Tessie's cached state would after the commands)
-        $script:SchedCarMock = & $script:Car4323 'DepartBy' 1380 600 90 50 $true }
+        $script:SchedCarMock = & $script:Car4323 'DepartBy' 1380 360 90 50 $true }
     & $add 'v4.3.23 FINISH BY off (Schedule skip-confirm checked: no pop-up) -> departure off, START AT 11:00 PM re-applied (dry run)' @() {
         $r = [ordered]@{ shownBefore = $ui.SchedSync.Text }; $script:From4323 = @($script:CtlLog).Count; $script:P4323 = @($script:ConfirmPrompts).Count
         $ui.SkipCf_schedule.IsChecked = $true; $ui.SkipCf_schedule.RaiseEvent((New-Object System.Windows.RoutedEventArgs([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent)))
@@ -9086,7 +9108,7 @@ function Start-SelfTest {
         $script:SelfRec.v4323.finishOff = $r }
     & $add 'v4.3.23 FINISH BY off result' @() {
         $r = $script:SelfRec.v4323.finishOff; $r.commands = @(& $script:Q4323 $script:From4323); $r.prompts = @(@($script:ConfirmPrompts) | Select-Object -Skip $script:P4323).Count; $r.sync = $ui.SchedSync.Text; $r.startChk = [bool]$ui.SchedStartChk.IsChecked; $r.start = $ui.SchedStartVal.Text
-        $r.pass = ($r.skipOn -and $r.prompts -eq 0 -and ($r.commands -join '|') -eq 'set_scheduled_departure?departure_time=600&enable=false [dry]|set_scheduled_charging?enable=true&time=1380 [dry]' -and $r.sync -eq 'Synced (dry run)' -and $r.startChk -and $r.start -eq '11:00 PM')
+        $r.pass = ($r.skipOn -and $r.prompts -eq 0 -and ($r.commands -join '|') -eq 'set_scheduled_departure?departure_time=360&enable=false [dry]|set_scheduled_charging?enable=true&time=1380 [dry]' -and $r.sync -eq 'Synced (dry run)' -and $r.startChk -and $r.start -eq '11:00 PM')
         $script:SchedCarMock = & $script:Car4323 'StartAt' 1380 600 90 50 $false }
     & $add 'v4.3.23 debounce: 5 quick START AT +15 min clicks -> one sync, one command (12:15 AM, dry run)' @() {
         $r = [ordered]@{ syncsBefore = $script:Sched.syncs }; $script:From4323 = @($script:CtlLog).Count
@@ -9118,6 +9140,41 @@ function Start-SelfTest {
         & $script:ElPng4323 $ui.ChgCard 'chg-schedule-real'
         $r.cfgSaved = (Get-Cfg4319 'chargeSchedule'); $r.pass = ($r.netCommandsSent -eq 0 -and $r.announcementsSent -eq 0 -and $null -ne $r.cfgSaved -and [int]$r.cfgSaved.startMin -eq 15)
         $script:SelfRec.v4323.real = $r }
+    # ---- v4.3.24: FINISH BY default 6:00 AM (DRY RUN; only the test config is written) ----
+    & $add 'v4.3.24 FINISH BY default 6:00 AM: fresh install, old 10:00 AM default moved once, user picks kept, car DepartBy wins; card shows 6:00 AM' @() {
+        $r = [ordered]@{}; $keepCs = Get-Cfg4319 'chargeSchedule'; $keepMig = Get-Cfg4319 'chargeScheduleMig'
+        $set = { param($cs) $script:Cfg | Add-Member -NotePropertyName chargeSchedule -NotePropertyValue $cs -Force; if ($null -ne $script:Cfg.PSObject.Properties['chargeScheduleMig']) { $script:Cfg.PSObject.Properties.Remove('chargeScheduleMig') }; $script:SchedMig4324Done = $false }
+        $carSA = & $script:Car4323 'StartAt' 1380 780 80 50 $false; $carDB = & $script:Car4323 'DepartBy' 1380 780 80 50 $true
+        & $set $null; $script:Cfg.PSObject.Properties.Remove('chargeSchedule')
+        $r.fresh = [ordered]@{ mig = (Invoke-SchedMig4324); cfgMin = (Get-SchedCfg).finishMin; shown = (Get-SchedFromCar (Get-CarSched $carSA)).finishMin; on = (Get-SchedFromCar (Get-CarSched $carSA)).finishOn }
+        $r.freshDepartBy = (Get-SchedFromCar (Get-CarSched $carDB)).finishMin
+        & $set ([pscustomobject]@{ startOn = $true; startMin = 1380; finishOn = $false; finishMin = 600; target = 80 }); $r.oldDefault = [ordered]@{ mig = (Invoke-SchedMig4324); saved = [int](Get-Cfg4319 'chargeSchedule').finishMin; marker = (Get-Cfg4319 'chargeScheduleMig'); again = (Invoke-SchedMig4324) }
+        & $set ([pscustomobject]@{ startOn = $true; startMin = 1380; finishOn = $false; target = 80 }); $r.noFinish = [ordered]@{ mig = (Invoke-SchedMig4324); saved = [int](Get-Cfg4319 'chargeSchedule').finishMin }
+        & $set ([pscustomobject]@{ startOn = $true; startMin = 1380; finishOn = $false; finishMin = 630; target = 80 }); $r.userPick = [ordered]@{ mig = (Invoke-SchedMig4324); saved = [int](Get-Cfg4319 'chargeSchedule').finishMin }
+        & $set ([pscustomobject]@{ startOn = $true; startMin = 1380; finishOn = $true; finishMin = 600; target = 80 }); $r.finishOn = [ordered]@{ mig = (Invoke-SchedMig4324); saved = [int](Get-Cfg4319 'chargeSchedule').finishMin }
+        & $set ([pscustomobject]@{ startOn = $true; startMin = 1380; finishOn = $false; finishMin = 600; target = 80 }); Save-Cfg4319 'chargeScheduleMig' 4324; $script:SchedMig4324Done = $false
+        $r.markerSet = [ordered]@{ mig = (Invoke-SchedMig4324); saved = [int](Get-Cfg4319 'chargeSchedule').finishMin }
+        # card on a fresh install: START AT 11:00 PM on, FINISH BY off at 6:00 AM (the car's inactive 1:00 PM departure is not used)
+        & $set $null; $script:Cfg.PSObject.Properties.Remove('chargeSchedule'); [void](Invoke-SchedMig4324)
+        $from = @($script:CtlLog).Count
+        $script:SchedCarMock = $carSA; $script:SchedSessMock = $script:Sess4323; $script:SchedSeenStart = $null
+        $script:Sched.status = 'idle'; $script:Sched.want = $null; $script:Sched.applied = $null; $script:Sched.dirty = $false
+        Render-View; Render-Sched $true; $window.UpdateLayout()
+        $r.card = [ordered]@{ startChk = [bool]$ui.SchedStartChk.IsChecked; start = $ui.SchedStartVal.Text; finishChk = [bool]$ui.SchedFinishChk.IsChecked; finish = $ui.SchedFinishVal.Text; est = $ui.SchedEst.Text; sync = $ui.SchedSync.Text; sent = @($script:CtlLog).Count - $from; timerOn = $script:SchedTimer.IsEnabled }
+        & $script:ElPng4323 $ui.ChgCard 'tmp4324'; $p0 = Join-Path $script:SelfDir 'tessdesk-v4323-tmp4324.png'; $p1 = Join-Path $script:SelfDir 'tessdesk-v4324-chg-finishby-6am.png'
+        Move-Item -LiteralPath $p0 -Destination $p1 -Force; $script:SelfRec.shots = @($script:SelfRec.shots | Where-Object { $_ -ne 'tessdesk-v4323-tmp4324.png' }) + 'tessdesk-v4324-chg-finishby-6am.png'
+        $r.fit = & $script:Fit4323
+        # restore
+        $script:SchedCarMock = $null; $script:SchedSessMock = $null; $script:Sched.status = 'idle'; $script:Sched.want = $null; $script:Sched.applied = $null; $script:Sched.dirty = $false
+        if ($null -ne $keepCs) { Save-Cfg4319 'chargeSchedule' $keepCs } elseif ($null -ne $script:Cfg.PSObject.Properties['chargeSchedule']) { $script:Cfg.PSObject.Properties.Remove('chargeSchedule') }
+        if ($null -ne $keepMig) { Save-Cfg4319 'chargeScheduleMig' $keepMig }
+        Render-Sched $true
+        $r.netCommandsSent = $script:NetCommandsSent
+        $r.pass = ($r.fresh.cfgMin -eq 360 -and $r.fresh.shown -eq 360 -and -not $r.fresh.on -and $r.freshDepartBy -eq 780 -and
+            $r.oldDefault.saved -eq 360 -and [int]$r.oldDefault.marker -eq 4324 -and $r.oldDefault.again -eq 'done before' -and $r.noFinish.saved -eq 360 -and
+            $r.userPick.saved -eq 630 -and $r.finishOn.saved -eq 600 -and $r.markerSet.saved -eq 600 -and
+            $r.card.startChk -and $r.card.start -eq '11:00 PM' -and -not $r.card.finishChk -and $r.card.finish -eq '6:00 AM' -and $r.card.sync -eq 'Synced' -and $r.card.sent -eq 0 -and -not $r.card.timerOn -and $r.fit.allVisible -and $r.netCommandsSent -eq 0)
+        $script:SelfRec.v4324 = [ordered]@{ appVersion = $AppVersion; defaults = $r } }
     & $add 'v4.3.21 smoke: versions, footer, hook line, width, all cards render, no real commands' @() {
         $me = [System.IO.File]::ReadAllText((Join-Path $scriptDir 'TessDesk.ps1')); $L = $me -split "`r?`n"
         $hook = @($L | Where-Object { $_ -like "try { . 'C:\Users\vanwi\cb_compact_addon.ps1'; Enable-CbCompactMode -Window `$window -Name 'TESSDESK'*" }).Count
@@ -9127,7 +9184,7 @@ function Start-SelfTest {
         $real = @($script:CtlLog | Where-Object { $_.dry -eq $false -or $_.real -eq $true }).Count
         $r = $script:SelfRec.v4321
         $r.smoke = [ordered]@{ appVersion = $AppVersion; footer = $ui.FooterVersion.Text; brand = $ui.FooterText.Text; bold = [string]$ui.FooterText.FontWeight; hookLines = $hook; hookBeforeShowDialog = $before; width = $window.Width; renderError = $err; dryRun = $CTL_DRYRUN; realCmdLog = $real
-            pass = ($AppVersion -eq '4.3.23' -and $ui.FooterVersion.Text -like ('*4.3.23*' + $AppDate) -and [string]$ui.FooterText.FontWeight -eq 'Bold' -and $hook -eq 1 -and $before -and $null -eq $err -and $CTL_DRYRUN -and [math]::Abs($window.Width - $winW) -lt 1) }
+            pass = ($AppVersion -eq '4.3.24' -and $ui.FooterVersion.Text -like ('*4.3.24*' + $AppDate) -and [string]$ui.FooterText.FontWeight -eq 'Bold' -and $hook -eq 1 -and $before -and $null -eq $err -and $CTL_DRYRUN -and [math]::Abs($window.Width - $winW) -lt 1) }
         $fails = @(); foreach ($k in 'pure', 'collapsed', 'place', 'expanded', 'calTags', 'showAll', 'fresh', 'smoke') { if ($null -eq $r[$k] -or -not $r[$k].pass) { $fails += $k } }
         $r.summary = [ordered]@{ fails = $fails; allPass = ($fails.Count -eq 0) } }
     & $add 'v4.3.22 summary' @() {
@@ -9141,7 +9198,13 @@ function Start-SelfTest {
         $r.netCommandsSent = $script:NetCommandsSent; $r.announcementsSent = $script:AnnSent
         $r.v4322Steps = $script:SelfRec.v4322.summary; $r.v4321Steps = $script:SelfRec.v4321.summary
         $r.summary = [ordered]@{ fails = $fails; allPass = ($fails.Count -eq 0 -and $script:NetCommandsSent -eq 0 -and $script:AnnSent -eq 0) } }
-    if ($Quick4323) { return (Start-SelfTimer) }
+    & $add 'v4.3.24 summary' @() {
+        $r = $script:SelfRec.v4324; $r23 = $script:SelfRec.v4323.summary; $fails = @()
+        if ($null -eq $r.defaults -or -not $r.defaults.pass) { $fails += 'defaults' }
+        if ($null -eq $r23 -or -not $r23.allPass) { $fails += 'v4323' }
+        $r.v4323Steps = $r23; $r.netCommandsSent = $script:NetCommandsSent; $r.announcementsSent = $script:AnnSent
+        $r.summary = [ordered]@{ fails = $fails; allPass = ($fails.Count -eq 0 -and $script:NetCommandsSent -eq 0 -and $script:AnnSent -eq 0) } }
+    if ($Quick4324) { return (Start-SelfTimer) }
     # v4.3.17: record the dropdown's start state, then open it (not saved) so the older steps can snapshot the history rows
     $script:SelfRec.v4317pre = [ordered]@{ open = [bool]$script:ChgHist.open; body = [string]$ui.ChgHistBody.Visibility; arrow = $ui.ChgHistArrow.Text; savedSetting = $(try { [string](Read-Config).ui.historyOpen } catch { '' }) }; Set-ChgHistOpen $true $false
     # ---- v4.3.3 steps (DRY RUN: nothing is sent to the car, nothing announced) ----
