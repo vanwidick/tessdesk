@@ -2,7 +2,7 @@
    Everything (name, Tessie token, vehicle, rates) is stored in localStorage on this device only. */
 (function () {
   'use strict';
-/* TessDesk phone v4.3.25 (DESIGN BY VAN). v4.3.25: CHARGING SCHEDULE reaches the car on firmware 2024.26+ (charge schedules, checked after each send). v4.3.24: FINISH BY defaults to 6:00 AM. v4.3.23: CHARGING SCHEDULE in the CHARGING card (START AT + FINISH BY, set on the car through Tessie). v4.3.22: CHARGE column in HEALTH HISTORY (highest charge % per day + Home / AC / Supercharger). v4.3.21: HEALTH HISTORY under START / STOP in the CHARGING card + CALIBRATION INFO; history runs fully in the app. v4.3.20: HEALTH HISTORY dropdown. Pure logic + UI for: PLUG-IN REMINDER, TRIPS, MORNING READY CHECK,
+/* TessDesk phone v4.3.26 (DESIGN BY VAN). v4.3.26: ALL OFF in TESLA CONTROLS. v4.3.25: CHARGING SCHEDULE reaches the car on firmware 2024.26+ (charge schedules, checked after each send). v4.3.24: FINISH BY defaults to 6:00 AM. v4.3.23: CHARGING SCHEDULE in the CHARGING card (START AT + FINISH BY, set on the car through Tessie). v4.3.22: CHARGE column in HEALTH HISTORY (highest charge % per day + Home / AC / Supercharger). v4.3.21: HEALTH HISTORY under START / STOP in the CHARGING card + CALIBRATION INFO; history runs fully in the app. v4.3.20: HEALTH HISTORY dropdown. Pure logic + UI for: PLUG-IN REMINDER, TRIPS, MORNING READY CHECK,
    PSO BILL MATCH (on/off switch), BATTERY HEALTH TREND + TIPS. No Alexa, no toasts (in-app banners only),
    cached data only (never wakes the car). The same functions are unit-tested headlessly. */
 (function (g) {
@@ -426,8 +426,8 @@
   var CFG = window.TD_CONFIG || {};
   var VARIANT = CFG.variant || 'main';
   var P = CFG.storagePrefix || 'td:';
-  var VERSION = 'v4.3.25';
-  var VERSION_DATE = 'Oct 9, 2026';
+  var VERSION = 'v4.3.26';
+  var VERSION_DATE = 'Oct 10, 2026';
   var TZ = 'America/Chicago';
   var DEFAULT_API = 'https://api.tessie.com';
   var REFRESH_MS = 60000, CHARGES_EVERY_S = 15 * 60, HEALTH_EVERY_S = 6 * 3600, HTTP_TIMEOUT_MS = 15000, CMD_TIMEOUT_MS = 90000;
@@ -801,7 +801,8 @@
       defrostOn: (cl.defrost_mode != null || cl.is_front_defroster_on != null) ? (cl.defrost_mode > 0 || !!cl.is_front_defroster_on) : null,
       cop: cl.cabin_overheat_protection || null, copFanOnly: !!cl.supports_fan_only_cabin_overheat_protection, copAllowed: cl.allow_cabin_overheat_protection,
       windows: { fd: vs.fd_window, fp: vs.fp_window, rd: vs.rd_window, rp: vs.rp_window },
-      trunkOpen: vs.rt != null ? +vs.rt !== 0 : null, sentry: vs.sentry_mode != null ? !!vs.sentry_mode : null };
+      trunkOpen: vs.rt != null ? +vs.rt !== 0 : null, sentry: vs.sentry_mode != null ? !!vs.sentry_mode : null,
+      climateKeeper: cl.climate_keeper_mode != null ? String(cl.climate_keeper_mode) : null, frunkOpen: vs.ft != null ? +vs.ft !== 0 : null };   // v4.3.26
     return {
       charging: charging, state: st, cs: cs, hero: hero, heroCost: hc, win: agg,
       kw: charging ? chargerKw(cs) : null, toFull: charging ? fmtMins(cs.minutes_to_full_charge) : null,
@@ -1044,7 +1045,8 @@
       '<button class="cbtn sq" id="cTup" aria-label="Warmer"' + dis + '>+</button></div></div>' +
       trunkSentryRow(car, dis) +
       (window.TDLeave ? TDLeave.html('main') : '') +   // v4.3.16 LEAVING SOON (leave.js)
-      '<div class="ann-row"><button class="cbtn ann" id="cAnnounce"><b>🔊 ANNOUNCE ON ALEXA</b><small>' + (annReady() ? 'full status rundown · ' + esc(targetsLabel(annTargets('rundown'))) : 'set up Alexa (Connected apps)') + '</small></button>' +
+      '<div class="ann-row"><button class="cbtn ann" id="cAnnounce"><b>🔊 ANNOUNCE<span class="ann-long"> ON ALEXA</span></b><small>' + (annReady() ? 'full status rundown · ' + esc(targetsLabel(annTargets('rundown'))) : 'set up Alexa (Connected apps)') + '</small></button>' +
+      allOffBtn(dis) +
       '<button class="cbtn gear" id="cAnnSetup" aria-label="Announce on Alexa setup" title="Setup: what the rundown includes">' + ICON_GEAR + '<small>SETUP</small></button></div>' +
       '<div class="ctl-msg ' + ctlMsg.kind + '">' + (ctlMsg.kind === 'busy' ? '<span class="spin"></span>' : '') + '<span>' + esc(!cmdOk ? 'Commands are off: you did not allow TessDesk to send vehicle commands (Settings \u2192 Permissions).' : (ctlMsg.text || (dry ? 'Dry run: buttons are simulated, nothing is sent' : 'Ready'))) + '</span></div>' + skipRow() + '</div>';
     return r;
@@ -1066,6 +1068,77 @@
     if (on) askCf('sentry', 'Turn Sentry Mode OFF?', 'Turn off', 'The car stops watching and recording its surroundings.').then(function (ok) { if (ok) runCmd('disable_sentry', {}, 'Turning Sentry Mode off…', 'Sentry Mode off', function () { setOv('sentry', false); }, 'Sentry Mode is now off.'); else { ctlMsg = { kind: 'idle', text: 'Sentry Mode stays on' }; render(); } });
     else askCf('sentry', 'Turn Sentry Mode ON?', 'Turn on', 'The car watches and records its surroundings (uses some battery).').then(function (ok) { if (ok) runCmd('enable_sentry', {}, 'Turning Sentry Mode on…', 'Sentry Mode on', function () { setOv('sentry', true); }, 'Sentry Mode is now on.'); else { ctlMsg = { kind: 'idle', text: 'Sentry Mode stays off' }; render(); } });
   }
+
+  // ---------- v4.3.26: ALL OFF (runs the existing commands in order, skipping what the car already shows off; Cancel stops the rest; no Alexa) ----------
+  var allOff = { running: false, cancelled: false, total: 0, done: 0, skipped: [], frunk: false, log: [], plan: null };
+  // setup (gear next to ALL OFF): which steps run; all checked by default; localStorage td:allOffSteps
+  var ALLOFF_KEYS = [['windows', 'Close windows'], ['trunk', 'Close trunk (if open)'], ['climate', 'Climate off'], ['seats', 'Seat heaters off'], ['wheel', 'Steering wheel heat off'], ['defrost', 'Defrost off'], ['sentry', 'Sentry off'], ['keeper', 'Dog / Camp off'], ['lock', 'Lock'], ['frunk', 'Frunk-open warning']];
+  function allOffCfg() { var s = load('allOffSteps', null), o = {}; ALLOFF_KEYS.forEach(function (x) { o[x[0]] = !(s && typeof s === 'object' && s[x[0]] === false); }); return o; }
+  function openAllOffSetup() {
+    var on = allOffCfg(), d = document.createElement('div'); d.className = 'modal'; d.id = 'aoSetup';
+    d.innerHTML = '<div class="mbox ao-box" role="dialog" aria-modal="true"><div class="mq">ALL OFF runs</div><div class="msub">Checked steps run; anything already off is skipped. Saved on this phone.</div><div class="ao-list">' +
+      ALLOFF_KEYS.map(function (x) { return '<label class="sk ao"><input type="checkbox" data-ao="' + x[0] + '" id="ao_' + x[0] + '"' + (on[x[0]] ? ' checked' : '') + '><span>' + x[1] + '</span></label>'; }).join('') +
+      '</div><div class="mbtns"><button class="btn" id="aoDone">Done</button></div></div>';
+    document.body.appendChild(d);
+    d.querySelectorAll('input[data-ao]').forEach(function (i) { i.onchange = function () { var o = allOffCfg(); o[i.getAttribute('data-ao')] = i.checked; save('allOffSteps', o); }; });
+    var done = function () { d.remove(); render(); }; d.querySelector('#aoDone').onclick = done; d.onclick = function (e) { if (e.target === d) done(); };
+  }
+  function allOffPlan(c, on) {
+    on = on || allOffCfg();
+    if (!c) return { steps: [], skipped: [], frunk: false, noData: true };
+    var s = [], sk = [], add = function (cmd, q, what, ok, ov) { s.push({ cmd: cmd, query: q, what: what, ok: ok, ov: ov }); }, sk0 = sk;
+    sk = { push: function (k) { if (on[k]) sk0.push(k); } };   // unchecked steps are neither run nor listed as already off
+    var w = ctlVal('windowsOpen', c.windowsOpen); if (on.windows && (w == null || w)) add('close_windows', {}, 'Closing windows', 'Windows closed', function () { setOv('windowsOpen', false); }); else sk.push('windows');
+    if (on.trunk && ctlVal('trunkOpen', c.trunkOpen)) add('activate_rear_trunk', {}, 'Closing the trunk', 'Trunk closing', function () { setOv('trunkOpen', false); }); else sk.push('trunk');   // actuate toggles: only when open
+    var cl = ctlVal('climateOn', c.climateOn); if (on.climate && (cl == null || cl)) add('stop_climate', {}, 'Turning climate off', 'Climate off', function () { setOv('climateOn', false); }); else sk.push('climate');
+    var any = false;
+    ['fl', 'fr', 'rl', 'rc', 'rr'].forEach(function (k) { var l = ctlVal('seat_' + k, c.seats ? c.seats[k] : null); if (on.seats && l > 0) { any = true; add('set_seat_heat', { seat: SEAT_API[k], level: '0' }, SEAT_NAME[k] + ' heat off', SEAT_NAME[k] + ' heat off', function () { setOv('seat_' + k, 0); }); } });
+    if (!any) sk.push('seats');
+    if (on.wheel && ctlVal('wheel', c.wheelOn)) add('stop_steering_wheel_heater', {}, 'Turning wheel heat off', 'Steering wheel heat off', function () { setOv('wheel', false); }); else sk.push('wheel');
+    if (on.defrost && ctlVal('defrost', c.defrostOn)) add('stop_max_defrost', {}, 'Turning defrost off', 'Defrost off', function () { setOv('defrost', false); }); else sk.push('defrost');
+    if (on.sentry && ctlVal('sentry', c.sentry)) add('disable_sentry', {}, 'Turning Sentry Mode off', 'Sentry Mode off', function () { setOv('sentry', false); }); else sk.push('sentry');
+    var kp = ctlVal('keeper', c.climateKeeper);
+    if (on.keeper && kp && kp !== 'off') add('set_climate_keeper_mode', { mode: '0' }, 'Turning ' + ({ dog: 'Dog Mode', camp: 'Camp Mode' }[kp] || 'Climate Keeper') + ' off', 'Climate Keeper off', function () { setOv('keeper', 'off'); }); else sk.push('keeper');
+    var lk = ctlVal('locked', c.locked); if (on.lock && (lk == null || !lk)) add('lock', {}, 'Locking', 'Locked', function () { setOv('locked', true); }); else sk.push('lock');
+    return { steps: s, skipped: sk0, frunk: on.frunk && !!c.frunkOpen, noData: false };
+  }
+  var ALLOFF_FRUNK = 'The frunk is open: it can\u2019t be closed remotely, close it by hand.';
+  function onAllOff() {
+    if (allOff.running) { allOff.cancelled = true; ctlMsg = { kind: 'busy', text: 'ALL OFF: cancelling after this step\u2026' }; render(); return; }
+    if (ctlBusy || !cmdAllowed()) return;
+    var p = allOffPlan(curCar()), fr = p.frunk ? ' ' + ALLOFF_FRUNK : '';
+    if (p.noData) { ctlMsg = { kind: 'err', text: 'ALL OFF: no car data yet' }; render(); return; }
+    if (!p.steps.length) { ctlMsg = { kind: p.frunk ? 'err' : 'idle', text: 'ALL OFF: everything is already off' + (ALLOFF_KEYS.some(function (x) { return !allOffCfg()[x[0]]; }) ? ' (or unchecked in setup)' : '') + '.' + fr }; render(); return; }
+    var list = p.steps.map(function (x) { return x.what; }).join(', ');
+    askCf('alloff', 'Turn everything off?', 'All off', list + ' (' + p.steps.length + ' step' + (p.steps.length === 1 ? '' : 's') + ').' + fr).then(function (ok) {
+      if (!ok) { ctlMsg = { kind: 'idle', text: 'ALL OFF not started' }; render(); return; }
+      if (ctlBusy || !cmdAllowed()) return;
+      allOff = { running: true, cancelled: false, total: p.steps.length, done: 0, skipped: p.skipped, frunk: p.frunk, log: [], plan: p };
+      allOffStep(0);
+    });
+  }
+  function allOffStep(i) {
+    var p = allOff.plan;
+    if (i >= p.steps.length || allOff.cancelled) { allOffEnd(true); render(); return; }
+    var st = p.steps[i], q = Object.keys(st.query).sort().map(function (k) { return k + '=' + st.query[k]; }).join('&');
+    allOff.cur = st.cmd + (q ? '?' + q : '');
+    runCmd(st.cmd, st.query, 'ALL OFF ' + (i + 1) + '/' + p.steps.length + ': ' + st.what + '\u2026', st.ok, function () { st.ov(); allOff.done++; allOff.log.push(allOff.cur); }, '', function () { allOffStep(i + 1); });
+  }
+  function allOffEnd(ok) {
+    var a = allOff; if (!a.running) return; a.running = false;
+    var fr = a.frunk ? ' ' + ALLOFF_FRUNK : '', dry = load('dryRun', false) ? ' (dry run, not sent)' : '';
+    if (!ok) { a.log.push(a.cur + ' [failed]'); ctlMsg = { kind: 'err', text: '\u2715 ALL OFF stopped at step ' + (a.done + 1) + '/' + a.total + ': ' + String(ctlMsg.text || '').replace(/^\u2715\s*/, '') + fr }; }
+    else if (a.cancelled && a.done < a.total) ctlMsg = { kind: 'idle', text: 'ALL OFF cancelled: ' + a.done + ' of ' + a.total + ' done, the rest not sent' + dry + '.' + fr };
+    else ctlMsg = { kind: a.frunk ? 'err' : 'ok', text: '\u2713 ALL OFF done: ' + a.total + ' sent' + (a.skipped.length ? ', already off: ' + a.skipped.join(', ') : '') + ' \u00b7 ' + clock(nowSec()) + dry + '.' + fr };
+  }
+  function allOffBtn(dis) {
+    var a = allOff;
+    return '<button class="cbtn alloff' + (a.running ? ' running' : '') + '" id="cAllOff" title="ALL OFF: close windows, close the trunk (if open), climate off, seat + wheel heat off, defrost off, Sentry off, Dog / Camp off, lock. Skips anything already off. Tap again to cancel the rest."' +
+      (a.running ? (a.cancelled ? ' disabled' : '') : dis) + '><b>' + (a.running ? 'CANCEL' : 'ALL OFF') + '</b><small>' + (a.running ? 'ALL OFF ' + Math.min(a.total, a.done + 1) + '/' + a.total : (function () { var o = allOffCfg(), n = ALLOFF_KEYS.filter(function (x) { return x[0] !== 'frunk' && o[x[0]]; }).length; return n === 9 ? 'everything' : n + ' of 9 steps'; })()) + '</small></button>' +
+      '<button class="cbtn alloff aoset" id="cAllOffSet" aria-label="ALL OFF setup" title="ALL OFF setup: pick which steps run"' + (a.running ? ' disabled' : '') + '>' + ICON_GEAR + '</button>';
+  }
+  window.TD4326 = { cfg: allOffCfg, plan: function () { var p = allOffPlan(curCar()); return { steps: p.steps.map(function (x) { var q = Object.keys(x.query).sort().map(function (k) { return k + '=' + x.query[k]; }).join('&'); return x.cmd + (q ? '?' + q : ''); }), skipped: p.skipped, frunk: p.frunk, noData: p.noData }; },
+    state: function () { return { running: allOff.running, cancelled: allOff.cancelled, total: allOff.total, done: allOff.done, log: allOff.log.slice(), msg: ctlMsg.text, kind: ctlMsg.kind }; }, resetOv: function () { ctlOv = {}; } };
 
   // ---------- v4.3.3 DRIVES: recent drives + location history (Tessie /drives, read-only) ----------
   function placeName(saved, addr) {
@@ -1181,6 +1254,7 @@
         ctlBusy = false; if (name === 'set_temperatures') pendTemp = null;
         if (okd) liveInfo.lastCmd = nowSec();
         if (okd && next) { render(); next(); return; }
+        if (allOff.running) { allOffEnd(okd); render(); return; }   // v4.3.26: no Alexa for ALL OFF
         if (alexaOn() && name !== 'flash') announce(okd ? (ann || defaultSpeech(name, query, okTxt)) : failSpeech(name, why), okd ? 'action' : 'action-failed');
         render();
       });
@@ -1699,7 +1773,7 @@
       row(v.nightLabel, nightSub, v.night, true) + sessionsBlock(cfg, v.win) + row('Last 7 days', null, v.d7) + row('Last 30 days', null, v.d30) + totBtn() + '</div></div>';
   }
   // ---------- v4.3.18: SKIP CONFIRM (one saved checkbox per action that asks Yes / No; localStorage td:skipConfirm, all off by default) ----------
-  var SKIP_KEYS = [['unlock', 'Unlock'], ['leave', 'Leaving'], ['flash', 'Flash'], ['vent', 'Vent'], ['trunk', 'Trunk'], ['sentry', 'Sentry'], ['announce', 'Announce'], ['stopCharging', 'Stop chg'], ['limit', 'Limit'], ['amps', 'Amps'], ['schedule', 'Sched']];
+  var SKIP_KEYS = [['unlock', 'Unlock'], ['leave', 'Leaving'], ['flash', 'Flash'], ['vent', 'Vent'], ['trunk', 'Trunk'], ['sentry', 'Sentry'], ['announce', 'Announce'], ['stopCharging', 'Stop chg'], ['limit', 'Limit'], ['amps', 'Amps'], ['schedule', 'Sched'], ['alloff', 'All off']];
   var skipLog = [];
   function skipMap() { var s = load('skipConfirm', null); return s && typeof s === 'object' ? s : {}; }
   function skipCf(k) { return skipMap()[k] === true; }
@@ -2081,7 +2155,7 @@
     on('btnAlexa', function () { setAlexa(!alexaOn()); }); on('btnSched', function () { screen = 'settings'; render(); var e = document.getElementById('apps'); if (e) e.scrollIntoView(); });
     Array.prototype.forEach.call(document.querySelectorAll('[data-seat]'), function (g) { g.onclick = function () { if (!g.classList.contains('dis')) onSeat(g.getAttribute('data-seat')); }; });
     bindVSlider(); bindAmps();
-    on('cAnnounce', onAnnounce); on('cAnnSetup', openAnnSetup); on('pkStop', onChgStop);
+    on('cAnnounce', onAnnounce); on('cAllOff', onAllOff); on('cAllOffSet', openAllOffSetup); on('cAnnSetup', openAnnSetup); on('pkStop', onChgStop);
     on('pkHide', function () { var p = peakState(compute(getCfg()), getCfg()); if (p) save('peakHide', p.key); render(); }); on('pkShow', function () { save('peakHide', ''); render(); });
     bind4318();   // v4.3.18
     try { if (window.TD4319) TD4319.bind4319(); } catch (e) { console.error(e); }   // v4.3.19

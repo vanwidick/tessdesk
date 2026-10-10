@@ -1,11 +1,11 @@
 ﻿#Requires -Version 5.1
-# TessDesk v4.3.25 (CHARGING SCHEDULE reaches the car on firmware 2024.26+: charge schedules, checked after each send; v4.3.24: FINISH BY defaults to 6:00 AM; v4.3.23: CHARGING SCHEDULE in START / STOP: START AT + FINISH BY, set on the car through Tessie; v4.3.22: CHARGE column in HEALTH HISTORY: highest charge % per day + Home / AC / Supercharger; v4.3.21: HEALTH HISTORY under START / STOP with CALIBRATION INFO; health history logged by the app itself; v4.3.20: HEALTH HISTORY dropdown, one entry per day, kept indefinitely; v4.3.19: 30% wider; PLUG-IN REMINDER; TRIPS; MORNING READY CHECK; PSO BILL MATCH with on/off; BATTERY HEALTH TREND + TIPS; LEAVING SOON 'Start after' delay; v4.3.18 CHARGING STATUS bar under the big cost with START / STOP, fits 364x990 without scrolling; v4.3.17: TESLA CONTROLS under the big cost, CHARGE HISTORY & TOTALS dropdown; v4.3.16 LEAVING SOON: adjustable 'Windows after' / 'Unlock after' minutes, Stop undoes the steps already done; v4.3.15: climate on, close windows, unlock; rolling 7 / 14 days and 30 / 60 days $ beside the big amount; Restore / Remember at the top right with fade-in, like Paycheck Live; TOTALS pop-up: week / month / year running totals; CAMERAS panel from saved Sentry / Dashcam clips; checks for updates on open / wake; compact-when-OFF via cb_compact_addon.ps1) - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
+# TessDesk v4.3.26 (ALL OFF in TESLA CONTROLS: windows, trunk, climate, seat + wheel heat, defrost, Sentry, Climate Keeper off, lock; v4.3.25: CHARGING SCHEDULE reaches the car on firmware 2024.26+: charge schedules, checked after each send; v4.3.24: FINISH BY defaults to 6:00 AM; v4.3.23: CHARGING SCHEDULE in START / STOP: START AT + FINISH BY, set on the car through Tessie; v4.3.22: CHARGE column in HEALTH HISTORY: highest charge % per day + Home / AC / Supercharger; v4.3.21: HEALTH HISTORY under START / STOP with CALIBRATION INFO; health history logged by the app itself; v4.3.20: HEALTH HISTORY dropdown, one entry per day, kept indefinitely; v4.3.19: 30% wider; PLUG-IN REMINDER; TRIPS; MORNING READY CHECK; PSO BILL MATCH with on/off; BATTERY HEALTH TREND + TIPS; LEAVING SOON 'Start after' delay; v4.3.18 CHARGING STATUS bar under the big cost with START / STOP, fits 364x990 without scrolling; v4.3.17: TESLA CONTROLS under the big cost, CHARGE HISTORY & TOTALS dropdown; v4.3.16 LEAVING SOON: adjustable 'Windows after' / 'Unlock after' minutes, Stop undoes the steps already done; v4.3.15: climate on, close windows, unlock; rolling 7 / 14 days and 30 / 60 days $ beside the big amount; Restore / Remember at the top right with fade-in, like Paycheck Live; TOTALS pop-up: week / month / year running totals; CAMERAS panel from saved Sentry / Dashcam clips; checks for updates on open / wake; compact-when-OFF via cb_compact_addon.ps1) - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
 param(
     [string]$ConfigPath,
     [string]$Snapshot,    # optional: folder to write PNG snapshots of both themes
     [switch]$Quick433,    # with -SelfTest: run only the v4.3.3 steps (trunk, sentry, drives, paused-session energy)
     [switch]$Quick432,
-    [switch]$Quick4325,   # with -SelfTest: run only the v4.3.21 - v4.3.25 steps (health history, CHARGE column, CHARGING SCHEDULE incl. the newer charge-schedule API + check after send, dry run) + a short smoke check    # with -SelfTest: run only the v4.3.2 steps (glow states, seats, flash lights, last charge)
+    [switch]$Quick4326,   # with -SelfTest: run only the v4.3.21 - v4.3.26 steps (ALL OFF, health history, CHARGE column, CHARGING SCHEDULE incl. the newer charge-schedule API + check after send, dry run) + a short smoke check    # with -SelfTest: run only the v4.3.2 steps (glow states, seats, flash lights, last charge)
     [switch]$SelfTest     # test run: controls forced to DRY RUN (nothing is sent to the car), snapshots, selftest.json, then exit
 )
 Add-Type -AssemblyName PresentationFramework
@@ -15,8 +15,8 @@ Add-Type -AssemblyName System.Xaml
 
 $ErrorActionPreference = 'Stop'
 $AppName    = 'TessDesk'
-$AppVersion = '4.3.25'
-$AppDate    = 'Oct 9, 2026'
+$AppVersion = '4.3.26'
+$AppDate    = 'Oct 10, 2026'
 
 $scriptDir  = Split-Path -Parent $MyInvocation.MyCommand.Path
 if (-not $ConfigPath) { $ConfigPath = Join-Path $scriptDir 'config.json' }
@@ -816,6 +816,8 @@ function Get-CarInfo {
         trunkOpen = $(if ($null -ne $vs -and $null -ne $vs.rt) { [int]$vs.rt -ne 0 } else { $null })
         sentry = $(if ($null -ne $vs -and $null -ne $vs.sentry_mode) { [bool]$vs.sentry_mode } else { $null })
         sentryAvailable = $(if ($null -ne $vs -and $null -ne $vs.sentry_mode_available) { [bool]$vs.sentry_mode_available } else { $null })
+        climateKeeper = $(if ($null -ne $cl -and $null -ne $cl.climate_keeper_mode) { [string]$cl.climate_keeper_mode } else { $null })   # v4.3.26
+        frunkOpen = $(if ($null -ne $vs -and $null -ne $vs.ft) { [int]$vs.ft -ne 0 } else { $null })
     }
 }
 
@@ -1829,7 +1831,7 @@ function Open-Url433 {
             </Grid>
             <!-- v4.3: Announce on Alexa = one push, full status rundown; gear = Announce Setup -->
             <Grid Margin="0,4,0,0">
-              <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="58"/></Grid.ColumnDefinitions>
+              <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="118"/><ColumnDefinition Width="58"/></Grid.ColumnDefinitions>
               <Button x:Name="AnnNowBtn" Style="{StaticResource CtlBtn}" Height="38" Margin="0,0,3,0" Padding="4,2,4,2" ToolTip="Announce on Alexa: one push speaks a full status rundown (asks to confirm)">
                 <StackPanel HorizontalAlignment="Center">
                   <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
@@ -1839,7 +1841,22 @@ function Open-Url433 {
                   <TextBlock x:Name="AnnNowSub" Text="FULL STATUS" FontSize="7.5" FontWeight="SemiBold" Foreground="#FF888888" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                 </StackPanel>
               </Button>
-              <Button x:Name="AnnSetupBtn" Grid.Column="1" Style="{StaticResource CtlBtn}" Height="38" Margin="3,0,0,0" Padding="0" ToolTip="Announce Setup: rundown items, speakers (pick Echos, Test, Add speaker), charging-started announcement">
+              <Grid Grid.Column="1" Margin="3,0,3,0">
+              <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="26"/></Grid.ColumnDefinitions>
+              <Button x:Name="AllOffBtn" Style="{StaticResource CtlBtn}" Height="38" Margin="0,0,3,0" Padding="2" Background="#FF2A1012" BorderBrush="#FFE5484D" ToolTip="ALL OFF: close windows, close the trunk (if open), climate off, seat + wheel heat off, defrost off, Sentry off, Dog / Camp off, lock. Skips anything already off. Press again to cancel the remaining steps.">
+                <StackPanel HorizontalAlignment="Center">
+                  <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <TextBlock x:Name="AllOffIcon" Text="&#xE7E8;" FontFamily="Segoe MDL2 Assets" FontSize="11" VerticalAlignment="Center" Margin="0,0,4,0" Foreground="#FFFF6B6E"/>
+                    <TextBlock x:Name="AllOffTxt" Text="ALL OFF" FontSize="12" FontWeight="Bold" VerticalAlignment="Center" Foreground="#FFFF6B6E"/>
+                  </StackPanel>
+                  <TextBlock x:Name="AllOffSub" Text="EVERYTHING" FontSize="7.5" FontWeight="SemiBold" Foreground="#FFE89A9C" HorizontalAlignment="Center"/>
+                </StackPanel>
+              </Button>
+              <Button x:Name="AllOffSetBtn" Grid.Column="1" Style="{StaticResource CtlBtn}" Height="38" Padding="0" Background="#FF2A1012" BorderBrush="#FFE5484D" ToolTip="ALL OFF setup: pick which steps ALL OFF runs (saved)">
+                <TextBlock x:Name="AllOffSetIcon" Text="&#xE713;" FontFamily="Segoe MDL2 Assets" FontSize="12" HorizontalAlignment="Center" Foreground="#FFFF6B6E"/>
+              </Button>
+              </Grid>
+              <Button x:Name="AnnSetupBtn" Grid.Column="2" Style="{StaticResource CtlBtn}" Height="38" Margin="3,0,0,0" Padding="0" ToolTip="Announce Setup: rundown items, speakers (pick Echos, Test, Add speaker), charging-started announcement">
                 <StackPanel HorizontalAlignment="Center">
                   <TextBlock Text="&#xE713;" FontFamily="Segoe MDL2 Assets" FontSize="15" HorizontalAlignment="Center"/>
                   <TextBlock x:Name="AnnSetupTxt" Text="SETUP" FontSize="8" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,2,0,0"/>
@@ -1871,6 +1888,7 @@ function Open-Url433 {
                   <CheckBox x:Name="SkipCf_limit" Tag="limit" Style="{StaticResource SkipCfChk}" ToolTip="Skip confirm when you drag the charge limit on the battery bar"><TextBlock Text="Limit" FontSize="10.5" FontWeight="SemiBold" VerticalAlignment="Center"/></CheckBox>
                   <CheckBox x:Name="SkipCf_amps" Tag="amps" Style="{StaticResource SkipCfChk}" ToolTip="Skip confirm when you set the charging amps"><TextBlock Text="Amps" FontSize="10.5" FontWeight="SemiBold" VerticalAlignment="Center"/></CheckBox>
                   <CheckBox x:Name="SkipCf_schedule" Tag="schedule" Style="{StaticResource SkipCfChk}" ToolTip="Skip confirm when you change the CHARGING SCHEDULE (START AT / FINISH BY)"><TextBlock Text="Sched" FontSize="10.5" FontWeight="SemiBold" VerticalAlignment="Center"/></CheckBox>
+                  <CheckBox x:Name="SkipCf_alloff" Tag="alloff" Style="{StaticResource SkipCfChk}" ToolTip="Skip confirm for ALL OFF (runs right away)"><TextBlock Text="All off" FontSize="10.5" FontWeight="SemiBold" VerticalAlignment="Center"/></CheckBox>
                 </UniformGrid>
               </DockPanel>
             </Border>
@@ -2547,6 +2565,7 @@ function Apply-Theme {
     $ui.FooterText.Foreground = T 'FooterText'; $ui.FooterVersion.Foreground = T 'Caption2'
     $ui.FooterSep.Foreground = T 'Caption2'; $ui.FooterAbout.Foreground = T 'Caption2'
     $ui.RemindBtn.Tag = $btnR; $ui.RemindBtn.Background = T 'BtnBg'; $ui.RemindBtn.BorderBrush = T 'BtnBorder'; $ui.RemindBtn.Foreground = T 'Text'
+    if ($null -ne $ui['AllOffBtn']) { $ui.AllOffBtn.Tag = $btnR; $ui.AllOffSetBtn.Tag = $btnR }   # v4.3.26: same corners
     foreach ($n in 'AnnNowBtn', 'AnnSetupBtn') { $ui[$n].Tag = $btnR; $ui[$n].Background = T 'BtnBg'; $ui[$n].BorderBrush = T 'BtnBorder'; $ui[$n].Foreground = T 'Text' }
     $ui.AnnNowSub.Foreground = T 'Caption'; $ui.AnnSetupTxt.Foreground = T 'Caption'
     # v4.3.2: green outline on the Alexa pill and the Flash Lights box too; glow follows the window corners
@@ -3445,19 +3464,20 @@ function Complete-TessieCommand {
     $next = $null
     if ($ok -and $script:CtlQueue.Count -gt 0) { $next = $script:CtlQueue.Dequeue() } else {
         $script:CtlQueue.Clear()
-        if ([bool]$script:AlexaOn -and $j.cmd -ne 'flash' -and -not $script:SchedSync) { try { $ar = Send-Announcement (Get-ActionSpeech $j $ok $(if ($ok) { '' } else { $why })) 'action'; Write-WidgetLog ('announce text: ' + $ar.text + ' -> ' + $ar.result) } catch { Write-WidgetLog ('announce failed: ' + $_.Exception.Message) } }
+        if ([bool]$script:AlexaOn -and -not $script:AllOff.running -and $j.cmd -ne 'flash' -and -not $script:SchedSync) { try { $ar = Send-Announcement (Get-ActionSpeech $j $ok $(if ($ok) { '' } else { $why })) 'action'; Write-WidgetLog ('announce text: ' + $ar.text + ' -> ' + $ar.result) } catch { Write-WidgetLog ('announce failed: ' + $_.Exception.Message) } }
     }
     $script:CtlLog = @(@($script:CtlLog) + [ordered]@{ at = (Get-LocalNow).ToString('s'); cmd = $j.cmd; query = $j.query; url = $j.url
         dryRun = [bool]$CTL_DRYRUN; ok = $ok; seconds = $secs; result = $script:CtlResultText }) | Select-Object -Last 12
     if ($script:SchedSync -and $script:SchedCmds -contains $j.cmd) { try { Complete-SchedStep $j $ok $(if ($ok) { '' } else { $why }) ($null -ne $next) } catch { Write-WidgetLog ('schedule: ' + $_.Exception.Message) } }   # v4.3.23
     if ($j.cmd -eq 'flash' -and $script:Flash.running -and $script:Flash.done -lt $script:Flash.total) { Render-Controls } else { Render-View; Write-WidgetStatus }
+    if ($script:AllOff.running) { try { Step-AllOff $j $ok ($null -ne $next); if ($null -eq $next) { Render-Controls } } catch { Write-WidgetLog ('all off: ' + $_.Exception.Message) } }   # v4.3.26
     if ($null -ne $next) { if (-not (Start-TessieCommand $next.cmd $next.query $next.busy $next.okText $next.onOk $next.ann)) { $script:CtlQueue.Clear() } }
 }
 
 # ---------------- v4.3.18: SKIP CONFIRM (one saved checkbox per confirmed action; default unchecked) ----------------
 # config.json skipConfirm = { unlock, leave, flash, vent, trunk, sentry, announce, stopCharging, limit, amps } (true = run right away, no pop-up).
 # Updates only replace TessDesk.ps1, so the settings stay until unchecked.
-$SkipCfKeys = @('unlock', 'leave', 'flash', 'vent', 'trunk', 'sentry', 'announce', 'stopCharging', 'limit', 'amps', 'schedule')
+$SkipCfKeys = @('unlock', 'leave', 'flash', 'vent', 'trunk', 'sentry', 'announce', 'stopCharging', 'limit', 'amps', 'schedule', 'alloff')
 $script:SkipCf = [ordered]@{}; foreach ($k in $SkipCfKeys) { $script:SkipCf[$k] = $false }
 $script:SkipCfLog = @()
 $script:SkipCfLoading = $false
@@ -3592,6 +3612,7 @@ function Render-Controls {
     if ($ui.CtlResult.Text -ne $script:CtlResultText) { $ui.CtlResult.Text = $script:CtlResultText }
     try { Render-Flash } catch {}
     try { Render-Leave } catch {}
+    try { Render-AllOff $en } catch { Write-WidgetLog ('all off render: ' + $_.Exception.Message) }   # v4.3.26
 }
 
 # ---------------- v4.3.2: FLASH LIGHTS (1-20 flashes, asks first, Stop ends early) ----------------
@@ -4293,6 +4314,113 @@ function Invoke-SentryToggle {
         if (-not (Test-SkipConfirm 'sentry') -and -not (Confirm-Ctl 'Turn Sentry Mode ON?' 'The car watches and records its surroundings (uses some battery).' 'Turn on' 'Cancel')) { Set-CtlResult 'idle' 'Sentry Mode stays off'; return }
         [void](Start-TessieCommand 'enable_sentry' @{} 'Turning Sentry Mode on…' 'Sentry Mode on' { Set-CtlOverride 'sentry' $true } 'Sentry Mode is now on.')
     }
+}
+
+# ---------------- v4.3.26: ALL OFF (TESLA CONTROLS) ----------------
+# One button runs the existing control commands in order, skipping anything the car's current state already shows off:
+# close windows, close the rear trunk (only if open: actuate toggles), climate off, seat heaters off, wheel heat off, defrost off,
+# Sentry off, Climate Keeper (Dog / Camp / Keep) off, lock. The frunk cannot be closed remotely: a warning only.
+# Progress "ALL OFF i/N" in the result line; the button turns into CANCEL (stops the remaining steps; no undo). Stops at the first failure.
+# Skip confirm: 'All off'. No Alexa announcement.
+$script:AllOff = [ordered]@{ running = $false; cancelled = $false; total = 0; done = 0; skipped = @(); frunk = $false; failed = $false; started = $null; log = @() }
+$script:AllOffCarMock = $null
+# Setup (gear next to ALL OFF): which steps run; all checked by default; saved in config.json allOffSteps
+$AllOffKeys = [ordered]@{ windows = 'Close windows'; trunk = 'Close trunk (if open)'; climate = 'Climate off'; seats = 'Seat heaters off'; wheel = 'Steering wheel heat off'; defrost = 'Defrost off'; sentry = 'Sentry off'; keeper = 'Dog / Camp off'; lock = 'Lock'; frunk = 'Frunk-open warning' }
+function Get-AllOffCfg {
+    $o = [ordered]@{}; foreach ($k in $AllOffKeys.Keys) { $o[$k] = $true }
+    try { $raw = Read-Config; if ($null -ne $raw -and $null -ne $raw.PSObject.Properties['allOffSteps'] -and $null -ne $raw.allOffSteps) { foreach ($k in $AllOffKeys.Keys) { $p = $raw.allOffSteps.PSObject.Properties[$k]; if ($null -ne $p) { $o[$k] = [bool]$p.Value } } } } catch {}
+    return $o
+}
+function Set-AllOffStep { param([string]$Key, [bool]$On) $o = Get-AllOffCfg; $o[$Key] = $On; try { Save-ConfigProp 'allOffSteps' $o; Write-WidgetLog ('all off setup: ' + $Key + ' = ' + $On) } catch { Write-WidgetLog ('all off setup save failed: ' + $_.Exception.Message) } }
+function Show-AllOffSetup {
+    $cfg = Get-AllOffCfg
+    $cm = New-Object System.Windows.Controls.ContextMenu; $cm.Background = Get-Brush '#FF161A1E'; $cm.Foreground = Get-Brush '#FFFFFFFF'; $cm.BorderBrush = Get-Brush '#FFE5484D'
+    $hd = New-Object System.Windows.Controls.MenuItem; $hd.Header = 'ALL OFF runs (checked):'; $hd.IsEnabled = $false; $hd.FontWeight = 'Bold'; [void]$cm.Items.Add($hd)
+    foreach ($k in $AllOffKeys.Keys) {
+        $mi = New-Object System.Windows.Controls.MenuItem; $mi.Header = $AllOffKeys[$k]; $mi.Tag = $k; $mi.IsCheckable = $true; $mi.StaysOpenOnClick = $true; $mi.IsChecked = [bool]$cfg[$k]; $mi.Foreground = Get-Brush '#FFFFFFFF'
+        $mi.Add_Click({ param($s9, $e9) try { Set-AllOffStep ([string]$s9.Tag) ([bool]$s9.IsChecked) } catch {} })
+        [void]$cm.Items.Add($mi)
+    }
+    $cm.PlacementTarget = $ui.AllOffSetBtn; $cm.Placement = 'Top'; $cm.IsOpen = $true
+    $script:AllOffMenu = $cm; return $cm
+}
+function Get-AllOffCar { if ($null -ne $script:AllOffCarMock) { return $script:AllOffCarMock }; return (Get-CtlCar) }
+function Get-AllOffPlan {
+    param($Car, $On = $null)
+    if ($null -eq $On) { $On = Get-AllOffCfg }
+    $steps = @(); $skip = @(); $excl = @(foreach ($k in $AllOffKeys.Keys) { if (-not [bool]$On[$k]) { $k } })
+    if ($null -eq $Car) { return [pscustomobject]@{ steps = @(); skipped = @(); excluded = $excl; frunk = $false; noData = $true } }
+    $v = { param([string]$k) Get-CtlValue $k $Car.$k }
+    $add = { param([string]$Cmd, [hashtable]$Q, [string]$What, [string]$Ok, [scriptblock]$OnOk) [pscustomobject]@{ cmd = $Cmd; query = $Q; what = $What; busy = $What; okText = $Ok; onOk = $OnOk; ann = '' } }
+    $w = & $v 'windowsOpen'
+    if (-not [bool]$On['windows']) { } elseif ($null -eq $w -or [bool]$w) { $steps += & $add 'close_windows' @{} 'Closing windows' 'Windows closed' { Set-CtlOverride 'windowsOpen' $false } } else { $skip += 'windows' }
+    $t = & $v 'trunkOpen'
+    if (-not [bool]$On['trunk']) { } elseif ($null -ne $t -and [bool]$t) { $steps += & $add 'activate_rear_trunk' @{} 'Closing the trunk' 'Trunk closing' { Set-CtlOverride 'trunkOpen' $false } } else { $skip += 'trunk' }
+    $c = & $v 'climateOn'
+    if (-not [bool]$On['climate']) { } elseif ($null -eq $c -or [bool]$c) { $steps += & $add 'stop_climate' @{} 'Turning climate off' 'Climate off' { Set-CtlOverride 'climateOn' $false } } else { $skip += 'climate' }
+    $anySeat = $false
+    foreach ($K in @($(if ([bool]$On['seats']) { $SeatApi.Keys } else { @() }))) {
+        $l = Get-CtlValue ('seat' + $K) $Car.('seat' + $K)
+        if ($null -ne $l -and [int]$l -gt 0) { $anySeat = $true; $steps += & $add 'set_seat_heat' @{ seat = $SeatApi[$K]; level = '0' } ($SeatName[$K] + ' heat off') ($SeatName[$K] + ' heat off') ([scriptblock]::Create('Set-CtlOverride ''seat' + $K + ''' 0')) }
+    }
+    if (-not $anySeat -and [bool]$On['seats']) { $skip += 'seats' }
+    $wh = Get-CtlValue 'wheel' $Car.wheelOn
+    if (-not [bool]$On['wheel']) { } elseif ($null -ne $wh -and [bool]$wh) { $steps += & $add 'stop_steering_wheel_heater' @{} 'Turning wheel heat off' 'Steering wheel heat off' { Set-CtlOverride 'wheel' $false } } else { $skip += 'wheel' }
+    $d = Get-CtlValue 'defrost' $Car.defrostOn
+    if (-not [bool]$On['defrost']) { } elseif ($null -ne $d -and [bool]$d) { $steps += & $add 'stop_max_defrost' @{} 'Turning defrost off' 'Defrost off' { Set-CtlOverride 'defrost' $false } } else { $skip += 'defrost' }
+    $s = & $v 'sentry'
+    if (-not [bool]$On['sentry']) { } elseif ($null -ne $s -and [bool]$s) { $steps += & $add 'disable_sentry' @{} 'Turning Sentry Mode off' 'Sentry Mode off' { Set-CtlOverride 'sentry' $false } } else { $skip += 'sentry' }
+    $k = [string](Get-CtlValue 'keeper' $Car.climateKeeper)
+    if (-not [bool]$On['keeper']) { } elseif ($k -and $k -ne 'off') { $steps += & $add 'set_climate_keeper_mode' @{ mode = '0' } ('Turning ' + $(switch ($k) { 'dog' { 'Dog Mode' } 'camp' { 'Camp Mode' } default { 'Climate Keeper' } }) + ' off') 'Climate Keeper off' { Set-CtlOverride 'keeper' 'off' } } else { $skip += 'keeper' }
+    $lk = & $v 'locked'
+    if (-not [bool]$On['lock']) { } elseif ($null -eq $lk -or -not [bool]$lk) { $steps += & $add 'lock' @{} 'Locking' 'Locked' { Set-CtlOverride 'locked' $true } } else { $skip += 'lock' }
+    $n = $steps.Count; for ($i = 0; $i -lt $n; $i++) { $steps[$i].busy = ('ALL OFF {0}/{1}: {2}…' -f ($i + 1), $n, $steps[$i].what) }
+    return [pscustomobject]@{ steps = $steps; skipped = $skip; excluded = $excl; frunk = ([bool]$On['frunk'] -and $null -ne $Car.frunkOpen -and [bool]$Car.frunkOpen); noData = $false }
+}
+function Get-AllOffFrunkNote { 'The frunk is open: it can''t be closed remotely, close it by hand.' }
+function Invoke-AllOff {
+    if ($script:AllOff.running) { Stop-AllOff; return }
+    $car = Get-AllOffCar
+    $p = Get-AllOffPlan $car
+    if ($p.noData) { Set-CtlResult 'err' 'ALL OFF: no car data yet'; Render-Controls; return }
+    $fr = $(if ($p.frunk) { ' ' + (Get-AllOffFrunkNote) } else { '' })
+    if ($p.steps.Count -eq 0) { Set-CtlResult $(if ($p.frunk) { 'err' } else { 'idle' }) ('ALL OFF: everything is already off' + $(if (@($p.excluded).Count) { ' (or unchecked in setup)' } else { '' }) + '.' + $fr); Render-Controls; return }
+    $list = (@($p.steps | ForEach-Object { $_.what }) -join ', ')
+    if (-not (Test-SkipConfirm 'alloff') -and -not (Confirm-Ctl 'Turn everything off?' ($list + ' (' + $p.steps.Count + ' step' + $(if ($p.steps.Count -ne 1) { 's' } else { '' }) + ').' + $fr) 'All off' 'Cancel')) { Set-CtlResult 'idle' 'ALL OFF not started'; Render-Controls; return }
+    $script:AllOff = [ordered]@{ running = $true; cancelled = $false; total = $p.steps.Count; done = 0; skipped = $p.skipped; frunk = $p.frunk; failed = $false; started = Get-Date; log = @() }
+    Write-WidgetLog ('all off: ' + $p.steps.Count + ' steps (' + (@($p.steps | ForEach-Object { $_.cmd }) -join ', ') + '); already off: ' + ($p.skipped -join ', ') + $(if ($p.frunk) { '; frunk open' } else { '' }))
+    if (-not (Start-TessieSequence $p.steps)) { $script:AllOff.running = $false; Render-Controls; return }
+    Render-Controls
+}
+function Stop-AllOff {
+    if (-not $script:AllOff.running) { return }
+    $script:AllOff.cancelled = $true; $script:CtlQueue.Clear()
+    Write-WidgetLog ('all off: cancel pressed after ' + $script:AllOff.done + ' of ' + $script:AllOff.total)
+    Render-Controls
+}
+function Step-AllOff {
+    param($Job, [bool]$Ok, [bool]$HasNext)
+    if (-not $script:AllOff.running) { return }
+    $q = $Job.query; $script:AllOff.log += ($Job.cmd + $(if ($null -ne $q -and $q.Count) { '?' + ((@($q.Keys | Sort-Object) | ForEach-Object { $_ + '=' + $q[$_] }) -join '&') } else { '' }) + $(if ($Ok) { '' } else { ' [failed]' }))
+    if ($Ok) { $script:AllOff.done++ }
+    if ($HasNext) { return }
+    $a = $script:AllOff; $a.running = $false
+    $fr = $(if ($a.frunk) { ' ' + (Get-AllOffFrunkNote) } else { '' }); $dry = $(if ($CTL_DRYRUN) { ' (dry run, not sent)' } else { '' })
+    if (-not $Ok) { $a.failed = $true; Set-CtlResult 'err' ('✕ ALL OFF stopped at step ' + ($a.done + 1) + '/' + $a.total + ': ' + $script:CtlResultText.TrimStart('✕', ' ') + $fr) }
+    elseif ($a.cancelled -and $a.done -lt $a.total) { Set-CtlResult 'idle' ('ALL OFF cancelled: ' + $a.done + ' of ' + $a.total + ' done, the rest not sent' + $dry + '.' + $fr) }
+    else { Set-CtlResult $(if ($a.frunk) { 'err' } else { 'ok' }) ('✓ ALL OFF done: ' + $a.total + ' sent' + $(if (@($a.skipped).Count) { ', already off: ' + (@($a.skipped) -join ', ') } else { '' }) + ' · ' + (Format-Clock (Get-LocalNow)) + $dry + '.' + $fr) }
+    Write-WidgetLog ('all off: ' + $script:CtlResultText)
+}
+function Render-AllOff {
+    param([bool]$En)
+    $a = $script:AllOff
+    if ($a.running) {
+        $ui.AllOffTxt.Text = 'CANCEL'; $ui.AllOffSub.Text = ('ALL OFF ' + [math]::Min($a.total, $a.done + 1) + '/' + $a.total)
+        $ui.AllOffBtn.IsEnabled = (-not $a.cancelled)
+    } else { $ui.AllOffTxt.Text = 'ALL OFF'; $n = @((Get-AllOffCfg).GetEnumerator() | Where-Object { $_.Key -ne 'frunk' -and -not $_.Value }).Count; $ui.AllOffSub.Text = $(if ($n) { (9 - $n).ToString() + ' OF 9 STEPS' } else { 'EVERYTHING' }); $ui.AllOffBtn.IsEnabled = $En }
+    $ui.AllOffSetBtn.IsEnabled = (-not $a.running); $ui.AllOffSetBtn.BorderBrush = Get-Brush '#FFE5484D'; $ui.AllOffSetBtn.Background = Get-Brush '#FF2A1012'; $ui.AllOffSetIcon.Foreground = Get-Brush '#FFFF6B6E'
+    $ui.AllOffBtn.Background = Get-Brush '#FF2A1012'; $ui.AllOffBtn.BorderBrush = Get-Brush '#FFE5484D'
+    $ui.AllOffTxt.Foreground = Get-Brush '#FFFF6B6E'; $ui.AllOffIcon.Foreground = Get-Brush '#FFFF6B6E'; $ui.AllOffSub.Foreground = Get-Brush '#FFE89A9C'
 }
 
 # ---------------- v4.3.3: DRIVES card ----------------
@@ -6335,6 +6463,8 @@ $script:UpdDaily.Start()
 try { Render-Update } catch {}
 $ui.TrunkBtn.Add_Click({ try { Invoke-Trunk } catch { Set-CtlResult 'err' ('✕ ' + $_.Exception.Message) } })
 $ui.SentryBtn.Add_Click({ try { Invoke-SentryToggle } catch { Set-CtlResult 'err' ('✕ ' + $_.Exception.Message) } })
+$ui.AllOffBtn.Add_Click({ try { Invoke-AllOff } catch { $script:AllOff.running = $false; Set-CtlResult 'err' ('✕ ' + $_.Exception.Message) } })   # v4.3.26
+$ui.AllOffSetBtn.Add_Click({ try { [void](Show-AllOffSetup) } catch { Set-CtlResult 'err' ('✕ ' + $_.Exception.Message) } })
 $ui.HistMapBtn.Add_Click({ try { Open-Url433 (Get-HistoryMapUrl) } catch {} })
 $ui.CloseWinBtn.Add_Click({ try { Invoke-CloseWindows } catch { Set-CtlResult 'err' ('✕ ' + $_.Exception.Message) } })
 $ui.ClimBtn.Add_Click({ try { Invoke-ClimateToggle } catch { Set-CtlResult 'err' ('✕ ' + $_.Exception.Message) } })
@@ -9265,7 +9395,7 @@ function Start-SelfTest {
         $r.fit = & $script:Fit4323
         & $script:ElPng4323 $ui.ChgCard 'chg-schedule-startat'; Save-RootPng (Join-Path $script:SelfDir 'tessdesk-v4323-window.png'); $script:SelfRec.shots += 'tessdesk-v4323-window.png'
         & $script:ElPng4323 $ui.SkipCfRow 'skip-confirm-row'
-        $r.pass = ($r.startChk -and -not $r.finishChk -and $r.start -eq '11:00 PM' -and $r.finish -eq '6:00 AM' -and $r.target -eq '80%' -and $r.est -like 'Starts 11:00 PM nightly*' -and $r.sync -eq 'Synced' -and $r.inChgCard -and $r.skipKeys -like '*,schedule' -and $r.skipLabel -eq 'Sched' -and $r.fit.allVisible)
+        $r.pass = ($r.startChk -and -not $r.finishChk -and $r.start -eq '11:00 PM' -and $r.finish -eq '6:00 AM' -and $r.target -eq '80%' -and $r.est -like 'Starts 11:00 PM nightly*' -and $r.sync -eq 'Synced' -and $r.inChgCard -and $r.skipKeys -like '*,schedule*' -and $r.skipLabel -eq 'Sched' -and $r.fit.allVisible)
         $script:SelfRec.v4323.ui = $r }
     & $add 'v4.3.23 FINISH BY on + target 90% (debounced, confirm Yes) -> START AT off, departure with off-peak, limit 90 (dry run)' @($true) {
         $r = [ordered]@{ syncsBefore = $script:Sched.syncs }; $script:From4323 = @($script:CtlLog).Count; $script:P4323 = @($script:ConfirmPrompts).Count
@@ -9464,6 +9594,85 @@ function Start-SelfTest {
         $r.netCommandsSent = $script:NetCommandsSent; $r.announcementsSent = $script:AnnSent
         $r.pass = ($r.netCommandsSent -eq 0 -and $r.announcementsSent -eq 0)
         $script:SelfRec.v4325.real = $r }
+    # ---- v4.3.26: ALL OFF (DRY RUN: nothing is sent; the car state is a copy of the real cached state with things turned on) ----
+    $script:SelfRec.v4326 = [ordered]@{ appVersion = $AppVersion; dryRun = [bool]$CTL_DRYRUN }
+    $script:Real4326 = $null; $f = Join-Path $scriptDir 'sched-real-test.json'
+    if (Test-Path -LiteralPath $f) { $script:Real4326 = Get-CarInfo ([System.IO.File]::ReadAllText($f) | ConvertFrom-Json) (Get-EpochNow) }
+    $script:On4326 = { param([bool]$Frunk) $c = $script:Real4326.PSObject.Copy()
+        $c.windowsOpen = $true; $c.trunkOpen = $true; $c.climateOn = $true; $c.seatFL = 3; $c.seatFR = 1; $c.seatRL = 0; $c.seatRC = 0; $c.seatRR = 2; $c.wheelOn = $true; $c.defrostOn = $true
+        $c.sentry = $true; $c.climateKeeper = 'dog'; $c.locked = $false; $c.frunkOpen = $Frunk; $c }
+    $script:Off4326 = { $c = $script:Real4326.PSObject.Copy(); $c.sentry = $false; $c.frunkOpen = $false; $c }
+    $script:AllOn4326 = [ordered]@{}; foreach ($k in $AllOffKeys.Keys) { $script:AllOn4326[$k] = $true }; Save-ConfigProp 'allOffSteps' $script:AllOn4326   # setup: all checked (default)
+    $script:Exp4326 = @('close_windows', 'activate_rear_trunk', 'stop_climate', 'set_seat_heat?level=0&seat=front_left', 'set_seat_heat?level=0&seat=front_right', 'set_seat_heat?level=0&seat=rear_right', 'stop_steering_wheel_heater', 'stop_max_defrost', 'disable_sentry', 'set_climate_keeper_mode?mode=0', 'lock')
+    $script:Q4326 = { param($from) @(@($script:CtlLog) | Select-Object -Skip $from | ForEach-Object { $q = $_.query; $s = $_.cmd; if ($q.Count) { $s += '?' + ((@($q.Keys | Sort-Object) | ForEach-Object { $_ + '=' + $q[$_] }) -join '&') }; $s + $(if ($_.dryRun) { '' } else { ' [REAL]' }) }) }
+    $script:Shot4326 = { param($el, [string]$name) & $script:ElPng4323 $el ('tmp' + $name); Move-Item -LiteralPath (Join-Path $script:SelfDir ('tessdesk-v4323-tmp' + $name + '.png')) -Destination (Join-Path $script:SelfDir ('tessdesk-v4326-' + $name + '.png')) -Force
+        $script:SelfRec.shots = @($script:SelfRec.shots | Where-Object { $_ -ne ('tessdesk-v4323-tmp' + $name + '.png') }) + ('tessdesk-v4326-' + $name + '.png') }
+    & $add 'v4.3.26 ALL OFF pure: plan skips what is already off (real state: only Sentry), trunk only when open, frunk warning, no Alexa' @() {
+        $r = [ordered]@{}; $cmd = { param($p) @($p.steps | ForEach-Object { $s = $_.cmd; if ($_.query.Count) { $s += '?' + ((@($_.query.Keys | Sort-Object) | ForEach-Object { $_ + '=' + $_.query[$_] }) -join '&') }; $s }) }
+        $pOn = Get-AllOffPlan (& $script:On4326 $false)
+        $r.allOn = @($pOn.steps | ForEach-Object { $q = $_.query; $s = $_.cmd; if ($q.Count) { $s += '?' + ((@($q.Keys | Sort-Object) | ForEach-Object { $_ + '=' + $q[$_] }) -join '&') }; $s })
+        $r.busy = @($pOn.steps | ForEach-Object { $_.busy })[0, 10] -join ' | '
+        $pR = Get-AllOffPlan $script:Real4326; $r.real = @($pR.steps | ForEach-Object { $_.cmd }); $r.realSkipped = $pR.skipped -join ','
+        $pO = Get-AllOffPlan (& $script:Off4326); $r.allOff = @($pO.steps).Count; $r.allOffSkipped = $pO.skipped -join ','
+        $r.noData = (Get-AllOffPlan $null).noData; $r.frunk = (Get-AllOffPlan (& $script:On4326 $true)).frunk; $r.frunkOffNo = $pO.frunk
+        $r.noAlexa = ((Get-Command Complete-TessieCommand).Definition -match 'AlexaOn -and -not \$script:AllOff\.running')
+        $r.skipKey = ($SkipCfKeys -contains 'alloff' -and $null -ne $ui['SkipCf_alloff'])
+        $on = [ordered]@{}; foreach ($k in $AllOffKeys.Keys) { $on[$k] = $true }; $on.sentry = $false; $on.lock = $false; $on.frunk = $false
+        $pS = Get-AllOffPlan (& $script:On4326 $true) $on; $r.setupPlan = @($pS.steps | ForEach-Object { $_.cmd }) -join ','; $r.setupExcl = @($pS.excluded) -join ','; $r.setupFrunk = $pS.frunk
+        $r.defaults = @((Get-AllOffCfg).Values | Where-Object { -not $_ }).Count
+        $r.pass = ((($r.allOn) -join ';') -eq ($script:Exp4326 -join ';') -and $r.busy -eq 'ALL OFF 1/11: Closing windows… | ALL OFF 11/11: Locking…' -and ($r.real -join ',') -eq 'disable_sentry' -and
+            $r.realSkipped -eq 'windows,trunk,climate,seats,wheel,defrost,keeper,lock' -and $r.allOff -eq 0 -and $r.noData -and $r.frunk -and -not $r.frunkOffNo -and $r.noAlexa -and $r.skipKey -and
+            $r.setupPlan -eq 'close_windows,activate_rear_trunk,stop_climate,set_seat_heat,set_seat_heat,set_seat_heat,stop_steering_wheel_heater,stop_max_defrost,set_climate_keeper_mode' -and $r.setupExcl -eq 'sentry,lock,frunk' -and -not $r.setupFrunk -and $r.defaults -eq 0)
+        $script:SelfRec.v4326.pure = $r }
+    & $add 'v4.3.26 ALL OFF confirm (No): nothing sent, prompt lists the steps + frunk warning' @($false) {
+        $r = [ordered]@{}; $script:From4326 = @($script:CtlLog).Count; $p0 = @($script:ConfirmPrompts).Count
+        Set-SkipConfirm 'alloff' $false $false; $script:AllOffCarMock = & $script:On4326 $true; Invoke-AllOff
+        $r.prompt = (@($script:ConfirmPrompts) | Select-Object -Skip $p0) -join ' | '; $r.cmds = @(& $script:Q4326 $script:From4326); $r.result = $script:CtlResultText; $r.running = $script:AllOff.running
+        # everything already off -> nothing to do
+        $script:AllOffCarMock = & $script:Off4326; Invoke-AllOff; $r.nothing = $script:CtlResultText
+        $r.pass = ($r.prompt -like 'Turn everything off?*Closing windows, Closing the trunk*Locking (11 steps).*frunk is open*' -and $r.cmds.Count -eq 0 -and $r.result -eq 'ALL OFF not started' -and -not $r.running -and $r.nothing -eq 'ALL OFF: everything is already off.')
+        $script:SelfRec.v4326.confirm = $r }
+    & $add 'v4.3.26 ALL OFF run (Skip confirm All off): 11 steps in order, progress + CANCEL on the button' @() {
+        $script:From4326 = @($script:CtlLog).Count; $script:Ann4326 = $script:AnnSent
+        $script:CtlOverride.Clear(); Set-SkipConfirm 'alloff' $true $false; $script:AllOffCarMock = & $script:On4326 $false; Invoke-AllOff
+        $ui.CtlCard.BringIntoView(); $window.UpdateLayout()
+        $script:SelfRec.v4326.during = [ordered]@{ btn = $ui.AllOffTxt.Text; sub = $ui.AllOffSub.Text; enabled = $ui.AllOffBtn.IsEnabled; result = $script:CtlResultText; running = $script:AllOff.running }
+        & $script:Shot4326 $ui.CtlCard 'alloff-running' }
+    & $add 'v4.3.26 ALL OFF run result (dry run, no announcement)' @() {
+        $r = [ordered]@{ during = $script:SelfRec.v4326.during; cmds = @($script:AllOff.log); result = $script:CtlResultText; kind = $script:CtlResultKind; btn = $ui.AllOffTxt.Text; ann = $script:AnnSent - $script:Ann4326 }
+        & $script:Shot4326 $ui.CtlCard 'alloff-done'
+        $r.pass = ($r.during.btn -eq 'CANCEL' -and $r.during.sub -eq 'ALL OFF 1/11' -and $r.during.enabled -and $r.during.result -like 'ALL OFF 1/11: Closing windows…*' -and
+            ($r.cmds -join ';') -eq ($script:Exp4326 -join ';') -and $r.result -like '✓ ALL OFF done: 11 sent*(dry run, not sent).' -and $r.kind -eq 'ok' -and $r.btn -eq 'ALL OFF' -and $r.ann -eq 0)
+        $script:SelfRec.v4326.run = $r }
+    & $add 'v4.3.26 ALL OFF Cancel during step 1: the rest is not sent' @() {
+        $script:CtlOverride.Clear(); $script:AllOffCarMock = & $script:On4326 $true; Invoke-AllOff; Invoke-AllOff   # second press = CANCEL
+        $script:SelfRec.v4326.cancelBtn = [ordered]@{ enabled = $ui.AllOffBtn.IsEnabled; cancelled = $script:AllOff.cancelled } }
+    & $add 'v4.3.26 ALL OFF cancel result + real state + fit' @() {
+        $r = [ordered]@{ cancelBtn = $script:SelfRec.v4326.cancelBtn; cmds = @($script:AllOff.log); result = $script:CtlResultText }
+        Set-SkipConfirm 'alloff' $false $false; $script:AllOffCarMock = $null; $script:CtlOverride.Clear(); Set-CtlResult 'idle' 'Ready'; Render-View; $window.UpdateLayout()
+        $r.fit = & $script:Fit4323; $sc = $ui.BodyScroll; $t = $ui.AllOffBtn.TranslatePoint([System.Windows.Point]::new(0, 0), $sc).Y
+        $r.btnVisible = ($ui.AllOffBtn.IsVisible -and $t -ge -0.5 -and ($t + $ui.AllOffBtn.ActualHeight) -le $sc.ViewportHeight + 0.5); $r.btnW = [math]::Round($ui.AllOffBtn.ActualWidth, 1); $r.annW = [math]::Round($ui.AnnNowBtn.ActualWidth, 1)
+        $ui.AnnNowTxt.Measure([System.Windows.Size]::new([double]::PositiveInfinity, [double]::PositiveInfinity)); $r.annTextW = [math]::Round($ui.AnnNowTxt.DesiredSize.Width, 1)
+        $r.skipRows = $ui.SkipCfGrid.Rows; $r.skipLabel = $ui.SkipCf_alloff.Content.Text
+        $r.realPlan = @((Get-AllOffPlan (Get-CtlCar)).steps | ForEach-Object { $_.cmd }) -join ','
+        & $script:Shot4326 $ui.CtlCard 'alloff-button'
+        $r.pass = (($r.cmds -join ';') -eq 'close_windows' -and $r.cancelBtn.cancelled -and -not $r.cancelBtn.enabled -and $r.result -like 'ALL OFF cancelled: 1 of 11 done, the rest not sent (dry run, not sent).*frunk is open*' -and
+            $r.fit.allVisible -and $r.btnVisible -and $r.annTextW + 30 -le $r.annW -and $r.skipRows -eq 3 -and $r.skipLabel -eq 'All off')
+        $script:SelfRec.v4326.cancel = $r }
+    & $add 'v4.3.26 ALL OFF setup (gear): checklist popup, uncheck Lock -> saved, button shows 8 OF 9 STEPS, plan skips lock; restored' @() {
+        $r = [ordered]@{}; $ui.CtlCard.BringIntoView(); $window.UpdateLayout()
+        $cm = Show-AllOffSetup; $cm.UpdateLayout(); $r.items = @($cm.Items | Where-Object { $_.IsCheckable } | ForEach-Object { [string]$_.Header + '=' + $_.IsChecked }) -join '; '
+        $mi = @($cm.Items | Where-Object { [string]$_.Tag -eq 'lock' })[0]; $mi.IsChecked = $false; $mi.RaiseEvent((New-Object System.Windows.RoutedEventArgs([System.Windows.Controls.MenuItem]::ClickEvent)))
+        $cm.UpdateLayout(); $w9 = [int][math]::Ceiling($cm.ActualWidth); $h9 = [int][math]::Ceiling($cm.ActualHeight); $r.menuSize = "$w9 x $h9"
+        if ($w9 -gt 0 -and $h9 -gt 0) { $rtb = New-Object System.Windows.Media.Imaging.RenderTargetBitmap(($w9 * 2), ($h9 * 2), 192, 192, [System.Windows.Media.PixelFormats]::Pbgra32); $rtb.Render($cm)
+            $enc = New-Object System.Windows.Media.Imaging.PngBitmapEncoder; $enc.Frames.Add([System.Windows.Media.Imaging.BitmapFrame]::Create($rtb)); $fs = [System.IO.File]::Create((Join-Path $script:SelfDir 'tessdesk-v4326-alloff-setup.png')); try { $enc.Save($fs) } finally { $fs.Close() }
+            $script:SelfRec.shots = @($script:SelfRec.shots) + 'tessdesk-v4326-alloff-setup.png' }
+        $raw = Read-Config; $r.saved = [bool]$raw.allOffSteps.lock; Render-Controls; $r.sub = $ui.AllOffSub.Text
+        $r.plan = @((Get-AllOffPlan (& $script:On4326 $false)).steps | ForEach-Object { $_.cmd }) -join ','
+        $cm.IsOpen = $false; & $script:Shot4326 $ui.CtlCard 'alloff-button-setup'
+        Save-ConfigProp 'allOffSteps' $script:AllOn4326; Render-Controls; $r.subAfter = $ui.AllOffSub.Text
+        $r.pass = ($r.items -like 'Close windows=True;*Lock=True; Frunk-open warning=True' -and -not $r.saved -and $r.sub -eq '8 OF 9 STEPS' -and -not $r.plan.Contains('lock') -and $r.plan.Contains('disable_sentry') -and $r.subAfter -eq 'EVERYTHING')
+        $script:SelfRec.v4326.setup = $r }
     & $add 'v4.3.21 smoke: versions, footer, hook line, width, all cards render, no real commands' @() {
         $me = [System.IO.File]::ReadAllText((Join-Path $scriptDir 'TessDesk.ps1')); $L = $me -split "`r?`n"
         $hook = @($L | Where-Object { $_ -like "try { . 'C:\Users\vanwi\cb_compact_addon.ps1'; Enable-CbCompactMode -Window `$window -Name 'TESSDESK'*" }).Count
@@ -9473,7 +9682,7 @@ function Start-SelfTest {
         $real = @($script:CtlLog | Where-Object { $_.dry -eq $false -or $_.real -eq $true }).Count
         $r = $script:SelfRec.v4321
         $r.smoke = [ordered]@{ appVersion = $AppVersion; footer = $ui.FooterVersion.Text; brand = $ui.FooterText.Text; bold = [string]$ui.FooterText.FontWeight; hookLines = $hook; hookBeforeShowDialog = $before; width = $window.Width; renderError = $err; dryRun = $CTL_DRYRUN; realCmdLog = $real
-            pass = ($AppVersion -eq '4.3.25' -and $ui.FooterVersion.Text -like ('*4.3.25*' + $AppDate) -and [string]$ui.FooterText.FontWeight -eq 'Bold' -and $hook -eq 1 -and $before -and $null -eq $err -and $CTL_DRYRUN -and [math]::Abs($window.Width - $winW) -lt 1) }
+            pass = ($AppVersion -eq '4.3.26' -and $ui.FooterVersion.Text -like ('*4.3.26*' + $AppDate) -and [string]$ui.FooterText.FontWeight -eq 'Bold' -and $hook -eq 1 -and $before -and $null -eq $err -and $CTL_DRYRUN -and [math]::Abs($window.Width - $winW) -lt 1) }
         $fails = @(); foreach ($k in 'pure', 'collapsed', 'place', 'expanded', 'calTags', 'showAll', 'fresh', 'smoke') { if ($null -eq $r[$k] -or -not $r[$k].pass) { $fails += $k } }
         $r.summary = [ordered]@{ fails = $fails; allPass = ($fails.Count -eq 0) } }
     & $add 'v4.3.22 summary' @() {
@@ -9499,7 +9708,13 @@ function Start-SelfTest {
         $r24 = $script:SelfRec.v4324.summary; if ($null -eq $r24 -or -not $r24.allPass) { $fails += 'v4324' }
         $r.v4324Steps = $r24; $r.netCommandsSent = $script:NetCommandsSent; $r.announcementsSent = $script:AnnSent
         $r.summary = [ordered]@{ fails = $fails; allPass = ($fails.Count -eq 0 -and $script:NetCommandsSent -eq 0 -and $script:AnnSent -eq 0) } }
-    if ($Quick4325) { return (Start-SelfTimer) }
+    & $add 'v4.3.26 summary' @() {
+        $r = $script:SelfRec.v4326; $fails = @()
+        foreach ($k in 'pure', 'confirm', 'run', 'cancel', 'setup') { if ($null -eq $r[$k] -or -not $r[$k].pass) { $fails += $k } }
+        $r25 = $script:SelfRec.v4325.summary; if ($null -eq $r25 -or -not $r25.allPass) { $fails += 'v4325' }
+        $r.netCommandsSent = $script:NetCommandsSent; $r.announcementsSent = $script:AnnSent
+        $r.summary = [ordered]@{ fails = $fails; allPass = ($fails.Count -eq 0 -and $script:NetCommandsSent -eq 0 -and $script:AnnSent -eq 0) } }
+    if ($Quick4326) { return (Start-SelfTimer) }
     # v4.3.17: record the dropdown's start state, then open it (not saved) so the older steps can snapshot the history rows
     $script:SelfRec.v4317pre = [ordered]@{ open = [bool]$script:ChgHist.open; body = [string]$ui.ChgHistBody.Visibility; arrow = $ui.ChgHistArrow.Text; savedSetting = $(try { [string](Read-Config).ui.historyOpen } catch { '' }) }; Set-ChgHistOpen $true $false
     # ---- v4.3.3 steps (DRY RUN: nothing is sent to the car, nothing announced) ----
