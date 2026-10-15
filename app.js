@@ -2,7 +2,7 @@
    Everything (name, Tessie token, vehicle, rates) is stored in localStorage on this device only. */
 (function () {
   'use strict';
-/* TessDesk phone v4.3.26 (DESIGN BY VAN). v4.3.26: ALL OFF in TESLA CONTROLS. v4.3.25: CHARGING SCHEDULE reaches the car on firmware 2024.26+ (charge schedules, checked after each send). v4.3.24: FINISH BY defaults to 6:00 AM. v4.3.23: CHARGING SCHEDULE in the CHARGING card (START AT + FINISH BY, set on the car through Tessie). v4.3.22: CHARGE column in HEALTH HISTORY (highest charge % per day + Home / AC / Supercharger). v4.3.21: HEALTH HISTORY under START / STOP in the CHARGING card + CALIBRATION INFO; history runs fully in the app. v4.3.20: HEALTH HISTORY dropdown. Pure logic + UI for: PLUG-IN REMINDER, TRIPS, MORNING READY CHECK,
+/* TessDesk phone v4.3.28 (DESIGN BY VAN). v4.3.28: Alexa limit notice + monthly counter, lean, home-only, no test announcements; ALL OFF never starts charging; flash pause = typed value. v4.3.27: Voice Monkey button (placeholder). v4.3.26: ALL OFF in TESLA CONTROLS. v4.3.25: CHARGING SCHEDULE reaches the car on firmware 2024.26+ (charge schedules, checked after each send). v4.3.24: FINISH BY defaults to 6:00 AM. v4.3.23: CHARGING SCHEDULE in the CHARGING card (START AT + FINISH BY, set on the car through Tessie). v4.3.22: CHARGE column in HEALTH HISTORY (highest charge % per day + Home / AC / Supercharger). v4.3.21: HEALTH HISTORY under START / STOP in the CHARGING card + CALIBRATION INFO; history runs fully in the app. v4.3.20: HEALTH HISTORY dropdown. Pure logic + UI for: PLUG-IN REMINDER, TRIPS, MORNING READY CHECK,
    PSO BILL MATCH (on/off switch), BATTERY HEALTH TREND + TIPS. No Alexa, no toasts (in-app banners only),
    cached data only (never wakes the car). The same functions are unit-tested headlessly. */
 (function (g) {
@@ -426,8 +426,8 @@
   var CFG = window.TD_CONFIG || {};
   var VARIANT = CFG.variant || 'main';
   var P = CFG.storagePrefix || 'td:';
-  var VERSION = 'v4.3.26';
-  var VERSION_DATE = 'Oct 10, 2026';
+  var VERSION = 'v4.3.28';
+  var VERSION_DATE = 'Oct 15, 2026';
   var TZ = 'America/Chicago';
   var DEFAULT_API = 'https://api.tessie.com';
   var REFRESH_MS = 60000, CHARGES_EVERY_S = 15 * 60, HEALTH_EVERY_S = 6 * 3600, HTTP_TIMEOUT_MS = 15000, CMD_TIMEOUT_MS = 90000;
@@ -1031,7 +1031,7 @@
       '<button class="cbtn big' + lockCls + '" id="cLock"' + dis + '>' + (locked === false ? ICON_UNLOCK : ICON_LOCK) + '<span><b>' + lockTxt + '</b><small>' + lockSub + '</small></span></button>' +
       '<div class="cbtn flash' + (flash.running ? ' running' : '') + '" id="cFlashBox"><b>FLASH LIGHTS</b><div class="fl-row">' +
       '<input id="cFlashN" type="number" inputmode="numeric" min="1" max="20" step="1" value="' + flash.n + '" aria-label="How many flashes (1-20)"' + (flash.running || dis ? ' disabled' : '') + '>' +
-      '<input id="cFlashP" class="fl-p" type="number" inputmode="decimal" min="1" max="30" step="0.5" value="' + flash.pause.toFixed(1) + '" aria-label="Pause between flashes, seconds (1-30)" title="Pause between flashes, seconds (1-30, 0.5 s steps). Under 3 s each flash is sent without waiting for the car."' + (flash.running || dis ? ' disabled' : '') + '>' +
+      '<input id="cFlashP" class="fl-p" type="number" inputmode="decimal" min="1" max="30" step="0.5" value="' + (flash.typed != null && !flash.running ? esc(String(flash.typed)) : flash.pause.toFixed(1)) + '" aria-label="Pause between flashes, seconds (1-30)" title="Pause between flashes, seconds (1-30, 0.5 s steps). Under 3 s each flash is sent without waiting for the car."' + (flash.running || dis ? ' disabled' : '') + '>' +
       '<button class="fl-go" id="cFlash"' + (flash.running ? '' : dis) + '>' + (flash.running ? 'STOP' : 'FLASH') + '</button></div>' +
       '<small>' + (flash.running ? 'Flashing ' + Math.max(1, flash.done) + ' of ' + flash.total + (flashGap() !== null ? ' \u00b7 ~' + flashGap().toFixed(1) + 's apart' : '') : 'flashes \u00b7 pause s') + '</small></div>' +
       '<button class="cbtn big' + (clim ? ' on' : '') + '" id="cClim"' + dis + '>' + ICON_SNOW + '<span><b>' + (clim ? (heatOn(car) ? 'CLIMATE ON' : 'A/C ON') : 'A/C OFF') + '</b><small>' + ins + (clim ? 'tap off' : 'tap on') + '</small></span></button></div>' +
@@ -1045,7 +1045,7 @@
       '<button class="cbtn sq" id="cTup" aria-label="Warmer"' + dis + '>+</button></div></div>' +
       trunkSentryRow(car, dis) +
       (window.TDLeave ? TDLeave.html('main') : '') +   // v4.3.16 LEAVING SOON (leave.js)
-      '<div class="ann-row"><button class="cbtn ann" id="cAnnounce"><b>🔊 ANNOUNCE<span class="ann-long"> ON ALEXA</span></b><small>' + (annReady() ? 'full status rundown · ' + esc(targetsLabel(annTargets('rundown'))) : 'set up Alexa (Connected apps)') + '</small></button>' +
+      '<div class="ann-row"><button class="cbtn ann" id="cAnnounce"><b>🔊 ANNOUNCE<span class="ann-long"> ON ALEXA</span></b><small>' + (annReady() ? (vmUse().blocked ? '<span class="vm-lim">' + esc(vmUseText()) + '</span>' : 'full status · ' + esc(targetsLabel(annTargets('rundown'))) + ' · ' + vmUse().count + '/' + VM_LIMIT) : 'set up Alexa (Connected apps)') + '</small></button>' +
       allOffBtn(dis) +
       '<button class="cbtn gear" id="cAnnSetup" aria-label="Announce on Alexa setup" title="Setup: what the rundown includes">' + ICON_GEAR + '<small>SETUP</small></button></div>' +
       '<div class="ctl-msg ' + ctlMsg.kind + '">' + (ctlMsg.kind === 'busy' ? '<span class="spin"></span>' : '') + '<span>' + esc(!cmdOk ? 'Commands are off: you did not allow TessDesk to send vehicle commands (Settings \u2192 Permissions).' : (ctlMsg.text || (dry ? 'Dry run: buttons are simulated, nothing is sent' : 'Ready'))) + '</span></div>' + skipRow() + '</div>';
@@ -1107,6 +1107,7 @@
     if (allOff.running) { allOff.cancelled = true; ctlMsg = { kind: 'busy', text: 'ALL OFF: cancelling after this step\u2026' }; render(); return; }
     if (ctlBusy || !cmdAllowed()) return;
     var p = allOffPlan(curCar()), fr = p.frunk ? ' ' + ALLOFF_FRUNK : '';
+    p.steps = p.steps.filter(function (x) { return AO_FORBID.indexOf(x.cmd) < 0; });   // v4.3.28: never a charge command
     if (p.noData) { ctlMsg = { kind: 'err', text: 'ALL OFF: no car data yet' }; render(); return; }
     if (!p.steps.length) { ctlMsg = { kind: p.frunk ? 'err' : 'idle', text: 'ALL OFF: everything is already off' + (ALLOFF_KEYS.some(function (x) { return !allOffCfg()[x[0]]; }) ? ' (or unchecked in setup)' : '') + '.' + fr }; render(); return; }
     var list = p.steps.map(function (x) { return x.what; }).join(', ');
@@ -1114,8 +1115,20 @@
       if (!ok) { ctlMsg = { kind: 'idle', text: 'ALL OFF not started' }; render(); return; }
       if (ctlBusy || !cmdAllowed()) return;
       allOff = { running: true, cancelled: false, total: p.steps.length, done: 0, skipped: p.skipped, frunk: p.frunk, log: [], plan: p };
+      var cs0 = chgState(curCar()); aoGuard = { was: cs0 === 'Charging' || cs0 === 'Starting', until: Date.now() + 15 * 60000, stopped: false, tries: 0 };   // v4.3.28
       allOffStep(0);
     });
+  }
+  // v4.3.28: ALL OFF never starts charging. It sends no charge command; and if the car was not charging when ALL OFF was pressed but starts
+  // charging within 15 min (waking it lets a charge schedule kick in), stop_charging is sent once. START by hand ends the guard.
+  var AO_FORBID = ['start_charging', 'stop_charging', 'charge_port_door_open', 'charge_port_door_close', 'set_charge_limit', 'set_charging_amps', 'add_charge_schedule', 'remove_charge_schedule', 'set_scheduled_charging', 'set_scheduled_departure', 'charge_standard', 'charge_max_range'];
+  var aoGuard = null; setInterval(function () { if (aoGuard) { try { aoGuardCheck(); } catch (e) {} } }, 5000);
+  function aoGuardCheck() {
+    var gd = aoGuard; if (!gd) return null; if (Date.now() > gd.until) { aoGuard = null; return null; } if (gd.was || gd.stopped || gd.tries >= 3) return null;
+    var cs = chgState(curCar()); if (cs !== 'Charging' && cs !== 'Starting') return null; if (ctlBusy || allOff.running) return 'wait';
+    gd.tries++; tdToast('The car started charging after ALL OFF: stopping it. Check the charge schedules.', 'err');
+    runCmd('stop_charging', {}, 'Car started charging after ALL OFF: stopping it\u2026', 'Charging stopped (it started after ALL OFF; check the car\u2019s charge schedules)', function () { setOv('chargingState', 'Stopped'); if (aoGuard) aoGuard.stopped = true; }, '');
+    return 'stopping';
   }
   function allOffStep(i) {
     var p = allOff.plan;
@@ -1137,6 +1150,7 @@
       (a.running ? (a.cancelled ? ' disabled' : '') : dis) + '><b>' + (a.running ? 'CANCEL' : 'ALL OFF') + '</b><small>' + (a.running ? 'ALL OFF ' + Math.min(a.total, a.done + 1) + '/' + a.total : (function () { var o = allOffCfg(), n = ALLOFF_KEYS.filter(function (x) { return x[0] !== 'frunk' && o[x[0]]; }).length; return n === 9 ? 'everything' : n + ' of 9 steps'; })()) + '</small></button>' +
       '<button class="cbtn alloff aoset" id="cAllOffSet" aria-label="ALL OFF setup" title="ALL OFF setup: pick which steps run"' + (a.running ? ' disabled' : '') + '>' + ICON_GEAR + '</button>';
   }
+  window.TD4328 = { vmPeriod: vmPeriod, vmUse: vmUse, vmGate: vmGate, vmUseText: vmUseText, vmCount: vmCount, vmLimitHit: vmLimitHit, announce: function (t, w, f) { return announce(t, w, f); }, guard: function () { return aoGuard; }, guardCheck: function () { return aoGuardCheck(); }, setGuard: function (g) { aoGuard = g; }, clampPause: clampPause, pauseNote: pauseNote, flash: function () { return flash; }, annLog: function () { return annLog; }, forbid: AO_FORBID };
   window.TD4326 = { cfg: allOffCfg, plan: function () { var p = allOffPlan(curCar()); return { steps: p.steps.map(function (x) { var q = Object.keys(x.query).sort().map(function (k) { return k + '=' + x.query[k]; }).join('&'); return x.cmd + (q ? '?' + q : ''); }), skipped: p.skipped, frunk: p.frunk, noData: p.noData }; },
     state: function () { return { running: allOff.running, cancelled: allOff.cancelled, total: allOff.total, done: allOff.done, log: allOff.log.slice(), msg: ctlMsg.text, kind: ctlMsg.kind }; }, resetOv: function () { ctlOv = {}; } };
 
@@ -1192,7 +1206,8 @@
   // v4.3.5: pause 1-30 s (0.5 s steps, localStorage flashPause, default 2.5). Next flash at (previous send + pause), never while the
   // previous request is still in flight. Under 3 s: wait_for_completion=false (fire and go). Stats: response time last/avg + measured gap.
   function clampFlash(v) { v = parseInt(v, 10); if (!(v >= 1)) v = 1; if (v > 20) v = 20; return v; }
-  function clampPause(v) { v = parseFloat(String(v).replace(',', '.')); if (!(v >= 1)) v = 1; if (v > 30) v = 30; return Math.round(v * 2) / 2; }
+  function clampPause(v) { var t = String(v == null ? '' : v).trim().replace(',', '.'); if (t === '' || isNaN(parseFloat(t))) return (typeof flash === 'object' && flash) ? flash.pause : 1; v = parseFloat(t); if (!(v >= 1)) v = 1; if (v > 30) v = 30; return Math.round(v * 2) / 2; }   // v4.3.28: junk keeps the last good value
+  function pauseNote(raw, used) { var t = String(raw == null ? '' : raw).trim().replace(',', '.'); if (t === '') return ''; var v = parseFloat(t); if (isNaN(v)) return 'Pause \u201c' + raw + '\u201d is not a number: using ' + used.toFixed(1) + ' s'; return Math.abs(v - used) > 0.001 ? 'Pause between flashes: ' + used.toFixed(1) + ' s (allowed 1-30 s, 0.5 s steps)' : ''; }
   var flash = { n: clampFlash(load('flashCount', 5)), running: false, done: 0, total: 0, timer: null, pause: clampPause(load('flashPause', 1)), noWait: false, pendingAt: null, nextAt: 0, sends: [], rtts: [] };
   function setPause(v) { flash.pause = clampPause(v); save('flashPause', flash.pause); return flash.pause; }
   function flashGap() { var s = flash.sends; return s.length < 2 ? null : (s[s.length - 1] - s[0]) / 1000 / (s.length - 1); }
@@ -1205,8 +1220,8 @@
     if (flash.running) { stopFlash(true); return; }
     if (ctlBusy || !cmdAllowed()) return;
     var el = document.getElementById('cFlashN'); var n = clampFlash(el ? el.value : flash.n); flash.n = n; save('flashCount', n);
-    var pe = document.getElementById('cFlashP'); var p = setPause(pe ? pe.value : flash.pause);
-    askCf('flash', 'Flash the lights ' + n + ' time' + (n === 1 ? '' : 's') + '?', 'Flash', n + ' flash' + (n === 1 ? '' : 'es') + ', about ' + p + ' seconds apart. Tap Stop to end early.').then(function (ok) {
+    var pe = document.getElementById('cFlashP'), praw = flash.typed != null ? flash.typed : (pe ? pe.value : flash.pause); var p = setPause(praw); flash.typed = null; var pn = pauseNote(praw, p);
+    askCf('flash', 'Flash the lights ' + n + ' time' + (n === 1 ? '' : 's') + '?', 'Flash', n + ' flash' + (n === 1 ? '' : 'es') + ', about ' + p + ' seconds apart. Tap Stop to end early.' + (pn ? ' (' + pn + ')' : '')).then(function (ok) {
       if (!ok) { ctlMsg = { kind: 'idle', text: 'Flash lights cancelled' }; render(); return; }
       flash.running = true; flash.done = 0; flash.total = n; flash.noWait = p < 3; flash.pendingAt = null; flash.nextAt = 0; flash.sends = []; flash.rtts = []; flashStep();
     });
@@ -1791,7 +1806,7 @@
   }
   window.TessDesk4318 = { skipLog: function () { return skipLog.slice(); }, skip: skipMap, keys: SKIP_KEYS.map(function (x) { return x[0]; }), histOpen: histOpen,
     limit: function (p) { requestLimit(p); }, amps: function (a) { requestAmps(a); }, busy: function () { return ctlBusy; } };   // test hooks (same paths as the slider)
-  function onChgStart() { var c = curCar(); if (!c || chgState(c) === 'Charging') return; runCmd('start_charging', {}, 'Starting charging\u2026', 'Charging started', function () { setOv('chargingState', 'Charging'); }, 'Your Tesla is now charging.'); }
+  function onChgStart() { var c = curCar(); if (!c || chgState(c) === 'Charging') return; aoGuard = null; runCmd('start_charging', {}, 'Starting charging\u2026', 'Charging started', function () { setOv('chargingState', 'Charging'); }, 'Your Tesla is now charging.'); }
   function onChgStop() {
     var c = curCar(); if (!c || chgState(c) !== 'Charging') return;
     askCf('stopCharging', 'Stop charging now?', 'Stop').then(function (ok) { if (ok) runCmd('stop_charging', {}, 'Stopping charging\u2026', 'Charging stopped', function () { setOv('chargingState', 'Stopped'); }, 'Charging stopped.'); else { ctlMsg = { kind: 'idle', text: 'Still charging' }; render(); } });
@@ -1920,8 +1935,11 @@
   function annReady() { var a = annCfg(); return annConsent() && !!a.token && !!a.device; }
   function alexaOn() { return !!load('alexa', false); }
   function setAlexa(on) { save('alexa', !!on); if (on && !annReady()) ctlMsg = { kind: 'idle', text: 'Alexa is on, but Voice Monkey is not set up yet: Settings \u2192 Connected apps.' }; render(); }
+  var ICON_VM = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="12" fill="#22C55E"/><circle cx="5.6" cy="11.4" r="2.9" fill="#7A4A24"/><circle cx="18.4" cy="11.4" r="2.9" fill="#7A4A24"/><circle cx="5.6" cy="11.4" r="1.5" fill="#F3C99B"/><circle cx="18.4" cy="11.4" r="1.5" fill="#F3C99B"/><circle cx="12" cy="12.3" r="7" fill="#7A4A24"/><circle cx="9.7" cy="11" r="2.5" fill="#F3C99B"/><circle cx="14.3" cy="11" r="2.5" fill="#F3C99B"/><ellipse cx="12" cy="14.9" rx="4.6" ry="3.3" fill="#F3C99B"/><circle cx="9.8" cy="11.1" r="1" fill="#2B1A0E"/><circle cx="14.2" cy="11.1" r="1" fill="#2B1A0E"/><path d="M10.1 15.3 Q12 17 13.9 15.3" fill="none" stroke="#2B1A0E" stroke-width="0.9" stroke-linecap="round"/></svg>';   // v4.3.27: monkey face in Voice Monkey style (own drawing, not hotlinked)
+  function vmSoon() { tdToast('Voice Monkey setup coming soon'); }   // placeholder: no network, nothing saved
   function alexaChip() {
     return '<button class="alexa' + (alexaOn() ? ' on' : '') + '" id="btnAlexa" aria-pressed="' + alexaOn() + '" title="Announce control results on Alexa (Voice Monkey)"><span>ALEXA</span><i></i></button>' +
+      '<button class="icon-btn vm" id="btnVM" aria-label="Voice Monkey" title="Voice Monkey">' + ICON_VM + '</button>' +   // v4.3.27: placeholder, no functionality yet
       '<button class="icon-btn" id="btnSched" aria-label="Alexa schedule and Connected apps"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></button>';
   }
   function spokenTemp(c, units) { return c == null ? 'unknown' : (units === 'C' ? (Math.round(c * 2) / 2) + ' degrees' : Math.round(c * 9 / 5 + 32) + ' degrees'); }
@@ -1965,6 +1983,7 @@
     // Test this speaker: one short line on ONE speaker, only when tapped. Dry run = log only.
     var sp = vmSpeakers().filter(function (x) { return x.id === id; })[0], name = sp ? sp.name : id, a = annCfg();
     var txt = 'This is a TessDesk test on ' + name + '. Tesla announcements will play here.';
+    if (true) { m.textContent = 'Test announcements are turned off (they use the Voice Monkey free-plan monthly limit). Nothing was sent.'; return { why: 'speaker-test', result: 'skipped: tests off' }; }   // v4.3.28
     var rec = { at: new Date().toISOString(), why: 'speaker-test', text: txt, device: id, dryRun: !!load('dryRun', false), sent: false, result: '' };
     annLog.push(rec); if (annLog.length > 40) annLog.shift();
     if (rec.dryRun) { rec.result = 'DRY RUN: test not sent'; m.textContent = 'Dry run: would say \u201c' + txt + '\u201d on ' + name + ' only. Nothing was sent.'; return rec; }
@@ -1975,12 +1994,42 @@
       function () { rec.result = 'test failed: network'; m.textContent = '\u2715 Test failed: network'; });
     return rec;
   }
-  function vmPost(dev, text) { var a = annCfg(); return fetch(VM_API + '/announce', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: a.token, device: dev, speech: text }) }); }
+  // ---------- v4.3.28: Voice Monkey free plan (200/month, resets the 26th at 7 PM CT): usage counter, 'Alexa limit reached', lean, home-only ----------
+  var VM_LIMIT = 200, VM_MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  function vmCt(ms) { var o = {}; new Intl.DateTimeFormat('en-US', { timeZone: 'America/Chicago', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', hourCycle: 'h23' }).formatToParts(new Date(ms)).forEach(function (p) { o[p.type] = +p.value; }); return o; }
+  function vmPeriod(ms) {
+    var c = vmCt(ms == null ? Date.now() : ms), y = c.year, m = c.month;
+    if (c.day < 26 || (c.day === 26 && c.hour < 19)) { m--; if (m < 1) { m = 12; y--; } }
+    var ny = m === 12 ? y + 1 : y, nm = m === 12 ? 1 : m + 1;
+    return { key: y + '-' + (m < 10 ? '0' : '') + m + '-26', reset: VM_MON[nm - 1] + ' 26, 7 PM CT' };
+  }
+  function vmUse() { var p = vmPeriod(), u = load('vmUsage', null), o = { period: p.key, count: 0, blocked: false, reason: '', resetAt: p.reset };
+    if (u && u.period === p.key) { o.count = +u.count || 0; o.blocked = !!u.blocked; o.reason = u.reason || ''; }
+    var b = load('vmBlock', null); if (b && Date.parse(b.until) > Date.now() && /QUOTA|limit/i.test((b.why || '') + (b.error || ''))) { o.blocked = true; o.reason = o.reason || b.why; }
+    if (o.count >= VM_LIMIT) o.blocked = true; return o; }
+  function vmUseSave(o) { save('vmUsage', { period: o.period, count: o.count, blocked: o.blocked, reason: o.reason, updated: new Date().toISOString() }); }
+  function vmCount(n) { if (!n) return; var o = vmUse(); o.count += n; vmUseSave(o); try { render(); } catch (e) {} }
+  function vmLimitHit(why) { var o = vmUse(), first = !o.blocked; o.blocked = true; o.reason = why; vmUseSave(o); if (first) { try { tdToast('Alexa limit reached \u00b7 Voice Monkey free plan (200/month) \u00b7 resets ' + o.resetAt, 'err'); } catch (e) {} } try { render(); } catch (e) {} }
+  function vmUseText() { var o = vmUse(); return o.blocked ? 'Alexa limit reached \u00b7 resets ' + o.resetAt : 'Alexa ' + o.count + '/' + VM_LIMIT + ' this month'; }
+  function vmHome() { if (window.__vmHomeMock != null) return !!window.__vmHomeMock; try { var ds = cache && cache.state && cache.state.drive_state; if (ds && ds.latitude != null) return TD4319.nearHome(ds.latitude, ds.longitude); } catch (e) {} return false; }
+  function vmGate(why) {
+    if (why === 'action') return 'skipped: lean mode (control results are shown, not spoken)';
+    var u = vmUse(); if (u.blocked) return 'skipped: Alexa limit reached (Voice Monkey ' + u.count + '/' + VM_LIMIT + ', resets ' + u.resetAt + ')';
+    if (!vmHome()) return 'skipped: not home (car not at the home location)';
+    return '';
+  }
+  function vmPost(dev, text) {
+    var a = annCfg(), u = vmUse();
+    if (u.blocked) return Promise.resolve({ ok: false, status: 429, skipped: true });
+    return fetch(VM_API + '/announce', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: a.token, device: dev, speech: text }) })
+      .then(function (r) { if (r.ok) vmCount(1); if (r.status === 429) vmLimitHit('Voice Monkey refused: HTTP 429'); return r; });
+  }
   function announce(text, why, force) {
     var a = annCfg(), tg = annTargets(why), rec = { at: new Date().toISOString(), why: why || 'action', text: text, device: tg.join(','), dryRun: !!load('dryRun', false), sent: false, result: '' };
     if (!force && !alexaOn()) rec.result = 'skipped: Alexa toggle off';
     else if (!annConsent()) rec.result = 'skipped: announcement disclosure not accepted';
     else if (!a.token || !a.device) rec.result = 'skipped: Voice Monkey not set up';
+    else if (vmGate(why)) rec.result = vmGate(why);   // v4.3.28
     else if (rec.dryRun) rec.result = 'DRY RUN: not sent to Voice Monkey';
     else {
       rec.sent = true; rec.result = 'sending';
@@ -2053,6 +2102,7 @@
       var m = el('mVm'); if (!el('aDisc').checked) { m.className = 'msg err'; m.textContent = 'Tick the disclosure box first.'; return; }
       var tok = el('aTok').value.trim(), dev = el('aDev').value.trim(); if (!tok || !dev) { m.className = 'msg err'; m.textContent = 'Enter the token and the speaker device first.'; return; }
       var txt = 'This is a TessDesk test announcement. Alexa announcements are working.';
+      m.className = 'msg'; m.textContent = 'Test announcements are turned off (they use the Voice Monkey free-plan monthly limit). Nothing was sent.'; return;   // v4.3.28
       if (load('dryRun', false)) { annLog.push({ at: new Date().toISOString(), why: 'test', text: txt, device: dev, dryRun: true, sent: false, result: 'DRY RUN: not sent' }); m.className = 'msg ok'; m.textContent = 'Dry run: would announce \u201c' + txt + '\u201d on ' + dev; return; }
       m.className = 'msg'; m.textContent = 'Sending\u2026';
       fetch(VM_API + '/announce', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: tok, device: dev, speech: txt }) })
@@ -2143,7 +2193,7 @@
     var s = document.getElementById('btnSettings'); if (s) s.onclick = function () { screen = 'settings'; render(); window.scrollTo(0, 0); };
     var on = function (id, f) { var el = document.getElementById(id); if (el) el.onclick = f; };
     on('cFlash', onFlash);
-    var fP = document.getElementById('cFlashP'); if (fP) { fP.onchange = function () { fP.value = setPause(fP.value).toFixed(1); }; }
+    var fP = document.getElementById('cFlashP'); if (fP) { fP.oninput = function () { flash.typed = fP.value; }; fP.onchange = function () { var raw = fP.value; fP.value = setPause(raw).toFixed(1); flash.typed = null; var nt = pauseNote(raw, flash.pause); if (nt) { ctlMsg = { kind: 'idle', text: nt }; render(); } }; if (flash.typed != null && !flash.running) fP.value = flash.typed; }   // v4.3.28: typed value survives a refresh
     var fN = document.getElementById('cFlashN'); if (fN) { fN.oninput = function () { if (fN.value !== '') flash.n = clampFlash(fN.value); }; fN.onchange = function () { fN.value = flash.n = clampFlash(fN.value); save('flashCount', flash.n); }; }
     on('btnUpdApp', applyUpdate);
     on('cTrunk', onTrunk); on('cSentry', onSentry);
@@ -2152,13 +2202,14 @@
     on('bRemind', openReminder); on('bRemSetup', openRemSetup); on('btnLayout', function () { setLayout(layoutMode() === 'compact' ? 'full' : 'compact'); });
     on('cChgStart', onChgStart); on('cChgStop', onChgStop); on('cHeat', onHeat); on('cDefrost', onDefrost); on('cCop', onCop); on('sWheel', onWheel);
     on('btnCam', function () { camSetOn(!camOn()); }); camMount(); on('btnTot', totOpen);
-    on('btnAlexa', function () { setAlexa(!alexaOn()); }); on('btnSched', function () { screen = 'settings'; render(); var e = document.getElementById('apps'); if (e) e.scrollIntoView(); });
+    on('btnAlexa', function () { setAlexa(!alexaOn()); }); on('btnVM', vmSoon); on('btnSched', function () { screen = 'settings'; render(); var e = document.getElementById('apps'); if (e) e.scrollIntoView(); });
     Array.prototype.forEach.call(document.querySelectorAll('[data-seat]'), function (g) { g.onclick = function () { if (!g.classList.contains('dis')) onSeat(g.getAttribute('data-seat')); }; });
     bindVSlider(); bindAmps();
     on('cAnnounce', onAnnounce); on('cAllOff', onAllOff); on('cAllOffSet', openAllOffSetup); on('cAnnSetup', openAnnSetup); on('pkStop', onChgStop);
     on('pkHide', function () { var p = peakState(compute(getCfg()), getCfg()); if (p) save('peakHide', p.key); render(); }); on('pkShow', function () { save('peakHide', ''); render(); });
     bind4318();   // v4.3.18
     try { if (window.TD4319) TD4319.bind4319(); } catch (e) { console.error(e); }   // v4.3.19
+    setTimeout(function () { try { aoGuardCheck(); } catch (e) {} }, 0);   // v4.3.28
     if (busy) setSpin(true);
   }
 
@@ -2553,6 +2604,7 @@
   function openConnectedApps() { screen = 'settings'; render(); setTimeout(function () { var e = document.getElementById('apps'); if (e) e.scrollIntoView(); }, 50); }
   function onAnnounce() {
     if (!annConsent() || !annCfg().token || !annCfg().device) { tdToast(!annConsent() ? 'Accept the Alexa disclosure first (Connected apps).' : 'Set up Voice Monkey first (Connected apps).', 'err'); openConnectedApps(); return; }
+    var g28 = vmGate('rundown'); if (g28) { tdToast(g28.replace(/^skipped: /, 'Not announced: '), 'err'); return; }   // v4.3.28
     var r = buildRundown(); if (!r || !r.parts.length) { tdToast('Nothing to announce yet (no car data, or every item is off in Setup).', 'err'); return; }
     askCf('announce', 'Announce full status?', 'Announce', r.parts.length + ' announcement' + (r.parts.length > 1 ? 's' : '') + ' \u00b7 about ' + r.seconds + ' s on ' + targetsLabel(annTargets('rundown'))).then(function (ok) {
       if (!ok) return; sendRundown(r);
