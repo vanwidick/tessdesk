@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-# TessDesk v4.3.29 (SECTIONS: TESLA CONTROLS, BATTERY (with HEALTH HISTORY), HEATED SEATS, TRIPS, CHARGE HISTORY, TIRES, DRIVES, CAMERAS outlined in the CHARGING green with green titles; v4.3.28: Alexa: 'Alexa limit reached' notice, Voice Monkey monthly counter (resets the 26th 7 PM CT), fewer announcements, only when home, no test announcements; ALL OFF never starts charging (no charge commands + stops a charge that starts after it); flash pause = the typed value; v4.3.27: Voice Monkey button next to ALEXA: placeholder, 'coming soon' note only; v4.3.26: ALL OFF in TESLA CONTROLS: windows, trunk, climate, seat + wheel heat, defrost, Sentry, Climate Keeper off, lock; v4.3.25: CHARGING SCHEDULE reaches the car on firmware 2024.26+: charge schedules, checked after each send; v4.3.24: FINISH BY defaults to 6:00 AM; v4.3.23: CHARGING SCHEDULE in START / STOP: START AT + FINISH BY, set on the car through Tessie; v4.3.22: CHARGE column in HEALTH HISTORY: highest charge % per day + Home / AC / Supercharger; v4.3.21: HEALTH HISTORY under START / STOP with CALIBRATION INFO; health history logged by the app itself; v4.3.20: HEALTH HISTORY dropdown, one entry per day, kept indefinitely; v4.3.19: 30% wider; PLUG-IN REMINDER; TRIPS; MORNING READY CHECK; PSO BILL MATCH with on/off; BATTERY HEALTH TREND + TIPS; LEAVING SOON 'Start after' delay; v4.3.18 CHARGING STATUS bar under the big cost with START / STOP, fits 364x990 without scrolling; v4.3.17: TESLA CONTROLS under the big cost, CHARGE HISTORY & TOTALS dropdown; v4.3.16 LEAVING SOON: adjustable 'Windows after' / 'Unlock after' minutes, Stop undoes the steps already done; v4.3.15: climate on, close windows, unlock; rolling 7 / 14 days and 30 / 60 days $ beside the big amount; Restore / Remember at the top right with fade-in, like Paycheck Live; TOTALS pop-up: week / month / year running totals; CAMERAS panel from saved Sentry / Dashcam clips; checks for updates on open / wake; compact-when-OFF via cb_compact_addon.ps1) - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
+# TessDesk v4.3.30 (LAYOUT: small up/down arrows at the top left of every section move it one place; a lock at the top right pins that section and everything above it at the top, the rest scrolls; both saved; Charging locked by default; v4.3.29: SECTIONS: TESLA CONTROLS, BATTERY (with HEALTH HISTORY), HEATED SEATS, TRIPS, CHARGE HISTORY, TIRES, DRIVES, CAMERAS outlined in the CHARGING green with green titles; v4.3.28: Alexa: 'Alexa limit reached' notice, Voice Monkey monthly counter (resets the 26th 7 PM CT), fewer announcements, only when home, no test announcements; ALL OFF never starts charging (no charge commands + stops a charge that starts after it); flash pause = the typed value; v4.3.27: Voice Monkey button next to ALEXA: placeholder, 'coming soon' note only; v4.3.26: ALL OFF in TESLA CONTROLS: windows, trunk, climate, seat + wheel heat, defrost, Sentry, Climate Keeper off, lock; v4.3.25: CHARGING SCHEDULE reaches the car on firmware 2024.26+: charge schedules, checked after each send; v4.3.24: FINISH BY defaults to 6:00 AM; v4.3.23: CHARGING SCHEDULE in START / STOP: START AT + FINISH BY, set on the car through Tessie; v4.3.22: CHARGE column in HEALTH HISTORY: highest charge % per day + Home / AC / Supercharger; v4.3.21: HEALTH HISTORY under START / STOP with CALIBRATION INFO; health history logged by the app itself; v4.3.20: HEALTH HISTORY dropdown, one entry per day, kept indefinitely; v4.3.19: 30% wider; PLUG-IN REMINDER; TRIPS; MORNING READY CHECK; PSO BILL MATCH with on/off; BATTERY HEALTH TREND + TIPS; LEAVING SOON 'Start after' delay; v4.3.18 CHARGING STATUS bar under the big cost with START / STOP, fits 364x990 without scrolling; v4.3.17: TESLA CONTROLS under the big cost, CHARGE HISTORY & TOTALS dropdown; v4.3.16 LEAVING SOON: adjustable 'Windows after' / 'Unlock after' minutes, Stop undoes the steps already done; v4.3.15: climate on, close windows, unlock; rolling 7 / 14 days and 30 / 60 days $ beside the big amount; Restore / Remember at the top right with fade-in, like Paycheck Live; TOTALS pop-up: week / month / year running totals; CAMERAS panel from saved Sentry / Dashcam clips; checks for updates on open / wake; compact-when-OFF via cb_compact_addon.ps1) - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
 param(
     [string]$ConfigPath,
     [string]$Snapshot,    # optional: folder to write PNG snapshots of both themes
@@ -15,8 +15,127 @@ Add-Type -AssemblyName System.Xaml
 
 $ErrorActionPreference = 'Stop'
 $AppName    = 'TessDesk'
-$AppVersion = '4.3.29'
+$AppVersion = '4.3.30'
 $AppDate    = 'Oct 16, 2026'
+# ---------------- v4.3.30: section ORDER (up / down arrows, top left) + LOCK (top right) ----------------
+# The lock pins that section and everything above it at the top (PinStack, never scrolls); the rest scrolls (BodyStack).
+# Saved in config.json sections = { order = [...]; pin = key or null }. Default = 4.3.29 order with Charging locked (looks like 4.3.29).
+$SecKeys4330 = @('cameras', 'cost', 'charging', 'controls', 'skip', 'battery', 'bill', 'trips', 'history', 'seats', 'tires', 'drives')
+$SecCardOf4330 = @{ cameras = 'CamCard'; cost = 'CostCard'; charging = 'ChgCard'; controls = 'CtlCard'; skip = 'SkipCard'; battery = 'BattCard'; bill = 'BillCard'; trips = 'TripsCard'; history = 'RowsCard'; seats = 'SeatsCard'; tires = 'TiresCard'; drives = 'DrivesCard' }
+$SecNames4330 = @{ cameras = 'Cameras'; cost = 'Cost summary'; charging = 'Charging'; controls = 'Tesla controls'; skip = 'Skip confirm'; battery = 'Battery'; bill = 'PSO bill match'; trips = 'Trips'; history = 'Charge history & totals'; seats = 'Heated seats'; tires = 'Tires'; drives = 'Drives' }
+$script:SecStrip4330 = @{}; $script:SecTail4330 = $null
+function Merge-SecState4330 {
+    param($S)
+    $o = New-Object System.Collections.Generic.List[string]
+    if ($null -ne $S -and $null -ne $S.order) { foreach ($k in @($S.order)) { $k = [string]$k; if ($SecKeys4330 -contains $k -and -not $o.Contains($k)) { $o.Add($k) } } }
+    for ($i = 0; $i -lt $SecKeys4330.Count; $i++) {
+        $k = $SecKeys4330[$i]; if ($o.Contains($k)) { continue }
+        $j = 0; for ($p = $i - 1; $p -ge 0; $p--) { $q = $o.IndexOf($SecKeys4330[$p]); if ($q -ge 0) { $j = $q + 1; break } }
+        $o.Insert($j, $k)
+    }
+    $pin = 'charging'
+    if ($null -ne $S -and $null -ne $S.PSObject -and $null -ne $S.PSObject.Properties['pin']) { $pin = $S.pin; if ($null -ne $pin) { $pin = [string]$pin; if (-not $o.Contains($pin)) { $pin = 'charging' } } }
+    return [ordered]@{ order = @($o); pin = $pin }
+}
+function Get-SecState4330 { return (Merge-SecState4330 (Get-Cfg4319 'sections')) }
+function Save-SecState4330 { param($S) Save-Cfg4319 'sections' ([ordered]@{ order = @($S.order); pin = $S.pin }) }
+function Test-SecShown4330 { param([string]$K) $e = $ui[$SecCardOf4330[$K]]; return ($null -ne $e -and [string]$e.Visibility -ne 'Collapsed') }
+function Move-Section4330 {
+    param([string]$K, [int]$D)
+    $s = Get-SecState4330; $o = [System.Collections.Generic.List[string]]::new([string[]]$s.order)
+    $vis = @($o | Where-Object { Test-SecShown4330 $_ }); $vi = [array]::IndexOf($vis, $K); $vj = $vi + $D
+    if ($vi -lt 0 -or $vj -lt 0 -or $vj -ge $vis.Count) { return $false }
+    $other = $vis[$vj]; $a = $o.IndexOf($K); $b = $o.IndexOf($other); $o[$a] = $other; $o[$b] = $K
+    $s.order = @($o); Save-SecState4330 $s; Write-WidgetLog ('sections: moved ' + $SecNames4330[$K] + ' ' + $(if ($D -lt 0) { 'up' } else { 'down' }))
+    Apply-SectionLayout4330; return $true
+}
+function Set-SectionLock4330 {
+    param([string]$K)
+    $s = Get-SecState4330; $s.pin = $(if ($s.pin -eq $K) { $null } else { $K }); Save-SecState4330 $s
+    Write-WidgetLog ('sections: ' + $(if ($null -eq $s.pin) { 'unlocked (everything scrolls)' } else { 'locked through ' + $SecNames4330[$K] }))
+    Apply-SectionLayout4330
+}
+function Remove-FromParent4330 {
+    param($E)
+    $p = [System.Windows.Media.VisualTreeHelper]::GetParent($E); if ($null -eq $p) { $p = $E.Parent }
+    if ($p -is [System.Windows.Controls.Panel]) { [void]$p.Children.Remove($E) } elseif ($p -is [System.Windows.Controls.Decorator]) { $p.Child = $null } elseif ($p -is [System.Windows.Controls.ContentControl]) { $p.Content = $null }
+}
+function New-SecBtn4330 {
+    param([string]$Glyph, [string]$Font, [double]$Size, [string]$Tip, [string]$Tag, [string]$Kind)
+    $b = New-Object System.Windows.Controls.Border; $b.CornerRadius = '4'; $b.BorderThickness = '1'; $b.Height = 15; $b.MinWidth = 21; $b.Padding = '3,0,3,0'; $b.Margin = '0,0,3,0'
+    $b.Cursor = [System.Windows.Input.Cursors]::Hand; $b.ToolTip = $Tip; $b.Tag = $Tag + '|' + $Kind; $b.Background = Get-Brush '#1A49DF93'; $b.BorderBrush = Get-Brush '#7349DF93'
+    $t = New-Object System.Windows.Controls.TextBlock; $t.Text = $Glyph; $t.FontSize = $Size; $t.Foreground = $SecBrush4329; $t.HorizontalAlignment = 'Center'; $t.VerticalAlignment = 'Center'
+    if ($Font) { $t.FontFamily = [System.Windows.Media.FontFamily]::new($Font) }
+    $b.Child = $t
+    $b.Add_MouseLeftButtonUp({ param($sd, $ev) $ev.Handled = $true; try { if (-not $sd.IsEnabled) { return }; $p = ([string]$sd.Tag).Split('|'); switch ($p[1]) { 'up' { [void](Move-Section4330 $p[0] -1) } 'dn' { [void](Move-Section4330 $p[0] 1) } 'lock' { Set-SectionLock4330 $p[0] } } } catch { Write-WidgetLog ('sections: ' + $_.Exception.Message) } })
+    $b.Add_MouseLeftButtonDown({ param($sd, $ev) $ev.Handled = $true })
+    return $b
+}
+function Add-SecStrip4330 {
+    param([string]$K)
+    if ($script:SecStrip4330.ContainsKey($K)) { return $script:SecStrip4330[$K] }
+    $card = $ui[$SecCardOf4330[$K]]; if ($null -eq $card) { return $null }
+    $orig = $card.Child; $card.Child = $null
+    $g = New-Object System.Windows.Controls.Grid
+    foreach ($h in 'Auto', '*') { $rd = New-Object System.Windows.Controls.RowDefinition; $rd.Height = $(if ($h -eq 'Auto') { [System.Windows.GridLength]::Auto } else { [System.Windows.GridLength]::new(1, 'Star') }); [void]$g.RowDefinitions.Add($rd) }
+    $dp = New-Object System.Windows.Controls.DockPanel; $dp.LastChildFill = $false; $dp.Margin = '0,0,0,2'
+    $nm = $SecNames4330[$K]
+    $up = New-SecBtn4330 ([string][char]0x25B2) $null 7.5 ('Move ' + $nm + ' up one place') $K 'up'
+    $dn = New-SecBtn4330 ([string][char]0x25BC) $null 7.5 ('Move ' + $nm + ' down one place') $K 'dn'
+    $lk = New-SecBtn4330 ([string][char]0xE72E) 'Segoe MDL2 Assets' 8.5 '' $K 'lock'; $lk.Margin = '0'
+    [System.Windows.Controls.DockPanel]::SetDock($up, 'Left'); [System.Windows.Controls.DockPanel]::SetDock($dn, 'Left'); [System.Windows.Controls.DockPanel]::SetDock($lk, 'Right')
+    [void]$dp.Children.Add($up); [void]$dp.Children.Add($dn); [void]$dp.Children.Add($lk)
+    # cards with a green title: the strip sits on the title line (arrows left of the title, lock at the far right) so no height is added
+    $title = $null; foreach ($tn in $SecTitles4329) { $q = $ui[$tn]; while ($q) { if ($q -eq $card -or $q -eq $orig) { $title = $ui[$tn]; break }; $n2 = $null; if ($q -is [System.Windows.Media.Visual]) { $n2 = [System.Windows.Media.VisualTreeHelper]::GetParent($q) }; if ($null -eq $n2) { $n2 = $q.Parent }; $q = $n2 }; if ($title) { break } }
+    if ($null -eq $title -and $null -ne $orig) { $q = $orig; while ($q -is [System.Windows.Controls.Panel] -and $q.Children.Count) { $q = $q.Children[0] }; if ($q -is [System.Windows.Controls.TextBlock] -and [string]$q.Foreground -eq '#FF49DF93') { $title = $q } }
+    if ($null -ne $title) {
+        $m = $title.Margin; $title.Margin = [System.Windows.Thickness]::new($m.Left + 50, $m.Top, $m.Right, $m.Bottom); $dp.Margin = '0'; $dp.VerticalAlignment = 'Top'
+        [System.Windows.Controls.Panel]::SetZIndex($dp, 5); $g.RowDefinitions[0].Height = [System.Windows.GridLength]::new(0)
+        if ($null -ne $orig) { [System.Windows.Controls.Grid]::SetRow($orig, 0); [System.Windows.Controls.Grid]::SetRowSpan($orig, 2); [void]$g.Children.Add($orig) }
+        $dp.Children.Clear(); $lp = New-Object System.Windows.Controls.StackPanel; $lp.Orientation = 'Horizontal'; [void]$lp.Children.Add($up); [void]$lp.Children.Add($dn)
+        foreach ($x in @($lp, $lk)) { $x.VerticalAlignment = 'Top'; [System.Windows.Controls.Grid]::SetRowSpan($x, 2); [System.Windows.Controls.Panel]::SetZIndex($x, 5); [void]$g.Children.Add($x) }
+        $lp.HorizontalAlignment = 'Left'; $lk.HorizontalAlignment = 'Right'
+        $par = $title.Parent; if ($par -is [System.Windows.Controls.Panel] -and $par -ne $orig) { $pm = $par.Margin; $par.Margin = [System.Windows.Thickness]::new($pm.Left, $pm.Top, $pm.Right + 26, $pm.Bottom) }
+    } else {
+        [System.Windows.Controls.Grid]::SetRow($dp, 0); [void]$g.Children.Add($dp)
+        if ($null -ne $orig) { [System.Windows.Controls.Grid]::SetRow($orig, 1); [void]$g.Children.Add($orig) }
+    }
+    $card.Child = $g
+    $st = [pscustomobject]@{ up = $up; dn = $dn; lock = $lk; strip = $dp }; $script:SecStrip4330[$K] = $st; return $st
+}
+function Update-SecStrip4330 {
+    param([string]$K, [bool]$First, [bool]$Last, [bool]$Locked, [bool]$IsPin)
+    $st = Add-SecStrip4330 $K; if ($null -eq $st) { return }
+    foreach ($x in @(@($st.up, $First), @($st.dn, $Last))) { $x[0].IsEnabled = -not $x[1]; $x[0].Opacity = $(if ($x[1]) { 0.3 } else { 1.0 }) }
+    $nm = $SecNames4330[$K]; $t = $st.lock.Child
+    $t.Text = $(if ($Locked) { [string][char]0xE72E } else { [string][char]0xE785 })
+    $st.lock.Background = $(if ($Locked) { $SecBrush4329 } else { Get-Brush '#1A49DF93' }); $t.Foreground = $(if ($Locked) { Get-Brush '#FF06210F' } else { $SecBrush4329 })
+    $st.lock.Opacity = $(if ($Locked -and -not $IsPin) { 0.65 } else { 1.0 })
+    $st.lock.ToolTip = $(if ($IsPin) { 'Locked here: ' + $nm + ' and everything above it stay at the top. Click to unlock (everything scrolls).' } elseif ($Locked) { 'Locked (above the lock point). Click to lock here instead.' } else { 'Lock ' + $nm + ' and everything above it at the top; the sections below scroll' })
+}
+function Update-PinCap4330 {
+    try { $h = $window.ActualHeight; if ($h -le 0) { $h = $window.Height }; if ($h -gt 0) { $ui.PinScroll.MaxHeight = [math]::Max(220, [math]::Floor($h * 0.7)) } } catch {}
+}
+function Apply-SectionLayout4330 {
+    $s = Get-SecState4330; $script:SecState4330 = $s
+    if ($null -eq $script:SecTail4330) { $script:SecTail4330 = @() + @($ui.BodyStack.Children | Where-Object { $e = $_; -not @($SecCardOf4330.Values | Where-Object { $ui[$_] -eq $e }).Count -and $e -ne $ui.PeakBanner }) }
+    $members = @{}; foreach ($k in $SecKeys4330) { $members[$k] = @($ui[$SecCardOf4330[$k]]) }
+    $members['history'] = @($ui.PeakBanner, $ui.RowsCard)   # the rate alert follows CHARGE HISTORY (it sat right above it)
+    foreach ($k in $SecKeys4330) { foreach ($e in $members[$k]) { if ($null -ne $e) { Remove-FromParent4330 $e } } }
+    foreach ($e in $script:SecTail4330) { Remove-FromParent4330 $e }
+    $pi = $(if ($null -ne $s.pin) { [array]::IndexOf(@($s.order), $s.pin) } else { -1 })
+    $vis = @($s.order | Where-Object { Test-SecShown4330 $_ })
+    for ($i = 0; $i -lt $s.order.Count; $i++) {
+        $k = $s.order[$i]; $tgt = $(if ($i -le $pi) { $ui.PinStack } else { $ui.BodyStack })
+        foreach ($e in $members[$k]) { if ($null -ne $e) { [void]$tgt.Children.Add($e) } }
+        $vi = [array]::IndexOf($vis, $k)
+        Update-SecStrip4330 $k ($vi -le 0) ($vi -lt 0 -or $vi -ge $vis.Count - 1) ($i -le $pi) ($s.pin -eq $k)
+    }
+    foreach ($e in $script:SecTail4330) { [void]$ui.BodyStack.Children.Add($e) }
+    $ui.PinScroll.Visibility = $(if ($ui.PinStack.Children.Count) { 'Visible' } else { 'Collapsed' })
+    Update-PinCap4330
+}
+
 # v4.3.29: SECTIONS - same thick green outline as CHARGING, a fill lighter than the (dark green) background, green titles
 $SecBrush4329 = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(0x49, 0xDF, 0x93)); $SecBrush4329.Freeze()
 $SecFill4329 = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(0x13, 0x26, 0x1B)); $SecFill4329.Freeze()
@@ -1611,7 +1730,11 @@ function Open-Url433 {
 
 
         <!-- v4.3.18: CHARGING STATUS bar, fixed under the big cost (never scrolls): state word (CHARGING / NOT CHARGING / UNPLUGGED / COMPLETE), START / STOP on the right, then POWER, SESSION, FULL AT or ENDED, BATTERY -->
-        <Border x:Name="ChgCard" Grid.Row="3" CornerRadius="10" Background="#FF13261B" BorderBrush="#FF49DF93" BorderThickness="2" Padding="10,3,8,5" Margin="0,2,0,6">
+        <!-- v4.3.30: locked (pinned) sections live here, at the top; capped at 70% of the window and scroll inside if taller -->
+        <ScrollViewer x:Name="PinScroll" Grid.Row="3" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" PanningMode="None" Focusable="False">
+          <StackPanel x:Name="PinStack"/>
+        </ScrollViewer>
+        <Border x:Name="ChgCard" CornerRadius="10" Background="#FF13261B" BorderBrush="#FF49DF93" BorderThickness="2" Padding="10,3,8,5" Margin="0,2,0,6">
           <StackPanel><TextBlock x:Name="ChgCardTitle" Text="CHARGING" FontSize="11.5" FontWeight="Black" Foreground="#FF49DF93" Margin="0,0,0,1"/>
           <Grid>
             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
@@ -9211,6 +9334,8 @@ function Render-HealthHist {
 }
 $ui.TripsCard.Add_MouseLeftButtonUp({ param($s, $e) try { $p = $e.OriginalSource; $inBody = $false; while ($p) { if ($p -eq $ui.TripsBody) { $inBody = $true; break }; if ($p -eq $ui.TripsCard) { break }; try { $p = [System.Windows.Media.VisualTreeHelper]::GetParent($p) } catch { $p = $null } }; if (-not $inBody) { Set-TripsOpen4329 (-not (Get-TripsOpen4329)) } } catch { Write-WidgetLog ('trips: ' + $_.Exception.Message) } })   # v4.3.29
 try { Set-TripsOpen4329 (Get-TripsOpen4329) -NoSave } catch {}
+try { Apply-SectionLayout4330 } catch { Write-WidgetLog ('sections layout: ' + $_.Exception.Message) }   # v4.3.30
+try { $window.Add_SizeChanged({ Update-PinCap4330 }) } catch {}
 $ui.HHistBtn.Add_MouseLeftButtonUp({ try { Set-HHistOpen (-not (Get-HHistOpen)) } catch { Write-WidgetLog ('health history: ' + $_.Exception.Message) } })
 $ui.HHistAllBtn.Add_Click({ try { $script:HHistAll = -not $script:HHistAll; $script:HHistSig = ''; Render-HealthHist } catch { Write-WidgetLog ('health history all: ' + $_.Exception.Message) } })
 # ---- v4.3.21: CALIBRATION INFO (BMS estimate recalibrations in the health history) ----
@@ -10005,12 +10130,48 @@ function Start-SelfTest {
         $window.UpdateLayout(); $r.chgCardH = [math]::Round($ui.ChgCard.ActualHeight, 1)
         $r.pass = (@($r.outlines.Values | Where-Object { -not $_ }).Count -eq 0 -and @($r.titles.Values | Where-Object { -not $_ }).Count -eq 0 -and $inBatt -and $r.chgThickness -eq 2 -and $r.skipOwn -and $r.billOwn -and $r.costOwn -and $r.tripsClosed -and $sv -gt 150)
         $script:SelfRec.v4328.sections = $r }
+    & $add 'v4.3.30 LAYOUT: up/down arrows move sections, lock pins sections at the top, saved, default = Charging locked' @() {
+        $r = [ordered]@{}; $kids = { param($p) @($p.Children | ForEach-Object { $_.Name }) }
+        $saved = Get-Cfg4319 'sections'; Save-Cfg4319 'sections' $null; Apply-SectionLayout4330; $window.UpdateLayout()
+        $d = Get-SecState4330; $r.defaultOrder = (($d.order -join ',') -eq ($SecKeys4330 -join ',')); $r.defaultPin = $d.pin
+        $r.pinKids = & $kids $ui.PinStack; $r.defaultPinned = (($r.pinKids -join ',') -eq 'CamCard,CostCard,ChgCard')
+        $bk = & $kids $ui.BodyStack; $r.bodyFirst = $bk[0]; $r.notesLast = ($ui.BodyStack.Children[$ui.BodyStack.Children.Count - 1] -eq $script:SecTail4330[-1])
+        $r.peakBeforeRows = ([array]::IndexOf($bk, 'PeakBanner') -eq [array]::IndexOf($bk, 'RowsCard') - 1)
+        $r.strips = @($SecKeys4330 | Where-Object { $script:SecStrip4330.ContainsKey($_) }).Count
+        $r.chgLockOn = ($script:SecStrip4330['charging'].lock.Child.Text -eq [string][char]0xE72E)
+        Save-RootPng (Join-Path $script:SelfDir 'tessdesk-v4330-default.png'); $script:SelfRec.shots += 'tessdesk-v4330-default.png'
+        # move BATTERY up (past SKIP), CONTROLS down
+        $r.moveUp = Move-Section4330 'battery' -1; $o = @((Get-SecState4330).order); $r.battBeforeSkip = ([array]::IndexOf($o, 'battery') -lt [array]::IndexOf($o, 'skip'))
+        $bk = & $kids $ui.BodyStack; $r.uiBattBeforeSkip = ([array]::IndexOf($bk, 'BattCard') -lt [array]::IndexOf($bk, 'SkipCard'))
+        $r.topUpDisabled = -not $script:SecStrip4330[@((Get-SecState4330).order | Where-Object { Test-SecShown4330 $_ })[0]].up.IsEnabled
+        $r.lastDnDisabled = -not $script:SecStrip4330['drives'].dn.IsEnabled; $r.cantMoveLastDown = -not (Move-Section4330 'drives' 1)
+        # lock BATTERY: everything through battery pinned
+        Set-SectionLock4330 'battery'; $window.UpdateLayout(); $pk = & $kids $ui.PinStack
+        $r.lockBattPinned = $pk; $r.lockBattOk = ($pk[-1] -eq 'BattCard' -and $pk -contains 'CtlCard' -and -not ((& $kids $ui.BodyStack) -contains 'BattCard'))
+        $r.pinCapOk = ($ui.PinScroll.ActualHeight -le $ui.PinScroll.MaxHeight + 1 -and $ui.PinScroll.MaxHeight -le [math]::Max(220, $window.ActualHeight * 0.7) + 1); $r.pinH = [math]::Round($ui.PinScroll.ActualHeight); $r.pinMax = $ui.PinScroll.MaxHeight
+        Save-RootPng (Join-Path $script:SelfDir 'tessdesk-v4330-locked-battery.png'); $script:SelfRec.shots += 'tessdesk-v4330-locked-battery.png'
+        # saved in config, survives a reload of the state
+        $c = Get-Cfg4319 'sections'; $r.savedPin = [string]$c.pin; $r.saved = ($c.pin -eq 'battery' -and (@($c.order) -join ',') -eq (@((Get-SecState4330).order) -join ','))
+        $cf = $null; try { $cf = (Get-Content -Raw -LiteralPath $ConfigPath | ConvertFrom-Json).sections } catch {}; $r.onDisk = ($null -ne $cf -and $cf.pin -eq 'battery')
+        # click the same lock again = unlocked: everything scrolls
+        Set-SectionLock4330 'battery'; $window.UpdateLayout(); $r.unlockEmpty = ($ui.PinStack.Children.Count -eq 0 -and [string]$ui.PinScroll.Visibility -eq 'Collapsed' -and $null -eq (Get-SecState4330).pin)
+        # move COST and CHARGING (movable); lock everything = still fits (capped, scrolls inside)
+        $r.moveCost = Move-Section4330 'cost' 1; $r.moveChg = Move-Section4330 'charging' 1
+        Set-SectionLock4330 'drives'; $window.UpdateLayout(); $r.allPinnedCap = ($ui.PinScroll.ActualHeight -le $ui.PinScroll.MaxHeight + 1 -and $ui.BodyScroll.ActualHeight -ge 0)
+        $r.merge = ((Merge-SecState4330 ([pscustomobject]@{ order = @('drives', 'bogus', 'cost'); pin = 'nope' })).order -join ',')
+        $r.mergeOk = ($r.merge -like 'cameras,drives,cost,charging*' -and (Merge-SecState4330 $null).pin -eq 'charging')
+        # back to default
+        Save-Cfg4319 'sections' $saved
+        Apply-SectionLayout4330; $window.UpdateLayout(); $r.restored = ((& $kids $ui.PinStack) -join ',') -eq 'CamCard,CostCard,ChgCard'
+        $r.realCommands = $script:NetCommandsSent; $r.announcements = $script:AnnSent
+        $r.pass = ($r.defaultOrder -and $r.defaultPin -eq 'charging' -and $r.defaultPinned -and $r.notesLast -and $r.peakBeforeRows -and $r.strips -eq 12 -and $r.chgLockOn -and $r.moveUp -and $r.battBeforeSkip -and $r.uiBattBeforeSkip -and $r.topUpDisabled -and $r.lastDnDisabled -and $r.cantMoveLastDown -and $r.lockBattOk -and $r.pinCapOk -and $r.saved -and $r.onDisk -and $r.unlockEmpty -and $r.moveCost -and $r.moveChg -and $r.allPinnedCap -and $r.mergeOk -and $r.restored)
+        $script:SelfRec.v4328.layout = $r }
     & $add 'v4.3.28 summary' @() {
         $r = $script:SelfRec.v4328; $fails = @()
-        foreach ($k in 'period', 'alexa', 'flash', 'updbtn', 'sections') { if ($null -eq $r[$k] -or -not $r[$k].pass) { $fails += $k } }
+        foreach ($k in 'period', 'alexa', 'flash', 'updbtn', 'sections', 'layout') { if ($null -eq $r[$k] -or -not $r[$k].pass) { $fails += $k } }
         $g = $r.guard; $g.pass = ($null -ne $g -and $g.whenWasCharging -eq $null -and $g.stopSent -eq 1 -and $g.dry -eq $true -and $g.stoppedFlag -and $null -eq $g.again)
         if (-not $g.pass) { $fails += 'guard' }
-        $sm = [ordered]@{ ver = ($AppVersion -eq '4.3.29' -and $ui.FooterVersion.Text -like ('*4.3.29*' + $AppDate)); bold = ($ui.FooterText.FontWeight -eq [System.Windows.FontWeights]::Bold -or $ui.FooterText.FontWeight.ToString() -match 'Bold|Black') }
+        $sm = [ordered]@{ ver = ($AppVersion -eq '4.3.30' -and $ui.FooterVersion.Text -like ('*4.3.30*' + $AppDate)); bold = ($ui.FooterText.FontWeight -eq [System.Windows.FontWeights]::Bold -or $ui.FooterText.FontWeight.ToString() -match 'Bold|Black') }
         $r.smoke = $sm; if (-not ($sm.ver)) { $fails += 'smoke' }
         $r.netCommandsSent = $script:NetCommandsSent; $r.announcementsSent = $script:AnnSent
         $r.summary = [ordered]@{ fails = $fails; allPass = ($fails.Count -eq 0 -and $script:NetCommandsSent -eq 0 -and $script:AnnSent -eq 0) } }
@@ -10023,7 +10184,7 @@ function Start-SelfTest {
         $real = @($script:CtlLog | Where-Object { $_.dry -eq $false -or $_.real -eq $true }).Count
         $r = $script:SelfRec.v4321
         $r.smoke = [ordered]@{ appVersion = $AppVersion; footer = $ui.FooterVersion.Text; brand = $ui.FooterText.Text; bold = [string]$ui.FooterText.FontWeight; hookLines = $hook; hookBeforeShowDialog = $before; width = $window.Width; renderError = $err; dryRun = $CTL_DRYRUN; realCmdLog = $real
-            pass = ($AppVersion -eq '4.3.29' -and $ui.FooterVersion.Text -like ('*4.3.29*' + $AppDate) -and [string]$ui.FooterText.FontWeight -eq 'Bold' -and $hook -eq 1 -and $before -and $null -eq $err -and $CTL_DRYRUN -and [math]::Abs($window.Width - $winW) -lt 1) }
+            pass = ($AppVersion -eq '4.3.30' -and $ui.FooterVersion.Text -like ('*4.3.30*' + $AppDate) -and [string]$ui.FooterText.FontWeight -eq 'Bold' -and $hook -eq 1 -and $before -and $null -eq $err -and $CTL_DRYRUN -and [math]::Abs($window.Width - $winW) -lt 1) }
         $fails = @(); foreach ($k in 'pure', 'collapsed', 'place', 'expanded', 'calTags', 'showAll', 'fresh', 'smoke') { if ($null -eq $r[$k] -or -not $r[$k].pass) { $fails += $k } }
         $r.summary = [ordered]@{ fails = $fails; allPass = ($fails.Count -eq 0) } }
     & $add 'v4.3.22 summary' @() {
