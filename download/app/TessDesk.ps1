@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-# TessDesk v4.3.30 (LAYOUT: small up/down arrows at the top left of every section move it one place; a lock at the top right pins that section and everything above it at the top, the rest scrolls; both saved; Charging locked by default; v4.3.29: SECTIONS: TESLA CONTROLS, BATTERY (with HEALTH HISTORY), HEATED SEATS, TRIPS, CHARGE HISTORY, TIRES, DRIVES, CAMERAS outlined in the CHARGING green with green titles; v4.3.28: Alexa: 'Alexa limit reached' notice, Voice Monkey monthly counter (resets the 26th 7 PM CT), fewer announcements, only when home, no test announcements; ALL OFF never starts charging (no charge commands + stops a charge that starts after it); flash pause = the typed value; v4.3.27: Voice Monkey button next to ALEXA: placeholder, 'coming soon' note only; v4.3.26: ALL OFF in TESLA CONTROLS: windows, trunk, climate, seat + wheel heat, defrost, Sentry, Climate Keeper off, lock; v4.3.25: CHARGING SCHEDULE reaches the car on firmware 2024.26+: charge schedules, checked after each send; v4.3.24: FINISH BY defaults to 6:00 AM; v4.3.23: CHARGING SCHEDULE in START / STOP: START AT + FINISH BY, set on the car through Tessie; v4.3.22: CHARGE column in HEALTH HISTORY: highest charge % per day + Home / AC / Supercharger; v4.3.21: HEALTH HISTORY under START / STOP with CALIBRATION INFO; health history logged by the app itself; v4.3.20: HEALTH HISTORY dropdown, one entry per day, kept indefinitely; v4.3.19: 30% wider; PLUG-IN REMINDER; TRIPS; MORNING READY CHECK; PSO BILL MATCH with on/off; BATTERY HEALTH TREND + TIPS; LEAVING SOON 'Start after' delay; v4.3.18 CHARGING STATUS bar under the big cost with START / STOP, fits 364x990 without scrolling; v4.3.17: TESLA CONTROLS under the big cost, CHARGE HISTORY & TOTALS dropdown; v4.3.16 LEAVING SOON: adjustable 'Windows after' / 'Unlock after' minutes, Stop undoes the steps already done; v4.3.15: climate on, close windows, unlock; rolling 7 / 14 days and 30 / 60 days $ beside the big amount; Restore / Remember at the top right with fade-in, like Paycheck Live; TOTALS pop-up: week / month / year running totals; CAMERAS panel from saved Sentry / Dashcam clips; checks for updates on open / wake; compact-when-OFF via cb_compact_addon.ps1) - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
+# TessDesk v4.3.31 (TIRE REFRESH button in TIRES under REMIND ME TO GET AIR: fresh pressures via Tessie, read-only, spinner + result; v4.3.30: LAYOUT: small up/down arrows at the top left of every section move it one place; a lock at the top right pins that section and everything above it at the top, the rest scrolls; both saved; Charging locked by default; v4.3.29: SECTIONS: TESLA CONTROLS, BATTERY (with HEALTH HISTORY), HEATED SEATS, TRIPS, CHARGE HISTORY, TIRES, DRIVES, CAMERAS outlined in the CHARGING green with green titles; v4.3.28: Alexa: 'Alexa limit reached' notice, Voice Monkey monthly counter (resets the 26th 7 PM CT), fewer announcements, only when home, no test announcements; ALL OFF never starts charging (no charge commands + stops a charge that starts after it); flash pause = the typed value; v4.3.27: Voice Monkey button next to ALEXA: placeholder, 'coming soon' note only; v4.3.26: ALL OFF in TESLA CONTROLS: windows, trunk, climate, seat + wheel heat, defrost, Sentry, Climate Keeper off, lock; v4.3.25: CHARGING SCHEDULE reaches the car on firmware 2024.26+: charge schedules, checked after each send; v4.3.24: FINISH BY defaults to 6:00 AM; v4.3.23: CHARGING SCHEDULE in START / STOP: START AT + FINISH BY, set on the car through Tessie; v4.3.22: CHARGE column in HEALTH HISTORY: highest charge % per day + Home / AC / Supercharger; v4.3.21: HEALTH HISTORY under START / STOP with CALIBRATION INFO; health history logged by the app itself; v4.3.20: HEALTH HISTORY dropdown, one entry per day, kept indefinitely; v4.3.19: 30% wider; PLUG-IN REMINDER; TRIPS; MORNING READY CHECK; PSO BILL MATCH with on/off; BATTERY HEALTH TREND + TIPS; LEAVING SOON 'Start after' delay; v4.3.18 CHARGING STATUS bar under the big cost with START / STOP, fits 364x990 without scrolling; v4.3.17: TESLA CONTROLS under the big cost, CHARGE HISTORY & TOTALS dropdown; v4.3.16 LEAVING SOON: adjustable 'Windows after' / 'Unlock after' minutes, Stop undoes the steps already done; v4.3.15: climate on, close windows, unlock; rolling 7 / 14 days and 30 / 60 days $ beside the big amount; Restore / Remember at the top right with fade-in, like Paycheck Live; TOTALS pop-up: week / month / year running totals; CAMERAS panel from saved Sentry / Dashcam clips; checks for updates on open / wake; compact-when-OFF via cb_compact_addon.ps1) - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
 param(
     [string]$ConfigPath,
     [string]$Snapshot,    # optional: folder to write PNG snapshots of both themes
@@ -15,7 +15,7 @@ Add-Type -AssemblyName System.Xaml
 
 $ErrorActionPreference = 'Stop'
 $AppName    = 'TessDesk'
-$AppVersion = '4.3.30'
+$AppVersion = '4.3.31'
 $AppDate    = 'Oct 16, 2026'
 # ---------------- v4.3.30: section ORDER (up / down arrows, top left) + LOCK (top right) ----------------
 # The lock pins that section and everything above it at the top (PinStack, never scrolls); the rest scrolls (BodyStack).
@@ -2490,6 +2490,14 @@ function Open-Url433 {
             <Button x:Name="RemindBtn" Style="{StaticResource CtlBtn}" Height="30" Margin="0,2,0,2" Padding="8,2,8,2" ToolTip="Schedule a reminder (email / text) to put air in the tires">
               <TextBlock x:Name="RemindTxt" Text="REMIND ME TO GET AIR" FontSize="11.5" FontWeight="Bold" HorizontalAlignment="Center"/>
             </Button>
+            <!-- v4.3.31: TIRE REFRESH (fresh pressures via Tessie, read-only) - same look as REMIND ME TO GET AIR -->
+            <Button x:Name="TireRefBtn" Style="{StaticResource CtlBtn}" Height="30" Margin="0,2,0,2" Padding="8,2,8,2" ToolTip="Refresh the tire pressures now with fresh data from Tessie (read-only; sends nothing to the car)">
+              <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <TextBlock x:Name="TireRefSpin" Text="&#x25D0;" FontSize="11.5" FontWeight="Bold" Margin="0,0,6,0" Visibility="Collapsed" VerticalAlignment="Center"/>
+                <TextBlock x:Name="TireRefTxt" Text="TIRE REFRESH" FontSize="11.5" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+              </StackPanel>
+            </Button>
+            <TextBlock x:Name="TireRefMsg" Text="" FontSize="10.5" FontWeight="SemiBold" Foreground="#FF9A9A9A" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" Margin="0,0,0,2" Visibility="Collapsed"/>
             <TextBlock x:Name="RemindSetup" Text="Setup: how reminders reach you" FontSize="10.5" FontWeight="SemiBold" Foreground="#FF9A9A9A" HorizontalAlignment="Center"
                        TextDecorations="Underline" Cursor="Hand" Margin="0,1,0,2" ToolTip="Choose how reminders reach you: email, text, Alexa, Windows notification, phone calendar"/>
           </StackPanel>
@@ -2766,6 +2774,7 @@ function Apply-Theme {
     $ui.FooterText.Foreground = T 'FooterText'; $ui.FooterVersion.Foreground = T 'Caption2'
     $ui.FooterSep.Foreground = T 'Caption2'; $ui.FooterAbout.Foreground = T 'Caption2'
     $ui.RemindBtn.Tag = $btnR; $ui.RemindBtn.Background = T 'BtnBg'; $ui.RemindBtn.BorderBrush = T 'BtnBorder'; $ui.RemindBtn.Foreground = T 'Text'
+    if ($null -ne $ui['TireRefBtn']) { $ui.TireRefBtn.Tag = $btnR; $ui.TireRefBtn.Background = T 'BtnBg'; $ui.TireRefBtn.BorderBrush = T 'BtnBorder'; $ui.TireRefBtn.Foreground = T 'Text' }   # v4.3.31: same look as REMIND
     if ($null -ne $ui['AllOffBtn']) { $ui.AllOffBtn.Tag = $btnR; $ui.AllOffSetBtn.Tag = $btnR }   # v4.3.26: same corners
     foreach ($n in 'AnnNowBtn', 'AnnSetupBtn') { $ui[$n].Tag = $btnR; $ui[$n].Background = T 'BtnBg'; $ui[$n].BorderBrush = T 'BtnBorder'; $ui[$n].Foreground = T 'Text' }
     $ui.AnnNowSub.Foreground = T 'Caption'; $ui.AnnSetupTxt.Foreground = T 'Caption'
@@ -6097,6 +6106,70 @@ function Get-V43Status {
 #  errors back off 30 s -> 300 s (10 min after "token rejected")
 $script:Live = @{ dataEpoch = $null; fetchEpoch = $null; carState = ''; reason = 'starting'; interval = 10; nextDue = 0; errors = 0; asleepRuns = 0; polls = 0; job = $null; lastCmdEpoch = 0; active = $false; charging = $false }
 $script:Prefetch = $null
+# ---------------- v4.3.31: TIRE REFRESH button (TIRES section, right under REMIND ME TO GET AIR) ----------------
+# One click = fresh tire pressures via Tessie. READ-ONLY: a single GET /state?use_cache=false (no wake, no commands).
+# Runs in a background runspace; spinner while it works; result line + toast after. $script:TireRefMock (self-test) replaces the network.
+$script:TireRef = [ordered]@{ busy = $false; job = $null; started = 0; last = $null; lastTip = ''; runs = 0 }
+$script:TireRefMock = $null
+$script:TireRefBlock = {
+    param($base, $vin, $t)
+    $h = @{ Authorization = ('Bearer ' + $t); Accept = 'application/json' }
+    try { return [pscustomobject]@{ ok = $true; v = (Invoke-RestMethod -Uri ($base + '/' + $vin + '/state?use_cache=false') -Headers $h -Method Get -TimeoutSec 60 -UseBasicParsing) } }
+    catch { $code = 0; try { $code = [int]$_.Exception.Response.StatusCode } catch {}; return [pscustomobject]@{ ok = $false; code = $code; error = $_.Exception.Message } }
+}
+$script:TireRefSpinCh = @([char]0x25D0, [char]0x25D3, [char]0x25D1, [char]0x25D2); $script:TireRefSpinI = 0
+function Set-TireRefLook {
+    param([string]$Mode, [string]$Msg)
+    $sp = $ui.TireRefSpin; $tx = $ui.TireRefTxt; $m = $ui.TireRefMsg
+    if ($Mode -eq 'busy') { Set-Visible $sp $true; $tx.Text = 'REFRESHING TIRES…'; $ui.TireRefBtn.IsEnabled = $false } else { Set-Visible $sp $false; $tx.Text = 'TIRE REFRESH'; $ui.TireRefBtn.IsEnabled = $true }
+    $m.Text = [string]$Msg; Set-Visible $m ([bool]$Msg)
+    $m.Foreground = $(switch ($Mode) { 'ok' { T 'Green' } 'fail' { T 'Red' } default { T 'Caption' } })
+}
+$script:TireRefTimer = New-Object System.Windows.Threading.DispatcherTimer; $script:TireRefTimer.Interval = [TimeSpan]::FromMilliseconds(120)
+$script:TireRefTimer.Add_Tick({ try { Step-TireRefresh } catch { Write-WidgetLog ('tire refresh: ' + $_.Exception.Message) } })
+function Start-TireRefresh {
+    $R = $script:TireRef; if ($R.busy) { return $false }
+    $R.busy = $true; $R.started = Get-EpochNow; $R.runs++; Set-TireRefLook 'busy' 'Reading fresh tire pressures from Tessie…'
+    Write-WidgetLog 'tire refresh: started (read-only GET state?use_cache=false)'
+    if ($null -eq $script:TireRefMock) {
+        $tok = $null; try { $tok = Get-TessieToken } catch {}
+        if (-not $tok -or -not $script:VIN) { Complete-TireRefresh ([pscustomobject]@{ ok = $false; error = 'no Tessie token / car (VIN) yet' }); return $true }
+        $ps = [powershell]::Create(); [void]$ps.AddScript($script:TireRefBlock).AddArgument($ApiBase).AddArgument($script:VIN).AddArgument($tok); $tok = $null
+        $R.job = @{ ps = $ps; async = $ps.BeginInvoke() }
+    } else { $R.job = $null }
+    $script:TireRefTimer.Start(); return $true
+}
+function Step-TireRefresh {
+    $R = $script:TireRef; $script:TireRefSpinI = ($script:TireRefSpinI + 1) % 4; $ui.TireRefSpin.Text = [string]$script:TireRefSpinCh[$script:TireRefSpinI]
+    if ($null -eq $R.job) { if ($null -ne $script:TireRefMock -and ((Get-EpochNow) - [int64]$R.started) -ge 1) { Complete-TireRefresh (& $script:TireRefMock) }; return }
+    if (-not $R.job.async.IsCompleted) {
+        if ((Get-EpochNow) - [int64]$R.started -gt 75) { try { $R.job.ps.Stop(); $R.job.ps.Dispose() } catch {}; $R.job = $null; Complete-TireRefresh ([pscustomobject]@{ ok = $false; error = 'Tessie did not answer (timed out)' }) }
+        return
+    }
+    $res = $null; try { $o = $R.job.ps.EndInvoke($R.job.async); if ($o.Count -gt 0) { $res = $o[$o.Count - 1] } } catch { $res = [pscustomobject]@{ ok = $false; error = $_.Exception.Message } }
+    try { $R.job.ps.Dispose() } catch {}; $R.job = $null
+    Complete-TireRefresh $res
+}
+function Complete-TireRefresh {
+    param($Res)
+    $R = $script:TireRef; $script:TireRefTimer.Stop(); $R.busy = $false; $R.job = $null
+    $t = $null; if ($null -ne $Res -and $Res.ok) { try { $t = Get-TireData $Res.v.vehicle_state (Get-EpochNow) } catch {} }
+    if ($null -ne $t -and @('fl', 'fr', 'rl', 'rr' | Where-Object { $null -ne $t.$_ }).Count -gt 0) {
+        $script:View.tires = $t; Render-Tires $t
+        $p = ('{0:N1} / {1:N1} / {2:N1} / {3:N1} PSI' -f [double]$t.fl, [double]$t.fr, [double]$t.rl, [double]$t.rr)
+        $msg = 'Refreshed ' + (Format-Clock (Get-LocalNow)) + ': ' + $p
+        $R.last = [ordered]@{ ok = $true; text = $msg; at = (Get-LocalNow).ToString('s') }
+        Set-TireRefLook 'ok' $msg; Show-TdToast ('Tires ' + $msg) $true
+    } else {
+        $err = $(if ($null -eq $Res) { 'no answer' } elseif (-not $Res.ok) { [string]$Res.error + $(if ($Res.code) { ' (HTTP ' + $Res.code + ')' } else { '' }) } else { 'the car sent no tire pressures (it may be asleep; try again later)' })
+        if ($null -ne $Res -and [int]$Res.code -eq 401) { $err = 'Tessie token not accepted (HTTP 401)' }
+        $msg = 'Tire refresh failed: ' + $err
+        $R.last = [ordered]@{ ok = $false; text = $msg; at = (Get-LocalNow).ToString('s') }
+        Set-TireRefLook 'fail' $msg; Show-TdToast $msg $false
+    }
+    Write-WidgetLog ('tire refresh: ' + $R.last.text)
+}
+
 $script:StateFetchBlock = {
     param($u, $t, $to)
     try { return [pscustomobject]@{ ok = $true; v = (Invoke-RestMethod -Uri $u -Headers @{ Authorization = ('Bearer ' + $t); Accept = 'application/json' } -Method Get -TimeoutSec $to -UseBasicParsing) } }
@@ -6455,6 +6528,7 @@ $ui.KeepBtn.Add_MouseLeftButtonUp({ try { Invoke-KeepSpot } catch { Write-Widget
 $ui.RestoreBtn.Add_MouseLeftButtonUp({ try { Invoke-RestoreSpot } catch { Write-WidgetLog ('restore failed: ' + $_.Exception.Message) } })
 $ui.LayoutBtn.Add_Click({ try { Set-LayoutMode $(if ($script:Layout -eq 'compact') { 'full' } else { 'compact' }) (-not $SelfTest) } catch { Write-WidgetLog ('layout toggle failed: ' + $_.Exception.Message) } })
 $ui.RemindSetup.Add_MouseLeftButtonUp({ try { [void](Show-ReminderSetup) } catch { Write-WidgetLog ('reminder setup failed: ' + $_.Exception.Message) } })
+$ui.TireRefBtn.Add_Click({ try { [void](Start-TireRefresh) } catch { Write-WidgetLog ('tire refresh: ' + $_.Exception.Message) } })   # v4.3.31
 $ui.RemindBtn.Add_Click({ try { Request-TireReminder } catch { Write-WidgetLog ('reminder failed: ' + $_.Exception.Message); [void][System.Windows.MessageBox]::Show($window, ('Could not set the reminder: ' + $_.Exception.Message), 'TessDesk · Reminder', 'OK', 'Warning') } })
 
 # Placement: Van's left-screen row (config.json placement: Left = WorkArea.Right - rightOffset, Top = WorkArea.Top + top).
@@ -10166,12 +10240,43 @@ function Start-SelfTest {
         $r.realCommands = $script:NetCommandsSent; $r.announcements = $script:AnnSent
         $r.pass = ($r.defaultOrder -and $r.defaultPin -eq 'charging' -and $r.defaultPinned -and $r.notesLast -and $r.peakBeforeRows -and $r.strips -eq 12 -and $r.chgLockOn -and $r.moveUp -and $r.battBeforeSkip -and $r.uiBattBeforeSkip -and $r.topUpDisabled -and $r.lastDnDisabled -and $r.cantMoveLastDown -and $r.lockBattOk -and $r.pinCapOk -and $r.saved -and $r.onDisk -and $r.unlockEmpty -and $r.moveCost -and $r.moveChg -and $r.allPinnedCap -and $r.mergeOk -and $r.restored)
         $script:SelfRec.v4328.layout = $r }
+    & $add 'v4.3.31 TIRE REFRESH button (Tires section, under REMIND ME TO GET AIR): mock read, spinner, success + error, fits 473, 0 real commands' @() {
+        $r = [ordered]@{}; $keepT = $script:View.tires; $c0 = $script:NetCommandsSent; $window.UpdateLayout()
+        $sp = $ui.RemindBtn.Parent; $i = $sp.Children.IndexOf($ui.RemindBtn); $r.directlyBelow = ($sp.Children[$i + 1] -eq $ui.TireRefBtn)
+        $r.inTires = $ui.TiresCard.IsAncestorOf($ui.TireRefBtn); $r.notInTitle = -not $ui.TitleBar.IsAncestorOf($ui.TireRefBtn)
+        $a = $ui.RemindBtn; $b = $ui.TireRefBtn
+        $r.sameStyle = ($a.Style -eq $b.Style -and $a.Height -eq $b.Height -and $a.Margin -eq $b.Margin -and $a.Padding -eq $b.Padding -and [string]$a.Background -eq [string]$b.Background -and [string]$a.BorderBrush -eq [string]$b.BorderBrush -and [string]$a.Foreground -eq [string]$b.Foreground -and $a.Tag -eq $b.Tag -and $ui.RemindTxt.FontSize -eq $ui.TireRefTxt.FontSize -and [string]$ui.RemindTxt.FontWeight -eq [string]$ui.TireRefTxt.FontWeight -and [math]::Abs($a.ActualWidth - $b.ActualWidth) -lt 0.5)
+        $r.text = $ui.TireRefTxt.Text; $r.w = $window.Width; $r.h = $window.Height; $r.fits = ($window.Width -eq 473)
+        $ui.TiresCard.BringIntoView(); $window.UpdateLayout()
+        Save-RootPng (Join-Path $script:SelfDir 'tessdesk-v4331-tires.png'); $script:SelfRec.shots += 'tessdesk-v4331-tires.png'
+        $nowS = Get-EpochNow
+        $vs = [pscustomobject]@{ tpms_pressure_fl = 2.9; tpms_pressure_fr = 2.9; tpms_pressure_rl = 2.95; tpms_pressure_rr = 2.95; tpms_rcp_front_value = 2.9; tpms_rcp_rear_value = 2.9
+            tpms_last_seen_pressure_time_fl = $nowS; tpms_last_seen_pressure_time_fr = $nowS; tpms_last_seen_pressure_time_rl = $nowS; tpms_last_seen_pressure_time_rr = $nowS }
+        $script:TireRefMock = { [pscustomobject]@{ ok = $true; v = [pscustomobject]@{ vehicle_state = $vs } } }.GetNewClosure()
+        $r.started = Start-TireRefresh; $r.busy = $script:TireRef.busy; $r.busyText = $ui.TireRefTxt.Text; $r.spinVis = $ui.TireRefSpin.IsVisible; $r.again = Start-TireRefresh
+        $s0 = $ui.TireRefSpin.Text; Step-TireRefresh; $r.spins = ($ui.TireRefSpin.Text -ne $s0); $window.UpdateLayout()
+        Save-RootPng (Join-Path $script:SelfDir 'tessdesk-v4331-spinner.png'); $script:SelfRec.shots += 'tessdesk-v4331-spinner.png'
+        $script:TireRef.started = (Get-EpochNow) - 2; Step-TireRefresh; $window.UpdateLayout()
+        $r.okMsg = $ui.TireRefMsg.Text; $r.psiFL = $ui.PsiFL.Text; $r.asOf = $ui.TiresAsOf.Text
+        $r.successOk = (-not $script:TireRef.busy -and $ui.TireRefTxt.Text -eq 'TIRE REFRESH' -and $r.okMsg -like 'Refreshed*42.1 / 42.1 / 42.8 / 42.8 PSI' -and $r.psiFL -like '42*' -and $r.asOf -like ('Updated ' + (Format-Clock (Get-LocalNow)) + '*'))
+        Save-RootPng (Join-Path $script:SelfDir 'tessdesk-v4331-refreshed.png'); $script:SelfRec.shots += 'tessdesk-v4331-refreshed.png'
+        $script:TireRefMock = { [pscustomobject]@{ ok = $false; code = 408; error = 'vehicle unavailable' } }
+        [void](Start-TireRefresh); $script:TireRef.started = (Get-EpochNow) - 2; Step-TireRefresh; $window.UpdateLayout()
+        $r.failMsg = $ui.TireRefMsg.Text; $r.errorOk = ($r.failMsg -like 'Tire refresh failed: vehicle unavailable (HTTP 408)*' -and $r.psiFL -eq $ui.PsiFL.Text)
+        Save-RootPng (Join-Path $script:SelfDir 'tessdesk-v4331-error.png'); $script:SelfRec.shots += 'tessdesk-v4331-error.png'
+        $script:TireRefMock = { [pscustomobject]@{ ok = $true; v = [pscustomobject]@{ vehicle_state = [pscustomobject]@{} } } }
+        [void](Start-TireRefresh); $script:TireRef.started = (Get-EpochNow) - 2; Step-TireRefresh; $r.noDataMsg = $ui.TireRefMsg.Text
+        $blk = $script:TireRefBlock.ToString(); $r.readOnly = ($blk -match 'use_cache=false' -and $blk -notmatch '/command/' -and $blk -notmatch '/wake' -and $blk -notmatch 'Post')
+        $script:TireRefMock = $null; Set-TireRefLook 'idle' ''; $script:View.tires = $keepT; Render-Tires $keepT; Set-Visible $ui.WToast $false
+        $r.realCommands = $script:NetCommandsSent - $c0
+        $r.pass = ($r.directlyBelow -and $r.inTires -and $r.notInTitle -and $r.sameStyle -and $r.fits -and $r.text -eq 'TIRE REFRESH' -and $r.started -and $r.busy -and $r.busyText -eq 'REFRESHING TIRES…' -and $r.spinVis -and -not $r.again -and $r.spins -and $r.successOk -and $r.errorOk -and $r.noDataMsg -like 'Tire refresh failed: the car sent no tire pressures*' -and $r.readOnly -and $r.realCommands -eq 0)
+        $script:SelfRec.v4328.tirerefresh = $r }
     & $add 'v4.3.28 summary' @() {
         $r = $script:SelfRec.v4328; $fails = @()
-        foreach ($k in 'period', 'alexa', 'flash', 'updbtn', 'sections', 'layout') { if ($null -eq $r[$k] -or -not $r[$k].pass) { $fails += $k } }
+        foreach ($k in 'period', 'alexa', 'flash', 'updbtn', 'sections', 'layout', 'tirerefresh') { if ($null -eq $r[$k] -or -not $r[$k].pass) { $fails += $k } }
         $g = $r.guard; $g.pass = ($null -ne $g -and $g.whenWasCharging -eq $null -and $g.stopSent -eq 1 -and $g.dry -eq $true -and $g.stoppedFlag -and $null -eq $g.again)
         if (-not $g.pass) { $fails += 'guard' }
-        $sm = [ordered]@{ ver = ($AppVersion -eq '4.3.30' -and $ui.FooterVersion.Text -like ('*4.3.30*' + $AppDate)); bold = ($ui.FooterText.FontWeight -eq [System.Windows.FontWeights]::Bold -or $ui.FooterText.FontWeight.ToString() -match 'Bold|Black') }
+        $sm = [ordered]@{ ver = ($AppVersion -eq '4.3.31' -and $ui.FooterVersion.Text -like ('*4.3.31*' + $AppDate)); bold = ($ui.FooterText.FontWeight -eq [System.Windows.FontWeights]::Bold -or $ui.FooterText.FontWeight.ToString() -match 'Bold|Black') }
         $r.smoke = $sm; if (-not ($sm.ver)) { $fails += 'smoke' }
         $r.netCommandsSent = $script:NetCommandsSent; $r.announcementsSent = $script:AnnSent
         $r.summary = [ordered]@{ fails = $fails; allPass = ($fails.Count -eq 0 -and $script:NetCommandsSent -eq 0 -and $script:AnnSent -eq 0) } }
@@ -10184,7 +10289,7 @@ function Start-SelfTest {
         $real = @($script:CtlLog | Where-Object { $_.dry -eq $false -or $_.real -eq $true }).Count
         $r = $script:SelfRec.v4321
         $r.smoke = [ordered]@{ appVersion = $AppVersion; footer = $ui.FooterVersion.Text; brand = $ui.FooterText.Text; bold = [string]$ui.FooterText.FontWeight; hookLines = $hook; hookBeforeShowDialog = $before; width = $window.Width; renderError = $err; dryRun = $CTL_DRYRUN; realCmdLog = $real
-            pass = ($AppVersion -eq '4.3.30' -and $ui.FooterVersion.Text -like ('*4.3.30*' + $AppDate) -and [string]$ui.FooterText.FontWeight -eq 'Bold' -and $hook -eq 1 -and $before -and $null -eq $err -and $CTL_DRYRUN -and [math]::Abs($window.Width - $winW) -lt 1) }
+            pass = ($AppVersion -eq '4.3.31' -and $ui.FooterVersion.Text -like ('*4.3.31*' + $AppDate) -and [string]$ui.FooterText.FontWeight -eq 'Bold' -and $hook -eq 1 -and $before -and $null -eq $err -and $CTL_DRYRUN -and [math]::Abs($window.Width - $winW) -lt 1) }
         $fails = @(); foreach ($k in 'pure', 'collapsed', 'place', 'expanded', 'calTags', 'showAll', 'fresh', 'smoke') { if ($null -eq $r[$k] -or -not $r[$k].pass) { $fails += $k } }
         $r.summary = [ordered]@{ fails = $fails; allPass = ($fails.Count -eq 0) } }
     & $add 'v4.3.22 summary' @() {
