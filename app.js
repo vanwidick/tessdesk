@@ -901,7 +901,7 @@
   function verGt(a, b) { a = String(a || '').replace(/^v/, '').split('.'); b = String(b || '').replace(/^v/, '').split('.'); for (var i = 0; i < Math.max(a.length, b.length); i++) { var x = +a[i] || 0, y = +b[i] || 0; if (x !== y) return x > y; } return false; }
   function checkUpdate(force) {
     if (VARIANT === 'test' && !force) return;
-    if (!force && Date.now() - upd.checkedAt < 6 * 3600 * 1000) return;
+    if (!force && Date.now() - upd.checkedAt < 45 * 60 * 1000) return;   // v4.3.28: every ~45 min (was 6 h)
     upd.checkedAt = Date.now();
     fetch('version.json?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
       if (!j) return; var v = (j.phone && j.phone.version) || j.version; upd.info = j;
@@ -909,7 +909,7 @@
       if (was !== upd.latest) render();
     }).catch(function () {});
   }
-  function updBanner() { return upd.latest ? '<button class="upd-banner" id="btnUpdApp" type="button"><b>New version, tap to refresh</b><small>v' + esc(upd.latest) + ' is out \u00b7 you have ' + esc(VERSION) + '</small></button>' : ''; }
+  function updBanner() { return upd.latest ? '<button class="upd-banner pulse" id="btnUpdApp" type="button"><b>\u2b06 UPDATE \u00b7 tap to install</b><small>v' + esc(upd.latest) + ' is out \u00b7 you have ' + esc(VERSION) + '</small></button>' : ''; }
   function applyUpdate() {
     window.__tdUpdTapped = (window.__tdUpdTapped || 0) + 1;
     var el = document.getElementById('btnUpdApp'); if (el) el.querySelector('b').textContent = 'Refreshing\u2026';
@@ -3264,5 +3264,5 @@
   render();
   if (getCfg()) { refresh(false); startTimer(); }
   setTimeout(function () { checkUpdate(false); }, 3000);
-  setInterval(function () { if (document.visibilityState === 'visible') checkUpdate(false); }, 30 * 60 * 1000);
+  setInterval(function () { if (document.visibilityState === 'visible') checkUpdate(false); }, 45 * 60 * 1000);   // v4.3.28
 })();

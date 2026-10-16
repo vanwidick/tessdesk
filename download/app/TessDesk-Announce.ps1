@@ -18,6 +18,18 @@ if (-not $ConfigPath) { $ConfigPath = Join-Path $dir 'config.json' }
 $logPath = Join-Path $dir 'announce.log'
 function Log { param([string]$m) try { Add-Content -LiteralPath $logPath -Value ((Get-Date).ToString('s') + ' [' + $Type + '] ' + $m) -Encoding UTF8 } catch {} }
 function Read-Dpapi { param([string]$p) $ss = (Get-Content -LiteralPath $p -Raw).Trim() | ConvertTo-SecureString; $b = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($ss); try { return ([Runtime.InteropServices.Marshal]::PtrToStringBSTR($b)).Trim() } finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($b) } }
+# v4.3.28: Voice Monkey free plan (200/month, resets the 26th 7 PM CT): usage shared with the widget in vm-usage.json; only when the car is home
+$VmUsagePath = Join-Path $dir 'vm-usage.json'
+function Get-VmPeriodKey { $tz = [TimeZoneInfo]::FindSystemTimeZoneById('Central Standard Time'); $ct = [TimeZoneInfo]::ConvertTimeFromUtc([DateTime]::UtcNow, $tz); $s = New-Object DateTime ($ct.Year, $ct.Month, 26, 19, 0, 0); if ($ct -lt $s) { $s = $s.AddMonths(-1) }; return $s.ToString('yyyy-MM-dd') }
+function Read-VmUse { $k = Get-VmPeriodKey; $o = [ordered]@{ period = $k; count = 0; blocked = $false; reason = '' }; try { if (Test-Path -LiteralPath $VmUsagePath) { $u = Get-Content -LiteralPath $VmUsagePath -Raw -Encoding UTF8 | ConvertFrom-Json; if ([string]$u.period -eq $k) { $o.count = [int]$u.count; $o.blocked = [bool]$u.blocked; $o.reason = [string]$u.reason } } } catch {}; if ($o.count -ge 200) { $o.blocked = $true }; return $o }
+function Save-VmUse { param($o) try { ([ordered]@{ period = $o.period; count = [int]$o.count; blocked = [bool]$o.blocked; reason = [string]$o.reason; updated = (Get-Date).ToString('s') } | ConvertTo-Json -Compress) | Set-Content -LiteralPath $VmUsagePath -Encoding UTF8 } catch {} }
+function Test-CarHome {
+    try { $v = Get-TessieState } catch { return $false }
+    $la = 36.10364; $lo = -96.03282; try { if ($null -ne $cfg.home -and $null -ne $cfg.home.lat -and $null -ne $cfg.home.lon) { $la = [double]$cfg.home.lat; $lo = [double]$cfg.home.lon } } catch {}
+    $d = $v.drive_state; if ($null -eq $d -or $null -eq $d.latitude) { return $false }
+    $r = [math]::PI / 180; $x = ([double]$d.longitude - $lo) * $r * [math]::Cos(([double]$d.latitude + $la) / 2 * $r); $y = ([double]$d.latitude - $la) * $r
+    return ([math]::Sqrt($x * $x + $y * $y) * 3958.8 -le 0.15)
+}
 try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12 } catch {}
 
 $cfg = $null; if (Test-Path -LiteralPath $ConfigPath) { $cfg = Get-Content -LiteralPath $ConfigPath -Raw -Encoding UTF8 | ConvertFrom-Json }
@@ -108,12 +120,15 @@ $tp = Join-Path $dir 'voicemonkey.token.dpapi'
 if ($DryRun) { Write-Output ('DRY RUN (nothing sent) -> ' + $targets.Count + ' speaker(s) "' + ($targets -join ', ') + '": ' + $text); Log ('DRY RUN -> ' + ($targets -join ', ') + ': ' + $text); exit 0 }
 if (-not $consentOk) { Log 'skipped: announcement disclosure not accepted in config.json'; exit 0 }
 if ($targets.Count -eq 0 -or -not (Test-Path -LiteralPath $tp)) { Log 'skipped: Voice Monkey token / speaker not set up'; exit 0 }
+$use = Read-VmUse; if ($use.blocked) { Log ('skipped: Alexa limit reached (Voice Monkey ' + $use.count + '/200 this month; resets the 26th at 7 PM CT)'); exit 0 }
+if (-not (Test-CarHome)) { Log 'skipped: the car is not at home (announcements only when home)'; exit 0 }
 $tok = Read-Dpapi $tp; $okN = 0
 foreach ($d in $targets) {
     try {
         $body = @{ token = $tok; device = $d; speech = $text } | ConvertTo-Json -Compress
         Invoke-RestMethod -Uri 'https://api-v3.voicemonkey.io/announce' -Method Post -ContentType 'application/json' -Body $body -TimeoutSec 20 -UseBasicParsing | Out-Null
         $okN++; Log ('announced on ' + $d + ': ' + $text)
-    } catch { Log ('announce failed on ' + $d + ': ' + $_.Exception.Message) }
+    } catch { $c = $null; try { $c = [int]$_.Exception.Response.StatusCode } catch {}; Log ('announce failed on ' + $d + ': ' + $_.Exception.Message); if ($c -eq 429) { $use.blocked = $true; $use.reason = 'Voice Monkey refused: HTTP 429'; Log 'Alexa limit reached: paused until the 26th at 7 PM CT'; break } }
 }
+$use.count = [int]$use.count + $okN; Save-VmUse $use
 if ($okN -eq 0) { exit 1 }
