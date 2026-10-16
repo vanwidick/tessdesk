@@ -1,4 +1,4 @@
-/* TessDesk LEAVING SOON v4.3.28 (phone). Design by Van. v4.3.19: 'Start after' (0-120 min, default 0) waits before the sequence begins;
+/* TessDesk LEAVING SOON v4.3.29 (phone). Design by Van. v4.3.19: 'Start after' (0-120 min, default 0) waits before the sequence begins;
    Stop during it just cancels (nothing to undo); the same timestamp catch-up and 30-minute late limit apply to that step.
    Shared by the main phone app (TESLA CONTROLS) and the standalone Leaving Soon page (leaving/). Same behavior as desktop v4.3.16:
    confirm -> read the start state (Tessie GET /{vin}/state?use_cache=true, never wakes the car; fallback = last TessDesk refresh)
@@ -115,7 +115,7 @@
         });
       }, function (e) { clearTimeout(t); return { ok: false, code: 0, error: navigator.onLine === false ? 'offline' : 'network / CORS error' }; });
   }
-  // v4.3.28: shared with the main app (td:vmUsage): count each successful announcement, Alexa limit reached until the 26th 7 PM CT
+  // v4.3.29: shared with the main app (td:vmUsage): count each successful announcement, Alexa limit reached until the 26th 7 PM CT
   function vmKey28() { var o = {}; new Intl.DateTimeFormat('en-US', { timeZone: 'America/Chicago', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', hourCycle: 'h23' }).formatToParts(new Date()).forEach(function (p) { o[p.type] = +p.value; }); var y = o.year, m = o.month; if (o.day < 26 || (o.day === 26 && o.hour < 19)) { m--; if (m < 1) { m = 12; y--; } } return y + '-' + (m < 10 ? '0' : '') + m + '-26'; }
   function vmUse28() { var k = vmKey28(), u = load('vmUsage', null); return u && u.period === k ? { period: k, count: +u.count || 0, blocked: !!u.blocked, reason: u.reason || '' } : { period: k, count: 0, blocked: false, reason: '' }; }
   function vmBlocked28() { var u = vmUse28(); return u.blocked || u.count >= 200; }
@@ -126,7 +126,7 @@
     if (!annReady()) rec.result = 'skipped: Alexa not set up (Settings \u2192 Connected apps: Voice Monkey token + disclosure)';
     else if (dry()) rec.result = 'DRY RUN: not sent';
     else if (bl && Date.parse(bl.until) > Date.now()) rec.result = 'skipped: ' + bl.why;
-    else if (!(tag === 'start_climate' || /^(failed|cancel|undo-failed)/.test(tag))) rec.result = 'skipped: lean mode (only start, cancel and failures are spoken)';   // v4.3.28
+    else if (!(tag === 'start_climate' || /^(failed|cancel|undo-failed)/.test(tag))) rec.result = 'skipped: lean mode (only start, cancel and failures are spoken)';   // v4.3.29
     else if (vmBlocked28()) rec.result = 'skipped: Alexa limit reached (Voice Monkey free plan, resets the 26th at 7 PM CT)';
     else if (!vmHome28()) rec.result = 'skipped: not home (car not at the home location)';
     else rec.result = 'sending';
@@ -136,7 +136,7 @@
     L.announced = (L.announced || 0) + 1;
     var id = L.id, idx = L.ann.length - 1;
     vmSend(a.token, rec.device, text).then(function (r) {
-      vmNote28(!!r.ok, r.code);   // v4.3.28
+      vmNote28(!!r.ok, r.code);   // v4.3.29
       var M = st(); if (!M || M.id !== id || !M.ann || !M.ann[idx]) return;
       M.ann[idx].result = r.ok ? 'announced' : 'failed: ' + (r.why || (r.code ? 'HTTP ' + r.code + (r.error && r.error !== 'HTTP ' + r.code ? ' ' + r.error : '') : r.error));
       if (!r.ok) note(M, 'Alexa announcement failed (' + tag + '): ' + M.ann[idx].result.replace(/^failed: /, ''));
@@ -429,7 +429,7 @@
   window.addEventListener('storage', function (e) { if (e.key === P + 'leave' || e.key === P + 'leaveMins' || e.key === P + 'cache' || e.key === P + 'skipConfirm') { if (active(st())) ensureTimer(); paint(); } });
 
   window.TDLeave = {
-    version: 'v4.3.28', skipLeave: function () { return skipLeave(); },
+    version: 'v4.3.29', skipLeave: function () { return skipLeave(); },
     init: function (o) { opts = o || {}; if (active(st())) { ensureTimer(); setTimeout(tick, 0); } return window.TDLeave; },
     html: html, paint: paint, start: start, stop: stop, dismiss: dismiss, tick: tick, mins: mins, setMins: function (w, u, s2) { setMins(w, u, s2); paint(); }, summary: summary,
     state: st, active: function () { return active(st()); }, cmdLog: cmdLog, hasSetup: hasSetup, cmdAllowed: cmdAllowed, readCar: readCar, car: car,

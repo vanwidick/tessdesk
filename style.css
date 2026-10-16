@@ -870,3 +870,16 @@ body:not(.compact) .lv-pm { grid-template-columns: 44px minmax(0, 1fr) 44px; }
 
 /* v4.3.28: Alexa limit reached on the ANNOUNCE button */
 .cbtn.ann small .vm-lim { color: #ff6b6e; font-weight: 700; }
+
+/* v4.3.29: SECTIONS - same thick green outline as CHARGING, fill lighter than the darker green background, green titles */
+body.td-sec, html:has(body.td-sec) { --bg: #06120b !important; background: #06120b !important; }
+body.td-sec .card.sec { border: 2px solid #49df93 !important; background: #13261b !important; border-radius: 14px; }
+body.td-sec .card.sec .sec-t, body.td-sec .card.sec h3, body.td-sec .card.sec .hist-hd b, body.td-sec .billsec .billhd b { color: #49df93 !important; opacity: 1; }
+.card.sec .sec-t { font-size: 13px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: #49df93; margin: 0 0 6px; }
+.card.sec.cost { padding: 8px 10px 6px; } .card.sec.cost .hero { margin: 0; padding-top: 0; }
+.card.sec.chgbar .sec-t { margin-bottom: 4px; }
+.card.sec.skipsec .skip-row { margin: 0; border: 0; padding: 0; }
+.card.sec.billsec .billcard { margin: 0; border: 0; padding: 0; }
+.hhist.inbatt { margin: 2px 0 10px; }
+.card.sec.dd > .sec-hd { cursor: pointer; display: flex; align-items: center; } .card.sec.dd .dd-ar { margin-left: auto; color: #49df93; font-weight: 900; font-size: 14px; padding-left: 8px; }
+.card.sec.dd .trips-body { display: none; } .card.sec.dd.open .trips-body { display: block; } .card.sec.dd > .sec-hd h3 { margin-bottom: 0; } .card.sec.dd.open > .sec-hd h3 { margin-bottom: 10px; }

@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-# TessDesk v4.3.28 (Alexa: 'Alexa limit reached' notice, Voice Monkey monthly counter (resets the 26th 7 PM CT), fewer announcements, only when home, no test announcements; ALL OFF never starts charging (no charge commands + stops a charge that starts after it); flash pause = the typed value; v4.3.27: Voice Monkey button next to ALEXA: placeholder, 'coming soon' note only; v4.3.26: ALL OFF in TESLA CONTROLS: windows, trunk, climate, seat + wheel heat, defrost, Sentry, Climate Keeper off, lock; v4.3.25: CHARGING SCHEDULE reaches the car on firmware 2024.26+: charge schedules, checked after each send; v4.3.24: FINISH BY defaults to 6:00 AM; v4.3.23: CHARGING SCHEDULE in START / STOP: START AT + FINISH BY, set on the car through Tessie; v4.3.22: CHARGE column in HEALTH HISTORY: highest charge % per day + Home / AC / Supercharger; v4.3.21: HEALTH HISTORY under START / STOP with CALIBRATION INFO; health history logged by the app itself; v4.3.20: HEALTH HISTORY dropdown, one entry per day, kept indefinitely; v4.3.19: 30% wider; PLUG-IN REMINDER; TRIPS; MORNING READY CHECK; PSO BILL MATCH with on/off; BATTERY HEALTH TREND + TIPS; LEAVING SOON 'Start after' delay; v4.3.18 CHARGING STATUS bar under the big cost with START / STOP, fits 364x990 without scrolling; v4.3.17: TESLA CONTROLS under the big cost, CHARGE HISTORY & TOTALS dropdown; v4.3.16 LEAVING SOON: adjustable 'Windows after' / 'Unlock after' minutes, Stop undoes the steps already done; v4.3.15: climate on, close windows, unlock; rolling 7 / 14 days and 30 / 60 days $ beside the big amount; Restore / Remember at the top right with fade-in, like Paycheck Live; TOTALS pop-up: week / month / year running totals; CAMERAS panel from saved Sentry / Dashcam clips; checks for updates on open / wake; compact-when-OFF via cb_compact_addon.ps1) - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
+# TessDesk v4.3.29 (SECTIONS: TESLA CONTROLS, BATTERY (with HEALTH HISTORY), HEATED SEATS, TRIPS, CHARGE HISTORY, TIRES, DRIVES, CAMERAS outlined in the CHARGING green with green titles; v4.3.28: Alexa: 'Alexa limit reached' notice, Voice Monkey monthly counter (resets the 26th 7 PM CT), fewer announcements, only when home, no test announcements; ALL OFF never starts charging (no charge commands + stops a charge that starts after it); flash pause = the typed value; v4.3.27: Voice Monkey button next to ALEXA: placeholder, 'coming soon' note only; v4.3.26: ALL OFF in TESLA CONTROLS: windows, trunk, climate, seat + wheel heat, defrost, Sentry, Climate Keeper off, lock; v4.3.25: CHARGING SCHEDULE reaches the car on firmware 2024.26+: charge schedules, checked after each send; v4.3.24: FINISH BY defaults to 6:00 AM; v4.3.23: CHARGING SCHEDULE in START / STOP: START AT + FINISH BY, set on the car through Tessie; v4.3.22: CHARGE column in HEALTH HISTORY: highest charge % per day + Home / AC / Supercharger; v4.3.21: HEALTH HISTORY under START / STOP with CALIBRATION INFO; health history logged by the app itself; v4.3.20: HEALTH HISTORY dropdown, one entry per day, kept indefinitely; v4.3.19: 30% wider; PLUG-IN REMINDER; TRIPS; MORNING READY CHECK; PSO BILL MATCH with on/off; BATTERY HEALTH TREND + TIPS; LEAVING SOON 'Start after' delay; v4.3.18 CHARGING STATUS bar under the big cost with START / STOP, fits 364x990 without scrolling; v4.3.17: TESLA CONTROLS under the big cost, CHARGE HISTORY & TOTALS dropdown; v4.3.16 LEAVING SOON: adjustable 'Windows after' / 'Unlock after' minutes, Stop undoes the steps already done; v4.3.15: climate on, close windows, unlock; rolling 7 / 14 days and 30 / 60 days $ beside the big amount; Restore / Remember at the top right with fade-in, like Paycheck Live; TOTALS pop-up: week / month / year running totals; CAMERAS panel from saved Sentry / Dashcam clips; checks for updates on open / wake; compact-when-OFF via cb_compact_addon.ps1) - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
 param(
     [string]$ConfigPath,
     [string]$Snapshot,    # optional: folder to write PNG snapshots of both themes
@@ -15,8 +15,26 @@ Add-Type -AssemblyName System.Xaml
 
 $ErrorActionPreference = 'Stop'
 $AppName    = 'TessDesk'
-$AppVersion = '4.3.28'
-$AppDate    = 'Oct 15, 2026'
+$AppVersion = '4.3.29'
+$AppDate    = 'Oct 16, 2026'
+# v4.3.29: SECTIONS - same thick green outline as CHARGING, a fill lighter than the (dark green) background, green titles
+$SecBrush4329 = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(0x49, 0xDF, 0x93)); $SecBrush4329.Freeze()
+$SecFill4329 = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(0x13, 0x26, 0x1B)); $SecFill4329.Freeze()
+$SecRoot4329 = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(0x06, 0x12, 0x0B)); $SecRoot4329.Freeze()
+$SecCards4329 = @('CostCard', 'ChgCard', 'CtlCard', 'SkipCard', 'BattCard', 'BillCard', 'TripsCard', 'RowsCard', 'SeatsCard', 'TiresCard', 'DrivesCard', 'CamCard')
+$SecTitles4329 = @('CostCardTitle', 'ChgCardTitle', 'CtlHdr', 'SkipCardTitle', 'BattHdr', 'BillHdr', 'TripsHdr', 'ChgHistHdr', 'SeatsHdr', 'TiresHdr', 'DrivesHdr', 'CamHdr', 'TripsArrow', 'ChgHistArrow')
+function Apply-Sections4329 {
+    try { $ui.RootBorder.Background = $SecRoot4329 } catch {}
+    foreach ($n in $SecCards4329) { $e = $ui[$n]; if ($null -eq $e) { continue }; $e.BorderBrush = $SecBrush4329; $e.BorderThickness = [System.Windows.Thickness]::new(2); $e.Background = $SecFill4329; $e.CornerRadius = [System.Windows.CornerRadius]::new(10) }
+    foreach ($n in $SecTitles4329) { if ($ui[$n]) { $ui[$n].Foreground = $SecBrush4329 } }
+}
+function Get-TripsOpen4329 { $c = Get-Cfg4319 'tripsSection'; try { if ($null -ne $c -and $null -ne $c.open) { return [bool]$c.open } } catch {}; return $false }
+function Set-TripsOpen4329 {
+    param([bool]$On, [switch]$NoSave)
+    if (-not $NoSave) { Save-Cfg4319 'tripsSection' ([ordered]@{ open = $On }) }
+    $ui.TripsBody.Visibility = $(if ($On) { 'Visible' } else { 'Collapsed' })
+    $ui.TripsArrow.Text = $(if ($On) { [string][char]0x25BE } else { [string][char]0x25B8 })
+}
 
 $scriptDir  = Split-Path -Parent $MyInvocation.MyCommand.Path
 if (-not $ConfigPath) { $ConfigPath = Join-Path $scriptDir 'config.json' }
@@ -1531,6 +1549,9 @@ function Open-Url433 {
             </StackPanel>
           </Border>
           <!-- v4.3.14: rolling 7 days over 14 days (left) and 30 days over 60 days (right) beside the big amount. Money only; same shared calculation (Get-PeriodTotal) as the Last 7 / 30 days rows. -->
+        <Border x:Name="CostCard" CornerRadius="10" Background="#FF13261B" BorderBrush="#FF49DF93" BorderThickness="2" Padding="10,4,10,6" Margin="0,0,0,4">   <!-- v4.3.29 section -->
+          <StackPanel>
+            <TextBlock x:Name="CostCardTitle" Text="COST SUMMARY" FontSize="11.5" FontWeight="Black" Foreground="#FF49DF93" Margin="0,0,0,2"/>
           <Grid x:Name="HeroRow" HorizontalAlignment="Stretch">
             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
             <Grid x:Name="HeroL" Grid.Column="0">
@@ -1582,13 +1603,16 @@ function Open-Url433 {
           <Viewbox StretchDirection="DownOnly" Stretch="Uniform" HorizontalAlignment="Center" Margin="0,-2,0,0">
             <TextBlock x:Name="HeroSub" Text="" Foreground="#FFE82127" FontSize="14" TextWrapping="NoWrap"/>
           </Viewbox>
+        <TextBlock x:Name="KwhLabel" Text="" Foreground="#FFE82127" FontSize="16" FontWeight="SemiBold"
+                   HorizontalAlignment="Center" Margin="0,0,0,0"/>
+          </StackPanel>
+        </Border>
         </StackPanel>
 
-        <TextBlock x:Name="KwhLabel" Grid.Row="2" Text="" Foreground="#FFE82127" FontSize="16" FontWeight="SemiBold"
-                   HorizontalAlignment="Center" Margin="0,0,0,4"/>
 
         <!-- v4.3.18: CHARGING STATUS bar, fixed under the big cost (never scrolls): state word (CHARGING / NOT CHARGING / UNPLUGGED / COMPLETE), START / STOP on the right, then POWER, SESSION, FULL AT or ENDED, BATTERY -->
-        <Border x:Name="ChgCard" Grid.Row="3" CornerRadius="10" Background="#FF111111" BorderBrush="#FF222222" BorderThickness="2" Padding="10,5,8,5" Margin="0,2,0,6">
+        <Border x:Name="ChgCard" Grid.Row="3" CornerRadius="10" Background="#FF13261B" BorderBrush="#FF49DF93" BorderThickness="2" Padding="10,3,8,5" Margin="0,2,0,6">
+          <StackPanel><TextBlock x:Name="ChgCardTitle" Text="CHARGING" FontSize="11.5" FontWeight="Black" Foreground="#FF49DF93" Margin="0,0,0,1"/>
           <Grid>
             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
@@ -1666,35 +1690,8 @@ function Open-Url433 {
               </DockPanel>
             </Border>
             <!-- v4.3.21: HEALTH HISTORY dropdown attached under START / STOP (moved from BATTERY HEALTH); starts collapsed, open/closed saved in config.json healthHistory.open -->
-            <StackPanel x:Name="HHistWrap" Grid.Row="5" Grid.ColumnSpan="2" Margin="0,5,0,0">
-              <Border x:Name="HHistBtn" Padding="9,4,9,4" CornerRadius="6" Background="#14FFFFFF" BorderBrush="#FF333333" BorderThickness="1" Cursor="Hand" ToolTip="Show or hide the daily battery health history (remembered)">
-                <DockPanel LastChildFill="True">
-                  <TextBlock x:Name="HHistSum" DockPanel.Dock="Right" FontSize="10.5" VerticalAlignment="Center"/>
-                  <TextBlock x:Name="HHistHdr" Text="HEALTH HISTORY &#x25B8;" FontSize="10.5" FontWeight="Bold" Foreground="#FFFFFFFF" VerticalAlignment="Center"/>
-                </DockPanel>
-              </Border>
-              <StackPanel x:Name="HHistBody" Visibility="Collapsed" Margin="2,5,2,0">
-                <TextBlock x:Name="HHistSummary" FontSize="10" TextWrapping="Wrap" Margin="0,0,0,3"/>
-                <TextBlock x:Name="HHistCal" FontSize="10" TextWrapping="Wrap" Margin="0,0,0,2"/>
-                <TextBlock x:Name="HHistCalNote" FontSize="9.5" TextWrapping="Wrap" Margin="0,0,0,2"/>
-                <TextBlock x:Name="HHistTip" FontSize="9.5" TextWrapping="Wrap" Margin="0,0,0,5"/>
-                <Grid Margin="0,0,8,2">
-                  <Grid.ColumnDefinitions><ColumnDefinition Width="124"/><ColumnDefinition Width="50"/><ColumnDefinition Width="54"/><ColumnDefinition Width="68"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                  <TextBlock x:Name="HHistC0" Text="DATE" FontSize="9" FontWeight="Bold" Foreground="#FF8A8A8A"/>
-                  <TextBlock x:Name="HHistC1" Grid.Column="1" Text="HEALTH" FontSize="9" FontWeight="Bold" Foreground="#FF8A8A8A" HorizontalAlignment="Right"/>
-                  <TextBlock x:Name="HHistC2" Grid.Column="2" Text="CHANGE" FontSize="9" FontWeight="Bold" Foreground="#FF8A8A8A" HorizontalAlignment="Right"/>
-                  <TextBlock x:Name="HHistC4" Grid.Column="3" Text="CHARGE" FontSize="9" FontWeight="Bold" Foreground="#FF8A8A8A" HorizontalAlignment="Right" ToolTip="Highest charge % reached that day. H = home, AC = other AC charger, SC = Supercharger, DC = DC fast; amber = fast charging"/>
-                  <TextBlock x:Name="HHistC3" Grid.Column="4" Text="CAPACITY" FontSize="9" FontWeight="Bold" Foreground="#FF8A8A8A" HorizontalAlignment="Right"/>
-                </Grid>
-                <ScrollViewer x:Name="HHistScroll" MaxHeight="240" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" PanningMode="None" Focusable="False">
-                  <StackPanel x:Name="HHistList" Margin="0,0,8,0"/>
-                </ScrollViewer>
-                <Button x:Name="HHistAllBtn" Style="{StaticResource CtlBtn}" Height="24" Margin="0,5,0,2" Padding="10,0,10,0" HorizontalAlignment="Center" Visibility="Collapsed" ToolTip="Show every logged day, or only the last 30">
-                  <TextBlock x:Name="HHistAllTxt" Text="Show all" FontSize="10.5" FontWeight="Bold"/>
-                </Button>
-              </StackPanel>
-            </StackPanel>
           </Grid>
+          </StackPanel>
         </Border>
 
         <!-- v4.2: lower sections scroll (slim scrollbar) when they don't fit the screen -->
@@ -1912,9 +1909,15 @@ function Open-Url433 {
                 <TextBlock x:Name="CtlResult" Grid.Column="1" Text="Ready" FontSize="10" TextWrapping="Wrap" VerticalAlignment="Center" Foreground="#FF888888"/>
               </Grid>
             </Border>
-            <Border x:Name="SkipCfRow" Margin="0,4,0,0" Padding="6,1,4,1" CornerRadius="6" BorderThickness="1" BorderBrush="#33FFFFFF" ToolTip="Skip confirm: a checked action runs right away, with no Yes/No or Are-you-sure pop-up. Each one is saved in your settings and stays checked after restarts and updates.">
+          </StackPanel>
+        </Border>
+
+        <Border x:Name="SkipCard" CornerRadius="10" Background="#FF13261B" BorderBrush="#FF49DF93" BorderThickness="2" Padding="10,4,10,6" Margin="0,0,0,6">   <!-- v4.3.29 section -->
+          <StackPanel>
+            <TextBlock x:Name="SkipCardTitle" Text="SKIP CONFIRM" FontSize="11.5" FontWeight="Black" Foreground="#FF49DF93" Margin="0,0,0,2"/>
+            <Border x:Name="SkipCfRow" Margin="0,0,0,0" Padding="6,1,4,1" CornerRadius="6" BorderThickness="0" BorderBrush="#00FFFFFF" ToolTip="Skip confirm: a checked action runs right away, with no Yes/No or Are-you-sure pop-up. Each one is saved in your settings and stays checked after restarts and updates.">
               <DockPanel x:Name="SkipCfWrap" LastChildFill="True">
-                <TextBlock x:Name="SkipCfHdr" DockPanel.Dock="Left" Text="SKIP&#x0a;CONFIRM" FontSize="9" FontWeight="Bold" LineHeight="10" LineStackingStrategy="BlockLineHeight" Foreground="#FF9A9A9A" VerticalAlignment="Center" TextAlignment="Center" Margin="0,0,5,0"/>
+                <TextBlock x:Name="SkipCfHdr" Visibility="Collapsed" DockPanel.Dock="Left" Text="SKIP&#x0a;CONFIRM" FontSize="9" FontWeight="Bold" LineHeight="10" LineStackingStrategy="BlockLineHeight" Foreground="#FF9A9A9A" VerticalAlignment="Center" TextAlignment="Center" Margin="0,0,5,0"/>
                 <UniformGrid x:Name="SkipCfGrid" Columns="5" Rows="3">
                   <CheckBox x:Name="SkipCf_unlock" Tag="unlock" Style="{StaticResource SkipCfChk}" ToolTip="Skip confirm for UNLOCK (the LOCKED button): unlocks right away"><TextBlock Text="Unlock" FontSize="10.5" FontWeight="SemiBold" VerticalAlignment="Center"/></CheckBox>
                   <CheckBox x:Name="SkipCf_leave" Tag="leave" Style="{StaticResource SkipCfChk}" ToolTip="Skip the 'Are you sure? Start Leaving Soon?' pop-up"><TextBlock Text="Leaving" FontSize="10.5" FontWeight="SemiBold" VerticalAlignment="Center"/></CheckBox>
@@ -1940,6 +1943,34 @@ function Open-Url433 {
               <TextBlock x:Name="BattState" DockPanel.Dock="Right" Text="" FontSize="10" FontWeight="SemiBold" Foreground="#FF888888" VerticalAlignment="Center"/>
               <TextBlock x:Name="BattHdr" Text="BATTERY" FontSize="12.5" FontWeight="Bold" Foreground="#FF9A9A9A"/>
             </DockPanel>
+            <StackPanel x:Name="HHistWrap" Margin="0,3,0,5">   <!-- v4.3.29: HEALTH HISTORY lives in BATTERY -->
+              <Border x:Name="HHistBtn" Padding="9,4,9,4" CornerRadius="6" Background="#14FFFFFF" BorderBrush="#FF333333" BorderThickness="1" Cursor="Hand" ToolTip="Show or hide the daily battery health history (remembered)">
+                <DockPanel LastChildFill="True">
+                  <TextBlock x:Name="HHistSum" DockPanel.Dock="Right" FontSize="10.5" VerticalAlignment="Center"/>
+                  <TextBlock x:Name="HHistHdr" Text="HEALTH HISTORY &#x25B8;" FontSize="10.5" FontWeight="Bold" Foreground="#FFFFFFFF" VerticalAlignment="Center"/>
+                </DockPanel>
+              </Border>
+              <StackPanel x:Name="HHistBody" Visibility="Collapsed" Margin="2,5,2,0">
+                <TextBlock x:Name="HHistSummary" FontSize="10" TextWrapping="Wrap" Margin="0,0,0,3"/>
+                <TextBlock x:Name="HHistCal" FontSize="10" TextWrapping="Wrap" Margin="0,0,0,2"/>
+                <TextBlock x:Name="HHistCalNote" FontSize="9.5" TextWrapping="Wrap" Margin="0,0,0,2"/>
+                <TextBlock x:Name="HHistTip" FontSize="9.5" TextWrapping="Wrap" Margin="0,0,0,5"/>
+                <Grid Margin="0,0,8,2">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="124"/><ColumnDefinition Width="50"/><ColumnDefinition Width="54"/><ColumnDefinition Width="68"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <TextBlock x:Name="HHistC0" Text="DATE" FontSize="9" FontWeight="Bold" Foreground="#FF8A8A8A"/>
+                  <TextBlock x:Name="HHistC1" Grid.Column="1" Text="HEALTH" FontSize="9" FontWeight="Bold" Foreground="#FF8A8A8A" HorizontalAlignment="Right"/>
+                  <TextBlock x:Name="HHistC2" Grid.Column="2" Text="CHANGE" FontSize="9" FontWeight="Bold" Foreground="#FF8A8A8A" HorizontalAlignment="Right"/>
+                  <TextBlock x:Name="HHistC4" Grid.Column="3" Text="CHARGE" FontSize="9" FontWeight="Bold" Foreground="#FF8A8A8A" HorizontalAlignment="Right" ToolTip="Highest charge % reached that day. H = home, AC = other AC charger, SC = Supercharger, DC = DC fast; amber = fast charging"/>
+                  <TextBlock x:Name="HHistC3" Grid.Column="4" Text="CAPACITY" FontSize="9" FontWeight="Bold" Foreground="#FF8A8A8A" HorizontalAlignment="Right"/>
+                </Grid>
+                <ScrollViewer x:Name="HHistScroll" MaxHeight="240" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" PanningMode="None" Focusable="False">
+                  <StackPanel x:Name="HHistList" Margin="0,0,8,0"/>
+                </ScrollViewer>
+                <Button x:Name="HHistAllBtn" Style="{StaticResource CtlBtn}" Height="24" Margin="0,5,0,2" Padding="10,0,10,0" HorizontalAlignment="Center" Visibility="Collapsed" ToolTip="Show every logged day, or only the last 30">
+                  <TextBlock x:Name="HHistAllTxt" Text="Show all" FontSize="10.5" FontWeight="Bold"/>
+                </Button>
+              </StackPanel>
+            </StackPanel>
             <Grid x:Name="BattMain">
               <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="96"/></Grid.ColumnDefinitions>
               <StackPanel x:Name="BattLeft">
@@ -2040,32 +2071,7 @@ function Open-Url433 {
               <TextBlock x:Name="AmpsMaxLbl" Text="-- A max" FontSize="10" FontWeight="SemiBold" Foreground="#FF8A8A8A" HorizontalAlignment="Right" VerticalAlignment="Center"/>
             </Grid>
             <!-- v4.3.19: PSO BILL MATCH (on/off switch; off = one small row) -->
-            <Border x:Name="BillSep" Height="1" Background="#FF222222" Margin="0,8,0,5"/>
-            <DockPanel x:Name="BillHead" LastChildFill="True">
-              <ToggleButton x:Name="BillSwitch" DockPanel.Dock="Right" Style="{StaticResource SwitchStyle}" Tag="#FF49DF93" IsChecked="True" VerticalAlignment="Center" ToolTip="PSO BILL MATCH on / off (off hides the card and its calculations; saved)"/>
-              <TextBlock x:Name="BillState" DockPanel.Dock="Right" Text="" FontSize="9.5" FontWeight="SemiBold" Foreground="#FF888888" VerticalAlignment="Center" Margin="0,0,7,0"/>
-              <TextBlock x:Name="BillHdr" Text="PSO BILL MATCH" FontSize="11" FontWeight="Bold" Foreground="#FF9A9A9A" VerticalAlignment="Center"/>
-            </DockPanel>
-            <StackPanel x:Name="BillBody" Margin="0,4,0,0">
-              <Grid x:Name="BillInputs">
-                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                <StackPanel Margin="0,0,4,0"><TextBlock x:Name="BillFromLbl" Text="PERIOD FROM" FontSize="8.5" FontWeight="Bold" Foreground="#FF8A8A8A"/>
-                  <TextBox x:Name="BillFrom" Height="22" FontSize="10.5" Padding="2,0,2,0" VerticalContentAlignment="Center" Background="#33000000" Foreground="#FFFFFFFF" BorderBrush="#FF444444" CaretBrush="#FFFFFFFF" ToolTip="First day of the PSO billing period (e.g. 8/26/2026)"/></StackPanel>
-                <StackPanel Grid.Column="1" Margin="0,0,4,0"><TextBlock x:Name="BillToLbl" Text="TO" FontSize="8.5" FontWeight="Bold" Foreground="#FF8A8A8A"/>
-                  <TextBox x:Name="BillTo" Height="22" FontSize="10.5" Padding="2,0,2,0" VerticalContentAlignment="Center" Background="#33000000" Foreground="#FFFFFFFF" BorderBrush="#FF444444" CaretBrush="#FFFFFFFF" ToolTip="Last day of the billing period"/></StackPanel>
-                <StackPanel Grid.Column="2" Margin="0,0,4,0"><TextBlock x:Name="BillKwhLbl" Text="TOTAL kWh" FontSize="8.5" FontWeight="Bold" Foreground="#FF8A8A8A"/>
-                  <TextBox x:Name="BillKwh" Height="22" FontSize="10.5" Padding="2,0,2,0" VerticalContentAlignment="Center" Background="#33000000" Foreground="#FFFFFFFF" BorderBrush="#FF444444" CaretBrush="#FFFFFFFF" ToolTip="Total kWh used on the bill"/></StackPanel>
-                <StackPanel Grid.Column="3" Margin="0,0,4,0"><TextBlock x:Name="BillUsdLbl" Text="TOTAL &#x24;" FontSize="8.5" FontWeight="Bold" Foreground="#FF8A8A8A"/>
-                  <TextBox x:Name="BillUsd" Height="22" FontSize="10.5" Padding="2,0,2,0" VerticalContentAlignment="Center" Background="#33000000" Foreground="#FFFFFFFF" BorderBrush="#FF444444" CaretBrush="#FFFFFFFF" ToolTip="Total amount of the bill in dollars"/></StackPanel>
-                <Button x:Name="BillSaveBtn" Grid.Column="4" Style="{StaticResource CtlBtn}" Width="44" Height="22" VerticalAlignment="Bottom" Padding="0" ToolTip="Save the bill numbers (settings) and recalculate"><TextBlock Text="SAVE" FontSize="10" FontWeight="Bold"/></Button>
-              </Grid>
-              <TextBlock x:Name="BillSrc" Text="" FontSize="9" Foreground="#FF888888" TextWrapping="Wrap" Margin="0,3,0,0"/>
-              <TextBlock x:Name="BillRes1" Text="" FontSize="10.5" FontWeight="SemiBold" Foreground="#FFFFFFFF" TextWrapping="Wrap" Margin="0,3,0,0"/>
-              <TextBlock x:Name="BillRes2" Text="" FontSize="10" Foreground="#FFCCCCCC" TextWrapping="Wrap" Margin="0,1,0,0"/>
-              <Border x:Name="BillFlag" CornerRadius="5" BorderThickness="1" BorderBrush="#FFFFB547" Background="#26FFB547" Padding="6,2,6,3" Margin="0,3,0,0" Visibility="Collapsed">
-                <TextBlock x:Name="BillFlagTxt" Text="" FontSize="10" FontWeight="SemiBold" Foreground="#FFFFB547" TextWrapping="Wrap"/>
-              </Border>
-            </StackPanel>
+            <Border x:Name="BillSep" Height="1" Background="#FF222222" Margin="0,8,0,5" Visibility="Collapsed"/>
             <!-- v4.3.19: BATTERY HEALTH TREND + TIPS -->
             <StackPanel x:Name="HealthBox">
             <Border x:Name="HealthSep" Height="1" Background="#FF222222" Margin="0,8,0,5"/>
@@ -2104,15 +2110,47 @@ function Open-Url433 {
           </StackPanel>
         </Border>
 
+        <Border x:Name="BillCard" CornerRadius="10" Background="#FF13261B" BorderBrush="#FF49DF93" BorderThickness="2" Padding="10,4,10,6" Margin="0,0,0,6">   <!-- v4.3.29 section -->
+          <StackPanel>
+            <DockPanel x:Name="BillHead" LastChildFill="True">
+              <ToggleButton x:Name="BillSwitch" DockPanel.Dock="Right" Style="{StaticResource SwitchStyle}" Tag="#FF49DF93" IsChecked="True" VerticalAlignment="Center" ToolTip="PSO BILL MATCH on / off (off hides the card and its calculations; saved)"/>
+              <TextBlock x:Name="BillState" DockPanel.Dock="Right" Text="" FontSize="9.5" FontWeight="SemiBold" Foreground="#FF888888" VerticalAlignment="Center" Margin="0,0,7,0"/>
+              <TextBlock x:Name="BillHdr" Text="PSO BILL MATCH" FontSize="11.5" FontWeight="Black" Foreground="#FF9A9A9A" VerticalAlignment="Center"/>
+            </DockPanel>
+            <StackPanel x:Name="BillBody" Margin="0,4,0,0">
+              <Grid x:Name="BillInputs">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <StackPanel Margin="0,0,4,0"><TextBlock x:Name="BillFromLbl" Text="PERIOD FROM" FontSize="8.5" FontWeight="Bold" Foreground="#FF8A8A8A"/>
+                  <TextBox x:Name="BillFrom" Height="22" FontSize="10.5" Padding="2,0,2,0" VerticalContentAlignment="Center" Background="#33000000" Foreground="#FFFFFFFF" BorderBrush="#FF444444" CaretBrush="#FFFFFFFF" ToolTip="First day of the PSO billing period (e.g. 8/26/2026)"/></StackPanel>
+                <StackPanel Grid.Column="1" Margin="0,0,4,0"><TextBlock x:Name="BillToLbl" Text="TO" FontSize="8.5" FontWeight="Bold" Foreground="#FF8A8A8A"/>
+                  <TextBox x:Name="BillTo" Height="22" FontSize="10.5" Padding="2,0,2,0" VerticalContentAlignment="Center" Background="#33000000" Foreground="#FFFFFFFF" BorderBrush="#FF444444" CaretBrush="#FFFFFFFF" ToolTip="Last day of the billing period"/></StackPanel>
+                <StackPanel Grid.Column="2" Margin="0,0,4,0"><TextBlock x:Name="BillKwhLbl" Text="TOTAL kWh" FontSize="8.5" FontWeight="Bold" Foreground="#FF8A8A8A"/>
+                  <TextBox x:Name="BillKwh" Height="22" FontSize="10.5" Padding="2,0,2,0" VerticalContentAlignment="Center" Background="#33000000" Foreground="#FFFFFFFF" BorderBrush="#FF444444" CaretBrush="#FFFFFFFF" ToolTip="Total kWh used on the bill"/></StackPanel>
+                <StackPanel Grid.Column="3" Margin="0,0,4,0"><TextBlock x:Name="BillUsdLbl" Text="TOTAL &#x24;" FontSize="8.5" FontWeight="Bold" Foreground="#FF8A8A8A"/>
+                  <TextBox x:Name="BillUsd" Height="22" FontSize="10.5" Padding="2,0,2,0" VerticalContentAlignment="Center" Background="#33000000" Foreground="#FFFFFFFF" BorderBrush="#FF444444" CaretBrush="#FFFFFFFF" ToolTip="Total amount of the bill in dollars"/></StackPanel>
+                <Button x:Name="BillSaveBtn" Grid.Column="4" Style="{StaticResource CtlBtn}" Width="44" Height="22" VerticalAlignment="Bottom" Padding="0" ToolTip="Save the bill numbers (settings) and recalculate"><TextBlock Text="SAVE" FontSize="10" FontWeight="Bold"/></Button>
+              </Grid>
+              <TextBlock x:Name="BillSrc" Text="" FontSize="9" Foreground="#FF888888" TextWrapping="Wrap" Margin="0,3,0,0"/>
+              <TextBlock x:Name="BillRes1" Text="" FontSize="10.5" FontWeight="SemiBold" Foreground="#FFFFFFFF" TextWrapping="Wrap" Margin="0,3,0,0"/>
+              <TextBlock x:Name="BillRes2" Text="" FontSize="10" Foreground="#FFCCCCCC" TextWrapping="Wrap" Margin="0,1,0,0"/>
+              <Border x:Name="BillFlag" CornerRadius="5" BorderThickness="1" BorderBrush="#FFFFB547" Background="#26FFB547" Padding="6,2,6,3" Margin="0,3,0,0" Visibility="Collapsed">
+                <TextBlock x:Name="BillFlagTxt" Text="" FontSize="10" FontWeight="SemiBold" Foreground="#FFFFB547" TextWrapping="Wrap"/>
+              </Border>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
         <!-- v4.3.19: TRIPS (Tessie /drives, grouped by day; cost = kWh x your home charging $/kWh) -->
-        <Border x:Name="TripsCard" CornerRadius="10" Background="#FF111111" BorderBrush="#FF222222" BorderThickness="1" Padding="12,6,12,7" Margin="0,0,0,6">
+        <Border x:Name="TripsCard" CornerRadius="10" Background="#FF111111" BorderBrush="#FF222222" BorderThickness="1" Padding="12,6,12,7" Cursor="Hand" ToolTip="TRIPS: click to open or close (remembered)" Margin="0,0,0,6">
           <StackPanel>
             <DockPanel LastChildFill="True">
               <Border x:Name="TripsSumPill" DockPanel.Dock="Right" CornerRadius="9" Background="#1FFFFFFF" Padding="8,1,8,2" VerticalAlignment="Center">
                 <TextBlock x:Name="TripsSumPillTxt" Text="" FontSize="11" FontWeight="SemiBold" Foreground="#FFCCCCCC"/>
               </Border>
-              <TextBlock x:Name="TripsHdr" Text="TRIPS" FontSize="12.5" FontWeight="Bold" Foreground="#FF9A9A9A" VerticalAlignment="Center"/>
+              <TextBlock x:Name="TripsArrow" DockPanel.Dock="Right" Text="&#x25B8;" FontFamily="Segoe UI Symbol" FontSize="12" FontWeight="Bold" Foreground="#FF49DF93" VerticalAlignment="Center" Margin="6,0,0,0"/>
+              <TextBlock x:Name="TripsHdr" Text="TRIPS" FontSize="11.5" FontWeight="Black" Foreground="#FF49DF93" VerticalAlignment="Center"/>
             </DockPanel>
+            <StackPanel x:Name="TripsBody" Visibility="Collapsed">   <!-- v4.3.29: TRIPS dropdown, closed by default -->
             <Border x:Name="TripsSumBox" CornerRadius="6" Background="#14FFFFFF" Padding="8,3,8,4" Margin="0,4,0,2">
               <StackPanel>
                 <TextBlock x:Name="TripsSumHdr" Text="LAST 7 DAYS" FontSize="8.5" FontWeight="Bold" Foreground="#FF8A8A8A"/>
@@ -2130,6 +2168,7 @@ function Open-Url433 {
             <Button x:Name="TripsMoreBtn" Style="{StaticResource CtlBtn}" Height="24" Margin="0,5,0,0" Padding="10,0,10,0" HorizontalAlignment="Center" ToolTip="Show more trips (30 days) or fewer (7 days); remembered">
               <TextBlock x:Name="TripsMoreTxt" Text="Show more" FontSize="10.5" FontWeight="Bold"/>
             </Button>
+            </StackPanel>
           </StackPanel>
         </Border>
 
@@ -2573,7 +2612,7 @@ function Apply-Theme {
     foreach ($n in 'NightLbl', 'D7Lbl', 'D30Lbl') { $ui[$n].Foreground = T 'TextSoft' }
     foreach ($n in 'NightCap', 'D7Cap', 'D30Cap', 'NightKwh', 'D7Kwh', 'D30Kwh') { $ui[$n].Foreground = T 'Caption2' }
     $ui.TiresAsOf.Foreground = T 'TextSoft'; $ui.TiresRec.Foreground = T 'Caption'; $ui.RemindSetup.Foreground = T 'Caption'
-    foreach ($n in 'TiresHdr', 'BattHdr', 'CtlHdr', 'SeatsHdr', 'AmpsHdr', 'ChgHistHdr', 'ChgHistArrow') { $ui[$n].Foreground = T 'TextSoft' }
+    foreach ($n in 'AmpsHdr') { $ui[$n].Foreground = T 'TextSoft' }
     foreach ($n in 'SeatsNote', 'AmpsMinLbl', 'AmpsMaxLbl', 'WheelCap') { $ui[$n].Foreground = T 'Caption' }
     foreach ($n in 'SeatCapFL', 'SeatCapFR', 'SeatCapRL', 'SeatCapRR') { $ui[$n].Foreground = T 'Caption2' }
     $ui.AmpsNow.Foreground = T 'TextSoft'; $ui.AmpsVal.Foreground = T 'Text'; $ui.AmpsTrack.Fill = T 'BarTrack'; $ui.AmpsSep.Background = T 'Sep'
@@ -2597,7 +2636,7 @@ function Apply-Theme {
         $ui[$n].Tag = $btnR; $ui[$n].Background = T 'BtnBg'; $ui[$n].BorderBrush = T 'BtnBorder'; $ui[$n].Foreground = T 'Text'
     }
     $script:BtnR433 = $btnR
-    $ui.DrivesAsOf.Foreground = T 'TextSoft'; $ui.DrivesHdr.Foreground = T 'Caption'; $ui.HistHdr.Foreground = T 'Caption'; $ui.DrivesNote.Foreground = T 'Caption'
+    $ui.DrivesAsOf.Foreground = T 'TextSoft'; $ui.DrivesHdr.Foreground = T 'Caption'; Apply-Sections4329; $ui.HistHdr.Foreground = T 'Caption'; $ui.DrivesNote.Foreground = T 'Caption'
     foreach ($n in 'LockSub', 'ClimSub', 'VentSub', 'CloseWinSub', 'ChgStartSub', 'ChgStopSub', 'HeatSub', 'DefrostSub', 'CopSub') { $ui[$n].Foreground = T 'Caption' }
     foreach ($i in 0, 1, 2) { $ui['TileSub' + $i].Foreground = T 'Caption' }
     $ui.RateNote.Foreground = T 'Note'; $ui.StatusNote.Foreground = T 'Caption2'
@@ -4695,8 +4734,8 @@ function Render-ChgStatus {
     $key = $(if ($st.kind -eq 'charging' -or $st.kind -eq 'complete') { 'Green' } else { 'Red' })
     $b = T $key; $c = $b.Color
     $ui.ChgState.Text = $st.word; $ui.ChgState.Foreground = $b
-    $ui.ChgCard.BorderBrush = $b
-    $ui.ChgCard.Background = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromArgb($(if ($st.kind -eq 'charging') { 0x30 } else { 0x22 }), $c.R, $c.G, $c.B))
+    $ui.ChgCard.BorderBrush = $SecBrush4329   # v4.3.29: CHARGING section: always the green outline (state shows in the dot + word)
+    $ui.ChgCard.Background = $SecFill4329
     try { $ui.ChgCard.CornerRadius = [System.Windows.CornerRadius]::new($script:Theme.CardRadius) } catch {}
     $ui.ChgDot.Stroke = $b; $ui.ChgDot.Fill = $(if ($st.kind -eq 'unplugged') { [System.Windows.Media.Brushes]::Transparent } else { $b })
     for ($i = 0; $i -lt 4; $i++) { $ui['ChgL' + $i].Text = $st.labels[$i]; $ui['ChgV' + $i].Text = $st.values[$i]; $ui['ChgL' + $i].Foreground = T 'TextSoft'; $ui['ChgV' + $i].Foreground = T 'Text' }
@@ -8232,7 +8271,7 @@ function Render-Trips {
     $script:TripsSig = $sig
     $v = Get-TripView $trips $now $days $rate.rate; $script:Trips4319 = [pscustomobject]@{ view = $v; rate = $rate; open = $open }
     $ui.TripsList.Children.Clear()
-    $ui.TripsHdr.Foreground = T 'Caption'; $ui.TripsRate.Foreground = T 'Caption'; $ui.TripsSumHdr.Foreground = T 'Caption'
+    $ui.TripsHdr.Foreground = $SecBrush4329; $ui.TripsRate.Foreground = T 'Caption'; $ui.TripsSumHdr.Foreground = T 'Caption'
     foreach ($i in 0..4) { $ui['TripsS' + $i].Foreground = T 'Text'; $ui['TripsSL' + $i].Foreground = T 'Caption' }
     $s7 = $v.sum7
     $ui.TripsS0.Text = [string]$s7.trips; $ui.TripsS1.Text = ('{0:N1}' -f $s7.miles); $ui.TripsS2.Text = ('{0:N1}' -f $s7.kwh); $ui.TripsS3.Text = (Format-Money $s7.cost); $ui.TripsS4.Text = $(if ($null -ne $s7.avgMpk) { ('{0:N2}' -f $s7.avgMpk) } else { '--' })
@@ -8386,7 +8425,7 @@ function Render-Bill {
     $b = Get-BillCfg; $on = [bool]$b.enabled
     $script:BillRendering = $true; try { $ui.BillSwitch.IsChecked = $on } finally { $script:BillRendering = $false }
     Set-Visible $ui.BillBody $on
-    $ui.BillHdr.Foreground = T 'Caption'; $ui.BillState.Foreground = T 'Caption'
+    $ui.BillHdr.Foreground = $SecBrush4329; $ui.BillState.Foreground = T 'Caption'
     if (-not $on) { $ui.BillState.Text = 'off'; $script:Bill4319 = $null; return }
     if (-not $ui.BillFrom.IsKeyboardFocusWithin) { $ui.BillFrom.Text = [string]$b.from }; if (-not $ui.BillTo.IsKeyboardFocusWithin) { $ui.BillTo.Text = [string]$b.to }
     if (-not $ui.BillKwh.IsKeyboardFocusWithin) { $ui.BillKwh.Text = $(if ($null -ne $b.kwh -and [string]$b.kwh -ne '') { [string]$b.kwh } else { '' }) }
@@ -9170,6 +9209,8 @@ function Render-HealthHist {
     $ui.HHistAllTxt.Text = $(if ($script:HHistAll) { 'Show last 30' } else { 'Show all (' + $rows.Count + ')' })
     $ui.HHistAllBtn.Tag = [System.Windows.CornerRadius]::new(5); $ui.HHistAllBtn.Background = T 'BtnBg'; $ui.HHistAllBtn.BorderBrush = T 'BtnBorder'; $ui.HHistAllTxt.Foreground = T 'Text'
 }
+$ui.TripsCard.Add_MouseLeftButtonUp({ param($s, $e) try { $p = $e.OriginalSource; $inBody = $false; while ($p) { if ($p -eq $ui.TripsBody) { $inBody = $true; break }; if ($p -eq $ui.TripsCard) { break }; try { $p = [System.Windows.Media.VisualTreeHelper]::GetParent($p) } catch { $p = $null } }; if (-not $inBody) { Set-TripsOpen4329 (-not (Get-TripsOpen4329)) } } catch { Write-WidgetLog ('trips: ' + $_.Exception.Message) } })   # v4.3.29
+try { Set-TripsOpen4329 (Get-TripsOpen4329) -NoSave } catch {}
 $ui.HHistBtn.Add_MouseLeftButtonUp({ try { Set-HHistOpen (-not (Get-HHistOpen)) } catch { Write-WidgetLog ('health history: ' + $_.Exception.Message) } })
 $ui.HHistAllBtn.Add_Click({ try { $script:HHistAll = -not $script:HHistAll; $script:HHistSig = ''; Render-HealthHist } catch { Write-WidgetLog ('health history all: ' + $_.Exception.Message) } })
 # ---- v4.3.21: CALIBRATION INFO (BMS estimate recalibrations in the health history) ----
@@ -9349,7 +9390,7 @@ function Start-SelfTest {
         foreach ($n in 'CtlCard', 'LeaveBtn', 'LockBtn', 'AnnNowBtn', 'CtlResultBox', 'SkipCfRow', 'BattHdr', 'BattPct') { $t = & $y $ui[$n] $sc; $vis[$n] = ($ui[$n].IsVisible -and $t -ge -0.5 -and ($t + $ui[$n].ActualHeight) -le $vp + 0.5) }
         $btnY = & $y $ui.HHistBtn $window; $stopBottom = (& $y $ui.ChgStopBtn $window) + $ui.ChgStopBtn.ActualHeight; $statsBottom = (& $y $ui.ChgStats $window) + $ui.ChgStats.ActualHeight; $ampsY = & $y $ui.AmpsTrack $window
         $script:SelfRec.v4321.place = [ordered]@{ inChgCard = $ui.ChgCard.IsAncestorOf($ui.HHistBtn); inHealthBox = $ui.HealthBox.IsAncestorOf($ui.HHistBtn); hhistY = $btnY; startStopBottom = $stopBottom; statsBottom = $statsBottom; ampsY = $ampsY; visible = $vis; viewport = [math]::Round($vp, 1); chgCardH = [math]::Round($ui.ChgCard.ActualHeight, 1)
-            pass = ($ui.ChgCard.IsAncestorOf($ui.HHistBtn) -and -not $ui.HealthBox.IsAncestorOf($ui.HHistBtn) -and $btnY -gt $stopBottom -and $btnY -ge $statsBottom -and $btnY -lt $ampsY -and @($vis.Values | Where-Object { -not $_ }).Count -eq 0) }
+            pass = ($ui.BattCard.IsAncestorOf($ui.HHistBtn) -and -not $ui.HealthBox.IsAncestorOf($ui.HHistBtn) -and $btnY -gt $stopBottom -and $btnY -ge $statsBottom -and $btnY -lt $ampsY -and @($vis.Values | Where-Object { -not $_ }).Count -eq 0) }
         & $script:ElPng4321 $ui.ChgCard 'chg-collapsed'; & $script:ElPng4321 $ui.HealthBox 'battery-health-no-dropdown'
         Save-RootPng (Join-Path $script:SelfDir 'tessdesk-v4321-window-collapsed.png'); Save-RootPng (Join-Path $script:SelfDir 'tessdesk-v4321-window-collapsed-full.png') -Full; $script:SelfRec.shots += @('tessdesk-v4321-window-collapsed.png', 'tessdesk-v4321-window-collapsed-full.png') }
     & $add 'v4.3.21 UI: click opens it (saved), newest first, last 30 + Show all, summary 30 / 90 days / since first' @() {
@@ -9950,12 +9991,26 @@ function Start-SelfTest {
         $r.gap45 = ((Get-Command Start-UpdateCheck).Definition -match '45 \* 60'); $r.rollback = ((Get-Command Install-UpdateFiles).Definition -match 'rolled back')
         $r.pass = ($r.hiddenCurrent -and $r.visible -and $r.pulsing -and $r.text -like 'UPDATE AVAILABLE*9.9.9*' -and $r.gap45 -and $r.rollback)
         $script:SelfRec.v4328.updbtn = $r }
+    & $add 'v4.3.29 SECTIONS: green outlines + fill + titles, Skip Confirm / PSO Bill Match / Cost summary own sections, HEALTH HISTORY in BATTERY, TRIPS closed' @() {
+        $r = [ordered]@{}; $g = '#FF49DF93'
+        $r.outlines = [ordered]@{}; foreach ($n in $SecCards4329) { $r.outlines[$n] = ([string]$ui[$n].BorderBrush -eq $g -and $ui[$n].BorderThickness.Left -eq 2) }
+        $r.titles = [ordered]@{}; foreach ($n in $SecTitles4329) { $r.titles[$n] = ([string]$ui[$n].Foreground -eq $g) }
+        $p = $ui.HHistWrap; $inBatt = $false; while ($p) { if ($p -eq $ui.BattCard) { $inBatt = $true; break }; if ($p -eq $ui.ChgCard) { break }; $p = [System.Windows.Media.VisualTreeHelper]::GetParent($p) }
+        $r.hhistInBattery = $inBatt; $r.chgThickness = $ui.ChgCard.BorderThickness.Left
+        $up = { param($e, $c) $q = $e; while ($q) { if ($q -eq $c) { return $true }; $q = [System.Windows.Media.VisualTreeHelper]::GetParent($q) }; return $false }
+        $r.skipOwn = (& $up $ui.SkipCfRow $ui.SkipCard) -and -not (& $up $ui.SkipCfRow $ui.CtlCard); $r.billOwn = (& $up $ui.BillHead $ui.BillCard) -and -not (& $up $ui.BillHead $ui.BattCard)
+        $r.costOwn = (& $up $ui.HeroRow $ui.CostCard) -and (& $up $ui.KwhLabel $ui.CostCard); $r.tripsClosed = ([string]$ui.TripsBody.Visibility -eq 'Collapsed') -and -not (Get-TripsOpen4329)
+        $r.root = [string]$ui.RootBorder.Background; $r.fill = [string]$ui.BattCard.Background
+        $sv = $ui.BodyScroll.ActualHeight; $r.scrollViewportH = [math]::Round($sv, 1); $r.windowH = $window.ActualHeight
+        $window.UpdateLayout(); $r.chgCardH = [math]::Round($ui.ChgCard.ActualHeight, 1)
+        $r.pass = (@($r.outlines.Values | Where-Object { -not $_ }).Count -eq 0 -and @($r.titles.Values | Where-Object { -not $_ }).Count -eq 0 -and $inBatt -and $r.chgThickness -eq 2 -and $r.skipOwn -and $r.billOwn -and $r.costOwn -and $r.tripsClosed -and $sv -gt 150)
+        $script:SelfRec.v4328.sections = $r }
     & $add 'v4.3.28 summary' @() {
         $r = $script:SelfRec.v4328; $fails = @()
-        foreach ($k in 'period', 'alexa', 'flash', 'updbtn') { if ($null -eq $r[$k] -or -not $r[$k].pass) { $fails += $k } }
+        foreach ($k in 'period', 'alexa', 'flash', 'updbtn', 'sections') { if ($null -eq $r[$k] -or -not $r[$k].pass) { $fails += $k } }
         $g = $r.guard; $g.pass = ($null -ne $g -and $g.whenWasCharging -eq $null -and $g.stopSent -eq 1 -and $g.dry -eq $true -and $g.stoppedFlag -and $null -eq $g.again)
         if (-not $g.pass) { $fails += 'guard' }
-        $sm = [ordered]@{ ver = ($AppVersion -eq '4.3.28' -and $ui.FooterVersion.Text -like ('*4.3.28*' + $AppDate)); bold = ($ui.FooterText.FontWeight -eq [System.Windows.FontWeights]::Bold -or $ui.FooterText.FontWeight.ToString() -match 'Bold|Black') }
+        $sm = [ordered]@{ ver = ($AppVersion -eq '4.3.29' -and $ui.FooterVersion.Text -like ('*4.3.29*' + $AppDate)); bold = ($ui.FooterText.FontWeight -eq [System.Windows.FontWeights]::Bold -or $ui.FooterText.FontWeight.ToString() -match 'Bold|Black') }
         $r.smoke = $sm; if (-not ($sm.ver)) { $fails += 'smoke' }
         $r.netCommandsSent = $script:NetCommandsSent; $r.announcementsSent = $script:AnnSent
         $r.summary = [ordered]@{ fails = $fails; allPass = ($fails.Count -eq 0 -and $script:NetCommandsSent -eq 0 -and $script:AnnSent -eq 0) } }
@@ -9968,7 +10023,7 @@ function Start-SelfTest {
         $real = @($script:CtlLog | Where-Object { $_.dry -eq $false -or $_.real -eq $true }).Count
         $r = $script:SelfRec.v4321
         $r.smoke = [ordered]@{ appVersion = $AppVersion; footer = $ui.FooterVersion.Text; brand = $ui.FooterText.Text; bold = [string]$ui.FooterText.FontWeight; hookLines = $hook; hookBeforeShowDialog = $before; width = $window.Width; renderError = $err; dryRun = $CTL_DRYRUN; realCmdLog = $real
-            pass = ($AppVersion -eq '4.3.28' -and $ui.FooterVersion.Text -like ('*4.3.28*' + $AppDate) -and [string]$ui.FooterText.FontWeight -eq 'Bold' -and $hook -eq 1 -and $before -and $null -eq $err -and $CTL_DRYRUN -and [math]::Abs($window.Width - $winW) -lt 1) }
+            pass = ($AppVersion -eq '4.3.29' -and $ui.FooterVersion.Text -like ('*4.3.29*' + $AppDate) -and [string]$ui.FooterText.FontWeight -eq 'Bold' -and $hook -eq 1 -and $before -and $null -eq $err -and $CTL_DRYRUN -and [math]::Abs($window.Width - $winW) -lt 1) }
         $fails = @(); foreach ($k in 'pure', 'collapsed', 'place', 'expanded', 'calTags', 'showAll', 'fresh', 'smoke') { if ($null -eq $r[$k] -or -not $r[$k].pass) { $fails += $k } }
         $r.summary = [ordered]@{ fails = $fails; allPass = ($fails.Count -eq 0) } }
     & $add 'v4.3.22 summary' @() {

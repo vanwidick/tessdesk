@@ -2,7 +2,7 @@
    Everything (name, Tessie token, vehicle, rates) is stored in localStorage on this device only. */
 (function () {
   'use strict';
-/* TessDesk phone v4.3.28 (DESIGN BY VAN). v4.3.28: Alexa limit notice + monthly counter, lean, home-only, no test announcements; ALL OFF never starts charging; flash pause = typed value. v4.3.27: Voice Monkey button (placeholder). v4.3.26: ALL OFF in TESLA CONTROLS. v4.3.25: CHARGING SCHEDULE reaches the car on firmware 2024.26+ (charge schedules, checked after each send). v4.3.24: FINISH BY defaults to 6:00 AM. v4.3.23: CHARGING SCHEDULE in the CHARGING card (START AT + FINISH BY, set on the car through Tessie). v4.3.22: CHARGE column in HEALTH HISTORY (highest charge % per day + Home / AC / Supercharger). v4.3.21: HEALTH HISTORY under START / STOP in the CHARGING card + CALIBRATION INFO; history runs fully in the app. v4.3.20: HEALTH HISTORY dropdown. Pure logic + UI for: PLUG-IN REMINDER, TRIPS, MORNING READY CHECK,
+/* TessDesk phone v4.3.29 (DESIGN BY VAN). v4.3.29: SECTIONS with green outlines (Skip confirm + PSO bill match own sections, Health history in Battery, Trips dropdown). v4.3.28: Alexa limit notice + monthly counter, lean, home-only, no test announcements; ALL OFF never starts charging; flash pause = typed value. v4.3.27: Voice Monkey button (placeholder). v4.3.26: ALL OFF in TESLA CONTROLS. v4.3.25: CHARGING SCHEDULE reaches the car on firmware 2024.26+ (charge schedules, checked after each send). v4.3.24: FINISH BY defaults to 6:00 AM. v4.3.23: CHARGING SCHEDULE in the CHARGING card (START AT + FINISH BY, set on the car through Tessie). v4.3.22: CHARGE column in HEALTH HISTORY (highest charge % per day + Home / AC / Supercharger). v4.3.21: HEALTH HISTORY under START / STOP in the CHARGING card + CALIBRATION INFO; history runs fully in the app. v4.3.20: HEALTH HISTORY dropdown. Pure logic + UI for: PLUG-IN REMINDER, TRIPS, MORNING READY CHECK,
    PSO BILL MATCH (on/off switch), BATTERY HEALTH TREND + TIPS. No Alexa, no toasts (in-app banners only),
    cached data only (never wakes the car). The same functions are unit-tested headlessly. */
 (function (g) {
@@ -426,8 +426,8 @@
   var CFG = window.TD_CONFIG || {};
   var VARIANT = CFG.variant || 'main';
   var P = CFG.storagePrefix || 'td:';
-  var VERSION = 'v4.3.28';
-  var VERSION_DATE = 'Oct 15, 2026';
+  var VERSION = 'v4.3.29';
+  var VERSION_DATE = 'Oct 16, 2026';
   var TZ = 'America/Chicago';
   var DEFAULT_API = 'https://api.tessie.com';
   var REFRESH_MS = 60000, CHARGES_EVERY_S = 15 * 60, HEALTH_EVERY_S = 6 * 3600, HTTP_TIMEOUT_MS = 15000, CMD_TIMEOUT_MS = 90000;
@@ -2188,7 +2188,39 @@
     return 'sms:' + ph + (ios ? '&' : '?') + 'body=' + encodeURIComponent('TessDesk: get air. ' + rep.lines.join(', ') + (rep.rec ? ' ' + rep.rec : ''));
   }
 
+  // v4.3.29: SECTIONS. Every block sits in a section with the CHARGING green outline, a lighter fill and a green title:
+  // Cost summary, Charging, Tesla controls, Skip confirm (own section), Battery (+ Health history), PSO bill match (own section),
+  // Trips (dropdown, closed by default), Charge history & totals, Heated seats, Tires, Drives, Cameras. Runs after each render, before bind().
+  function secTitle(t) { var e = document.createElement('div'); e.className = 'sec-t'; e.textContent = t; return e; }
+  function secCard(cls, title) { var c = document.createElement('div'); c.className = 'card sec ' + cls; if (title) c.appendChild(secTitle(title)); return c; }
+  function td4329Sections() {
+    var w = document.querySelector('#app .wrap') || document.getElementById('app'); if (!w) return;
+    document.body.classList.add('td-sec');
+    var hero = w.querySelector('.hero');
+    if (hero && !hero.parentNode.classList.contains('cost')) { var cc = secCard('cost', 'Cost summary'); hero.parentNode.insertBefore(cc, hero); cc.appendChild(hero); }
+    var cb = w.querySelector('.card.chgbar');
+    if (cb) { cb.classList.add('sec'); if (!cb.querySelector(':scope > .sec-t')) cb.insertBefore(secTitle('Charging'), cb.firstChild); }
+    var ctl = w.querySelector('.card.ctl'), sk = document.getElementById('skipRow');
+    if (ctl) { ctl.classList.add('sec'); if (sk && ctl.contains(sk)) { var sc = secCard('skipsec', 'Skip confirm'); ctl.parentNode.insertBefore(sc, ctl.nextSibling); sc.appendChild(sk); } }
+    var bt = w.querySelector('.card.batt'), hh = document.getElementById('hhist'), bill = document.getElementById('billCard');
+    if (bt) {
+      bt.classList.add('sec');
+      if (hh && !bt.contains(hh)) { var hd = bt.querySelector('.batt-hd'); bt.insertBefore(hh, hd ? hd.nextSibling : bt.firstChild); hh.classList.add('inbatt'); }
+      if (bill && bt.contains(bill)) { var bc = secCard('billsec', ''); bt.parentNode.insertBefore(bc, bt.nextSibling); bc.appendChild(bill); }
+    }
+    var tr = document.getElementById('tripsCard');
+    if (tr && !tr.querySelector('.trips-body')) {
+      tr.classList.add('sec', 'dd'); var hd2 = tr.querySelector('.sec-hd'), body = document.createElement('div'); body.className = 'trips-body';
+      Array.prototype.slice.call(tr.childNodes).forEach(function (n) { if (n !== hd2) body.appendChild(n); });
+      tr.appendChild(body); var open = !!load('tripsOpen', false); tr.classList.toggle('open', open);
+      if (hd2) { var ar = document.createElement('span'); ar.className = 'dd-ar'; ar.textContent = open ? '\u25be' : '\u25b8'; hd2.appendChild(ar); hd2.setAttribute('role', 'button'); hd2.setAttribute('aria-expanded', String(open));
+        hd2.onclick = function () { var o = !tr.classList.contains('open'); save('tripsOpen', o); tr.classList.toggle('open', o); ar.textContent = o ? '\u25be' : '\u25b8'; hd2.setAttribute('aria-expanded', String(o)); }; }
+    }
+    ['.card.rows', '.card.seats', '.card.tires', '.card.drives', '.card.cam'].forEach(function (q) { var e = w.querySelector(q); if (e) e.classList.add('sec'); });
+  }
+  window.TD4329 = { sections: function () { return Array.prototype.map.call(document.querySelectorAll('.card.sec'), function (e) { var t = e.querySelector('.sec-t, h3, .hist-hd, .billhd b'); return (t ? t.textContent.trim() : '').split('\n')[0]; }); } };
   function bind() {
+    try { td4329Sections(); } catch (e) {}   // v4.3.29
     var r = document.getElementById('btnRefresh'); if (r) r.onclick = function () { refresh(true); };
     var s = document.getElementById('btnSettings'); if (s) s.onclick = function () { screen = 'settings'; render(); window.scrollTo(0, 0); };
     var on = function (id, f) { var el = document.getElementById(id); if (el) el.onclick = f; };
