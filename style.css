@@ -885,3 +885,16 @@ body.td-sec .card.sec .sec-t, body.td-sec .card.sec h3, body.td-sec .card.sec .h
 .hhist.inbatt { margin: 2px 0 10px; }
 .card.sec.dd > .sec-hd { cursor: pointer; display: flex; align-items: center; } .card.sec.dd .dd-ar { margin-left: auto; color: #49df93; font-weight: 900; font-size: 14px; padding-left: 8px; }
 .card.sec.dd .trips-body { display: none; } .card.sec.dd.open .trips-body { display: block; } .card.sec.dd > .sec-hd h3 { margin-bottom: 0; } .card.sec.dd.open > .sec-hd h3 { margin-bottom: 10px; }
+
+/* v4.3.33: smooth scroll, combined climate, tall buttons ~40% shorter, wheel truthfulness */
+html { scroll-behavior: smooth; }
+body { overscroll-behavior-y: contain; }
+.climate-block4333 { border:1.5px solid #49df93; border-radius:14px; padding:8px; margin-top:8px; background:color-mix(in srgb,#49df93 8%, var(--card2)); }
+.climate-hd4333 { display:flex; justify-content:space-between; align-items:center; gap:8px; } .climate-hd4333 b{color:#49df93; letter-spacing:.06em; font-size:12px;} .climate-hd4333 span{font-weight:800; font-size:12px; text-align:right;}
+.climate-detail4333 { font-size:10px; color:var(--muted); font-weight:600; margin:2px 0 6px; }
+.mode-row.climate-row4333 { grid-template-columns:1fr 1fr 62px 40px 40px; margin-top:0; }
+/* tall buttons (min-height >=54) condensed ~40%: 66->40, 54->32; short/compact (44 and below, .sq in leave, inputs) unchanged */
+.cbtn.big { min-height:40px; padding:5px 10px; } .cbtn { min-height:32px; } .cbtn.sq { min-height:32px; } .ctl-row2.three .cbtn.big, .cbtn.flash { min-height:40px; } .cbtn.lv-go { min-height:35px; } .cbtn.remind { min-height:48px; }
+@media (max-width:479px){ .mode-row.climate-row4333{grid-template-columns:1fr 1fr 52px 36px 36px; gap:4px;} }
+.mode-row.climate-row4333 { grid-template-columns:1fr 1fr; } .mode-row.climate-temp4333 { grid-template-columns:1fr 44px 44px; justify-content:center; max-width:260px; margin:6px auto 0; }
+.climate-row4333 .cbtn { min-height:40px; } .climate-row4333 .cbtn b{font-size:14px; white-space:nowrap;} .climate-row4333 .cbtn small{font-size:9px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}

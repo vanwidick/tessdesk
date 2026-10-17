@@ -426,8 +426,8 @@
   var CFG = window.TD_CONFIG || {};
   var VARIANT = CFG.variant || 'main';
   var P = CFG.storagePrefix || 'td:';
-  var VERSION = 'v4.3.32';
-  var VERSION_DATE = 'Oct 16, 2026';
+  var VERSION = 'v4.3.33';
+  var VERSION_DATE = 'Oct 17, 2026';
   var TZ = 'America/Chicago';
   var DEFAULT_API = 'https://api.tessie.com';
   var REFRESH_MS = 60000, CHARGES_EVERY_S = 15 * 60, HEALTH_EVERY_S = 6 * 3600, HTTP_TIMEOUT_MS = 15000, CMD_TIMEOUT_MS = 90000;
@@ -797,7 +797,8 @@
       chargingState: cs.charging_state || '', ampsReq: cs.charge_current_request, ampsMax: cs.charge_current_request_max, ampsNow: cs.charger_actual_current,
       seats: { fl: cl.seat_heater_left, fr: cl.seat_heater_right, rl: cl.seat_heater_rear_left, rc: cl.seat_heater_rear_center, rr: cl.seat_heater_rear_right },
       rearSeats: (st.vehicle_config || {}).rear_seat_heaters,
-      wheelOn: cl.steering_wheel_heater != null ? (!!cl.steering_wheel_heater || cl.steering_wheel_heat_level > 0) : null,
+      wheelFlag: cl.steering_wheel_heater != null ? !!cl.steering_wheel_heater : null, wheelLevel: cl.steering_wheel_heat_level != null ? +cl.steering_wheel_heat_level : null, wheelClimateRunning: !!(cl.is_climate_on || cl.is_preconditioning || (cl.climate_keeper_mode && String(cl.climate_keeper_mode) !== 'off')), wheelSet: !!cl.steering_wheel_heater || +cl.steering_wheel_heat_level > 0,
+      wheelOn: cl.steering_wheel_heater != null || cl.steering_wheel_heat_level != null ? (!!cl.steering_wheel_heater && !!(cl.is_climate_on || cl.is_preconditioning || (cl.climate_keeper_mode && String(cl.climate_keeper_mode) !== 'off'))) : null,  // v4.3.33 climate-gated like desktop
       defrostOn: (cl.defrost_mode != null || cl.is_front_defroster_on != null) ? (cl.defrost_mode > 0 || !!cl.is_front_defroster_on) : null,
       cop: cl.cabin_overheat_protection || null, copFanOnly: !!cl.supports_fan_only_cabin_overheat_protection, copAllowed: cl.allow_cabin_overheat_protection,
       windows: { fd: vs.fd_window, fp: vs.fp_window, rd: vs.rd_window, rp: vs.rp_window },
@@ -1061,12 +1062,8 @@
       '<button class="fl-go" id="cFlash"' + (flash.running ? '' : dis) + '>' + (flash.running ? 'STOP' : 'FLASH') + '</button></div>' +
       '<small>' + (flash.running ? 'Flashing ' + Math.max(1, flash.done) + ' of ' + flash.total + (flashGap() !== null ? ' \u00b7 ~' + flashGap().toFixed(1) + 's apart' : '') : 'flashes \u00b7 pause s') + '</small></div>' +
       copBtn4332(car, dis) + '</div>' +
-      '<div class="mode-row"><button class="cbtn big' + (clim ? ' on' : '') + '" id="cClim"' + dis + '>' + ICON_SNOW + '<span><b>' + (clim ? 'A/C ON' : 'A/C OFF') + '</b><small>' + (clim ? 'tap to turn off' : 'tap to turn on') + '</small></span></button>' +
-      '<div class="tv"><b>' + fmtTemp(tC, car.units) + '</b><small>' + (pendTemp != null ? 'NEW SET TEMP' : 'SET TEMP') + '</small></div>' +
-      '<button class="cbtn sq" id="cTdn" aria-label="Cooler"' + dis + '>\u2212</button>' +
-      '<button class="cbtn sq" id="cTup" aria-label="Warmer"' + dis + '>+</button></div>' +   // v4.3.32: A/C row [button][temp][-][+]
+      climateBlock4333(car, dis, clim, tC) +
       (flashStats() ? '<div class="fl-stats" id="cFlashStats" title="Flash lights: response time of each flash request (sent until Tessie answered), average, and the measured gap between successful flashes">' + flashStats() + '</div>' : '') +
-      climateRow(car, dis) +
       '<div class="ctl-row3b">' +
       '<button class="cbtn' + (win ? ' state' : '') + '" id="cVent"' + dis + '><b>VENT</b><small>' + (win ? 'VENTED / OPEN' : 'WINDOWS') + '</small></button>' +
       '<button class="cbtn' + (win === false ? ' state' : '') + '" id="cClose"' + dis + '><b>CLOSE</b><small>' + (win === false ? 'ALL CLOSED' : 'WINDOWS') + '</small></button>' +
@@ -1870,14 +1867,15 @@
   function heatOn(car) { var on = ctlVal('climateOn', car.climateOn), t = pendTemp != null ? pendTemp : ctlVal('tempC', car.tempC); return !!on && t != null && t >= heatC(car) - 0.3; }
   function copBtn4332(car, dis) { var m = ctlVal('cop', car.cop); var copSub = ({ On: 'PROTECT: ON', FanOnly: 'PROTECT: FAN ONLY', Off: 'PROTECT: OFF' })[m] || 'state unknown'; var copDis = dis || (car.copAllowed === false ? ' disabled' : ''); return '<button class="cbtn big' + (m === 'On' || m === 'FanOnly' ? ' state' : '') + '" id="cCop"' + copDis + '><b>OVERHEAT</b><small>' + (car.copAllowed === false ? 'not available' : copSub) + '</small></button>'; }
   function defrostBtn4332(car, dis) { var d = ctlVal('defrost', car.defrostOn); return '<button class="cbtn' + (d ? ' state' : '') + '" id="cDefrost"' + dis + '><b>DEFROST</b><small>' + (d == null ? 'state unknown' : (d ? 'MAX \u00b7 ON' : 'MAX \u00b7 OFF')) + '</small></button>'; }
-  function climateRow(car, dis) {
-    var h = heatOn(car), tc2 = ctlVal('tempC', car.tempC);
-    return '<div class="mode-row">' +
-      '<button class="cbtn' + (h ? ' heat' : '') + '" id="cHeat"' + dis + '><b>\u2668 ' + (h ? 'HEAT ON' : 'HEAT OFF') + '</b><small>' + (h ? 'tap to turn off' : 'tap to turn on') + '</small></button>' +
-      '<div class="tv"><b>' + fmtTemp(tc2, car.units) + '</b><small>' + (pendTemp != null ? 'NEW SET TEMP' : 'SET TEMP') + '</small></div>' +
-      '<button class="cbtn sq" id="cTdn2" aria-label="Cooler"' + dis + '>\u2212</button>' +
-      '<button class="cbtn sq" id="cTup2" aria-label="Warmer"' + dis + '>+</button></div>';   // v4.3.32: HEAT row matches A/C row
-  }
+  function climateState4333(car) { var on = ctlVal('climateOn', car.climateOn), tt = pendTemp != null ? pendTemp : ctlVal('tempC', car.tempC), h = heatOn(car); if (!on) return { on:false, mode: 'OFF', text: 'CLIMATE OFF', detail: 'set ' + fmtTemp(tt, car.units) + ' \u00b7 setpoint only, climate off', ac: false, heat: false }; if (h) return { on:true, mode: 'HEAT', text: 'HEAT ON \u00b7 SET ' + fmtTemp(tt, car.units), detail: 'climate on at heat setpoint (proxy \u2014 airflow not reported)', ac: false, heat: true }; return { on:true, mode: 'AC', text: 'A/C ON \u00b7 SET ' + fmtTemp(tt, car.units), detail: 'climate on at cool setpoint (proxy \u2014 airflow not reported)', ac: true, heat: false }; }
+  function climateBlock4333(car, dis, clim, tC) { var cs = climateState4333(car), h = cs.heat; return '<div class="climate-block4333"><div class="climate-hd4333"><b>CLIMATE</b><span>' + cs.text + '</span></div><div class="climate-detail4333">' + cs.detail + ' \u00b7 SET TEMP is the target, not airflow</div><div class="mode-row climate-row4333">' +
+      '<button class="cbtn big' + (cs.ac ? ' on' : '') + '" id="cClim"' + dis + '><span class="snow4333">\u2744</span><span><b>' + (cs.ac ? 'A/C ON' : 'A/C OFF') + '</b><small>' + (cs.ac ? 'tap to turn off' : (cs.on ? 'heat setpoint on' : 'tap to turn on')) + '</small></span></button>' +
+      '<button class="cbtn' + (h ? ' heat' : '') + '" id="cHeat"' + dis + '><b>\u2668 ' + (h ? 'HEAT ON' : 'HEAT OFF') + '</b><small>' + (h ? 'at heat setpoint \u00b7 tap off' : 'tap: climate at heat setpoint') + '</small></button>' +
+      '</div><div class="mode-row climate-temp4333"><div class="tv"><b>' + fmtTemp(tC, car.units) + '</b><small>' + (pendTemp != null ? 'NEW SET TEMP' : 'SET TEMP') + '</small></div>' +
+      '<button class="cbtn sq" id="cTdn" aria-label="Cooler"' + dis + '>\u2212</button>' +
+      '<button class="cbtn sq" id="cTup" aria-label="Warmer"' + dis + '>+</button>' +
+      '<button class="cbtn sq" id="cTdn2" aria-label="Cooler" style="display:none"' + dis + '>\u2212</button><button class="cbtn sq" id="cTup2" aria-label="Warmer" style="display:none"' + dis + '>+</button></div></div>'; }
+  function climateRow(car, dis) { return ''; }
   function onHeat() {
     var c = curCar(); if (!c) return;
     if (heatOn(c)) { runCmd('stop_climate', {}, 'Turning heat (climate) off\u2026', 'Heat off (climate off)', function () { setOv('climateOn', false); }, 'Heat is off. Climate is now off.'); return; }
@@ -1920,10 +1918,10 @@
       return '<text class="slv' + (l > 0 ? ' l' + l : '') + '" x="' + x + '" y="' + y + '" text-anchor="' + anchor + '">' + (l > 0 ? 'HEAT ' + l : 'OFF') + (seatPend[k] != null ? ' \u2026' : '') + '</text>' +
         '<text class="unit" x="' + x + '" y="' + (y + 15) + '" text-anchor="' + anchor + '">' + cap + '</text>';
     }
-    var w = ctlVal('wheel', car.wheelOn);
+    var w = ctlVal('wheel', car.wheelOn); var wheelTxt4333 = car.wheelOn == null ? '' : (car.wheelOn ? ('WHEEL ON' + (car.wheelLevel > 0 ? ' \u00b7 ' + car.wheelLevel : '')) : (car.wheelLevel > 0 ? ('SET ' + car.wheelLevel + ' \u00b7 OFF') : (car.wheelSet ? 'SET \u00b7 OFF' : 'OFF')));
     var wheel = w == null ? '' : '<g class="seat wheel' + (w ? ' l3' : '') + (dis ? ' dis' : '') + '" id="sWheel" role="button" aria-label="Steering wheel heat">' +
       '<circle class="sb" cx="134" cy="52" r="14"/><circle class="wr" cx="134" cy="52" r="7"/></g>' +
-      '<text class="slv' + (w ? ' l3' : '') + '" x="96" y="50" text-anchor="end">' + (w ? 'HEAT ON' : 'OFF') + '</text><text class="unit" x="96" y="64" text-anchor="end">WHEEL</text>';
+      '<text class="slv' + (w ? ' l3' : '') + '" x="96" y="50" text-anchor="end">' + wheelTxt4333 + '</text><text class="unit" x="96" y="64" text-anchor="end">WHEEL</text>';
     return '<div class="card seats"><div class="sec-hd"><h3>Heated seats</h3><span class="asof sm">' + (cmdOk ? 'tap a seat: off \u2192 1 \u2192 2 \u2192 3' : 'commands are off') + '</span></div>' +
       '<svg viewBox="0 0 320 210" role="img" aria-label="Heated seats">' +
       '<path class="body" d="M160 6 C 200 6 212 20 212 48 L 214 110 L 212 180 C 212 200 196 206 160 206 C 124 206 108 200 108 180 L 106 110 L 108 48 C 108 20 120 6 160 6 Z"/>' +
@@ -2619,7 +2617,7 @@
       var seats = [], names = { fl: 'driver', fr: 'passenger', rl: 'rear left', rc: 'rear center', rr: 'rear right' };
       Object.keys(names).forEach(function (k) { var l = seatLevel(car, k); if (l > 0) seats.push(names[k] + ' ' + l); });
       bits.push(seats.length ? 'seat heat ' + seats.join(', ') : 'seat heat off');
-      if (ctlVal('wheel', car.wheelOn)) bits.push('wheel heat on');
+      if (ctlVal('wheel', car.wheelOn)) bits.push('steering wheel heat on');
       out.push(s + ' ' + bits.join(', ').replace(/^./, function (x) { return x.toUpperCase(); }) + '.');
     }
     if (it.lock) { var lk = ctlVal('locked', car.locked); out.push(lk == null ? 'Lock state unknown.' : (lk ? 'Doors locked.' : 'Doors are unlocked.')); }
@@ -2801,6 +2799,7 @@
 
   // test hooks for headless checks (no secrets)
   // v4.3.3 test hooks (read-only; selfTest restores the live session it borrows)
+  window.TessDesk4333 = { wheelInfo: function(car){ car=car||curCar(); if(!car) return null; return {flag:car.wheelFlag, level:car.wheelLevel, set:car.wheelSet, climateRunning:car.wheelClimateRunning, active:car.wheelOn, text: car.wheelOn ? ('WHEEL ON'+(car.wheelLevel>0?' \u00b7 '+car.wheelLevel:'')) : (car.wheelLevel>0?('SET '+car.wheelLevel+' \u00b7 OFF'):(car.wheelSet?'SET \u00b7 OFF':'OFF'))}; }, climateState: function(car){ return climateState4333(car||curCar()); } };
   window.TessDesk433u = { check: function () { checkUpdate(true); }, state: function () { return upd; }, taps: function () { return window.__tdUpdTapped || 0; } };
   window.TessDesk433 = { drives: function () { var c = getCfg(); return c ? drivesList(c) : []; }, live: function () { return live; },
     selfTest: function () {
