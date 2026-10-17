@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-# TessDesk v4.3.31 (TIRE REFRESH button in TIRES under REMIND ME TO GET AIR: fresh pressures via Tessie, read-only, spinner + result; v4.3.30: LAYOUT: small up/down arrows at the top left of every section move it one place; a lock at the top right pins that section and everything above it at the top, the rest scrolls; both saved; Charging locked by default; v4.3.29: SECTIONS: TESLA CONTROLS, BATTERY (with HEALTH HISTORY), HEATED SEATS, TRIPS, CHARGE HISTORY, TIRES, DRIVES, CAMERAS outlined in the CHARGING green with green titles; v4.3.28: Alexa: 'Alexa limit reached' notice, Voice Monkey monthly counter (resets the 26th 7 PM CT), fewer announcements, only when home, no test announcements; ALL OFF never starts charging (no charge commands + stops a charge that starts after it); flash pause = the typed value; v4.3.27: Voice Monkey button next to ALEXA: placeholder, 'coming soon' note only; v4.3.26: ALL OFF in TESLA CONTROLS: windows, trunk, climate, seat + wheel heat, defrost, Sentry, Climate Keeper off, lock; v4.3.25: CHARGING SCHEDULE reaches the car on firmware 2024.26+: charge schedules, checked after each send; v4.3.24: FINISH BY defaults to 6:00 AM; v4.3.23: CHARGING SCHEDULE in START / STOP: START AT + FINISH BY, set on the car through Tessie; v4.3.22: CHARGE column in HEALTH HISTORY: highest charge % per day + Home / AC / Supercharger; v4.3.21: HEALTH HISTORY under START / STOP with CALIBRATION INFO; health history logged by the app itself; v4.3.20: HEALTH HISTORY dropdown, one entry per day, kept indefinitely; v4.3.19: 30% wider; PLUG-IN REMINDER; TRIPS; MORNING READY CHECK; PSO BILL MATCH with on/off; BATTERY HEALTH TREND + TIPS; LEAVING SOON 'Start after' delay; v4.3.18 CHARGING STATUS bar under the big cost with START / STOP, fits 364x990 without scrolling; v4.3.17: TESLA CONTROLS under the big cost, CHARGE HISTORY & TOTALS dropdown; v4.3.16 LEAVING SOON: adjustable 'Windows after' / 'Unlock after' minutes, Stop undoes the steps already done; v4.3.15: climate on, close windows, unlock; rolling 7 / 14 days and 30 / 60 days $ beside the big amount; Restore / Remember at the top right with fade-in, like Paycheck Live; TOTALS pop-up: week / month / year running totals; CAMERAS panel from saved Sentry / Dashcam clips; checks for updates on open / wake; compact-when-OFF via cb_compact_addon.ps1) - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
+# TessDesk v4.3.32 (STEERING WHEEL matches Tessie: heater flag + level set but climate off = grey SET <level> / OFF, not HEAT ON; BATTERY HEALTH is its own section (health %, as-of, trend sparkline, HEALTH HISTORY + calibration notes) right after BATTERY, Tips stays in BATTERY; UPDATE button always visible: RED 'NO UPDATE' when current, GREEN flashing 'YES UPDATE' when newer, tap checks the cloud at once and YES UPDATE installs on the spot; phone v4.3.32 gets the same NO UPDATE / YES UPDATE button; v4.3.31: TIRE REFRESH button in TIRES under REMIND ME TO GET AIR: fresh pressures via Tessie, read-only, spinner + result; v4.3.30: LAYOUT: small up/down arrows at the top left of every section move it one place; a lock at the top right pins that section and everything above it at the top, the rest scrolls; both saved; Charging locked by default; v4.3.29: SECTIONS: TESLA CONTROLS, BATTERY (with HEALTH HISTORY), HEATED SEATS, TRIPS, CHARGE HISTORY, TIRES, DRIVES, CAMERAS outlined in the CHARGING green with green titles; v4.3.28: Alexa: 'Alexa limit reached' notice, Voice Monkey monthly counter (resets the 26th 7 PM CT), fewer announcements, only when home, no test announcements; ALL OFF never starts charging (no charge commands + stops a charge that starts after it); flash pause = the typed value; v4.3.27: Voice Monkey button next to ALEXA: placeholder, 'coming soon' note only; v4.3.26: ALL OFF in TESLA CONTROLS: windows, trunk, climate, seat + wheel heat, defrost, Sentry, Climate Keeper off, lock; v4.3.25: CHARGING SCHEDULE reaches the car on firmware 2024.26+: charge schedules, checked after each send; v4.3.24: FINISH BY defaults to 6:00 AM; v4.3.23: CHARGING SCHEDULE in START / STOP: START AT + FINISH BY, set on the car through Tessie; v4.3.22: CHARGE column in HEALTH HISTORY: highest charge % per day + Home / AC / Supercharger; v4.3.21: HEALTH HISTORY under START / STOP with CALIBRATION INFO; health history logged by the app itself; v4.3.20: HEALTH HISTORY dropdown, one entry per day, kept indefinitely; v4.3.19: 30% wider; PLUG-IN REMINDER; TRIPS; MORNING READY CHECK; PSO BILL MATCH with on/off; BATTERY HEALTH TREND + TIPS; LEAVING SOON 'Start after' delay; v4.3.18 CHARGING STATUS bar under the big cost with START / STOP, fits 364x990 without scrolling; v4.3.17: TESLA CONTROLS under the big cost, CHARGE HISTORY & TOTALS dropdown; v4.3.16 LEAVING SOON: adjustable 'Windows after' / 'Unlock after' minutes, Stop undoes the steps already done; v4.3.15: climate on, close windows, unlock; rolling 7 / 14 days and 30 / 60 days $ beside the big amount; Restore / Remember at the top right with fade-in, like Paycheck Live; TOTALS pop-up: week / month / year running totals; CAMERAS panel from saved Sentry / Dashcam clips; checks for updates on open / wake; compact-when-OFF via cb_compact_addon.ps1) - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
 param(
     [string]$ConfigPath,
     [string]$Snapshot,    # optional: folder to write PNG snapshots of both themes
@@ -15,14 +15,14 @@ Add-Type -AssemblyName System.Xaml
 
 $ErrorActionPreference = 'Stop'
 $AppName    = 'TessDesk'
-$AppVersion = '4.3.31'
+$AppVersion = '4.3.32'
 $AppDate    = 'Oct 16, 2026'
 # ---------------- v4.3.30: section ORDER (up / down arrows, top left) + LOCK (top right) ----------------
 # The lock pins that section and everything above it at the top (PinStack, never scrolls); the rest scrolls (BodyStack).
 # Saved in config.json sections = { order = [...]; pin = key or null }. Default = 4.3.29 order with Charging locked (looks like 4.3.29).
-$SecKeys4330 = @('cameras', 'cost', 'charging', 'controls', 'skip', 'battery', 'bill', 'trips', 'history', 'seats', 'tires', 'drives')
-$SecCardOf4330 = @{ cameras = 'CamCard'; cost = 'CostCard'; charging = 'ChgCard'; controls = 'CtlCard'; skip = 'SkipCard'; battery = 'BattCard'; bill = 'BillCard'; trips = 'TripsCard'; history = 'RowsCard'; seats = 'SeatsCard'; tires = 'TiresCard'; drives = 'DrivesCard' }
-$SecNames4330 = @{ cameras = 'Cameras'; cost = 'Cost summary'; charging = 'Charging'; controls = 'Tesla controls'; skip = 'Skip confirm'; battery = 'Battery'; bill = 'PSO bill match'; trips = 'Trips'; history = 'Charge history & totals'; seats = 'Heated seats'; tires = 'Tires'; drives = 'Drives' }
+$SecKeys4330 = @('cameras', 'cost', 'charging', 'controls', 'skip', 'battery', 'health', 'bill', 'trips', 'history', 'seats', 'tires', 'drives')
+$SecCardOf4330 = @{ cameras = 'CamCard'; cost = 'CostCard'; charging = 'ChgCard'; controls = 'CtlCard'; skip = 'SkipCard'; battery = 'BattCard'; health = 'HealthCard'; bill = 'BillCard'; trips = 'TripsCard'; history = 'RowsCard'; seats = 'SeatsCard'; tires = 'TiresCard'; drives = 'DrivesCard' }
+$SecNames4330 = @{ cameras = 'Cameras'; cost = 'Cost summary'; charging = 'Charging'; controls = 'Tesla controls'; skip = 'Skip confirm'; battery = 'Battery'; health = 'Battery health'; bill = 'PSO bill match'; trips = 'Trips'; history = 'Charge history & totals'; seats = 'Heated seats'; tires = 'Tires'; drives = 'Drives' }
 $script:SecStrip4330 = @{}; $script:SecTail4330 = $null
 function Merge-SecState4330 {
     param($S)
@@ -140,8 +140,8 @@ function Apply-SectionLayout4330 {
 $SecBrush4329 = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(0x49, 0xDF, 0x93)); $SecBrush4329.Freeze()
 $SecFill4329 = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(0x13, 0x26, 0x1B)); $SecFill4329.Freeze()
 $SecRoot4329 = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(0x06, 0x12, 0x0B)); $SecRoot4329.Freeze()
-$SecCards4329 = @('CostCard', 'ChgCard', 'CtlCard', 'SkipCard', 'BattCard', 'BillCard', 'TripsCard', 'RowsCard', 'SeatsCard', 'TiresCard', 'DrivesCard', 'CamCard')
-$SecTitles4329 = @('CostCardTitle', 'ChgCardTitle', 'CtlHdr', 'SkipCardTitle', 'BattHdr', 'BillHdr', 'TripsHdr', 'ChgHistHdr', 'SeatsHdr', 'TiresHdr', 'DrivesHdr', 'CamHdr', 'TripsArrow', 'ChgHistArrow')
+$SecCards4329 = @('CostCard', 'ChgCard', 'CtlCard', 'SkipCard', 'BattCard', 'HealthCard', 'BillCard', 'TripsCard', 'RowsCard', 'SeatsCard', 'TiresCard', 'DrivesCard', 'CamCard')
+$SecTitles4329 = @('CostCardTitle', 'ChgCardTitle', 'CtlHdr', 'SkipCardTitle', 'BattHdr', 'HealthHdr', 'BillHdr', 'TripsHdr', 'ChgHistHdr', 'SeatsHdr', 'TiresHdr', 'DrivesHdr', 'CamHdr', 'TripsArrow', 'ChgHistArrow')
 function Apply-Sections4329 {
     try { $ui.RootBorder.Background = $SecRoot4329 } catch {}
     foreach ($n in $SecCards4329) { $e = $ui[$n]; if ($null -eq $e) { continue }; $e.BorderBrush = $SecBrush4329; $e.BorderThickness = [System.Windows.Thickness]::new(2); $e.Background = $SecFill4329; $e.CornerRadius = [System.Windows.CornerRadius]::new(10) }
@@ -945,7 +945,12 @@ function Get-CarInfo {
         ampsReq = $cs.charge_current_request; ampsMax = $cs.charge_current_request_max
         seatFL = $cl.seat_heater_left; seatFR = $cl.seat_heater_right; seatRL = $cl.seat_heater_rear_left; seatRC = $cl.seat_heater_rear_center; seatRR = $cl.seat_heater_rear_right
         rearSeatHeaters = $(if ($null -ne $v.vehicle_config) { $v.vehicle_config.rear_seat_heaters } else { $null })
-        wheelOn = $(if ($null -ne $cl -and $null -ne $cl.steering_wheel_heater) { [bool]$cl.steering_wheel_heater -or ($null -ne $cl.steering_wheel_heat_level -and [int]$cl.steering_wheel_heat_level -gt 0) } else { $null })
+        wheelFlag = $(if ($null -ne $cl -and $null -ne $cl.steering_wheel_heater) { [bool]$cl.steering_wheel_heater } else { $null })   # v4.3.32
+        wheelLevel = $(if ($null -ne $cl -and $null -ne $cl.steering_wheel_heat_level) { [int]$cl.steering_wheel_heat_level } else { $null })   # v4.3.32
+        wheelClimateRunning = $(if ($null -ne $cl) { [bool]$cl.is_climate_on -or [bool]$cl.is_preconditioning -or ($null -ne $cl.climate_keeper_mode -and [string]$cl.climate_keeper_mode -ne '' -and [string]$cl.climate_keeper_mode -ne 'off') } else { $false })   # v4.3.32
+        wheelSet = $(if ($null -ne $cl) { ($null -ne $cl.steering_wheel_heater -and [bool]$cl.steering_wheel_heater) -or ($null -ne $cl.steering_wheel_heat_level -and [int]$cl.steering_wheel_heat_level -gt 0) } else { $false })   # v4.3.32: a set level, heating or not
+        climatePrecond = $(if ($null -ne $cl -and $null -ne $cl.is_preconditioning) { [bool]$cl.is_preconditioning } else { $null })   # v4.3.32
+        wheelOn = $(if ($null -ne $cl -and ($null -ne $cl.steering_wheel_heater -or $null -ne $cl.steering_wheel_heat_level)) { [bool]$cl.steering_wheel_heater -and ([bool]$cl.is_climate_on -or [bool]$cl.is_preconditioning -or ($null -ne $cl.climate_keeper_mode -and [string]$cl.climate_keeper_mode -ne '' -and [string]$cl.climate_keeper_mode -ne 'off')) } else { $null })   # v4.3.32: ACTIVE only (flag true + climate running); level alone never on
         defrostOn = $(if ($null -ne $cl -and ($null -ne $cl.defrost_mode -or $null -ne $cl.is_front_defroster_on)) { ([int]$cl.defrost_mode -gt 0) -or [bool]$cl.is_front_defroster_on } else { $null })
         cop = $(if ($null -ne $cl) { [string]$cl.cabin_overheat_protection } else { $null }); copFanOnly = $(if ($null -ne $cl) { [bool]$cl.supports_fan_only_cabin_overheat_protection } else { $false })
         copAllowed = $(if ($null -ne $cl) { $cl.allow_cabin_overheat_protection } else { $null })
@@ -1159,13 +1164,13 @@ function Complete-UpdJob {
             try { [ordered]@{ checkedEpoch = $script:Upd.checkedEpoch; latest = [string]$info.version; info = $info } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $updCheckPath -Encoding UTF8 } catch {}
             Write-WidgetLog ('update check: latest v' + [string]$info.version + ', this copy v' + $AppVersion)
             try { Register-UpdCheckSuccess } catch {}
-            if ($script:Upd.state -eq 'available') { $window.Dispatcher.BeginInvoke([Action]{ try { Show-UpdatePrompt } catch { Write-WidgetLog ('update prompt: ' + $_.Exception.Message) } }) | Out-Null }
-        } catch { $script:Upd.note = 'update check failed: ' + "$_"; Write-WidgetLog $script:Upd.note; try { Register-UpdCheckFailure } catch {} }
+            if ($script:Upd.state -eq 'available') { if ($script:UpdManual4332) { $script:UpdManual4332 = $false; try { Invoke-UpdateApply } catch { $script:Upd.state = 'failed'; $script:Upd.note = $_.Exception.Message } } elseif (-not $SelfTest) { try { Start-UpdateStage4332 } catch { Write-WidgetLog ('update staging: ' + $_.Exception.Message); $script:Upd.state = 'available' } } }   # v4.3.32: quiet staging -> YES UPDATE READY; manual tap installs on the spot
+        } catch { $script:UpdManual4332 = $false; if ($script:Upd.state -eq 'checking') { $script:Upd.state = 'current' }; $script:Upd.note = 'update check failed: ' + "$_"; Write-WidgetLog $script:Upd.note; try { Register-UpdCheckFailure } catch {} }   # v4.3.32
     } else {
         try {
             if ($err) { throw $err }
-            Install-UpdateFiles @($res)
-        } catch { $script:Upd.state = 'failed'; $script:Upd.note = "$_"; Write-WidgetLog ('update failed: ' + "$_") }
+            if ($j.kind -eq 'stage') { [void](Save-UpdateStage4332 @($res)) } else { Install-UpdateFiles @($res) }
+        } catch { if ($j.kind -eq 'stage') { $script:Upd.state = 'available'; $script:Upd.note = 'background download did not check out (tap YES UPDATE to try the full download)'; Write-WidgetLog ('update staging failed: ' + "$_") } else { $script:Upd.state = 'failed'; $script:Upd.note = "$_"; Write-WidgetLog ('update failed: ' + "$_") } }
     }
     Render-Update
 }
@@ -1243,17 +1248,19 @@ function Set-UpdPulse {
     if ($On) { $a = New-Object System.Windows.Media.Animation.DoubleAnimation; $a.From = 1.0; $a.To = 0.45; $a.Duration = [System.Windows.Duration]::new([TimeSpan]::FromSeconds(0.8)); $a.AutoReverse = $true; $a.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever; $ui.UpdateBtn.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $a) }
 }
 function Render-Update {
-    $s = $script:Upd.state
-    $show = ($s -in @('available', 'updating', 'failed', 'installed')) -and ($script:Upd.latest -or $s -eq 'installed')
-    Set-Visible $ui.UpdateBtn $show
-    try { Set-UpdPulse ($show -and ($s -eq 'available' -or $s -eq 'failed')) } catch {}   # v4.3.28
-    if (-not $show) { return }
-    $v = 'v' + $(if ($script:Upd.latest) { $script:Upd.latest } else { $script:Upd.installed.version })
+    $s = $script:Upd.state; $v = 'v' + $(if ($script:Upd.latest) { $script:Upd.latest } else { $AppVersion })
+    Set-Visible $ui.UpdateBtn $true   # v4.3.32: always visible, slim strip (same half height in both states)
+    Set-Visible $ui.UpdateSub $false; $ui.UpdateTxt.FontSize = 11   # v4.3.32 small left tab; long wording in tooltip
+    try { Set-UpdPulse ($s -eq 'available' -or $s -eq 'failed' -or $s -eq 'ready') } catch {}
     switch ($s) {
-        'available' { $ui.UpdateTxt.Text = 'UPDATE AVAILABLE · ' + $v; $ui.UpdateSub.Text = 'one click: download, back up, install, restart (you have v' + $AppVersion + ')'; $ui.UpdateBtn.Background = T 'Green'; $ui.UpdateBtn.Cursor = [System.Windows.Input.Cursors]::Hand }
-        'updating' { $ui.UpdateTxt.Text = 'UPDATING TO ' + $v + '…'; $ui.UpdateSub.Text = [string]$script:Upd.note; $ui.UpdateBtn.Cursor = [System.Windows.Input.Cursors]::Wait }
-        'installed' { $ui.UpdateTxt.Text = $v + ' INSTALLED · RESTARTING'; $ui.UpdateSub.Text = [string]$script:Upd.note; $ui.UpdateBtn.Cursor = [System.Windows.Input.Cursors]::Arrow }
-        'failed' { $ui.UpdateTxt.Text = 'UPDATE FAILED · CLICK TO RETRY ' + $v; $ui.UpdateSub.Text = [string]$script:Upd.note; $ui.UpdateBtn.Background = T 'Amber'; $ui.UpdateBtn.BorderBrush = T 'Amber'; $ui.UpdateBtn.Cursor = [System.Windows.Input.Cursors]::Hand }
+        'available' { $ui.UpdateTxt.Text = 'YES UPDATE'; $ui.UpdateSub.Text = 'YES UPDATE ' + $v + ' is out · tap to install'; $ui.UpdateBtn.ToolTip = $ui.UpdateSub.Text; $ui.UpdateBtn.Background = T 'Green'; $ui.UpdateBtn.BorderBrush = T 'Green'; $ui.UpdateTxt.Foreground = Get-Brush '#FF06210F'; $ui.UpdateBtn.Cursor = [System.Windows.Input.Cursors]::Hand }
+        'ready' { $ui.UpdateTxt.Text = 'YES UPDATE'; $ui.UpdateSub.Text = 'YES UPDATE — READY · ' + $v + ' downloaded and checked · tap to install'; $ui.UpdateBtn.ToolTip = $ui.UpdateSub.Text; $ui.UpdateBtn.Background = T 'Green'; $ui.UpdateBtn.BorderBrush = T 'Green'; $ui.UpdateTxt.Foreground = Get-Brush '#FF06210F'; $ui.UpdateBtn.Cursor = [System.Windows.Input.Cursors]::Hand }
+        'downloading' { $ui.UpdateTxt.Text = 'NO UPDATE'; $ui.UpdateSub.Text = 'NO UPDATE · downloading ' + $v + ' in the background…'; $ui.UpdateBtn.ToolTip = $ui.UpdateSub.Text; $ui.UpdateBtn.Background = T 'Red'; $ui.UpdateBtn.BorderBrush = T 'Red'; $ui.UpdateTxt.Foreground = Get-Brush '#FFFFFFFF'; $ui.UpdateBtn.Cursor = [System.Windows.Input.Cursors]::Wait }
+        'updating' { $ui.UpdateTxt.Text = 'UPDATING'; $ui.UpdateSub.Text = 'Installing ' + $v + '…'; $ui.UpdateBtn.ToolTip = $ui.UpdateSub.Text; $ui.UpdateBtn.Background = T 'Green'; $ui.UpdateBtn.BorderBrush = T 'Green'; $ui.UpdateTxt.Foreground = Get-Brush '#FF06210F'; $ui.UpdateBtn.Cursor = [System.Windows.Input.Cursors]::Wait }
+        'installed' { $ui.UpdateTxt.Text = 'INSTALLED'; $ui.UpdateSub.Text = $v + ' installed · restarting'; $ui.UpdateBtn.ToolTip = $ui.UpdateSub.Text; $ui.UpdateBtn.Background = T 'Green'; $ui.UpdateBtn.BorderBrush = T 'Green'; $ui.UpdateTxt.Foreground = Get-Brush '#FF06210F'; $ui.UpdateBtn.Cursor = [System.Windows.Input.Cursors]::Arrow }
+        'failed' { $ui.UpdateTxt.Text = 'YES UPDATE'; $ui.UpdateSub.Text = 'YES UPDATE · tap to retry ' + $v; $ui.UpdateBtn.ToolTip = $ui.UpdateSub.Text; $ui.UpdateBtn.Background = T 'Amber'; $ui.UpdateBtn.BorderBrush = T 'Amber'; $ui.UpdateTxt.Foreground = Get-Brush '#FF06210F'; $ui.UpdateBtn.Cursor = [System.Windows.Input.Cursors]::Hand }
+        'checking' { $ui.UpdateTxt.Text = 'NO UPDATE'; $ui.UpdateSub.Text = 'NO UPDATE · checking…'; $ui.UpdateBtn.ToolTip = $ui.UpdateSub.Text; $ui.UpdateBtn.Background = T 'Red'; $ui.UpdateBtn.BorderBrush = T 'Red'; $ui.UpdateTxt.Foreground = Get-Brush '#FFFFFFFF'; $ui.UpdateBtn.Cursor = [System.Windows.Input.Cursors]::Wait }
+        default { $ui.UpdateTxt.Text = 'NO UPDATE'; $ui.UpdateSub.Text = $(if ([string]$script:Upd.note -like '*failed*') { 'NO UPDATE · check failed · tap to retry' } else { 'NO UPDATE · Already up to date v' + $AppVersion + ' · tap to check' }); $ui.UpdateBtn.ToolTip = $ui.UpdateSub.Text; $ui.UpdateBtn.Background = T 'Red'; $ui.UpdateBtn.BorderBrush = T 'Red'; $ui.UpdateTxt.Foreground = Get-Brush '#FFFFFFFF'; $ui.UpdateBtn.Cursor = [System.Windows.Input.Cursors]::Hand }
     }
 }
 # remember the last check across restarts so the site is asked at most about once a day
@@ -1660,10 +1667,10 @@ function Open-Url433 {
 
         <StackPanel Grid.Row="1" Margin="0,0,0,2">
           <!-- v4.3.3: UPDATE AVAILABLE (one click: download, back up, install, restart) -->
-          <Border x:Name="UpdateBtn" CornerRadius="10" Background="#FF49DF93" BorderBrush="#FF49DF93" BorderThickness="1.5" Padding="8,4,8,5" Margin="0,2,0,6"
-                  Cursor="Hand" Visibility="Collapsed" ToolTip="One click: downloads the new version, backs up your current files, installs it and restarts TessDesk">
+          <Border x:Name="UpdateBtn" CornerRadius="0,9,9,0" HorizontalAlignment="Left" MinWidth="118" MaxWidth="160" Background="#FF49DF93" BorderBrush="#FF49DF93" BorderThickness="1,1.5,1.5,1.5" Padding="7,3,10,4" Margin="-16,2,0,6"
+                  Cursor="Hand" Visibility="Visible" ToolTip="UPDATE: tap to check the cloud at once. NO UPDATE (red) = you are current. YES UPDATE (green) = a newer version is out; tap it to download, back up, install and restart TessDesk">
             <StackPanel HorizontalAlignment="Center">
-              <TextBlock x:Name="UpdateTxt" Text="UPDATE AVAILABLE" FontSize="13" FontWeight="Bold" Foreground="#FF06210F" HorizontalAlignment="Center"/>
+              <TextBlock x:Name="UpdateTxt" Text="NO UPDATE" FontSize="13" FontWeight="Bold" Foreground="#FF06210F" HorizontalAlignment="Center"/>
               <TextBlock x:Name="UpdateSub" Text="click to update and restart" FontSize="9" FontWeight="SemiBold" Foreground="#FF0B3A1C" HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"/>
             </StackPanel>
           </Border>
@@ -1869,8 +1876,8 @@ function Open-Url433 {
                 </Button>
               </Grid>
             </Border>
-            <UniformGrid Columns="3" Rows="1">
-              <Button x:Name="LockBtn" Style="{StaticResource CtlBtn}" Height="54" Margin="0,0,3,0" Padding="4,4,4,4" ToolTip="Lock / unlock your Tesla">
+            <UniformGrid x:Name="CtlTopRow" Columns="3" Rows="1">
+<Button x:Name="LockBtn" Style="{StaticResource CtlBtn}" Height="46" Margin="0,0,3,0" Padding="4,4,4,4" ToolTip="Lock / unlock your Tesla">
                 <Grid>
                   <Grid.ColumnDefinitions><ColumnDefinition Width="22"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                   <TextBlock x:Name="LockIcon" Text="&#xE72E;" FontFamily="Segoe MDL2 Assets" FontSize="18" VerticalAlignment="Center" HorizontalAlignment="Center"/>
@@ -1880,7 +1887,7 @@ function Open-Url433 {
                   </StackPanel>
                 </Grid>
               </Button>
-              <Border x:Name="FlashBox" Height="54" Margin="3,0,3,0" CornerRadius="10" BorderThickness="1.5" BorderBrush="#FF49DF93" Background="#2649DF93" Padding="5,2,5,2" ToolTip="Flash the headlights (Tessie flash), 1-20 times with the pause you set (1-30 s). Asks first; Stop ends early.">
+<Border x:Name="FlashBox" Height="46" Margin="3,0,3,0" CornerRadius="10" BorderThickness="1.5" BorderBrush="#FF49DF93" Background="#2649DF93" Padding="5,2,5,2" ToolTip="Flash the headlights (Tessie flash), 1-20 times with the pause you set (1-30 s). Asks first; Stop ends early.">
                 <StackPanel VerticalAlignment="Center">
                   <Viewbox StretchDirection="DownOnly" HorizontalAlignment="Center"><TextBlock x:Name="FlashTxt" Text="FLASH LIGHTS" FontSize="11" FontWeight="Bold"/></Viewbox>
                   <Grid Margin="0,2,0,1">
@@ -1896,39 +1903,7 @@ function Open-Url433 {
                   <Viewbox StretchDirection="DownOnly" HorizontalAlignment="Center"><TextBlock x:Name="FlashSub" Text="flashes · pause s" FontSize="8.5" FontWeight="SemiBold" Foreground="#FF888888"/></Viewbox>
                 </StackPanel>
               </Border>
-              <Button x:Name="ClimBtn" Style="{StaticResource CtlBtn}" Height="54" Margin="3,0,0,0" Padding="4,4,4,4" ToolTip="Turn climate (A/C) on or off">
-                <Grid>
-                  <Grid.ColumnDefinitions><ColumnDefinition Width="22"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                  <TextBlock x:Name="ClimIcon" Text="❄" FontFamily="Segoe UI Symbol" FontSize="17" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                  <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="3,0,0,0">
-                    <Viewbox StretchDirection="DownOnly" HorizontalAlignment="Left"><TextBlock x:Name="ClimTxt" Text="A/C" FontSize="16" FontWeight="Bold"/></Viewbox>
-                    <Viewbox StretchDirection="DownOnly" HorizontalAlignment="Left"><TextBlock x:Name="ClimSub" Text="" FontSize="10" Foreground="#FF888888"/></Viewbox>
-                  </StackPanel>
-                </Grid>
-              </Button>
-            </UniformGrid>
-            <TextBlock x:Name="FlashStats" Text="" Visibility="Collapsed" FontSize="9" FontWeight="SemiBold" Foreground="#FF888888" HorizontalAlignment="Center" Margin="0,3,0,0"
-                       ToolTip="Flash lights: response time of each flash request (sent until Tessie answered), average, and the measured gap between successful flashes"/>
-            <UniformGrid Columns="3" Rows="1" Margin="0,4,0,0">
-              <Button x:Name="HeatBtn" Style="{StaticResource CtlBtn}" Height="44" Margin="0,0,3,0" Padding="3,2,3,2" ToolTip="Heat = climate on with a warm set temperature (Tesla has no separate heater command)">
-                <StackPanel HorizontalAlignment="Center">
-                  <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                    <TextBlock x:Name="HeatIcon" Text="♨" FontFamily="Segoe UI Symbol" FontSize="13" Margin="0,0,4,0" VerticalAlignment="Center"/>
-                    <TextBlock x:Name="HeatTxt" Text="HEAT" FontSize="12.5" FontWeight="Bold" VerticalAlignment="Center"/>
-                  </StackPanel>
-                  <Viewbox StretchDirection="DownOnly" HorizontalAlignment="Center" MaxWidth="96"><TextBlock x:Name="HeatSub" Text="" FontSize="9" FontWeight="SemiBold" Foreground="#FF888888"/></Viewbox>
-                </StackPanel>
-              </Button>
-              <Button x:Name="DefrostBtn" Style="{StaticResource CtlBtn}" Height="44" Margin="3,0,3,0" Padding="3,2,3,2" ToolTip="Max defrost on / off">
-                <StackPanel HorizontalAlignment="Center">
-                  <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                    <TextBlock x:Name="DefrostIcon" Text="❄" FontFamily="Segoe UI Symbol" FontSize="13" Margin="0,0,4,0" VerticalAlignment="Center"/>
-                    <TextBlock x:Name="DefrostTxt" Text="DEFROST" FontSize="12.5" FontWeight="Bold" VerticalAlignment="Center"/>
-                  </StackPanel>
-                  <Viewbox StretchDirection="DownOnly" HorizontalAlignment="Center" MaxWidth="96"><TextBlock x:Name="DefrostSub" Text="" FontSize="9" FontWeight="SemiBold" Foreground="#FF888888"/></Viewbox>
-                </StackPanel>
-              </Button>
-              <Button x:Name="CopBtn" Style="{StaticResource CtlBtn}" Height="44" Margin="3,0,0,0" Padding="3,2,3,2" ToolTip="Cabin Overheat Protection: off, on, fan only">
+<Button x:Name="CopBtn" Style="{StaticResource CtlBtn}" Height="46" Margin="3,0,0,0" Padding="3,2,3,2" ToolTip="Cabin Overheat Protection: off, on, fan only">
                 <StackPanel HorizontalAlignment="Center">
                   <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                     <TextBlock x:Name="CopIcon" Text="☀" FontFamily="Segoe UI Symbol" FontSize="13" Margin="0,0,4,0" VerticalAlignment="Center"/>
@@ -1938,34 +1913,78 @@ function Open-Url433 {
                 </StackPanel>
               </Button>
             </UniformGrid>
-            <Grid Margin="0,4,0,0">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="6"/>
-                <ColumnDefinition Width="40"/><ColumnDefinition Width="*"/><ColumnDefinition Width="40"/>
-              </Grid.ColumnDefinitions>
-              <Button x:Name="VentBtn" Grid.Column="0" Style="{StaticResource CtlBtn}" Height="38" Margin="0,0,3,0" Padding="2" ToolTip="Vent all windows">
+            <TextBlock x:Name="FlashStats" Text="" Visibility="Collapsed" FontSize="9" FontWeight="SemiBold" Foreground="#FF888888" HorizontalAlignment="Center" Margin="0,3,0,0"
+                       ToolTip="Flash lights: response time of each flash request (sent until Tessie answered), average, and the measured gap between successful flashes"/>
+            <!-- v4.3.32: A/C row: [A/C button][set temp][-][+] on one line (shared set temp) -->
+            <Grid x:Name="AcTempRow" Margin="0,2,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="76"/><ColumnDefinition Width="40"/><ColumnDefinition Width="40"/></Grid.ColumnDefinitions>
+<Button Grid.Column="0" x:Name="ClimBtn" Style="{StaticResource CtlBtn}" Height="38" Margin="0" Padding="4,4,4,4" ToolTip="Turn climate (A/C) on or off">
+                <Grid>
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="22"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <TextBlock x:Name="ClimIcon" Text="❄" FontFamily="Segoe UI Symbol" FontSize="17" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                  <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="3,0,0,0">
+                    <Viewbox StretchDirection="DownOnly" HorizontalAlignment="Left"><TextBlock x:Name="ClimTxt" Text="A/C" FontSize="16" FontWeight="Bold"/></Viewbox>
+                    <Viewbox StretchDirection="DownOnly" HorizontalAlignment="Left"><TextBlock x:Name="ClimSub" Text="" FontSize="10" Foreground="#FF888888"/></Viewbox>
+                  </StackPanel>
+                </Grid>
+              </Button>
+<StackPanel Grid.Column="1" VerticalAlignment="Center">
+                <TextBlock x:Name="TempVal" Text="--" FontSize="19" FontWeight="Bold" HorizontalAlignment="Center"/>
+                <TextBlock x:Name="TempCap" Text="SET TEMP" FontSize="7.5" FontWeight="SemiBold" Foreground="#FF7A7A7A" HorizontalAlignment="Center"/>
+              </StackPanel>
+<Button x:Name="TempDownBtn" Grid.Column="2" Style="{StaticResource CtlBtn}" Height="38" Padding="0" ToolTip="Cooler">
+                <TextBlock Text="−" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,-4,0,0"/>
+              </Button>
+<Button x:Name="TempUpBtn" Grid.Column="3" Style="{StaticResource CtlBtn}" Height="38" Padding="0" ToolTip="Warmer">
+                <TextBlock Text="+" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,-3,0,0"/>
+              </Button>
+            </Grid>
+            <!-- v4.3.32: HEAT row: [HEAT button][set temp][-][+] on one line, identical layout -->
+            <Grid x:Name="HeatTempRow" Margin="0,2,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="76"/><ColumnDefinition Width="40"/><ColumnDefinition Width="40"/></Grid.ColumnDefinitions>
+<Button Grid.Column="0" x:Name="HeatBtn" Style="{StaticResource CtlBtn}" Height="38" Margin="0" Padding="4,4,4,4" ToolTip="Heat = climate on with a warm set temperature (Tesla has no separate heater command)">
+                <Grid>
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="22"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <TextBlock x:Name="HeatIcon" Text="♨" FontFamily="Segoe UI Symbol" FontSize="17" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                  <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="3,0,0,0">
+                    <Viewbox StretchDirection="DownOnly" HorizontalAlignment="Left"><TextBlock x:Name="HeatTxt" Text="HEAT OFF" FontSize="16" FontWeight="Bold"/></Viewbox>
+                    <Viewbox StretchDirection="DownOnly" HorizontalAlignment="Left"><TextBlock x:Name="HeatSub" Text="" FontSize="10" Foreground="#FF888888"/></Viewbox>
+                  </StackPanel>
+                </Grid>
+              </Button>
+<StackPanel Grid.Column="1" VerticalAlignment="Center">
+                <TextBlock x:Name="HeatTempVal" Text="--" FontSize="19" FontWeight="Bold" HorizontalAlignment="Center"/>
+                <TextBlock x:Name="HeatTempCap" Text="SET TEMP" FontSize="7.5" FontWeight="SemiBold" Foreground="#FF7A7A7A" HorizontalAlignment="Center"/>
+              </StackPanel>
+<Button x:Name="HeatTempDownBtn" Grid.Column="2" Style="{StaticResource CtlBtn}" Height="38" Padding="0" ToolTip="Cooler">
+                <TextBlock Text="−" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,-4,0,0"/>
+              </Button>
+<Button x:Name="HeatTempUpBtn" Grid.Column="3" Style="{StaticResource CtlBtn}" Height="38" Padding="0" ToolTip="Warmer">
+                <TextBlock Text="+" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,-3,0,0"/>
+              </Button>
+            </Grid>
+            <!-- v4.3.32: windows + defrost below the A/C and HEAT blocks -->
+            <UniformGrid Columns="3" Rows="1" Margin="0,4,0,0">
+<Button x:Name="VentBtn" Style="{StaticResource CtlBtn}" Height="32" Margin="0,0,3,0" Padding="2" ToolTip="Vent all windows">
                 <StackPanel HorizontalAlignment="Center">
                   <TextBlock x:Name="VentTxt" Text="VENT" FontSize="13" FontWeight="Bold" HorizontalAlignment="Center"/>
                   <TextBlock x:Name="VentSub" Text="WINDOWS" FontSize="7.5" FontWeight="SemiBold" Foreground="#FF888888" HorizontalAlignment="Center"/>
                 </StackPanel>
               </Button>
-              <Button x:Name="CloseWinBtn" Grid.Column="1" Style="{StaticResource CtlBtn}" Height="38" Margin="3,0,0,0" Padding="2" ToolTip="Close all windows">
+<Button x:Name="CloseWinBtn" Style="{StaticResource CtlBtn}" Height="32" Margin="3,0,0,0" Padding="2" ToolTip="Close all windows">
                 <StackPanel HorizontalAlignment="Center">
                   <TextBlock x:Name="CloseWinTxt" Text="CLOSE" FontSize="13" FontWeight="Bold" HorizontalAlignment="Center"/>
                   <TextBlock x:Name="CloseWinSub" Text="WINDOWS" FontSize="7.5" FontWeight="SemiBold" Foreground="#FF888888" HorizontalAlignment="Center"/>
                 </StackPanel>
               </Button>
-              <Button x:Name="TempDownBtn" Grid.Column="3" Style="{StaticResource CtlBtn}" Height="38" Padding="0" ToolTip="Cooler">
-                <TextBlock Text="−" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,-4,0,0"/>
+<Button x:Name="DefrostBtn" Style="{StaticResource CtlBtn}" Height="32" Margin="3,0,0,0" Padding="3,2,3,2" ToolTip="Max defrost on / off">
+                <StackPanel HorizontalAlignment="Center">
+                  <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <TextBlock x:Name="DefrostIcon" Text="❄" FontFamily="Segoe UI Symbol" FontSize="13" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="DefrostTxt" Text="DEFROST" FontSize="12.5" FontWeight="Bold" VerticalAlignment="Center"/>
+                  </StackPanel>
+                  <Viewbox StretchDirection="DownOnly" HorizontalAlignment="Center" MaxWidth="96"><TextBlock x:Name="DefrostSub" Text="" FontSize="9" FontWeight="SemiBold" Foreground="#FF888888"/></Viewbox>
+                </StackPanel>
               </Button>
-              <StackPanel Grid.Column="4" VerticalAlignment="Center">
-                <TextBlock x:Name="TempVal" Text="--" FontSize="19" FontWeight="Bold" HorizontalAlignment="Center"/>
-                <TextBlock x:Name="TempCap" Text="SET TEMP" FontSize="7.5" FontWeight="SemiBold" Foreground="#FF7A7A7A" HorizontalAlignment="Center"/>
-              </StackPanel>
-              <Button x:Name="TempUpBtn" Grid.Column="5" Style="{StaticResource CtlBtn}" Height="38" Padding="0" ToolTip="Warmer">
-                <TextBlock Text="+" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,-3,0,0"/>
-              </Button>
-            </Grid>
+            </UniformGrid>
             <!-- v4.3.3: OPEN TRUNK (rear only, asks first) + SENTRY MODE on/off (shows the car's state, asks first) -->
             <Grid Margin="0,4,0,0">
               <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
@@ -2066,34 +2085,6 @@ function Open-Url433 {
               <TextBlock x:Name="BattState" DockPanel.Dock="Right" Text="" FontSize="10" FontWeight="SemiBold" Foreground="#FF888888" VerticalAlignment="Center"/>
               <TextBlock x:Name="BattHdr" Text="BATTERY" FontSize="12.5" FontWeight="Bold" Foreground="#FF9A9A9A"/>
             </DockPanel>
-            <StackPanel x:Name="HHistWrap" Margin="0,3,0,5">   <!-- v4.3.29: HEALTH HISTORY lives in BATTERY -->
-              <Border x:Name="HHistBtn" Padding="9,4,9,4" CornerRadius="6" Background="#14FFFFFF" BorderBrush="#FF333333" BorderThickness="1" Cursor="Hand" ToolTip="Show or hide the daily battery health history (remembered)">
-                <DockPanel LastChildFill="True">
-                  <TextBlock x:Name="HHistSum" DockPanel.Dock="Right" FontSize="10.5" VerticalAlignment="Center"/>
-                  <TextBlock x:Name="HHistHdr" Text="HEALTH HISTORY &#x25B8;" FontSize="10.5" FontWeight="Bold" Foreground="#FFFFFFFF" VerticalAlignment="Center"/>
-                </DockPanel>
-              </Border>
-              <StackPanel x:Name="HHistBody" Visibility="Collapsed" Margin="2,5,2,0">
-                <TextBlock x:Name="HHistSummary" FontSize="10" TextWrapping="Wrap" Margin="0,0,0,3"/>
-                <TextBlock x:Name="HHistCal" FontSize="10" TextWrapping="Wrap" Margin="0,0,0,2"/>
-                <TextBlock x:Name="HHistCalNote" FontSize="9.5" TextWrapping="Wrap" Margin="0,0,0,2"/>
-                <TextBlock x:Name="HHistTip" FontSize="9.5" TextWrapping="Wrap" Margin="0,0,0,5"/>
-                <Grid Margin="0,0,8,2">
-                  <Grid.ColumnDefinitions><ColumnDefinition Width="124"/><ColumnDefinition Width="50"/><ColumnDefinition Width="54"/><ColumnDefinition Width="68"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                  <TextBlock x:Name="HHistC0" Text="DATE" FontSize="9" FontWeight="Bold" Foreground="#FF8A8A8A"/>
-                  <TextBlock x:Name="HHistC1" Grid.Column="1" Text="HEALTH" FontSize="9" FontWeight="Bold" Foreground="#FF8A8A8A" HorizontalAlignment="Right"/>
-                  <TextBlock x:Name="HHistC2" Grid.Column="2" Text="CHANGE" FontSize="9" FontWeight="Bold" Foreground="#FF8A8A8A" HorizontalAlignment="Right"/>
-                  <TextBlock x:Name="HHistC4" Grid.Column="3" Text="CHARGE" FontSize="9" FontWeight="Bold" Foreground="#FF8A8A8A" HorizontalAlignment="Right" ToolTip="Highest charge % reached that day. H = home, AC = other AC charger, SC = Supercharger, DC = DC fast; amber = fast charging"/>
-                  <TextBlock x:Name="HHistC3" Grid.Column="4" Text="CAPACITY" FontSize="9" FontWeight="Bold" Foreground="#FF8A8A8A" HorizontalAlignment="Right"/>
-                </Grid>
-                <ScrollViewer x:Name="HHistScroll" MaxHeight="240" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" PanningMode="None" Focusable="False">
-                  <StackPanel x:Name="HHistList" Margin="0,0,8,0"/>
-                </ScrollViewer>
-                <Button x:Name="HHistAllBtn" Style="{StaticResource CtlBtn}" Height="24" Margin="0,5,0,2" Padding="10,0,10,0" HorizontalAlignment="Center" Visibility="Collapsed" ToolTip="Show every logged day, or only the last 30">
-                  <TextBlock x:Name="HHistAllTxt" Text="Show all" FontSize="10.5" FontWeight="Bold"/>
-                </Button>
-              </StackPanel>
-            </StackPanel>
             <Grid x:Name="BattMain">
               <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="96"/></Grid.ColumnDefinitions>
               <StackPanel x:Name="BattLeft">
@@ -2196,11 +2187,25 @@ function Open-Url433 {
             <!-- v4.3.19: PSO BILL MATCH (on/off switch; off = one small row) -->
             <Border x:Name="BillSep" Height="1" Background="#FF222222" Margin="0,8,0,5" Visibility="Collapsed"/>
             <!-- v4.3.19: BATTERY HEALTH TREND + TIPS -->
-            <StackPanel x:Name="HealthBox">
             <Border x:Name="HealthSep" Height="1" Background="#FF222222" Margin="0,8,0,5"/>
+            <TextBlock x:Name="TipsHdr" Text="TIPS FROM YOUR DATA" FontSize="9.5" FontWeight="Bold" Foreground="#FF9A9A9A" Margin="0,6,0,1"/>
+            <StackPanel x:Name="TipsList"/>
+            <!-- v4.3.19: plug-in reminder setting (on by default) -->
+            <Border x:Name="PlugSetSep" Height="1" Background="#FF222222" Margin="0,7,0,5"/>
+            <DockPanel x:Name="PlugSetRow" LastChildFill="True">
+              <ToggleButton x:Name="PlugRemSwitch" DockPanel.Dock="Right" Style="{StaticResource SwitchStyle}" Tag="#FF49DF93" IsChecked="True" VerticalAlignment="Center" ToolTip="Plug-in reminder on / off (saved)"/>
+              <TextBlock x:Name="PlugSetTxt" Text="Plug-in reminder" FontSize="10" FontWeight="SemiBold" Foreground="#FFCCCCCC" VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,0,8,0"/>
+            </DockPanel>
+          </StackPanel>
+        </Border>
+
+        <!-- v4.3.32: BATTERY HEALTH is its own section (same green outline/title as the other sections), right after BATTERY -->
+        <Border x:Name="HealthCard" CornerRadius="10" Background="#FF111111" BorderBrush="#FF222222" BorderThickness="1" Padding="12,7,12,8" Margin="0,0,0,6">
+          <StackPanel>
+            <StackPanel x:Name="HealthBox">
             <DockPanel LastChildFill="True">
               <TextBlock x:Name="HealthAsOf" DockPanel.Dock="Right" Text="" FontSize="9.5" FontWeight="SemiBold" Foreground="#FF888888" VerticalAlignment="Center"/>
-              <TextBlock x:Name="HealthHdr" Text="BATTERY HEALTH" FontSize="11" FontWeight="Bold" Foreground="#FF9A9A9A"/>
+              <TextBlock x:Name="HealthHdr" Text="BATTERY HEALTH" FontSize="12.5" FontWeight="Bold" Foreground="#FF9A9A9A"/>
             </DockPanel>
             <Grid Margin="0,2,0,0">
               <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
@@ -2221,15 +2226,35 @@ function Open-Url433 {
                 <TextBlock x:Name="HealthSparkCap" Text="" FontSize="8.5" Foreground="#FF888888" HorizontalAlignment="Center" Margin="0,2,0,0"/>
               </StackPanel>
             </Grid>
-            <TextBlock x:Name="TipsHdr" Text="TIPS FROM YOUR DATA" FontSize="9.5" FontWeight="Bold" Foreground="#FF9A9A9A" Margin="0,6,0,1"/>
-            <StackPanel x:Name="TipsList"/>
             </StackPanel>
-            <!-- v4.3.19: plug-in reminder setting (on by default) -->
-            <Border x:Name="PlugSetSep" Height="1" Background="#FF222222" Margin="0,7,0,5"/>
-            <DockPanel x:Name="PlugSetRow" LastChildFill="True">
-              <ToggleButton x:Name="PlugRemSwitch" DockPanel.Dock="Right" Style="{StaticResource SwitchStyle}" Tag="#FF49DF93" IsChecked="True" VerticalAlignment="Center" ToolTip="Plug-in reminder on / off (saved)"/>
-              <TextBlock x:Name="PlugSetTxt" Text="Plug-in reminder" FontSize="10" FontWeight="SemiBold" Foreground="#FFCCCCCC" VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,0,8,0"/>
-            </DockPanel>
+            <StackPanel x:Name="HHistWrap" Margin="0,3,0,5">   <!-- v4.3.29: HEALTH HISTORY lives in BATTERY -->
+              <Border x:Name="HHistBtn" Padding="9,4,9,4" CornerRadius="6" Background="#14FFFFFF" BorderBrush="#FF333333" BorderThickness="1" Cursor="Hand" ToolTip="Show or hide the daily battery health history (remembered)">
+                <DockPanel LastChildFill="True">
+                  <TextBlock x:Name="HHistSum" DockPanel.Dock="Right" FontSize="10.5" VerticalAlignment="Center"/>
+                  <TextBlock x:Name="HHistHdr" Text="HEALTH HISTORY &#x25B8;" FontSize="10.5" FontWeight="Bold" Foreground="#FFFFFFFF" VerticalAlignment="Center"/>
+                </DockPanel>
+              </Border>
+              <StackPanel x:Name="HHistBody" Visibility="Collapsed" Margin="2,5,2,0">
+                <TextBlock x:Name="HHistSummary" FontSize="10" TextWrapping="Wrap" Margin="0,0,0,3"/>
+                <TextBlock x:Name="HHistCal" FontSize="10" TextWrapping="Wrap" Margin="0,0,0,2"/>
+                <TextBlock x:Name="HHistCalNote" FontSize="9.5" TextWrapping="Wrap" Margin="0,0,0,2"/>
+                <TextBlock x:Name="HHistTip" FontSize="9.5" TextWrapping="Wrap" Margin="0,0,0,5"/>
+                <Grid Margin="0,0,8,2">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="124"/><ColumnDefinition Width="50"/><ColumnDefinition Width="54"/><ColumnDefinition Width="68"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <TextBlock x:Name="HHistC0" Text="DATE" FontSize="9" FontWeight="Bold" Foreground="#FF8A8A8A"/>
+                  <TextBlock x:Name="HHistC1" Grid.Column="1" Text="HEALTH" FontSize="9" FontWeight="Bold" Foreground="#FF8A8A8A" HorizontalAlignment="Right"/>
+                  <TextBlock x:Name="HHistC2" Grid.Column="2" Text="CHANGE" FontSize="9" FontWeight="Bold" Foreground="#FF8A8A8A" HorizontalAlignment="Right"/>
+                  <TextBlock x:Name="HHistC4" Grid.Column="3" Text="CHARGE" FontSize="9" FontWeight="Bold" Foreground="#FF8A8A8A" HorizontalAlignment="Right" ToolTip="Highest charge % reached that day. H = home, AC = other AC charger, SC = Supercharger, DC = DC fast; amber = fast charging"/>
+                  <TextBlock x:Name="HHistC3" Grid.Column="4" Text="CAPACITY" FontSize="9" FontWeight="Bold" Foreground="#FF8A8A8A" HorizontalAlignment="Right"/>
+                </Grid>
+                <ScrollViewer x:Name="HHistScroll" MaxHeight="240" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" PanningMode="None" Focusable="False">
+                  <StackPanel x:Name="HHistList" Margin="0,0,8,0"/>
+                </ScrollViewer>
+                <Button x:Name="HHistAllBtn" Style="{StaticResource CtlBtn}" Height="24" Margin="0,5,0,2" Padding="10,0,10,0" HorizontalAlignment="Center" Visibility="Collapsed" ToolTip="Show every logged day, or only the last 30">
+                  <TextBlock x:Name="HHistAllTxt" Text="Show all" FontSize="10.5" FontWeight="Bold"/>
+                </Button>
+              </StackPanel>
+            </StackPanel>
           </StackPanel>
         </Border>
 
@@ -2730,7 +2755,7 @@ function Apply-Theme {
     $ui.TitleBar.CornerRadius = [System.Windows.CornerRadius]::new($th.RootRadius, $th.RootRadius, 0, 0)
     $ui.TitleText.Foreground = T 'Title'; $ui.LoggedIn.Foreground = T 'LoggedIn'
     $ui.DateLabel.Foreground = T 'Caption'
-    foreach ($n in 'TiresCard', 'RowsCard', 'BattCard', 'CtlCard', 'SeatsCard', 'DrivesCard', 'CamCard', 'TripsCard') {
+    foreach ($n in 'TiresCard', 'RowsCard', 'BattCard', 'HealthCard', 'CtlCard', 'SeatsCard', 'DrivesCard', 'CamCard', 'TripsCard') {
         $ui[$n].Background = T 'CardBg'; $ui[$n].BorderBrush = T 'CardBorder'
         $ui[$n].CornerRadius = [System.Windows.CornerRadius]::new($th.CardRadius)
     }
@@ -2756,14 +2781,14 @@ function Apply-Theme {
     $ui.CarGlassF.Fill = T 'CarGlass'; $ui.CarGlassR.Fill = T 'CarGlass'; $ui.CarRoof.Fill = T 'CarRoof'
     $ui.BarTrack.Fill = T 'BarTrack'; $ui.BarBallDot.Stroke = T 'BallStroke'; $ui.BarBallText.Foreground = T 'BallText'
     $ui.BarStartLbl.Foreground = T 'Text'; $ui.BarLimitLbl.Foreground = T 'Text'
-    foreach ($n in 'FromCap', 'LimitCap', 'TempCap', 'BattRangeCap', 'DragCap') { $ui[$n].Foreground = T 'Caption' }
+    foreach ($n in 'FromCap', 'LimitCap', 'TempCap', 'HeatTempCap', 'BattRangeCap', 'DragCap') { $ui[$n].Foreground = T 'Caption' }
     foreach ($n in 'FromMi', 'LimitMi') { $ui[$n].Foreground = T 'TextSoft' }
-    foreach ($n in 'BattPct', 'BattRange', 'DragVal', 'TempVal') { $ui[$n].Foreground = T 'Text' }
+    foreach ($n in 'BattPct', 'BattRange', 'DragVal', 'TempVal', 'HeatTempVal') { $ui[$n].Foreground = T 'Text' }
     $ui.FromTick.Fill = T 'TextSoft'
     $ui.LimitThumb.Background = T 'Thumb'; $ui.LimitThumb.BorderBrush = T 'RootBg'
     $ui.CtlResultBox.Background = T 'ResultBg'
     $btnR = [System.Windows.CornerRadius]::new([math]::Max(8, $th.TileRadius - 2))
-    foreach ($n in 'LockBtn', 'ClimBtn', 'VentBtn', 'CloseWinBtn', 'TempDownBtn', 'TempUpBtn', 'ChgStartBtn', 'ChgStopBtn', 'HeatBtn', 'DefrostBtn', 'CopBtn', 'SeatFL', 'SeatFR', 'SeatRL', 'SeatRC', 'SeatRR', 'WheelBtn', 'FlashBtn', 'TrunkBtn', 'SentryBtn', 'HistMapBtn') {
+    foreach ($n in 'LockBtn', 'ClimBtn', 'VentBtn', 'CloseWinBtn', 'TempDownBtn', 'TempUpBtn', 'HeatTempDownBtn', 'HeatTempUpBtn', 'ChgStartBtn', 'ChgStopBtn', 'HeatBtn', 'DefrostBtn', 'CopBtn', 'SeatFL', 'SeatFR', 'SeatRL', 'SeatRC', 'SeatRR', 'WheelBtn', 'FlashBtn', 'TrunkBtn', 'SentryBtn', 'HistMapBtn') {
         $ui[$n].Tag = $btnR; $ui[$n].Background = T 'BtnBg'; $ui[$n].BorderBrush = T 'BtnBorder'; $ui[$n].Foreground = T 'Text'
     }
     $script:BtnR433 = $btnR
@@ -3796,7 +3821,7 @@ function Render-Controls {
     $win = Get-CtlValue 'windowsOpen' $(if ($have) { $car.windowsOpen } else { $null })
     $clim = Get-CtlValue 'climateOn' $(if ($have) { $car.climateOn } else { $null })
     $en = ((Test-CmdOn) -and -not $script:CtlBusy -and $have)
-    foreach ($n in 'LockBtn', 'ClimBtn', 'VentBtn', 'CloseWinBtn', 'TempDownBtn', 'TempUpBtn', 'TrunkBtn', 'SentryBtn') { $ui[$n].IsEnabled = $en }
+    foreach ($n in 'LockBtn', 'ClimBtn', 'VentBtn', 'CloseWinBtn', 'TempDownBtn', 'TempUpBtn', 'HeatTempDownBtn', 'HeatTempUpBtn', 'TrunkBtn', 'SentryBtn') { $ui[$n].IsEnabled = $en }   # v4.3.32
     Render-Controls42 $en
     try { [void](Test-AllOffGuard) } catch { Write-WidgetLog ('all off guard: ' + $_.Exception.Message) }   # v4.3.28
     try { Render-Controls433 } catch { Write-WidgetLog ('trunk/sentry render: ' + $_.Exception.Message) }
@@ -3810,9 +3835,8 @@ function Render-Controls {
     # climate
     $inside = $null; if ($have) { $inside = $car.insideC }
     $insTxt = $(if ($null -ne $inside) { 'inside ' + (Format-Temp $inside) } else { '' })
-    if ($null -ne $clim -and [bool]$clim -and (Test-HeatOn)) { $ui.ClimTxt.Text = 'CLIMATE ON'; $ui.ClimSub.Text = 'heating · tap off'; $ui.ClimBtn.Background = T 'BtnOn'; $ui.ClimBtn.BorderBrush = T 'BtnOn'; $ui.ClimSub.Foreground = T 'Text' }
-    elseif ($null -ne $clim -and [bool]$clim) { $ui.ClimTxt.Text = 'A/C ON'; $ui.ClimSub.Text = $(if ($insTxt) { $insTxt + ' · tap off' } else { 'tap to turn off' }); $ui.ClimBtn.Background = T 'BtnOn'; $ui.ClimBtn.BorderBrush = T 'BtnOn'; $ui.ClimSub.Foreground = T 'Text' }
-    else { $ui.ClimTxt.Text = 'A/C OFF'; $ui.ClimSub.Text = $(if ($insTxt) { $insTxt + ' · tap on' } else { 'tap to turn on' }); $ui.ClimBtn.Background = T 'BtnBg'; $ui.ClimBtn.BorderBrush = T 'BtnBorder'; $ui.ClimSub.Foreground = T 'Caption' }
+    if ($null -ne $clim -and [bool]$clim) { $ui.ClimTxt.Text = 'A/C ON'; $ui.ClimSub.Text = 'tap to turn off'; $ui.ClimBtn.Background = T 'BtnOn'; $ui.ClimBtn.BorderBrush = T 'BtnOn'; $ui.ClimSub.Foreground = T 'Text' }
+    else { $ui.ClimTxt.Text = 'A/C OFF'; $ui.ClimSub.Text = 'tap to turn on'; $ui.ClimBtn.Background = T 'BtnBg'; $ui.ClimBtn.BorderBrush = T 'BtnBorder'; $ui.ClimSub.Foreground = T 'Caption' }   # v4.3.32: A/C and HEAT use the same ON/OFF + 'tap to turn on/off' wording (Van)
     # windows
     # v4.2: the button that matches the windows' current state is green
     Set-StateBtn $ui.VentBtn $ui.VentTxt $ui.VentSub ($null -ne $win -and [bool]$win) $(if ($null -ne $win -and [bool]$win) { 'VENTED / OPEN' } else { 'WINDOWS' })
@@ -3820,6 +3844,7 @@ function Render-Controls {
     # temperature
     $ui.TempVal.Text = Format-Temp (Get-ShownTempC)
     $ui.TempCap.Text = $(if ($null -ne $script:CtlPendingTempC) { 'NEW SET TEMP' } else { 'SET TEMP' })
+    if ($null -ne $ui['HeatTempVal']) { $ui.HeatTempVal.Text = $ui.TempVal.Text; $ui.HeatTempCap.Text = $ui.TempCap.Text }   # v4.3.32: HEAT temp row mirrors the A/C temp row
     if ($ui.CtlResult.Text -ne $script:CtlResultText) { $ui.CtlResult.Text = $script:CtlResultText }
     try { Render-Flash } catch {}
     try { Render-Leave } catch {}
@@ -4443,7 +4468,96 @@ function Send-PendingSeat {
     $started = Start-TessieCommand 'set_seat_heat' @{ seat = $SeatApi[$K]; level = [string]$n } ($SeatName[$K] + ' heat ' + $lv + '…') ($SeatName[$K] + ' heat ' + $lv) $okb ($(if ($n -eq 0) { $SeatName[$K] + ' heat is now off.' } else { $SeatName[$K] + ' heat set to level ' + $n + '.' }))
     if (-not $started) { Render-Controls }
 }
-function Get-WheelOn { $car = Get-CtlCar; return (Get-CtlValue 'wheel' $(if ($null -ne $car) { $car.wheelOn } else { $null })) }
+# ---------------- v4.3.32: steering wheel heater matches Tessie ----------------
+# Tessie can report steering_wheel_heater=true and a heat level while climate is off: that is a remembered
+# SET level, not heat that is on now. Active only when the heater flag is true AND climate is actually
+# running (is_climate_on, is_preconditioning, or a climate keeper mode that is not off). A level on its
+# own never turns this on. Get-WheelOn, Render-Seats, ALL OFF and the spoken rundown all use this, so a
+# set-but-inactive wheel never triggers stop_steering_wheel_heater or "wheel heater on".
+function Get-WheelInfo4332 {
+    param($Car)
+    $none = [pscustomobject]@{ have = $false; flag = $null; level = $null; set = $false; climateRunning = $false; active = $null; text = '--' }
+    if ($null -eq $Car) { return $none }
+    $has = { param([string]$N) return ($null -ne $Car.PSObject -and $null -ne $Car.PSObject.Properties[$N]) }
+    $flag = $null
+    if (& $has 'wheelFlag') { if ($null -ne $Car.wheelFlag) { $flag = [bool]$Car.wheelFlag } }
+    elseif (& $has 'wheelHeaterFlag') { if ($null -ne $Car.wheelHeaterFlag) { $flag = [bool]$Car.wheelHeaterFlag } }
+    elseif (& $has 'wheelOn') { if ($null -ne $Car.wheelOn) { $flag = [bool]$Car.wheelOn } }
+    $level = $null
+    if (& $has 'wheelLevel') { if ($null -ne $Car.wheelLevel) { $level = [int]$Car.wheelLevel } }
+    $climate = $false   # climate running = ANY signal says so (is_climate_on, preconditioning, keeper mode, or the precomputed flag)
+    if (& $has 'wheelClimateRunning') { $climate = $climate -or [bool]$Car.wheelClimateRunning }
+    if (& $has 'climateOn') { $climate = $climate -or [bool]$Car.climateOn }
+    if (& $has 'climatePrecond') { $climate = $climate -or [bool]$Car.climatePrecond }
+    if (& $has 'is_preconditioning') { $climate = $climate -or [bool]$Car.is_preconditioning }
+    if ((& $has 'climateKeeper') -and $null -ne $Car.climateKeeper -and [string]$Car.climateKeeper -ne '' -and [string]$Car.climateKeeper -ne 'off') { $climate = $true }
+    $have = ($null -ne $flag -or $null -ne $level -or (& $has 'wheelOn'))
+    $set = (($null -ne $flag -and [bool]$flag) -or ($null -ne $level -and [int]$level -gt 0))
+    $active = $null; if ($have) { $active = ([bool]$flag -and $climate) }
+    $text = '--'
+    if ($have) {
+        if ([bool]$active) { $text = $(if ($null -ne $level -and [int]$level -gt 0) { 'HEAT ON · ' + [int]$level } else { 'HEAT ON' }) }
+        elseif ($null -ne $level -and [int]$level -gt 0) { $text = 'SET ' + [int]$level + ' · OFF' }
+        elseif ($set) { $text = 'SET · OFF' }
+        else { $text = 'OFF' }
+    }
+    return [pscustomobject]@{ have = [bool]$have; flag = $flag; level = $level; set = [bool]$set; climateRunning = [bool]$climate; active = $active; text = $text }
+}
+function Get-WheelText4332 { param($Info) if ($null -eq $Info) { return '--' }; return [string]$Info.text }
+# v4.3.32: UPDATE button is always visible. A tap when no update is known forces a fresh check;
+# if that check finds a newer version, the button pulses (available) and the install starts on the spot.
+$script:UpdManual4332 = $false
+function Invoke-UpdateButton4332 {
+    if ($null -ne $script:UpdJob -or $script:Upd.state -eq 'updating' -or $script:Upd.state -eq 'checking') { return }
+    if ($script:Upd.state -eq 'ready') { Invoke-StagedUpdate4332; return }   # one push: staged files install + restart
+    if ($script:Upd.state -in @('available', 'failed')) { if ($script:Upd.state -eq 'failed') { $script:Upd.state = 'available' }; if (Test-UpdateStage4332) { Invoke-StagedUpdate4332 } else { Invoke-UpdateApply }; return }
+    $script:UpdManual4332 = $true; $script:Upd.state = 'checking'; $script:Upd.note = 'checking for updates…'; Render-Update
+    Start-UpdateCheck -Force
+    if ($null -eq $script:UpdJob) { $script:UpdManual4332 = $false; if ($script:Upd.state -eq 'checking') { $script:Upd.state = 'current' }; Render-Update }
+}
+# ---------------- v4.3.32 easy update: quiet background staging, one-push apply ----------------
+$script:UpdStaged4332 = $null
+function Get-UpdateFiles4332 { param($Info) if ($null -eq $Info -or $null -eq $Info.desktop) { return @() }; return @($Info.desktop.files | Where-Object { $null -ne $_ -and $UpdAllowed -contains [string]$_.name -and [string]$_.url -and [string]$_.sha256 }) }
+function Get-UpdateStageDir4332 { param([string]$Ver) return (Join-Path (Join-Path $scriptDir 'update-staging') ('v' + $Ver)) }
+function Save-UpdateStage4332 {
+    param($Res)
+    $ver = [string]$script:Upd.latest; if (-not $ver) { throw 'no update version to stage' }
+    foreach ($r in @($Res)) { if (-not $r.ok) { throw ('download failed (' + $r.name + '): ' + $r.err) }; if ($r.sha256 -ne $script:UpdWant[[string]$r.name]) { throw ('checksum mismatch for ' + $r.name + ' - nothing was staged') } }
+    $main = @($Res | Where-Object { $_.name -eq 'TessDesk.ps1' })[0]; if ($null -eq $main) { throw 'staged update has no TessDesk.ps1' }
+    $text = [System.Text.Encoding]::UTF8.GetString($main.bytes); $tk = $null; $pe = $null; [void][System.Management.Automation.Language.Parser]::ParseInput($text.TrimStart([char]0xFEFF), [ref]$tk, [ref]$pe)
+    if (@($pe).Count -gt 0) { throw 'the downloaded TessDesk.ps1 does not parse - nothing was staged' }
+    if ($text -notmatch ("\`$AppVersion = '" + [regex]::Escape($ver) + "'")) { throw ('the downloaded TessDesk.ps1 is not v' + $ver + ' - nothing was staged') }
+    $dir = Get-UpdateStageDir4332 $ver; if (Test-Path -LiteralPath $dir) { Remove-Item -LiteralPath $dir -Recurse -Force }; New-Item -ItemType Directory -Path $dir -Force | Out-Null
+    foreach ($r in @($Res)) { [System.IO.File]::WriteAllBytes((Join-Path $dir ([string]$r.name)), $r.bytes) }
+    $script:UpdStaged4332 = [ordered]@{ version = $ver; dir = $dir; files = @(@($Res) | ForEach-Object { [string]$_.name }) }
+    $script:Upd.state = 'ready'; $script:Upd.note = 'v' + $ver + ' downloaded and checked, ready to install'; Write-WidgetLog ('update: staged v' + $ver + ' ready in ' + $dir)
+    Render-Update; return $true
+}
+function Test-UpdateStage4332 {
+    $st = $script:UpdStaged4332; if ($null -eq $st -or [string]$st.version -ne [string]$script:Upd.latest -or -not (Test-Path -LiteralPath ([string]$st.dir))) { return $false }
+    try {
+        $files = Get-UpdateFiles4332 $script:UpdInfo; if (@($files | Where-Object { $_.name -eq 'TessDesk.ps1' }).Count -ne 1) { return $false }
+        $script:UpdWant = @{}; foreach ($f in $files) { $p = Join-Path ([string]$st.dir) ([string]$f.name); if (-not (Test-Path -LiteralPath $p)) { return $false }; if ((Get-FileHash -Algorithm SHA256 -LiteralPath $p).Hash.ToLowerInvariant() -ne ([string]$f.sha256).ToLowerInvariant()) { return $false }; $script:UpdWant[[string]$f.name] = ([string]$f.sha256).ToLowerInvariant() }
+        $text = [System.IO.File]::ReadAllText((Join-Path ([string]$st.dir) 'TessDesk.ps1')); if ($text -notmatch ("\`$AppVersion = '" + [regex]::Escape([string]$script:Upd.latest) + "'")) { return $false }
+        return $true
+    } catch { return $false }
+}
+function Start-UpdateStage4332 {
+    if ($null -ne $script:UpdJob -or $script:Upd.state -eq 'updating') { return }
+    $files = Get-UpdateFiles4332 $script:UpdInfo
+    if (@($files | Where-Object { $_.name -eq 'TessDesk.ps1' }).Count -ne 1) { $script:Upd.state = 'available'; Render-Update; return }
+    $script:UpdWant = @{}; foreach ($f in $files) { $script:UpdWant[[string]$f.name] = ([string]$f.sha256).ToLowerInvariant() }
+    $script:Upd.state = 'downloading'; $script:Upd.note = 'downloading v' + $script:Upd.latest + ' in the background…'; Render-Update
+    Start-UpdJob 'stage' @($files | ForEach-Object { [pscustomobject]@{ name = [string]$_.name; url = [string]$_.url; sha256 = ([string]$_.sha256).ToLowerInvariant() } })
+}
+function Invoke-StagedUpdate4332 {
+    if (-not (Test-UpdateStage4332)) { $script:UpdStaged4332 = $null; if ($script:Upd.state -eq 'ready') { $script:Upd.state = 'available' }; Invoke-UpdateApply; return }
+    $st = $script:UpdStaged4332; $res = @()
+    foreach ($n in @($st.files)) { $p = Join-Path ([string]$st.dir) ([string]$n); $b = [System.IO.File]::ReadAllBytes($p); $sha = [System.BitConverter]::ToString([System.Security.Cryptography.SHA256]::Create().ComputeHash($b)).Replace('-', '').ToLowerInvariant(); $res += [pscustomobject]@{ name = [string]$n; ok = $true; bytes = $b; sha256 = $sha; err = $null } }
+    $script:Upd.state = 'updating'; $script:Upd.note = 'installing the staged v' + $st.version + '…'; Render-Update
+    try { Install-UpdateFiles @($res); try { Remove-Item -LiteralPath ([string]$st.dir) -Recurse -Force } catch {}; $script:UpdStaged4332 = $null } catch { $script:Upd.state = 'failed'; $script:Upd.note = "$_"; Write-WidgetLog ('staged update failed: ' + "$_"); Render-Update }
+}
+function Get-WheelOn { $car = Get-CtlCar; $wi = Get-WheelInfo4332 $car; return (Get-CtlValue 'wheel' $(if ($null -ne $wi -and $wi.have) { $wi.active } else { $null })) }   # v4.3.32: active only
 function Invoke-WheelToggle {
     $w = Get-WheelOn
     if ($null -ne $w -and [bool]$w) { [void](Start-TessieCommand 'stop_steering_wheel_heater' @{} 'Turning wheel heat off…' 'Steering wheel heat off' { Set-CtlOverride 'wheel' $false } 'Steering wheel heat is now off.') }
@@ -4476,7 +4590,7 @@ function Render-Seats {
             $ui['SeatLvl' + $K].Foreground = $(if ($lv -gt 0) { $hb } else { T 'Psi' })
         }
     }
-    $w = Get-WheelOn
+    $w = Get-WheelOn; $wi = Get-WheelInfo4332 $car   # v4.3.32
     $haveW = ($null -ne $w)
     Set-Visible $ui.WheelBtn $haveW; Set-Visible $ui.WheelCap $haveW; Set-Visible $ui.WheelLvl $haveW
     if ($haveW) {
@@ -4486,7 +4600,8 @@ function Render-Seats {
         $ui.WheelN.Foreground = $(if ($on) { Get-HeatBrush 3 } else { T 'Caption' })
         $ui.WheelBtn.BorderBrush = $(if ($on) { Get-HeatBrush 3 } else { T 'BtnBorder' })
         $ui.WheelCap.Text = 'WHEEL'
-        $ui.WheelLvl.Text = $(if ($on) { 'HEAT ON' } else { 'OFF' }); $ui.WheelLvl.Foreground = $(if ($on) { Get-HeatBrush 3 } else { T 'Psi' })
+        $ui.WheelLvl.Text = $(if ($on) { $(if ($null -ne $wi.level -and [int]$wi.level -gt 0) { 'HEAT ON · ' + [int]$wi.level } else { 'HEAT ON' }) } elseif ($wi.have) { $wi.text } else { 'OFF' }); $ui.WheelLvl.Foreground = $(if ($on) { Get-HeatBrush 3 } else { T 'Psi' })   # v4.3.32: grey SET <level> · OFF when set but climate is off
+        $ui.WheelBtn.ToolTip = $(if ($on) { 'Steering wheel heater is ON' + $(if ($null -ne $wi.level -and [int]$wi.level -gt 0) { ' (level ' + [int]$wi.level + ')' } else { '' }) + ': tap to turn off' } elseif ($wi.set) { 'Steering wheel heater is set' + $(if ($null -ne $wi.level -and [int]$wi.level -gt 0) { ' to level ' + [int]$wi.level } else { '' }) + ' but climate is off, so it is not heating now' } else { 'Steering wheel heater: tap to turn on / off' })
     }
     $ui.SeatsNote.Text = $(if ($null -eq $car) { 'no data' } else { 'tap a seat: off → 1 → 2 → 3' })
 }
@@ -4577,7 +4692,7 @@ function Get-AllOffPlan {
         if ($null -ne $l -and [int]$l -gt 0) { $anySeat = $true; $steps += & $add 'set_seat_heat' @{ seat = $SeatApi[$K]; level = '0' } ($SeatName[$K] + ' heat off') ($SeatName[$K] + ' heat off') ([scriptblock]::Create('Set-CtlOverride ''seat' + $K + ''' 0')) }
     }
     if (-not $anySeat -and [bool]$On['seats']) { $skip += 'seats' }
-    $wh = Get-CtlValue 'wheel' $Car.wheelOn
+    $wiAO = Get-WheelInfo4332 $Car; $wh = Get-CtlValue 'wheel' $wiAO.active   # v4.3.32: set-but-inactive wheel is skipped (no stop_steering_wheel_heater)
     if (-not [bool]$On['wheel']) { } elseif ($null -ne $wh -and [bool]$wh) { $steps += & $add 'stop_steering_wheel_heater' @{} 'Turning wheel heat off' 'Steering wheel heat off' { Set-CtlOverride 'wheel' $false } } else { $skip += 'wheel' }
     $d = Get-CtlValue 'defrost' $Car.defrostOn
     if (-not [bool]$On['defrost']) { } elseif ($null -ne $d -and [bool]$d) { $steps += & $add 'stop_max_defrost' @{} 'Turning defrost off' 'Defrost off' { Set-CtlOverride 'defrost' $false } } else { $skip += 'defrost' }
@@ -4911,8 +5026,8 @@ function Render-Controls42 {
     $ui.AmpsThumb.IsEnabled = ($En -and $null -ne $a)
     # heat / defrost / cabin overheat protection
     $heat = Test-HeatOn
-    $ui.HeatTxt.Text = $(if ($heat) { 'HEAT ON' } else { 'HEAT' })
-    $ui.HeatSub.Text = $(if ($heat) { 'climate on · ' + (Format-Temp (Get-ShownTempC)) } else { 'climate on at ' + (Format-Temp (Get-HeatC)) })
+    $ui.HeatTxt.Text = $(if ($heat) { 'HEAT ON' } else { 'HEAT OFF' })   # v4.3.32: matches A/C wording
+    $ui.HeatSub.Text = $(if ($heat) { 'tap to turn off' } else { 'tap to turn on' })   # v4.3.32: matches A/C wording
     $hb = Get-HeatBrush 2
     $ui.HeatBtn.BorderBrush = $(if ($heat) { $hb } else { T 'BtnBorder' }); $ui.HeatTxt.Foreground = $(if ($heat) { $hb } else { T 'Text' }); $ui.HeatIcon.Foreground = $ui.HeatTxt.Foreground
     $ui.HeatSub.Foreground = $(if ($heat) { $hb } else { T 'Caption' })
@@ -6865,7 +6980,7 @@ Apply-Theme $true
 # TESLA CONTROLS buttons
 $ui.LockBtn.Add_Click({ try { Invoke-LockToggle } catch { Set-CtlResult 'err' ('✕ ' + $_.Exception.Message) } })
 $ui.VentBtn.Add_Click({ try { Invoke-Vent } catch { Set-CtlResult 'err' ('✕ ' + $_.Exception.Message) } })
-$ui.UpdateBtn.Add_MouseLeftButtonUp({ try { if ($script:Upd.state -in @('available', 'failed')) { if ($script:Upd.state -eq 'failed') { $script:Upd.state = 'available' }; Invoke-UpdateApply } } catch { $script:Upd.state = 'failed'; $script:Upd.note = $_.Exception.Message; Render-Update } })
+$ui.UpdateBtn.Add_MouseLeftButtonUp({ try { Invoke-UpdateButton4332 } catch { $script:Upd.state = 'failed'; $script:Upd.note = $_.Exception.Message; Render-Update } })   # v4.3.32: NO UPDATE checks at once, YES UPDATE installs
 $script:UpdTimer = New-Object System.Windows.Threading.DispatcherTimer
 $script:UpdTimer.Interval = [TimeSpan]::FromMilliseconds(500)
 $script:UpdTimer.Add_Tick({
@@ -6891,6 +7006,8 @@ $ui.CloseWinBtn.Add_Click({ try { Invoke-CloseWindows } catch { Set-CtlResult 'e
 $ui.ClimBtn.Add_Click({ try { Invoke-ClimateToggle } catch { Set-CtlResult 'err' ('✕ ' + $_.Exception.Message) } })
 $ui.TempDownBtn.Add_Click({ try { Step-Temp -1 } catch {} })
 $ui.TempUpBtn.Add_Click({ try { Step-Temp 1 } catch {} })
+$ui.HeatTempDownBtn.Add_Click({ try { Step-Temp -1 } catch {} })   # v4.3.32
+$ui.HeatTempUpBtn.Add_Click({ try { Step-Temp 1 } catch {} })   # v4.3.32
 $ui.ChgStartBtn.Add_Click({ try { Invoke-ChargeStart } catch { Set-CtlResult 'err' ('✕ ' + $_.Exception.Message) } })
 $ui.ChgStopBtn.Add_Click({ try { Invoke-ChargeStop } catch { Set-CtlResult 'err' ('✕ ' + $_.Exception.Message) } })
 $ui.HeatBtn.Add_Click({ try { Invoke-Heat } catch { Set-CtlResult 'err' ('✕ ' + $_.Exception.Message) } })
@@ -8755,7 +8872,7 @@ function Render-Health {
     $st = $script:State; $h = $null; if ($null -ne $st) { $h = $st.health }
     $own = Read-OwnHealth; $series = Get-HealthSeries $h $own; $tr = Get-HealthTrend $series
     $script:Health4319 = [pscustomobject]@{ health = $h; series = @($series); trend = $tr }
-    foreach ($n in 'HealthHdr', 'HealthPctCap', 'HealthAsOf', 'HealthSparkCap', 'TipsHdr') { $ui[$n].Foreground = T 'Caption' }
+    foreach ($n in 'HealthPctCap', 'HealthAsOf', 'HealthSparkCap', 'TipsHdr') { $ui[$n].Foreground = T 'Caption' }; $ui.HealthHdr.Foreground = $SecBrush4329   # v4.3.32: section title
     $ui.HealthPct.Foreground = T 'Text'; $ui.HealthL1.Foreground = T 'Text'; $ui.HealthL2.Foreground = T 'TextSoft'; $ui.HealthTrend.Foreground = T 'Caption'
     if ($null -ne $h -and $null -ne $h.healthPct) {
         $ui.HealthPct.Text = ('{0:N1}%' -f [double]$h.healthPct)
@@ -9585,11 +9702,11 @@ function Start-SelfTest {
         $sc = $ui.BodyScroll; $vp = $sc.ViewportHeight; $mg = $ui.MainGrid
         $y = { param($el, $rel) $p = $el.TranslatePoint([System.Windows.Point]::new(0, 0), $rel); [math]::Round($p.Y, 1) }
         $vis = [ordered]@{}
-        foreach ($n in 'ChgCard', 'ChgStartBtn', 'ChgStopBtn', 'HHistBtn') { $t = & $y $ui[$n] $mg; $vis[$n] = ($ui[$n].IsVisible -and $t -ge -0.5 -and ($t + $ui[$n].ActualHeight) -le $mg.ActualHeight + 0.5) }
+        foreach ($n in 'ChgCard', 'ChgStartBtn', 'ChgStopBtn') { $t = & $y $ui[$n] $mg; $vis[$n] = ($ui[$n].IsVisible -and $t -ge -0.5 -and ($t + $ui[$n].ActualHeight) -le $mg.ActualHeight + 0.5) }; $vis['HHistBtn'] = $ui.HealthCard.IsAncestorOf($ui.HHistBtn)   # v4.3.32
         foreach ($n in 'CtlCard', 'LeaveBtn', 'LockBtn', 'AnnNowBtn', 'CtlResultBox', 'SkipCfRow', 'BattHdr', 'BattPct') { $t = & $y $ui[$n] $sc; $vis[$n] = ($ui[$n].IsVisible -and $t -ge -0.5 -and ($t + $ui[$n].ActualHeight) -le $vp + 0.5) }
         $btnY = & $y $ui.HHistBtn $window; $stopBottom = (& $y $ui.ChgStopBtn $window) + $ui.ChgStopBtn.ActualHeight; $statsBottom = (& $y $ui.ChgStats $window) + $ui.ChgStats.ActualHeight; $ampsY = & $y $ui.AmpsTrack $window
         $script:SelfRec.v4321.place = [ordered]@{ inChgCard = $ui.ChgCard.IsAncestorOf($ui.HHistBtn); inHealthBox = $ui.HealthBox.IsAncestorOf($ui.HHistBtn); hhistY = $btnY; startStopBottom = $stopBottom; statsBottom = $statsBottom; ampsY = $ampsY; visible = $vis; viewport = [math]::Round($vp, 1); chgCardH = [math]::Round($ui.ChgCard.ActualHeight, 1)
-            pass = ($ui.BattCard.IsAncestorOf($ui.HHistBtn) -and -not $ui.HealthBox.IsAncestorOf($ui.HHistBtn) -and $btnY -gt $stopBottom -and $btnY -ge $statsBottom -and $btnY -lt $ampsY -and @($vis.Values | Where-Object { -not $_ }).Count -eq 0) }
+            pass = ($ui.HealthCard.IsAncestorOf($ui.HHistBtn) -and -not $ui.HealthBox.IsAncestorOf($ui.HHistBtn) -and $btnY -gt $stopBottom -and $btnY -ge $statsBottom -and $btnY -gt $ampsY -and @($vis.Values | Where-Object { -not $_ }).Count -eq 0) }
         & $script:ElPng4321 $ui.ChgCard 'chg-collapsed'; & $script:ElPng4321 $ui.HealthBox 'battery-health-no-dropdown'
         Save-RootPng (Join-Path $script:SelfDir 'tessdesk-v4321-window-collapsed.png'); Save-RootPng (Join-Path $script:SelfDir 'tessdesk-v4321-window-collapsed-full.png') -Full; $script:SelfRec.shots += @('tessdesk-v4321-window-collapsed.png', 'tessdesk-v4321-window-collapsed-full.png') }
     & $add 'v4.3.21 UI: click opens it (saved), newest first, last 30 + Show all, summary 30 / 90 days / since first' @() {
@@ -9768,7 +9885,7 @@ function Start-SelfTest {
         $sc = $ui.BodyScroll; $vp = $sc.ViewportHeight; $mg = $ui.MainGrid
         $y = { param($el, $rel) $p = $el.TranslatePoint([System.Windows.Point]::new(0, 0), $rel); [math]::Round($p.Y, 1) }
         $vis = [ordered]@{}; $slack = $null
-        foreach ($n in 'ChgCard', 'ChgStartBtn', 'ChgStopBtn', 'SchedBox', 'SchedEst', 'HHistBtn') { $t = & $y $ui[$n] $mg; $vis[$n] = ($ui[$n].IsVisible -and $t -ge -0.5 -and ($t + $ui[$n].ActualHeight) -le $mg.ActualHeight + 0.5) }
+        foreach ($n in 'ChgCard', 'ChgStartBtn', 'ChgStopBtn', 'SchedBox', 'SchedEst') { $t = & $y $ui[$n] $mg; $vis[$n] = ($ui[$n].IsVisible -and $t -ge -0.5 -and ($t + $ui[$n].ActualHeight) -le $mg.ActualHeight + 0.5) }; $vis['HHistBtn'] = $ui.HealthCard.IsAncestorOf($ui.HHistBtn)   # v4.3.32: HEALTH HISTORY in BATTERY HEALTH
         foreach ($n in 'CtlCard', 'LeaveBtn', 'LockBtn', 'AnnNowBtn', 'CtlResultBox', 'SkipCfRow', 'BattHdr', 'BattPct') { $t = & $y $ui[$n] $sc; $vis[$n] = ($ui[$n].IsVisible -and $t -ge -0.5 -and ($t + $ui[$n].ActualHeight) -le $vp + 0.5); if ($n -eq 'BattPct') { $slack = [math]::Round($vp - ($t + $ui[$n].ActualHeight), 1) } }
         [ordered]@{ visible = $vis; viewport = [math]::Round($vp, 1); battPctSlack = $slack; chgCardH = [math]::Round($ui.ChgCard.ActualHeight, 1); schedH = [math]::Round($ui.SchedBox.ActualHeight, 1); windowH = $window.Height
             skipCols = $ui.SkipCfGrid.Columns; skipRowH = [math]::Round($ui.SkipCfRow.ActualHeight, 1); skipSched = ($null -ne $ui['SkipCf_schedule']); allVisible = (@($vis.Values | Where-Object { -not $_ }).Count -eq 0) } }
@@ -10025,7 +10142,7 @@ function Start-SelfTest {
     $script:Real4326 = $null; $f = Join-Path $scriptDir 'sched-real-test.json'
     if (Test-Path -LiteralPath $f) { $script:Real4326 = Get-CarInfo ([System.IO.File]::ReadAllText($f) | ConvertFrom-Json) (Get-EpochNow) }
     $script:On4326 = { param([bool]$Frunk) $c = $script:Real4326.PSObject.Copy()
-        $c.windowsOpen = $true; $c.trunkOpen = $true; $c.climateOn = $true; $c.seatFL = 3; $c.seatFR = 1; $c.seatRL = 0; $c.seatRC = 0; $c.seatRR = 2; $c.wheelOn = $true; $c.defrostOn = $true
+        $c.windowsOpen = $true; $c.trunkOpen = $true; $c.climateOn = $true; $c.seatFL = 3; $c.seatFR = 1; $c.seatRL = 0; $c.seatRC = 0; $c.seatRR = 2; $c.wheelOn = $true; $c.wheelFlag = $true; $c.wheelClimateRunning = $true; $c.defrostOn = $true   # v4.3.32: wheel heater flag + climate running (new wheel fields)
         $c.sentry = $true; $c.climateKeeper = 'dog'; $c.locked = $false; $c.frunkOpen = $Frunk; $c }
     $script:Off4326 = { $c = $script:Real4326.PSObject.Copy(); $c.sentry = $false; $c.frunkOpen = $false; $c }
     $script:AllOn4326 = [ordered]@{}; foreach ($k in $AllOffKeys.Keys) { $script:AllOn4326[$k] = $true }; Save-ConfigProp 'allOffSteps' $script:AllOn4326   # setup: all checked (default)
@@ -10183,18 +10300,18 @@ function Start-SelfTest {
         $script:SelfRec.v4328.flash = $r }
     & $add 'v4.3.28 UPDATE button: hidden when current, pulses when newer, 45-min check' @() {
         $r = [ordered]@{}; $s0 = $script:Upd.state; $l0 = $script:Upd.latest
-        $script:Upd.state = 'current'; $script:Upd.latest = $null; Render-Update; $window.UpdateLayout(); $r.hiddenCurrent = ($ui.UpdateBtn.Visibility -ne 'Visible')
+        $script:Upd.state = 'current'; $script:Upd.latest = $null; Render-Update; $window.UpdateLayout(); $r.hiddenCurrent = ($ui.UpdateBtn.Visibility -eq 'Visible' -and $ui.UpdateTxt.Text -like 'NO UPDATE*')   # v4.3.32: always visible
         $script:Upd.state = 'available'; $script:Upd.latest = '9.9.9'; Render-Update; $window.UpdateLayout(); $r.visible = ($ui.UpdateBtn.Visibility -eq 'Visible'); $r.pulsing = [bool]$script:UpdPulsing; $r.text = $ui.UpdateTxt.Text
         try { & $script:ElPng4323 $ui.UpdateBtn 'tmpupd'; Move-Item -LiteralPath (Join-Path $script:SelfDir 'tessdesk-v4323-tmpupd.png') -Destination (Join-Path $script:SelfDir 'tessdesk-v4328-update-button.png') -Force } catch {}
         $script:Upd.state = $s0; $script:Upd.latest = $l0; Render-Update; $r.pulseOffAfter = -not $script:UpdPulsing -or ($s0 -eq 'available')
         $r.gap45 = ((Get-Command Start-UpdateCheck).Definition -match '45 \* 60'); $r.rollback = ((Get-Command Install-UpdateFiles).Definition -match 'rolled back')
-        $r.pass = ($r.hiddenCurrent -and $r.visible -and $r.pulsing -and $r.text -like 'UPDATE AVAILABLE*9.9.9*' -and $r.gap45 -and $r.rollback)
+        $r.pass = ($r.hiddenCurrent -and $r.visible -and $r.pulsing -and ($r.text -eq 'YES UPDATE') -and $r.gap45 -and $r.rollback)
         $script:SelfRec.v4328.updbtn = $r }
     & $add 'v4.3.29 SECTIONS: green outlines + fill + titles, Skip Confirm / PSO Bill Match / Cost summary own sections, HEALTH HISTORY in BATTERY, TRIPS closed' @() {
         $r = [ordered]@{}; $g = '#FF49DF93'
         $r.outlines = [ordered]@{}; foreach ($n in $SecCards4329) { $r.outlines[$n] = ([string]$ui[$n].BorderBrush -eq $g -and $ui[$n].BorderThickness.Left -eq 2) }
         $r.titles = [ordered]@{}; foreach ($n in $SecTitles4329) { $r.titles[$n] = ([string]$ui[$n].Foreground -eq $g) }
-        $p = $ui.HHistWrap; $inBatt = $false; while ($p) { if ($p -eq $ui.BattCard) { $inBatt = $true; break }; if ($p -eq $ui.ChgCard) { break }; $p = [System.Windows.Media.VisualTreeHelper]::GetParent($p) }
+        $p = $ui.HHistWrap; $inBatt = $false; while ($p) { if ($p -eq $ui.HealthCard) { $inBatt = $true; break }; if ($p -eq $ui.ChgCard) { break }; $p = [System.Windows.Media.VisualTreeHelper]::GetParent($p) }   # v4.3.32: HEALTH HISTORY in BATTERY HEALTH
         $r.hhistInBattery = $inBatt; $r.chgThickness = $ui.ChgCard.BorderThickness.Left
         $up = { param($e, $c) $q = $e; while ($q) { if ($q -eq $c) { return $true }; $q = [System.Windows.Media.VisualTreeHelper]::GetParent($q) }; return $false }
         $r.skipOwn = (& $up $ui.SkipCfRow $ui.SkipCard) -and -not (& $up $ui.SkipCfRow $ui.CtlCard); $r.billOwn = (& $up $ui.BillHead $ui.BillCard) -and -not (& $up $ui.BillHead $ui.BattCard)
@@ -10238,7 +10355,7 @@ function Start-SelfTest {
         Save-Cfg4319 'sections' $saved
         Apply-SectionLayout4330; $window.UpdateLayout(); $r.restored = ((& $kids $ui.PinStack) -join ',') -eq 'CamCard,CostCard,ChgCard'
         $r.realCommands = $script:NetCommandsSent; $r.announcements = $script:AnnSent
-        $r.pass = ($r.defaultOrder -and $r.defaultPin -eq 'charging' -and $r.defaultPinned -and $r.notesLast -and $r.peakBeforeRows -and $r.strips -eq 12 -and $r.chgLockOn -and $r.moveUp -and $r.battBeforeSkip -and $r.uiBattBeforeSkip -and $r.topUpDisabled -and $r.lastDnDisabled -and $r.cantMoveLastDown -and $r.lockBattOk -and $r.pinCapOk -and $r.saved -and $r.onDisk -and $r.unlockEmpty -and $r.moveCost -and $r.moveChg -and $r.allPinnedCap -and $r.mergeOk -and $r.restored)
+        $r.pass = ($r.defaultOrder -and $r.defaultPin -eq 'charging' -and $r.defaultPinned -and $r.notesLast -and $r.peakBeforeRows -and $r.strips -eq 13 -and $r.chgLockOn -and $r.moveUp -and $r.battBeforeSkip -and $r.uiBattBeforeSkip -and $r.topUpDisabled -and $r.lastDnDisabled -and $r.cantMoveLastDown -and $r.lockBattOk -and $r.pinCapOk -and $r.saved -and $r.onDisk -and $r.unlockEmpty -and $r.moveCost -and $r.moveChg -and $r.allPinnedCap -and $r.mergeOk -and $r.restored)
         $script:SelfRec.v4328.layout = $r }
     & $add 'v4.3.31 TIRE REFRESH button (Tires section, under REMIND ME TO GET AIR): mock read, spinner, success + error, fits 473, 0 real commands' @() {
         $r = [ordered]@{}; $keepT = $script:View.tires; $c0 = $script:NetCommandsSent; $window.UpdateLayout()
@@ -10271,12 +10388,95 @@ function Start-SelfTest {
         $r.realCommands = $script:NetCommandsSent - $c0
         $r.pass = ($r.directlyBelow -and $r.inTires -and $r.notInTitle -and $r.sameStyle -and $r.fits -and $r.text -eq 'TIRE REFRESH' -and $r.started -and $r.busy -and $r.busyText -eq 'REFRESHING TIRES…' -and $r.spinVis -and -not $r.again -and $r.spins -and $r.successOk -and $r.errorOk -and $r.noDataMsg -like 'Tire refresh failed: the car sent no tire pressures*' -and $r.readOnly -and $r.realCommands -eq 0)
         $script:SelfRec.v4328.tirerefresh = $r }
+    & $add 'v4.3.32 wheel (Tessie: heater flag/level set but climate off = SET, not on) + BATTERY HEALTH own section + always-visible NO UPDATE / YES UPDATE button' @() {
+        $r = [ordered]@{}; $keepCar = $script:View.car; $keepSaved = Get-Cfg4319 'sections'; $c0 = $script:NetCommandsSent; $a0 = $script:AnnSent
+        $script:CtlOverride.Clear()
+        $mk = { param([bool]$Flag, $Level, [bool]$Clim, [bool]$Pre, [string]$Keeper, [int]$Seat)
+            $v = [pscustomobject]@{ charge_state = [pscustomobject]@{ battery_level = 80; charge_limit_soc = 80; charging_state = 'Complete'; battery_range = 250 }
+                vehicle_state = [pscustomobject]@{ locked = $true }
+                climate_state = [pscustomobject]@{ steering_wheel_heater = $Flag; steering_wheel_heat_level = $Level; is_climate_on = $Clim; is_preconditioning = $Pre; climate_keeper_mode = $Keeper; seat_heater_left = $Seat; seat_heater_right = $Seat; seat_heater_rear_left = $Seat; seat_heater_rear_center = $Seat; seat_heater_rear_right = $Seat }
+                gui_settings = [pscustomobject]@{}; vehicle_config = [pscustomobject]@{ rear_seat_heaters = 3 } }
+            return (Get-CarInfo $v (Get-EpochNow)) }
+        # case 1 (live Oct 16 10:09 PM): heater=true, level=2, climate off, seats 0 => SET 2 · OFF, inactive everywhere
+        $c1 = & $mk $true 2 $false $false 'off' 0; $i1 = Get-WheelInfo4332 $c1
+        $script:View.car = $c1; $script:CtlOverride.Clear(); Render-Seats $true; $window.UpdateLayout()
+        $plan1 = Get-AllOffPlan $c1; $ready1 = Get-ReadyCheck ([pscustomobject]@{ socPct = 80; limitPct = 80; chargingState = 'Complete'; locked = $true; windowsOpen = $false; sentry = $false; rangeMi = 250 }) ([pscustomobject]@{ fr = 42; fl = 42; rl = 42; rr = 42 }) (Get-Date '2026-10-17 07:00')
+        $r.case1 = [ordered]@{ wheelOnField = $c1.wheelOn; flag = $i1.flag; level = $i1.level; climate = $i1.climateRunning; active = (Get-WheelOn); text = $ui.WheelLvl.Text; grey = ([string]$ui.WheelLvl.Foreground -eq [string](T 'Psi')); icon = $ui.WheelN.Text; seats = @($ui.SeatFLN.Text, $ui.SeatFRN.Text, $ui.SeatRLN.Text, $ui.SeatRRN.Text); allOffWheel = @($plan1.steps | Where-Object { $_.cmd -eq 'stop_steering_wheel_heater' }).Count; allOffSkipped = ($plan1.skipped -contains 'wheel'); ready = $ready1.ready; readyOff = @($ready1.off) }
+        & $script:ElPng4321 $ui.SeatsCard 'wheel-set-off'; $script:SelfRec.shots += 'tessdesk-v4321-wheel-set-off.png'
+        # case 2: heater=true, level=2, climate on => HEAT ON with level, active
+        $c2 = & $mk $true 2 $true $false 'off' 0; $i2 = Get-WheelInfo4332 $c2; $script:View.car = $c2; $script:CtlOverride.Clear(); Render-Seats $true; $window.UpdateLayout()
+        $plan2 = Get-AllOffPlan $c2
+        $r.case2 = [ordered]@{ active = (Get-WheelOn); text = $ui.WheelLvl.Text; info = $i2.text; allOffWheel = @($plan2.steps | Where-Object { $_.cmd -eq 'stop_steering_wheel_heater' }).Count }
+        & $script:ElPng4321 $ui.SeatsCard 'wheel-heat-on'; $script:SelfRec.shots += 'tessdesk-v4321-wheel-heat-on.png'
+        # case 3: flag=false, level=2, climate on => not on (level alone never turns it on)
+        $c3 = & $mk $false 2 $true $false 'off' 0; $i3 = Get-WheelInfo4332 $c3; $script:View.car = $c3; $script:CtlOverride.Clear(); Render-Seats $true; $window.UpdateLayout()
+        $r.case3 = [ordered]@{ active = (Get-WheelOn); text = $ui.WheelLvl.Text; info = $i3.text; set = $i3.set }
+        # climate running via preconditioning / keeper also counts; flag without level => HEAT ON / SET · OFF
+        $r.precond = (Get-WheelInfo4332 (& $mk $true $null $false $true 'off' 0)).active; $r.keeper = (Get-WheelInfo4332 (& $mk $true 1 $false $false 'dog' 0)).active
+        $r.noLevelOn = (Get-WheelInfo4332 (& $mk $true $null $true $false 'off' 0)).text; $r.noLevelSetOff = (Get-WheelInfo4332 (& $mk $true $null $false $false 'off' 0)).text
+        $r.pass1 = ($c1.wheelOn -eq $false -and $i1.set -and -not $i1.climateRunning -and $r.case1.active -eq $false -and $r.case1.text -eq 'SET 2 · OFF' -and $r.case1.grey -and $r.case1.icon -ne [string][char]0x2668 -and @($r.case1.seats | Where-Object { $_ -ne 'OFF' }).Count -eq 0 -and $r.case1.allOffWheel -eq 0 -and $r.case1.allOffSkipped -and $r.case1.ready -and $r.case2.active -eq $true -and $r.case2.text -like 'HEAT ON*2*' -and $r.case2.allOffWheel -eq 1 -and $r.case3.active -eq $false -and $r.case3.text -eq 'SET 2 · OFF' -and $r.precond -and $r.keeper -and $r.noLevelOn -eq 'HEAT ON' -and $r.noLevelSetOff -eq 'SET · OFF')
+        # TESLA CONTROLS layout: [LOCK][FLASH][OVERHEAT] top; A/C then its temp row; HEAT then its temp row; VENT/CLOSE/DEFROST below
+        $script:View.car = $keepCar; $script:CtlOverride.Clear(); Render-Controls; $ui.CtlCard.BringIntoView(); $window.UpdateLayout()
+        $rp = { param($el) $q = $el.TranslatePoint([System.Windows.Point]::new(0,0), $ui.CtlCard); return [pscustomobject]@{ x=[math]::Round($q.X,1); y=[math]::Round($q.Y,1) } }
+        $L=&$rp $ui.LockBtn; $F=&$rp $ui.FlashBox; $O=&$rp $ui.CopBtn; $AC=&$rp $ui.ClimBtn; $AT=&$rp $ui.TempDownBtn; $H=&$rp $ui.HeatBtn; $HT=&$rp $ui.HeatTempDownBtn; $V=&$rp $ui.VentBtn; $D=&$rp $ui.DefrostBtn; $TR=&$rp $ui.TrunkBtn
+        $r.ctl = [ordered]@{ lock=$L; flash=$F; overheat=$O; ac=$AC; acTemp=$AT; heat=$H; heatTemp=$HT; vent=$V; defrost=$D; trunk=$TR; tempVals = ($ui.TempVal.Text + '|' + $ui.HeatTempVal.Text); heatTempEnabled = $ui.HeatTempUpBtn.IsEnabled }
+        $r.ctl.labels = [ordered]@{ ac=$ui.ClimTxt.Text; acSub=$ui.ClimSub.Text; heat=$ui.HeatTxt.Text; heatSub=$ui.HeatSub.Text; acFont=[int]$ui.ClimTxt.FontSize; heatFont=[int]$ui.HeatTxt.FontSize; acH=[math]::Round($ui.ClimBtn.ActualHeight,1); heatH=[math]::Round($ui.HeatBtn.ActualHeight,1) }
+        $r.ctl.pass = (($ui.ClimTxt.Text -match '^A/C (ON|OFF)$') -and ($ui.HeatTxt.Text -match '^HEAT (ON|OFF)$') -and ($ui.ClimTxt.Text.Substring(4) -eq $ui.HeatTxt.Text.Substring(5)) -and ($ui.ClimSub.Text -eq $ui.HeatSub.Text) -and ($ui.ClimSub.Text -match '^tap to turn (on|off)$') -and ($ui.ClimTxt.FontSize -eq $ui.HeatTxt.FontSize) -and ([math]::Abs($ui.ClimBtn.ActualHeight-$ui.HeatBtn.ActualHeight) -le 1) -and $L.x -lt $F.x -and $F.x -lt $O.x -and [math]::Abs($L.y-$O.y) -le 2 -and [math]::Abs($AT.y-$AC.y) -le 2 -and $AT.x -gt $AC.x + 100 -and $H.y -gt $AC.y + 30 -and [math]::Abs($HT.y-$H.y) -le 2 -and $HT.x -gt $H.x + 100 -and $V.y -gt $H.y + 40 -and $D.y -gt $HT.y + 25 -and $TR.y -gt $V.y + 25 -and $ui.TempVal.Text -eq $ui.HeatTempVal.Text -and $ui.TempCap.Text -eq $ui.HeatTempCap.Text)
+        & $script:ElPng4321 $ui.CtlCard 'controls-layout'; $script:SelfRec.shots += 'tessdesk-v4321-controls-layout.png'
+        # BATTERY HEALTH is its own section; BATTERY keeps %, range/limit/slider, Ready, Amps and Tips (Tips stays in BATTERY)
+        $up = { param($e, $c) $q = $e; while ($q) { if ($q -eq $c) { return $true }; $q = [System.Windows.Media.VisualTreeHelper]::GetParent($q) }; return $false }
+        $r.healthOwn = (& $up $ui.HealthPct $ui.HealthCard) -and (& $up $ui.HealthAsOf $ui.HealthCard) -and (& $up $ui.HealthLine $ui.HealthCard) -and (& $up $ui.HHistBtn $ui.HealthCard) -and (& $up $ui.HHistCal $ui.HealthCard)
+        $r.healthNotInBatt = -not (& $up $ui.HealthPct $ui.BattCard) -and -not (& $up $ui.HHistBtn $ui.BattCard)
+        $r.battKeeps = (& $up $ui.BattPct $ui.BattCard) -and (& $up $ui.VLim $ui.BattCard) -and (& $up $ui.ReadyBox $ui.BattCard) -and (& $up $ui.AmpsHdr $ui.BattCard) -and (& $up $ui.TipsList $ui.BattCard)
+        $r.healthLook = ([string]$ui.HealthCard.BorderBrush -eq '#FF49DF93' -and $ui.HealthCard.BorderThickness.Left -eq 2 -and [string]$ui.HealthCard.Background -eq [string]$ui.BattCard.Background -and [string]$ui.HealthHdr.Foreground -eq '#FF49DF93')
+        $mig = Merge-SecState4330 ([pscustomobject]@{ order = @('cameras','cost','charging','controls','skip','battery','bill','trips','history','seats','tires','drives'); pin = 'charging' })
+        $r.migrateAfterBattery = (@($mig.order) -join ',') -match 'battery,health,bill' -and ([array]::IndexOf(@($mig.order), 'health') -eq [array]::IndexOf(@($mig.order), 'battery') + 1)
+        Save-Cfg4319 'sections' $null; Apply-SectionLayout4330; $window.UpdateLayout()
+        $kids = @($ui.BodyStack.Children | ForEach-Object { $_.Name }); $r.afterBatteryInUi = ([array]::IndexOf($kids, 'HealthCard') -eq [array]::IndexOf($kids, 'BattCard') + 1); $r.healthStrip = $script:SecStrip4330.ContainsKey('health')
+        $r.moveHealth = Move-Section4330 'health' -1; $o2 = @((Get-SecState4330).order); $r.healthMovedBeforeBattery = ([array]::IndexOf($o2, 'health') -eq [array]::IndexOf($o2, 'battery') - 1); [void](Move-Section4330 'health' 1)
+        $ui.HealthCard.BringIntoView(); $window.UpdateLayout(); & $script:ElPng4321 $ui.HealthCard 'battery-health-section'; $script:SelfRec.shots += 'tessdesk-v4321-battery-health-section.png'
+        & $script:ElPng4321 $ui.BattCard 'battery-no-health'; $script:SelfRec.shots += 'tessdesk-v4321-battery-no-health.png'
+        Save-RootPng (Join-Path $script:SelfDir 'tessdesk-v4332-health-full.png') -Full; $script:SelfRec.shots += 'tessdesk-v4332-health-full.png'
+        # always-visible UPDATE button: NO UPDATE (red) when current, YES UPDATE (green, pulsing) when newer
+        $s0 = $script:Upd.state; $l0 = $script:Upd.latest
+        $script:Upd.state = 'current'; $script:Upd.latest = $null; Render-Update; $window.UpdateLayout()
+        $r.noUpdate = [ordered]@{ visible = ($ui.UpdateBtn.Visibility -eq 'Visible'); text = $ui.UpdateTxt.Text; tip = [string]$ui.UpdateBtn.ToolTip; subVis = [string]$ui.UpdateSub.Visibility; h = [math]::Round($ui.UpdateBtn.ActualHeight,1); w = [math]::Round($ui.UpdateBtn.ActualWidth,1); bg = [string]$ui.UpdateBtn.Background }
+        & $script:ElPng4321 $ui.UpdateBtn 'no-update'; $script:SelfRec.shots += 'tessdesk-v4321-no-update.png'
+        $script:Upd.state = 'available'; $script:Upd.latest = '9.9.9'; Render-Update; $window.UpdateLayout()
+        $r.yesUpdate = [ordered]@{ visible = ($ui.UpdateBtn.Visibility -eq 'Visible'); text = $ui.UpdateTxt.Text; tip = [string]$ui.UpdateBtn.ToolTip; h = [math]::Round($ui.UpdateBtn.ActualHeight,1); w = [math]::Round($ui.UpdateBtn.ActualWidth,1); bg = [string]$ui.UpdateBtn.Background; pulse = [bool]$script:UpdPulsing }
+        & $script:ElPng4321 $ui.UpdateBtn 'yes-update'; $script:SelfRec.shots += 'tessdesk-v4321-yes-update.png'
+        $script:Upd.state = $s0; $script:Upd.latest = $l0; Render-Update
+        $r.updPass = ($r.noUpdate.visible -and $r.noUpdate.text -eq 'NO UPDATE' -and $r.noUpdate.tip -like '*Already up to date*' -and $r.noUpdate.bg -eq [string](T 'Red') -and $r.noUpdate.h -gt 0 -and $r.noUpdate.h -le 30 -and $r.noUpdate.w -le 170 -and $r.yesUpdate.visible -and $r.yesUpdate.text -eq 'YES UPDATE' -and $r.yesUpdate.tip -like '*9.9.9*' -and $r.yesUpdate.bg -eq [string](T 'Green') -and $r.yesUpdate.pulse -and [math]::Abs($r.yesUpdate.h - $r.noUpdate.h) -le 1)
+        # easy update staging: background download is verified + staged, strip says YES UPDATE - READY, one push installs it (sandbox), 30s rollback helper present
+        $stageDir0 = Join-Path $scriptDir 'update-staging'
+        $meTxt = [System.IO.File]::ReadAllText((Join-Path $scriptDir 'TessDesk.ps1')); $fakeTxt = [regex]::Replace($meTxt, '\$AppVersion = ''[^'']+''', '$$AppVersion = ''9.9.9''', 1)
+        $fakeBytes = (New-Object System.Text.UTF8Encoding($true)).GetBytes($fakeTxt); $fakeSha = [System.BitConverter]::ToString([System.Security.Cryptography.SHA256]::Create().ComputeHash($fakeBytes)).Replace('-','').ToLowerInvariant()
+        $keepInfo = $script:UpdInfo; $keepLatest = $script:Upd.latest; $keepState = $script:Upd.state
+        $script:UpdInfo = [pscustomobject]@{ version='9.9.9'; desktop=[pscustomobject]@{ files=@([pscustomobject]@{ name='TessDesk.ps1'; url='file:///stage-test'; sha256=$fakeSha }) } }
+        $script:Upd.latest='9.9.9'; $script:UpdWant=@{ 'TessDesk.ps1'=$fakeSha }
+        $stageRes = @([pscustomobject]@{ name='TessDesk.ps1'; ok=$true; bytes=$fakeBytes; sha256=$fakeSha; err=$null })
+        $stagedOk=$false; try { $stagedOk = Save-UpdateStage4332 $stageRes } catch { $r.stageErr = $_.Exception.Message }
+        $window.UpdateLayout()
+        $r.stage = [ordered]@{ ok=$stagedOk; state=$script:Upd.state; text=$ui.UpdateTxt.Text; tip=[string]$ui.UpdateBtn.ToolTip; w=[math]::Round($ui.UpdateBtn.ActualWidth,1); bg=[string]$ui.UpdateBtn.Background; pulse=[bool]$script:UpdPulsing; h=[math]::Round($ui.UpdateBtn.ActualHeight,1); dirExists=(Test-Path -LiteralPath (Join-Path $stageDir0 'v9.9.9\TessDesk.ps1')); verified=(Test-UpdateStage4332); rollback30s=(((Get-Command Restart-TessDesk).Definition -match 'exited within 30 s') -and ((Get-Command Restart-TessDesk).Definition -match 'rolled back')); swapRollback=((Get-Command Install-UpdateFiles).Definition -match 'rolled back') }
+        & $script:ElPng4321 $ui.UpdateBtn 'yes-update-ready'; $script:SelfRec.shots += 'tessdesk-v4321-yes-update-ready.png'
+        Invoke-StagedUpdate4332; $window.UpdateLayout()
+        $installedTxt = [System.IO.File]::ReadAllText((Join-Path $scriptDir 'TessDesk.ps1'))
+        $bkPath = [string]$script:Upd.backup; $bkFile = $(if ($bkPath) { Join-Path $bkPath 'TessDesk.ps1' } else { '' })
+        $r.stage.applied = [ordered]@{ state=$script:Upd.state; note=[string]$script:Upd.note; fileIs999=($installedTxt -match "AppVersion = '9.9.9'"); backup=$bkPath; backupHasOld=(($bkFile -ne '') -and (Test-Path -LiteralPath $bkFile) -and ([System.IO.File]::ReadAllText($bkFile).Contains("`$AppVersion = '" + $AppVersion + "'"))) }
+        $r.stage.pass = ($r.stage.ok -and $r.stage.state -eq 'ready' -and $r.stage.text -eq 'YES UPDATE' -and $r.stage.tip -like '*READY*9.9.9*' -and $r.stage.w -le 170 -and $r.stage.bg -eq [string](T 'Green') -and $r.stage.pulse -and $r.stage.h -le 30 -and $r.stage.dirExists -and $r.stage.verified -and $r.stage.rollback30s -and $r.stage.swapRollback -and $r.stage.applied.state -eq 'installed' -and $r.stage.applied.fileIs999 -and $r.stage.applied.backupHasOld)
+        $script:UpdInfo=$keepInfo; $script:Upd.latest=$keepLatest; $script:Upd.state=$keepState
+        $r.fit = ($window.Width -eq 473 -and $window.Height -eq 990)
+        $r.realCommands = $script:NetCommandsSent - $c0; $r.announcements = $script:AnnSent - $a0
+        $script:View.car = $keepCar; $script:CtlOverride.Clear(); Save-Cfg4319 'sections' $keepSaved; Apply-SectionLayout4330; Render-Seats $true; Render-V4319; $window.UpdateLayout()
+        $r.pass = ($r.pass1 -and $r.ctl.pass -and $r.healthOwn -and $r.healthNotInBatt -and $r.battKeeps -and $r.healthLook -and $r.migrateAfterBattery -and $r.afterBatteryInUi -and $r.healthStrip -and $r.moveHealth -and $r.healthMovedBeforeBattery -and $r.updPass -and $r.stage.pass -and $r.fit -and $r.realCommands -eq 0 -and $r.announcements -eq 0)
+        $script:SelfRec.v4332 = $r }
     & $add 'v4.3.28 summary' @() {
         $r = $script:SelfRec.v4328; $fails = @()
         foreach ($k in 'period', 'alexa', 'flash', 'updbtn', 'sections', 'layout', 'tirerefresh') { if ($null -eq $r[$k] -or -not $r[$k].pass) { $fails += $k } }
+        if ($null -eq $script:SelfRec.v4332 -or -not $script:SelfRec.v4332.pass) { $fails += 'v4332' }
         $g = $r.guard; $g.pass = ($null -ne $g -and $g.whenWasCharging -eq $null -and $g.stopSent -eq 1 -and $g.dry -eq $true -and $g.stoppedFlag -and $null -eq $g.again)
         if (-not $g.pass) { $fails += 'guard' }
-        $sm = [ordered]@{ ver = ($AppVersion -eq '4.3.31' -and $ui.FooterVersion.Text -like ('*4.3.31*' + $AppDate)); bold = ($ui.FooterText.FontWeight -eq [System.Windows.FontWeights]::Bold -or $ui.FooterText.FontWeight.ToString() -match 'Bold|Black') }
+        $sm = [ordered]@{ ver = ($AppVersion -eq '4.3.32' -and $ui.FooterVersion.Text -like ('*4.3.32*' + $AppDate)); bold = ($ui.FooterText.FontWeight -eq [System.Windows.FontWeights]::Bold -or $ui.FooterText.FontWeight.ToString() -match 'Bold|Black') }
         $r.smoke = $sm; if (-not ($sm.ver)) { $fails += 'smoke' }
         $r.netCommandsSent = $script:NetCommandsSent; $r.announcementsSent = $script:AnnSent
         $r.summary = [ordered]@{ fails = $fails; allPass = ($fails.Count -eq 0 -and $script:NetCommandsSent -eq 0 -and $script:AnnSent -eq 0) } }
@@ -10289,7 +10489,7 @@ function Start-SelfTest {
         $real = @($script:CtlLog | Where-Object { $_.dry -eq $false -or $_.real -eq $true }).Count
         $r = $script:SelfRec.v4321
         $r.smoke = [ordered]@{ appVersion = $AppVersion; footer = $ui.FooterVersion.Text; brand = $ui.FooterText.Text; bold = [string]$ui.FooterText.FontWeight; hookLines = $hook; hookBeforeShowDialog = $before; width = $window.Width; renderError = $err; dryRun = $CTL_DRYRUN; realCmdLog = $real
-            pass = ($AppVersion -eq '4.3.31' -and $ui.FooterVersion.Text -like ('*4.3.31*' + $AppDate) -and [string]$ui.FooterText.FontWeight -eq 'Bold' -and $hook -eq 1 -and $before -and $null -eq $err -and $CTL_DRYRUN -and [math]::Abs($window.Width - $winW) -lt 1) }
+            pass = ($AppVersion -eq '4.3.32' -and $ui.FooterVersion.Text -like ('*4.3.32*' + $AppDate) -and [string]$ui.FooterText.FontWeight -eq 'Bold' -and $hook -eq 1 -and $before -and $null -eq $err -and $CTL_DRYRUN -and [math]::Abs($window.Width - $winW) -lt 1) }
         $fails = @(); foreach ($k in 'pure', 'collapsed', 'place', 'expanded', 'calTags', 'showAll', 'fresh', 'smoke') { if ($null -eq $r[$k] -or -not $r[$k].pass) { $fails += $k } }
         $r.summary = [ordered]@{ fails = $fails; allPass = ($fails.Count -eq 0) } }
     & $add 'v4.3.22 summary' @() {

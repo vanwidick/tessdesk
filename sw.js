@@ -1,10 +1,11 @@
 /* TessDesk service worker: offline app shell. API calls (api.tessie.com) are never cached here. */
-var CACHE = 'tessdesk-v4.3.29';
+var CACHE = 'tessdesk-v4.3.32';
 var SHELL = ['./', 'index.html', 'leave.js', 'leaving/', 'leaving/leaving.js', 'leaving/leaving.css', 'leaving/manifest.json', 'leaving/icons/icon-192.png', 'leaving/icons/apple-touch-icon.png', 'app.js', 'style.css', 'manifest.json', 'changelog.html', 'privacy.html', 'fonts/BebasNeue-Regular.ttf',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'icons/favicon-32.png'];
 self.addEventListener('install', function (e) {
-  e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(SHELL); }).then(function () { return self.skipWaiting(); }));
+  e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(SHELL); }));   // v4.3.32: pre-cache, then WAIT until Van taps YES UPDATE
 });
+self.addEventListener('message', function (e) { if (e.data && e.data.type === 'SKIP_WAITING') self.skipWaiting(); });   // v4.3.32
 self.addEventListener('activate', function (e) {
   e.waitUntil(caches.keys().then(function (keys) {
     return Promise.all(keys.filter(function (k) { return k.indexOf('tessdesk-v') === 0 && k !== CACHE; }).map(function (k) { return caches.delete(k); }));

@@ -2,7 +2,7 @@
    Everything (name, Tessie token, vehicle, rates) is stored in localStorage on this device only. */
 (function () {
   'use strict';
-/* TessDesk phone v4.3.29 (DESIGN BY VAN). v4.3.29: SECTIONS with green outlines (Skip confirm + PSO bill match own sections, Health history in Battery, Trips dropdown). v4.3.28: Alexa limit notice + monthly counter, lean, home-only, no test announcements; ALL OFF never starts charging; flash pause = typed value. v4.3.27: Voice Monkey button (placeholder). v4.3.26: ALL OFF in TESLA CONTROLS. v4.3.25: CHARGING SCHEDULE reaches the car on firmware 2024.26+ (charge schedules, checked after each send). v4.3.24: FINISH BY defaults to 6:00 AM. v4.3.23: CHARGING SCHEDULE in the CHARGING card (START AT + FINISH BY, set on the car through Tessie). v4.3.22: CHARGE column in HEALTH HISTORY (highest charge % per day + Home / AC / Supercharger). v4.3.21: HEALTH HISTORY under START / STOP in the CHARGING card + CALIBRATION INFO; history runs fully in the app. v4.3.20: HEALTH HISTORY dropdown. Pure logic + UI for: PLUG-IN REMINDER, TRIPS, MORNING READY CHECK,
+/* TessDesk phone v4.3.32 (update TAB always visible: red NO UPDATE / green YES UPDATE, background staging + one-tap apply; TESLA CONTROLS: LOCK/FLASH/OVERHEAT top, A/C and HEAT matched ON/OFF wording with temp -/+ on the same line). v4.3.29 (DESIGN BY VAN). v4.3.29: SECTIONS with green outlines (Skip confirm + PSO bill match own sections, Health history in Battery, Trips dropdown). v4.3.28: Alexa limit notice + monthly counter, lean, home-only, no test announcements; ALL OFF never starts charging; flash pause = typed value. v4.3.27: Voice Monkey button (placeholder). v4.3.26: ALL OFF in TESLA CONTROLS. v4.3.25: CHARGING SCHEDULE reaches the car on firmware 2024.26+ (charge schedules, checked after each send). v4.3.24: FINISH BY defaults to 6:00 AM. v4.3.23: CHARGING SCHEDULE in the CHARGING card (START AT + FINISH BY, set on the car through Tessie). v4.3.22: CHARGE column in HEALTH HISTORY (highest charge % per day + Home / AC / Supercharger). v4.3.21: HEALTH HISTORY under START / STOP in the CHARGING card + CALIBRATION INFO; history runs fully in the app. v4.3.20: HEALTH HISTORY dropdown. Pure logic + UI for: PLUG-IN REMINDER, TRIPS, MORNING READY CHECK,
    PSO BILL MATCH (on/off switch), BATTERY HEALTH TREND + TIPS. No Alexa, no toasts (in-app banners only),
    cached data only (never wakes the car). The same functions are unit-tested headlessly. */
 (function (g) {
@@ -426,7 +426,7 @@
   var CFG = window.TD_CONFIG || {};
   var VARIANT = CFG.variant || 'main';
   var P = CFG.storagePrefix || 'td:';
-  var VERSION = 'v4.3.29';
+  var VERSION = 'v4.3.32';
   var VERSION_DATE = 'Oct 16, 2026';
   var TZ = 'America/Chicago';
   var DEFAULT_API = 'https://api.tessie.com';
@@ -897,19 +897,45 @@
   }
   document.addEventListener('click', function (e) { var t = e.target; if (t && t.id === 'shareLink') { e.preventDefault(); showShare(); } });
   // ---------- v4.3.3: new-version check (version.json on this site; no data is sent) ----------
-  var upd = { latest: null, checkedAt: 0, info: null };
+  var upd = { latest: null, checkedAt: 0, info: null, checking: false, checked: false, manual: false, ready: false };   // v4.3.32
   function verGt(a, b) { a = String(a || '').replace(/^v/, '').split('.'); b = String(b || '').replace(/^v/, '').split('.'); for (var i = 0; i < Math.max(a.length, b.length); i++) { var x = +a[i] || 0, y = +b[i] || 0; if (x !== y) return x > y; } return false; }
   function checkUpdate(force) {
     if (VARIANT === 'test' && !force) return;
     if (!force && Date.now() - upd.checkedAt < 45 * 60 * 1000) return;   // v4.3.28: every ~45 min (was 6 h)
-    upd.checkedAt = Date.now();
+    upd.checkedAt = Date.now(); upd.checking = true; if (upd.manual) render();
     fetch('version.json?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
-      if (!j) return; var v = (j.phone && j.phone.version) || j.version; upd.info = j;
+      upd.checking = false; upd.checked = true; updWatchSW();
+      if (!j) { upd.manual = false; render(); return; } var v = (j.phone && j.phone.version) || j.version; upd.info = j;
       var was = upd.latest; upd.latest = verGt(v, VERSION) ? String(v).replace(/^v/, '') : null;
-      if (was !== upd.latest) render();
+      var manual = upd.manual; upd.manual = false; render();
+      if (manual && upd.latest) setTimeout(applyUpdate, 800);   // v4.3.32: tap on NO UPDATE checks, then installs on the spot
+    }).catch(function () { upd.checking = false; upd.manual = false; render(); });
+  }
+  var updReloading4332 = false;
+  if (navigator.serviceWorker) navigator.serviceWorker.addEventListener('controllerchange', function () { if (updReloading4332) return; updReloading4332 = true; location.reload(); });
+  function updWatchSW() {   // v4.3.32: a waiting (pre-cached) service worker = update downloaded and ready
+    if (!navigator.serviceWorker || !navigator.serviceWorker.getRegistration) return;
+    navigator.serviceWorker.getRegistration().then(function (r) {
+      if (!r) return;
+      var mark = function () { if (r.waiting && navigator.serviceWorker.controller) { if (!upd.ready) { upd.ready = true; render(); } } };
+      mark(); r.update(); setTimeout(mark, 1200); setTimeout(mark, 3500);
+      r.addEventListener('updatefound', function () { var w = r.installing; if (w) w.addEventListener('statechange', function () { if (w.state === 'installed') mark(); }); });
     }).catch(function () {});
   }
-  function updBanner() { return upd.latest ? '<button class="upd-banner pulse" id="btnUpdApp" type="button"><b>\u2b06 UPDATE \u00b7 tap to install</b><small>v' + esc(upd.latest) + ' is out \u00b7 you have ' + esc(VERSION) + '</small></button>' : ''; }
+  function applyReady4332() {   // one tap: activate the waiting worker, then reload (fallback reload if no controller change)
+    window.__tdUpdTapped = (window.__tdUpdTapped || 0) + 1;
+    var el = document.getElementById('btnUpdApp'); if (el) el.querySelector('b').textContent = 'YES UPDATE \u2014 INSTALLING\u2026';
+    if (navigator.serviceWorker && navigator.serviceWorker.getRegistration) navigator.serviceWorker.getRegistration().then(function (r) { if (r && r.waiting) r.waiting.postMessage({ type: 'SKIP_WAITING' }); }).catch(function () {});
+    setTimeout(function () { if (!updReloading4332) { updReloading4332 = true; location.reload(); } }, 2500);
+  }
+  function updTap4332() {   // v4.3.32: NO UPDATE tab checks at once; YES UPDATE installs; YES UPDATE (ready) activates the staged copy
+    window.__tdUpdTapped = (window.__tdUpdTapped || 0) + 1;
+    if (upd.ready) { applyReady4332(); return; }
+    if (upd.latest) { applyUpdate(); return; }
+    if (upd.checking) return;
+    upd.manual = true; upd.checkedAt = 0; checkUpdate(true);
+  }
+  function updBanner() { if (upd.ready) return '<button class="upd-banner pulse" id="btnUpdApp" type="button" title="YES UPDATE - READY: v' + esc(upd.latest) + ' downloaded and checked, tap to install"><b>YES UPDATE</b><small>READY \u00b7 tap to install</small></button>'; if (upd.latest) return '<button class="upd-banner pulse" id="btnUpdApp" type="button" title="YES UPDATE: v' + esc(upd.latest) + ' is out, tap to install"><b>YES UPDATE</b><small>v' + esc(upd.latest) + ' \u00b7 tap to install</small></button>'; if (upd.checking) return '<button class="upd-banner noupd" id="btnUpdApp" type="button" title="NO UPDATE: checking the cloud"><b>NO UPDATE</b><small>checking\u2026</small></button>'; return '<button class="upd-banner noupd" id="btnUpdApp" type="button" title="NO UPDATE: tap to check the cloud now"><b>NO UPDATE</b><small>' + (upd.checked ? 'Already up to date ' + esc(VERSION) : esc(VERSION) + ' \u00b7 tap to check') + '</small></button>'; }   // v4.3.32: small left TAB, always visible
   function applyUpdate() {
     window.__tdUpdTapped = (window.__tdUpdTapped || 0) + 1;
     var el = document.getElementById('btnUpdApp'); if (el) el.querySelector('b').textContent = 'Refreshing\u2026';
@@ -1034,15 +1060,17 @@
       '<input id="cFlashP" class="fl-p" type="number" inputmode="decimal" min="1" max="30" step="0.5" value="' + (flash.typed != null && !flash.running ? esc(String(flash.typed)) : flash.pause.toFixed(1)) + '" aria-label="Pause between flashes, seconds (1-30)" title="Pause between flashes, seconds (1-30, 0.5 s steps). Under 3 s each flash is sent without waiting for the car."' + (flash.running || dis ? ' disabled' : '') + '>' +
       '<button class="fl-go" id="cFlash"' + (flash.running ? '' : dis) + '>' + (flash.running ? 'STOP' : 'FLASH') + '</button></div>' +
       '<small>' + (flash.running ? 'Flashing ' + Math.max(1, flash.done) + ' of ' + flash.total + (flashGap() !== null ? ' \u00b7 ~' + flashGap().toFixed(1) + 's apart' : '') : 'flashes \u00b7 pause s') + '</small></div>' +
-      '<button class="cbtn big' + (clim ? ' on' : '') + '" id="cClim"' + dis + '>' + ICON_SNOW + '<span><b>' + (clim ? (heatOn(car) ? 'CLIMATE ON' : 'A/C ON') : 'A/C OFF') + '</b><small>' + ins + (clim ? 'tap off' : 'tap on') + '</small></span></button></div>' +
+      copBtn4332(car, dis) + '</div>' +
+      '<div class="mode-row"><button class="cbtn big' + (clim ? ' on' : '') + '" id="cClim"' + dis + '>' + ICON_SNOW + '<span><b>' + (clim ? 'A/C ON' : 'A/C OFF') + '</b><small>' + (clim ? 'tap to turn off' : 'tap to turn on') + '</small></span></button>' +
+      '<div class="tv"><b>' + fmtTemp(tC, car.units) + '</b><small>' + (pendTemp != null ? 'NEW SET TEMP' : 'SET TEMP') + '</small></div>' +
+      '<button class="cbtn sq" id="cTdn" aria-label="Cooler"' + dis + '>\u2212</button>' +
+      '<button class="cbtn sq" id="cTup" aria-label="Warmer"' + dis + '>+</button></div>' +   // v4.3.32: A/C row [button][temp][-][+]
       (flashStats() ? '<div class="fl-stats" id="cFlashStats" title="Flash lights: response time of each flash request (sent until Tessie answered), average, and the measured gap between successful flashes">' + flashStats() + '</div>' : '') +
       climateRow(car, dis) +
-      '<div class="ctl-row3">' +
+      '<div class="ctl-row3b">' +
       '<button class="cbtn' + (win ? ' state' : '') + '" id="cVent"' + dis + '><b>VENT</b><small>' + (win ? 'VENTED / OPEN' : 'WINDOWS') + '</small></button>' +
       '<button class="cbtn' + (win === false ? ' state' : '') + '" id="cClose"' + dis + '><b>CLOSE</b><small>' + (win === false ? 'ALL CLOSED' : 'WINDOWS') + '</small></button>' +
-      '<div class="temp"><button class="cbtn sq" id="cTdn" aria-label="Cooler"' + dis + '>\u2212</button>' +
-      '<div class="tv"><b>' + fmtTemp(tC, car.units) + '</b><small>' + (pendTemp != null ? 'NEW SET TEMP' : 'SET TEMP') + '</small></div>' +
-      '<button class="cbtn sq" id="cTup" aria-label="Warmer"' + dis + '>+</button></div></div>' +
+      defrostBtn4332(car, dis) + '</div>' +   // v4.3.32
       trunkSentryRow(car, dis) +
       (window.TDLeave ? TDLeave.html('main') : '') +   // v4.3.16 LEAVING SOON (leave.js)
       '<div class="ann-row"><button class="cbtn ann" id="cAnnounce"><b>🔊 ANNOUNCE<span class="ann-long"> ON ALEXA</span></b><small>' + (annReady() ? (vmUse().blocked ? '<span class="vm-lim">' + esc(vmUseText()) + '</span>' : 'full status · ' + esc(targetsLabel(annTargets('rundown'))) + ' · ' + vmUse().count + '/' + VM_LIMIT) : 'set up Alexa (Connected apps)') + '</small></button>' +
@@ -1840,14 +1868,15 @@
   // Heat: Tesla has no separate heater command, so HEAT = climate on with a warm set temperature (82 F, or cfg.heatTempF).
   function heatC(car) { var cfg = getCfg() || {}, f = cfg.heatTempF || 82, c = Math.round((f - 32) * 5 / 9 * 10) / 10; return Math.min(car && car.maxC != null ? car.maxC : 28, c); }
   function heatOn(car) { var on = ctlVal('climateOn', car.climateOn), t = pendTemp != null ? pendTemp : ctlVal('tempC', car.tempC); return !!on && t != null && t >= heatC(car) - 0.3; }
+  function copBtn4332(car, dis) { var m = ctlVal('cop', car.cop); var copSub = ({ On: 'PROTECT: ON', FanOnly: 'PROTECT: FAN ONLY', Off: 'PROTECT: OFF' })[m] || 'state unknown'; var copDis = dis || (car.copAllowed === false ? ' disabled' : ''); return '<button class="cbtn big' + (m === 'On' || m === 'FanOnly' ? ' state' : '') + '" id="cCop"' + copDis + '><b>OVERHEAT</b><small>' + (car.copAllowed === false ? 'not available' : copSub) + '</small></button>'; }
+  function defrostBtn4332(car, dis) { var d = ctlVal('defrost', car.defrostOn); return '<button class="cbtn' + (d ? ' state' : '') + '" id="cDefrost"' + dis + '><b>DEFROST</b><small>' + (d == null ? 'state unknown' : (d ? 'MAX \u00b7 ON' : 'MAX \u00b7 OFF')) + '</small></button>'; }
   function climateRow(car, dis) {
-    var h = heatOn(car), d = ctlVal('defrost', car.defrostOn), m = ctlVal('cop', car.cop);
-    var copSub = ({ On: 'PROTECT: ON', FanOnly: 'PROTECT: FAN ONLY', Off: 'PROTECT: OFF' })[m] || 'state unknown';
-    var copDis = dis || (car.copAllowed === false ? ' disabled' : '');
-    return '<div class="ctl-row3b">' +
-      '<button class="cbtn' + (h ? ' heat' : '') + '" id="cHeat"' + dis + '><b>\u2668 ' + (h ? 'HEAT ON' : 'HEAT') + '</b><small>' + (h ? 'climate on \u00b7 ' + fmtTemp(ctlVal('tempC', car.tempC), car.units) : 'climate on at ' + fmtTemp(heatC(car), car.units)) + '</small></button>' +
-      '<button class="cbtn' + (d ? ' state' : '') + '" id="cDefrost"' + dis + '><b>DEFROST</b><small>' + (d == null ? 'state unknown' : (d ? 'MAX \u00b7 ON' : 'MAX \u00b7 OFF')) + '</small></button>' +
-      '<button class="cbtn' + (m === 'On' || m === 'FanOnly' ? ' state' : '') + '" id="cCop"' + copDis + '><b>OVERHEAT</b><small>' + (car.copAllowed === false ? 'not available' : copSub) + '</small></button></div>';
+    var h = heatOn(car), tc2 = ctlVal('tempC', car.tempC);
+    return '<div class="mode-row">' +
+      '<button class="cbtn' + (h ? ' heat' : '') + '" id="cHeat"' + dis + '><b>\u2668 ' + (h ? 'HEAT ON' : 'HEAT OFF') + '</b><small>' + (h ? 'tap to turn off' : 'tap to turn on') + '</small></button>' +
+      '<div class="tv"><b>' + fmtTemp(tc2, car.units) + '</b><small>' + (pendTemp != null ? 'NEW SET TEMP' : 'SET TEMP') + '</small></div>' +
+      '<button class="cbtn sq" id="cTdn2" aria-label="Cooler"' + dis + '>\u2212</button>' +
+      '<button class="cbtn sq" id="cTup2" aria-label="Warmer"' + dis + '>+</button></div>';   // v4.3.32: HEAT row matches A/C row
   }
   function onHeat() {
     var c = curCar(); if (!c) return;
@@ -2227,10 +2256,10 @@
     on('cFlash', onFlash);
     var fP = document.getElementById('cFlashP'); if (fP) { fP.oninput = function () { flash.typed = fP.value; }; fP.onchange = function () { var raw = fP.value; fP.value = setPause(raw).toFixed(1); flash.typed = null; var nt = pauseNote(raw, flash.pause); if (nt) { ctlMsg = { kind: 'idle', text: nt }; render(); } }; if (flash.typed != null && !flash.running) fP.value = flash.typed; }   // v4.3.28: typed value survives a refresh
     var fN = document.getElementById('cFlashN'); if (fN) { fN.oninput = function () { if (fN.value !== '') flash.n = clampFlash(fN.value); }; fN.onchange = function () { fN.value = flash.n = clampFlash(fN.value); save('flashCount', flash.n); }; }
-    on('btnUpdApp', applyUpdate);
+    on('btnUpdApp', updTap4332);   // v4.3.32
     on('cTrunk', onTrunk); on('cSentry', onSentry);
     on('cLock', onLock); on('cVent', onVent); on('cClose', onClose); on('cClim', onClim);
-    on('cTdn', function () { onTemp(-1); }); on('cTup', function () { onTemp(1); });
+    on('cTdn', function () { onTemp(-1); }); on('cTup', function () { onTemp(1); }); on('cTdn2', function () { onTemp(-1); }); on('cTup2', function () { onTemp(1); });   // v4.3.32: HEAT temp row (same shared set temp)
     on('bRemind', openReminder); on('bRemSetup', openRemSetup); on('btnLayout', function () { setLayout(layoutMode() === 'compact' ? 'full' : 'compact'); });
     on('cChgStart', onChgStart); on('cChgStop', onChgStop); on('cHeat', onHeat); on('cDefrost', onDefrost); on('cCop', onCop); on('sWheel', onWheel);
     on('btnCam', function () { camSetOn(!camOn()); }); camMount(); on('btnTot', totOpen);
