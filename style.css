@@ -898,3 +898,6 @@ body { overscroll-behavior-y: contain; }
 @media (max-width:479px){ .mode-row.climate-row4333{grid-template-columns:1fr 1fr 52px 36px 36px; gap:4px;} }
 .mode-row.climate-row4333 { grid-template-columns:1fr 1fr; } .mode-row.climate-temp4333 { grid-template-columns:1fr 44px 44px; justify-content:center; max-width:260px; margin:6px auto 0; }
 .climate-row4333 .cbtn { min-height:40px; } .climate-row4333 .cbtn b{font-size:14px; white-space:nowrap;} .climate-row4333 .cbtn small{font-size:9px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+
+/* v4.3.34: tall buttons halfway back up after 4.3.33 made them too smashed (big 40->53, base/sq 32->43, lv-go 35->47); same width, short/compact buttons unchanged */
+.cbtn.big { min-height:53px; padding:7px 11px; } .cbtn { min-height:43px; } .cbtn.sq { min-height:43px; } .ctl-row2.three .cbtn.big, .cbtn.flash { min-height:53px; } .cbtn.lv-go { min-height:47px; } .climate-row4333 .cbtn { min-height:53px; }
