@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-# TessDesk v4.3.34 (v4.3.34: tall buttons halfway back up (46->37, 38->31, 36->29) after 4.3.33 made them too smashed; short buttons unchanged; v4.3.33: WHEEL ON rename + climate-gated wheel on phone too, combined CLIMATE block (A/C + HEAT + shared SET TEMP, setpoint-proxy wording), one-owner eased scrolling with signature guards, tall buttons ~40% shorter; STEERING WHEEL matches Tessie: heater flag + level set but climate off = grey SET <level> / OFF, not HEAT ON; BATTERY HEALTH is its own section (health %, as-of, trend sparkline, HEALTH HISTORY + calibration notes) right after BATTERY, Tips stays in BATTERY; UPDATE button always visible: RED 'NO UPDATE' when current, GREEN flashing 'YES UPDATE' when newer, tap checks the cloud at once and YES UPDATE installs on the spot; phone v4.3.32 gets the same NO UPDATE / YES UPDATE button; v4.3.31: TIRE REFRESH button in TIRES under REMIND ME TO GET AIR: fresh pressures via Tessie, read-only, spinner + result; v4.3.30: LAYOUT: small up/down arrows at the top left of every section move it one place; a lock at the top right pins that section and everything above it at the top, the rest scrolls; both saved; Charging locked by default; v4.3.29: SECTIONS: TESLA CONTROLS, BATTERY (with HEALTH HISTORY), HEATED SEATS, TRIPS, CHARGE HISTORY, TIRES, DRIVES, CAMERAS outlined in the CHARGING green with green titles; v4.3.28: Alexa: 'Alexa limit reached' notice, Voice Monkey monthly counter (resets the 26th 7 PM CT), fewer announcements, only when home, no test announcements; ALL OFF never starts charging (no charge commands + stops a charge that starts after it); flash pause = the typed value; v4.3.27: Voice Monkey button next to ALEXA: placeholder, 'coming soon' note only; v4.3.26: ALL OFF in TESLA CONTROLS: windows, trunk, climate, seat + wheel heat, defrost, Sentry, Climate Keeper off, lock; v4.3.25: CHARGING SCHEDULE reaches the car on firmware 2024.26+: charge schedules, checked after each send; v4.3.24: FINISH BY defaults to 6:00 AM; v4.3.23: CHARGING SCHEDULE in START / STOP: START AT + FINISH BY, set on the car through Tessie; v4.3.22: CHARGE column in HEALTH HISTORY: highest charge % per day + Home / AC / Supercharger; v4.3.21: HEALTH HISTORY under START / STOP with CALIBRATION INFO; health history logged by the app itself; v4.3.20: HEALTH HISTORY dropdown, one entry per day, kept indefinitely; v4.3.19: 30% wider; PLUG-IN REMINDER; TRIPS; MORNING READY CHECK; PSO BILL MATCH with on/off; BATTERY HEALTH TREND + TIPS; LEAVING SOON 'Start after' delay; v4.3.18 CHARGING STATUS bar under the big cost with START / STOP, fits 364x990 without scrolling; v4.3.17: TESLA CONTROLS under the big cost, CHARGE HISTORY & TOTALS dropdown; v4.3.16 LEAVING SOON: adjustable 'Windows after' / 'Unlock after' minutes, Stop undoes the steps already done; v4.3.15: climate on, close windows, unlock; rolling 7 / 14 days and 30 / 60 days $ beside the big amount; Restore / Remember at the top right with fade-in, like Paycheck Live; TOTALS pop-up: week / month / year running totals; CAMERAS panel from saved Sentry / Dashcam clips; checks for updates on open / wake; compact-when-OFF via cb_compact_addon.ps1) - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
+# TessDesk v4.3.35 (v4.3.35: Leaving Soon explicit persisted WINDOWS UP / WINDOWS DOWN and LOCK / UNLOCK checkboxes, mutually exclusive per pair, unchecked stage skipped, defaults WINDOWS UP + UNLOCK preserve prior close_windows+unlock; v4.3.34: tall buttons halfway back up (46->37, 38->31, 36->29) after 4.3.33 made them too smashed; short buttons unchanged; v4.3.33: WHEEL ON rename + climate-gated wheel on phone too, combined CLIMATE block (A/C + HEAT + shared SET TEMP, setpoint-proxy wording), one-owner eased scrolling with signature guards, tall buttons ~40% shorter; STEERING WHEEL matches Tessie: heater flag + level set but climate off = grey SET <level> / OFF, not HEAT ON; BATTERY HEALTH is its own section (health %, as-of, trend sparkline, HEALTH HISTORY + calibration notes) right after BATTERY, Tips stays in BATTERY; UPDATE button always visible: RED 'NO UPDATE' when current, GREEN flashing 'YES UPDATE' when newer, tap checks the cloud at once and YES UPDATE installs on the spot; phone v4.3.32 gets the same NO UPDATE / YES UPDATE button; v4.3.31: TIRE REFRESH button in TIRES under REMIND ME TO GET AIR: fresh pressures via Tessie, read-only, spinner + result; v4.3.30: LAYOUT: small up/down arrows at the top left of every section move it one place; a lock at the top right pins that section and everything above it at the top, the rest scrolls; both saved; Charging locked by default; v4.3.29: SECTIONS: TESLA CONTROLS, BATTERY (with HEALTH HISTORY), HEATED SEATS, TRIPS, CHARGE HISTORY, TIRES, DRIVES, CAMERAS outlined in the CHARGING green with green titles; v4.3.28: Alexa: 'Alexa limit reached' notice, Voice Monkey monthly counter (resets the 26th 7 PM CT), fewer announcements, only when home, no test announcements; ALL OFF never starts charging (no charge commands + stops a charge that starts after it); flash pause = the typed value; v4.3.27: Voice Monkey button next to ALEXA: placeholder, 'coming soon' note only; v4.3.26: ALL OFF in TESLA CONTROLS: windows, trunk, climate, seat + wheel heat, defrost, Sentry, Climate Keeper off, lock; v4.3.25: CHARGING SCHEDULE reaches the car on firmware 2024.26+: charge schedules, checked after each send; v4.3.24: FINISH BY defaults to 6:00 AM; v4.3.23: CHARGING SCHEDULE in START / STOP: START AT + FINISH BY, set on the car through Tessie; v4.3.22: CHARGE column in HEALTH HISTORY: highest charge % per day + Home / AC / Supercharger; v4.3.21: HEALTH HISTORY under START / STOP with CALIBRATION INFO; health history logged by the app itself; v4.3.20: HEALTH HISTORY dropdown, one entry per day, kept indefinitely; v4.3.19: 30% wider; PLUG-IN REMINDER; TRIPS; MORNING READY CHECK; PSO BILL MATCH with on/off; BATTERY HEALTH TREND + TIPS; LEAVING SOON 'Start after' delay; v4.3.18 CHARGING STATUS bar under the big cost with START / STOP, fits 364x990 without scrolling; v4.3.17: TESLA CONTROLS under the big cost, CHARGE HISTORY & TOTALS dropdown; v4.3.16 LEAVING SOON: adjustable 'Windows after' / 'Unlock after' minutes, Stop undoes the steps already done; v4.3.15: climate on, close windows, unlock; rolling 7 / 14 days and 30 / 60 days $ beside the big amount; Restore / Remember at the top right with fade-in, like Paycheck Live; TOTALS pop-up: week / month / year running totals; CAMERAS panel from saved Sentry / Dashcam clips; checks for updates on open / wake; compact-when-OFF via cb_compact_addon.ps1) - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
 param(
     [string]$ConfigPath,
     [string]$Snapshot,    # optional: folder to write PNG snapshots of both themes
@@ -15,8 +15,8 @@ Add-Type -AssemblyName System.Xaml
 
 $ErrorActionPreference = 'Stop'
 $AppName    = 'TessDesk'
-$AppVersion = '4.3.34'
-$AppDate    = 'Oct 17, 2026'
+$AppVersion = '4.3.35'
+$AppDate    = 'Oct 18, 2026'
 # ---------------- v4.3.30: section ORDER (up / down arrows, top left) + LOCK (top right) ----------------
 # The lock pins that section and everything above it at the top (PinStack, never scrolls); the rest scrolls (BodyStack).
 # Saved in config.json sections = { order = [...]; pin = key or null }. Default = 4.3.29 order with Charging locked (looks like 4.3.29).
@@ -1836,12 +1836,37 @@ function Open-Url433 {
               <TextBlock x:Name="CtlHdr" Grid.ColumnSpan="3" Text="TESLA CONTROLS" FontSize="12.5" FontWeight="Bold" Foreground="#FF9A9A9A" HorizontalAlignment="Left" VerticalAlignment="Center"/>
               <!-- v4.3.15: LEAVING SOON, same line as the heading, over the Flash Lights column (right edge = Flash Lights box right edge) -->
               <Button x:Name="LeaveBtn" Grid.Column="1" Style="{StaticResource CtlBtn}" Height="17" Margin="3,0,3,0" Padding="5,0,5,0" HorizontalAlignment="Right" VerticalAlignment="Center"
-                      ToolTip="Leaving Soon: waits the Start after minutes, then climate on, close the windows after the Windows after minutes, unlock after the Unlock after minutes. Asks first; each step is announced on Alexa; Stop cancels the rest and undoes the steps already done. Stop during Start after just cancels.">
+                      ToolTip="Leaving Soon: waits Start after, then climate on, then only the checked WINDOWS UP/DOWN action after Windows after, then only the checked LOCK/UNLOCK action after Unlock after. Checking UP clears DOWN (and LOCK clears UNLOCK); unchecked means that step is skipped. Asks first; Stop cancels and undoes done steps.">
                 <TextBlock x:Name="LeaveBtnTxt" Text="LEAVING SOON" FontSize="9" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
               </Button>
               <TextBlock x:Name="CtlMode" Grid.Column="2" Text="" FontSize="10" FontWeight="Bold" Foreground="#FFFFB020" HorizontalAlignment="Right" VerticalAlignment="Center"/>
             </Grid>
-            <!-- v4.3.16: Leaving Soon waits, minutes 0-30 (default 3, 0 = right away), saved in config.json leavingSoon. v4.3.19: Start after (0-120, default 0) first -->
+            <!-- v4.3.35 layout: ALL OFF + SETUP at the TOP of TESLA CONTROLS -->
+            <Grid x:Name="CtlAllOffTopRow4335" Margin="0,0,0,4">
+              <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="58"/></Grid.ColumnDefinitions>
+<Grid Grid.Column="0" Margin="0,0,3,0">
+              <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="26"/></Grid.ColumnDefinitions>
+              <Button x:Name="AllOffBtn" Style="{StaticResource CtlBtn}" Height="31" Margin="0,0,3,0" Padding="2" Background="#FF2A1012" BorderBrush="#FFE5484D" ToolTip="ALL OFF: close windows, close the trunk (if open), climate off, seat + wheel heat off, defrost off, Sentry off, Dog / Camp off, lock. Skips anything already off. Press again to cancel the remaining steps.">
+                <StackPanel HorizontalAlignment="Center">
+                  <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <TextBlock x:Name="AllOffIcon" Text="&#xE7E8;" FontFamily="Segoe MDL2 Assets" FontSize="11" VerticalAlignment="Center" Margin="0,0,4,0" Foreground="#FFFF6B6E"/>
+                    <TextBlock x:Name="AllOffTxt" Text="ALL OFF" FontSize="12" FontWeight="Bold" VerticalAlignment="Center" Foreground="#FFFF6B6E"/>
+                  </StackPanel>
+                  <TextBlock x:Name="AllOffSub" Text="EVERYTHING" FontSize="7.5" FontWeight="SemiBold" Foreground="#FFE89A9C" HorizontalAlignment="Center"/>
+                </StackPanel>
+              </Button>
+              <Button x:Name="AllOffSetBtn" Grid.Column="1" Style="{StaticResource CtlBtn}" Height="31" Padding="0" Background="#FF2A1012" BorderBrush="#FFE5484D" ToolTip="ALL OFF setup: pick which steps ALL OFF runs (saved)">
+                <TextBlock x:Name="AllOffSetIcon" Text="&#xE713;" FontFamily="Segoe MDL2 Assets" FontSize="12" HorizontalAlignment="Center" Foreground="#FFFF6B6E"/>
+              </Button>
+              </Grid>
+<Button x:Name="AnnSetupBtn" Grid.Column="1" Style="{StaticResource CtlBtn}" Height="31" Margin="3,0,0,0" Padding="0" ToolTip="Announce Setup: rundown items, speakers (pick Echos, Test, Add speaker), charging-started announcement">
+                <StackPanel HorizontalAlignment="Center">
+                  <TextBlock Text="&#xE713;" FontFamily="Segoe MDL2 Assets" FontSize="15" HorizontalAlignment="Center"/>
+                  <TextBlock x:Name="AnnSetupTxt" Text="SETUP" FontSize="8" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                </StackPanel>
+              </Button>
+            </Grid>
+                        <!-- v4.3.16: Leaving Soon waits, minutes 0-30 (default 3, 0 = right away), saved in config.json leavingSoon. v4.3.19: Start after (0-120, default 0) first -->
             <Viewbox x:Name="LeaveWaitFit" Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Right" Margin="0,-1,0,4">
             <StackPanel x:Name="LeaveWaitRow" Orientation="Horizontal" HorizontalAlignment="Right">
               <TextBlock x:Name="LeaveStartLbl" Text="Start after" FontSize="9.5" FontWeight="SemiBold" Foreground="#FF9A9A9A" VerticalAlignment="Center" Margin="0,0,2,0"/>
@@ -1864,6 +1889,13 @@ function Open-Url433 {
               <TextBlock Text="min" FontSize="9.5" FontWeight="SemiBold" Foreground="#FF9A9A9A" VerticalAlignment="Center" Margin="2,0,0,0"/>
             </StackPanel>
             </Viewbox>
+            <!-- v4.3.35: Leaving Soon action choices (persisted leavingSoon.windowsUp/windowsDown/lock/unlock; mutually exclusive pairs) -->
+            <StackPanel x:Name="LeaveChoiceRow" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,4">
+              <CheckBox x:Name="LeaveWinUpChk" Style="{StaticResource SkipCfChk}" VerticalAlignment="Center" Margin="0,0,8,0" ToolTip="Leaving Soon Windows after step: close the windows (close_windows)"><TextBlock Text="WINDOWS UP" FontSize="9.5" FontWeight="Bold" VerticalAlignment="Center"/></CheckBox>
+              <CheckBox x:Name="LeaveWinDownChk" Style="{StaticResource SkipCfChk}" VerticalAlignment="Center" Margin="0,0,8,0" ToolTip="Leaving Soon Windows after step: vent / lower the windows (vent_windows)"><TextBlock Text="WINDOWS DOWN" FontSize="9.5" FontWeight="Bold" VerticalAlignment="Center"/></CheckBox>
+              <CheckBox x:Name="LeaveLockChk" Style="{StaticResource SkipCfChk}" VerticalAlignment="Center" Margin="0,0,8,0" ToolTip="Leaving Soon Unlock after step: lock the doors (lock)"><TextBlock Text="LOCK" FontSize="9.5" FontWeight="Bold" VerticalAlignment="Center"/></CheckBox>
+              <CheckBox x:Name="LeaveUnlockChk" Style="{StaticResource SkipCfChk}" VerticalAlignment="Center" ToolTip="Leaving Soon Unlock after step: unlock the doors (unlock)"><TextBlock Text="UNLOCK" FontSize="9.5" FontWeight="Bold" VerticalAlignment="Center"/></CheckBox>
+            </StackPanel>
             <Border x:Name="LeaveRow" Visibility="Collapsed" CornerRadius="6" BorderThickness="1" BorderBrush="#FF49DF93" Background="#1A49DF93" Padding="7,3,4,3" Margin="0,0,0,6">
               <Grid>
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
@@ -1876,7 +1908,7 @@ function Open-Url433 {
                 </Button>
               </Grid>
             </Border>
-            <UniformGrid x:Name="CtlTopRow" Columns="3" Rows="1">
+            <UniformGrid x:Name="CtlTopRow" Columns="2" Rows="1">
 <Button x:Name="LockBtn" Style="{StaticResource CtlBtn}" Height="37" Margin="0,0,3,0" Padding="2,1,2,1" ToolTip="Lock / unlock your Tesla">
                 <Grid>
                   <Grid.ColumnDefinitions><ColumnDefinition Width="22"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
@@ -1903,15 +1935,7 @@ function Open-Url433 {
                   <Viewbox StretchDirection="DownOnly" HorizontalAlignment="Center"><TextBlock x:Name="FlashSub" Text="flashes · pause s" FontSize="6" FontWeight="SemiBold" Foreground="#FF888888"/></Viewbox>
                 </StackPanel>
               </Border>
-<Button x:Name="CopBtn" Style="{StaticResource CtlBtn}" Height="37" Margin="3,0,0,0" Padding="3,2,3,2" ToolTip="Cabin Overheat Protection: off, on, fan only">
-                <StackPanel HorizontalAlignment="Center">
-                  <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                    <TextBlock x:Name="CopIcon" Text="☀" FontFamily="Segoe UI Symbol" FontSize="13" Margin="0,0,4,0" VerticalAlignment="Center"/>
-                    <TextBlock x:Name="CopTxt" Text="OVERHEAT" FontSize="12.5" FontWeight="Bold" VerticalAlignment="Center"/>
-                  </StackPanel>
-                  <Viewbox StretchDirection="DownOnly" HorizontalAlignment="Center" MaxWidth="96"><TextBlock x:Name="CopSub" Text="" FontSize="9" FontWeight="SemiBold" Foreground="#FF888888"/></Viewbox>
-                </StackPanel>
-              </Button>
+
             </UniformGrid>
             <TextBlock x:Name="FlashStats" Text="" Visibility="Collapsed" FontSize="9" FontWeight="SemiBold" Foreground="#FF888888" HorizontalAlignment="Center" Margin="0,3,0,0"
                        ToolTip="Flash lights: response time of each flash request (sent until Tessie answered), average, and the measured gap between successful flashes"/>
@@ -1966,20 +1990,7 @@ function Open-Url433 {
                   <TextBlock x:Name="CloseWinSub" Text="WINDOWS" FontSize="7.5" FontWeight="SemiBold" Foreground="#FF888888" HorizontalAlignment="Center"/>
                 </StackPanel>
               </Button>
-<Button x:Name="DefrostBtn" Style="{StaticResource CtlBtn}" Height="32" Margin="3,0,0,0" Padding="3,2,3,2" ToolTip="Max defrost on / off">
-                <StackPanel HorizontalAlignment="Center">
-                  <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                    <TextBlock x:Name="DefrostIcon" Text="❄" FontFamily="Segoe UI Symbol" FontSize="13" Margin="0,0,4,0" VerticalAlignment="Center"/>
-                    <TextBlock x:Name="DefrostTxt" Text="DEFROST" FontSize="12.5" FontWeight="Bold" VerticalAlignment="Center"/>
-                  </StackPanel>
-                  <Viewbox StretchDirection="DownOnly" HorizontalAlignment="Center" MaxWidth="96"><TextBlock x:Name="DefrostSub" Text="" FontSize="9" FontWeight="SemiBold" Foreground="#FF888888"/></Viewbox>
-                </StackPanel>
-              </Button>
-            </UniformGrid>
-            <!-- v4.3.3: OPEN TRUNK (rear only, asks first) + SENTRY MODE on/off (shows the car's state, asks first) -->
-            <Grid Margin="0,4,0,0">
-              <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-              <Button x:Name="TrunkBtn" Grid.Column="0" Style="{StaticResource CtlBtn}" Height="31" Margin="0,0,3,0" Padding="2" ToolTip="Open the rear trunk (asks Are you sure? first)">
+<Button x:Name="TrunkBtn" Style="{StaticResource CtlBtn}" Height="31" Margin="3,0,0,0" Padding="2" ToolTip="Open the rear trunk (asks Are you sure? first)">
                 <StackPanel HorizontalAlignment="Center">
                   <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                     <TextBlock x:Name="TrunkIcon" Text="&#xE7EF;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
@@ -1988,7 +1999,12 @@ function Open-Url433 {
                   <TextBlock x:Name="TrunkSub" Text="REAR" FontSize="7.5" FontWeight="SemiBold" Foreground="#FF888888" HorizontalAlignment="Center"/>
                 </StackPanel>
               </Button>
-              <Button x:Name="SentryBtn" Grid.Column="1" Style="{StaticResource CtlBtn}" Height="31" Margin="3,0,0,0" Padding="2" ToolTip="Sentry Mode on / off (shows the car's current state, asks first)">
+
+            </UniformGrid>
+            <!-- v4.3.35 layout: SENTRY MODE + OVERHEAT PROTECTION low row (DEFROST keeps this row too) -->
+            <Grid x:Name="CtlLowRow4335" Margin="0,4,0,0">
+              <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+<Button x:Name="SentryBtn" Grid.Column="0" Style="{StaticResource CtlBtn}" Height="31" Margin="0,0,3,0" Padding="2" ToolTip="Sentry Mode on / off (shows the car's current state, asks first)">
                 <StackPanel HorizontalAlignment="Center">
                   <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                     <TextBlock x:Name="SentryIcon" Text="&#xE7B3;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
@@ -1997,11 +2013,27 @@ function Open-Url433 {
                   <TextBlock x:Name="SentrySub" Text="STATE UNKNOWN" FontSize="7.5" FontWeight="SemiBold" Foreground="#FF888888" HorizontalAlignment="Center"/>
                 </StackPanel>
               </Button>
+<Button Grid.Column="1" x:Name="CopBtn" Style="{StaticResource CtlBtn}" Height="37" Margin="3,0,3,0" Padding="3,2,3,2" ToolTip="Cabin Overheat Protection: off, on, fan only">
+                <StackPanel HorizontalAlignment="Center">
+                  <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <TextBlock x:Name="CopIcon" Text="☀" FontFamily="Segoe UI Symbol" FontSize="13" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="CopTxt" Text="OVERHEAT" FontSize="12.5" FontWeight="Bold" VerticalAlignment="Center"/>
+                  </StackPanel>
+                  <Viewbox StretchDirection="DownOnly" HorizontalAlignment="Center" MaxWidth="96"><TextBlock x:Name="CopSub" Text="" FontSize="9" FontWeight="SemiBold" Foreground="#FF888888"/></Viewbox>
+                </StackPanel>
+              </Button>
+<Button Grid.Column="2" x:Name="DefrostBtn" Style="{StaticResource CtlBtn}" Height="32" Margin="3,0,0,0" Padding="3,2,3,2" ToolTip="Max defrost on / off">
+                <StackPanel HorizontalAlignment="Center">
+                  <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <TextBlock x:Name="DefrostIcon" Text="❄" FontFamily="Segoe UI Symbol" FontSize="13" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="DefrostTxt" Text="DEFROST" FontSize="12.5" FontWeight="Bold" VerticalAlignment="Center"/>
+                  </StackPanel>
+                  <Viewbox StretchDirection="DownOnly" HorizontalAlignment="Center" MaxWidth="96"><TextBlock x:Name="DefrostSub" Text="" FontSize="9" FontWeight="SemiBold" Foreground="#FF888888"/></Viewbox>
+                </StackPanel>
+              </Button>
             </Grid>
-            <!-- v4.3: Announce on Alexa = one push, full status rundown; gear = Announce Setup -->
-            <Grid Margin="0,4,0,0">
-              <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="118"/><ColumnDefinition Width="58"/></Grid.ColumnDefinitions>
-              <Button x:Name="AnnNowBtn" Style="{StaticResource CtlBtn}" Height="31" Margin="0,0,3,0" Padding="4,2,4,2" ToolTip="Announce on Alexa: one push speaks a full status rundown (asks to confirm)">
+            <!-- v4.3.35: ANNOUNCE stays low, full width -->
+            <Button x:Name="AnnNowBtn" Style="{StaticResource CtlBtn}" Height="31" Margin="0,4,0,0" Padding="4,2,4,2" ToolTip="Announce on Alexa: one push speaks a full status rundown (asks to confirm)">
                 <StackPanel HorizontalAlignment="Center">
                   <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                     <TextBlock Text="&#xE767;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
@@ -2010,28 +2042,6 @@ function Open-Url433 {
                   <TextBlock x:Name="AnnNowSub" Text="FULL STATUS" FontSize="7.5" FontWeight="SemiBold" Foreground="#FF888888" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                 </StackPanel>
               </Button>
-              <Grid Grid.Column="1" Margin="3,0,3,0">
-              <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="26"/></Grid.ColumnDefinitions>
-              <Button x:Name="AllOffBtn" Style="{StaticResource CtlBtn}" Height="31" Margin="0,0,3,0" Padding="2" Background="#FF2A1012" BorderBrush="#FFE5484D" ToolTip="ALL OFF: close windows, close the trunk (if open), climate off, seat + wheel heat off, defrost off, Sentry off, Dog / Camp off, lock. Skips anything already off. Press again to cancel the remaining steps.">
-                <StackPanel HorizontalAlignment="Center">
-                  <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                    <TextBlock x:Name="AllOffIcon" Text="&#xE7E8;" FontFamily="Segoe MDL2 Assets" FontSize="11" VerticalAlignment="Center" Margin="0,0,4,0" Foreground="#FFFF6B6E"/>
-                    <TextBlock x:Name="AllOffTxt" Text="ALL OFF" FontSize="12" FontWeight="Bold" VerticalAlignment="Center" Foreground="#FFFF6B6E"/>
-                  </StackPanel>
-                  <TextBlock x:Name="AllOffSub" Text="EVERYTHING" FontSize="7.5" FontWeight="SemiBold" Foreground="#FFE89A9C" HorizontalAlignment="Center"/>
-                </StackPanel>
-              </Button>
-              <Button x:Name="AllOffSetBtn" Grid.Column="1" Style="{StaticResource CtlBtn}" Height="31" Padding="0" Background="#FF2A1012" BorderBrush="#FFE5484D" ToolTip="ALL OFF setup: pick which steps ALL OFF runs (saved)">
-                <TextBlock x:Name="AllOffSetIcon" Text="&#xE713;" FontFamily="Segoe MDL2 Assets" FontSize="12" HorizontalAlignment="Center" Foreground="#FFFF6B6E"/>
-              </Button>
-              </Grid>
-              <Button x:Name="AnnSetupBtn" Grid.Column="2" Style="{StaticResource CtlBtn}" Height="31" Margin="3,0,0,0" Padding="0" ToolTip="Announce Setup: rundown items, speakers (pick Echos, Test, Add speaker), charging-started announcement">
-                <StackPanel HorizontalAlignment="Center">
-                  <TextBlock Text="&#xE713;" FontFamily="Segoe MDL2 Assets" FontSize="15" HorizontalAlignment="Center"/>
-                  <TextBlock x:Name="AnnSetupTxt" Text="SETUP" FontSize="8" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,2,0,0"/>
-                </StackPanel>
-              </Button>
-            </Grid>
             <Border x:Name="CtlResultBox" CornerRadius="6" Background="#FF0F0F0F" Margin="0,4,0,0" Padding="8,3,8,3" MinHeight="22">
               <Grid>
                 <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
@@ -3950,15 +3960,19 @@ $ui.FlashBtn.Add_Click({ try { Invoke-FlashLights } catch { Write-WidgetLog ('fl
 # Each undo step is announced and shown as 'Undoing n of m'. A forward step that FAILS still just stops (no undo), as in v4.3.15.
 # Dry run (controls.dryRun / -SelfTest): nothing is sent to the car or Voice Monkey; leavingSoon.dryRunSecPerMin shortens the waits (self-test 2 s per minute).
 $LeaveDefaultDevice = 'echo-living-room-4hqjv'
-$LeaveSteps = @(
-    [pscustomobject]@{ cmd = 'start_climate'; doing = 'turning on climate'; next = 'climate on'; done = 'climate on'; spoken = 'Leaving Soon: climate is now on.'; what = 'turn on climate' }
-    [pscustomobject]@{ cmd = 'close_windows'; doing = 'closing windows'; next = 'closing windows'; done = 'windows closed'; spoken = 'Leaving Soon: the windows are now closed.'; what = 'close the windows' }
-    [pscustomobject]@{ cmd = 'unlock'; doing = 'unlocking'; next = 'unlocking'; done = 'unlocked'; spoken = 'Leaving Soon: your Tesla is now unlocked.'; what = 'unlock your Tesla' }
-)
+# v4.3.35: step templates; $LeaveSteps keeps the default sequence (climate, WINDOWS UP, UNLOCK) for legacy refs.
+$LeaveStepClimate = [pscustomobject]@{ cmd = 'start_climate'; kind2 = 'climate'; doing = 'turning on climate'; next = 'climate on'; done = 'climate on'; spoken = 'Leaving Soon: climate is now on.'; what = 'turn on climate' }
+$LeaveStepWinUp = [pscustomobject]@{ cmd = 'close_windows'; kind2 = 'windows'; doing = 'closing windows'; next = 'closing windows'; done = 'windows closed'; spoken = 'Leaving Soon: the windows are now closed.'; what = 'close the windows' }
+$LeaveStepWinDown = [pscustomobject]@{ cmd = 'vent_windows'; kind2 = 'windows'; doing = 'venting windows'; next = 'venting windows'; done = 'windows vented'; spoken = 'Leaving Soon: the windows are now vented.'; what = 'vent the windows' }
+$LeaveStepLock = [pscustomobject]@{ cmd = 'lock'; kind2 = 'doors'; doing = 'locking'; next = 'locking'; done = 'locked'; spoken = 'Leaving Soon: your Tesla is now locked.'; what = 'lock your Tesla' }
+$LeaveStepUnlock = [pscustomobject]@{ cmd = 'unlock'; kind2 = 'doors'; doing = 'unlocking'; next = 'unlocking'; done = 'unlocked'; spoken = 'Leaving Soon: your Tesla is now unlocked.'; what = 'unlock your Tesla' }
+$LeaveSteps = @($LeaveStepClimate, $LeaveStepWinUp, $LeaveStepUnlock)
 $LeaveUndo = @{
     start_climate = [pscustomobject]@{ cmd = 'stop_climate'; doing = 'turning climate back off'; done = 'climate off'; spoken = 'Leaving Soon undo: climate is off again.'; what = 'turn climate back off' }
     close_windows = [pscustomobject]@{ cmd = 'vent_windows'; doing = 'venting the windows'; done = 'windows vented'; spoken = 'Leaving Soon undo: the windows are vented again.'; what = 'vent the windows' }
     unlock        = [pscustomobject]@{ cmd = 'lock'; doing = 'locking'; done = 'locked'; spoken = 'Leaving Soon undo: your Tesla is locked again.'; what = 'lock your Tesla' }
+    vent_windows  = [pscustomobject]@{ cmd = 'close_windows'; doing = 'closing windows back'; done = 'windows closed'; spoken = 'Leaving Soon undo: the windows are closed again.'; what = 'close the windows back' }
+    lock          = [pscustomobject]@{ cmd = 'unlock'; doing = 'unlocking again'; done = 'unlocked'; spoken = 'Leaving Soon undo: your Tesla is unlocked again.'; what = 'unlock your Tesla again' }
 }
 $LeaveMinMax = 30; $LeaveMinDefault = 3
 $LeaveStartMax = 120; $LeaveStartDefault = 0   # v4.3.19: 'Start after' (minutes before the sequence begins)
@@ -3971,6 +3985,33 @@ function Get-LeaveCfgMin {
     if ($null -ne $l) { try { if ($null -ne $l.$Key) { $v = [int]$l.$Key } } catch {} }
     return [int][math]::Min($sp[0], [math]::Max(0, $v))
 }
+function Get-LeaveChoicesFromCfg {
+    $l = Get-LeaveCfg; $hasW = $false; $hasD = $false; $wu = $false; $wd = $false; $lk = $false; $ul = $false
+    if ($null -ne $l) { try {
+        if ($null -ne $l.PSObject.Properties['windowsUp'] -or $null -ne $l.PSObject.Properties['windowsDown']) { $hasW = $true; $wu = [bool]$l.windowsUp; $wd = [bool]$l.windowsDown }
+        if ($null -ne $l.PSObject.Properties['lock'] -or $null -ne $l.PSObject.Properties['unlock']) { $hasD = $true; $lk = [bool]$l.lock; $ul = [bool]$l.unlock }
+    } catch {} }
+    if (-not $hasW) { $wu = $true; $wd = $false }   # default preserves pre-4.3.35 behaviour: close_windows
+    if (-not $hasD) { $lk = $false; $ul = $true }   # default preserves pre-4.3.35 behaviour: unlock
+    if ($wu -and $wd) { $wd = $false }              # stored conflict normalized: WINDOWS UP wins
+    if ($lk -and $ul) { $lk = $false }              # stored conflict normalized: UNLOCK wins
+    return [ordered]@{ windowsUp = [bool]$wu; windowsDown = [bool]$wd; lock = [bool]$lk; unlock = [bool]$ul; windows = $(if ($wu) { 'up' } elseif ($wd) { 'down' } else { 'none' }); doors = $(if ($lk) { 'lock' } elseif ($ul) { 'unlock' } else { 'none' }) }
+}
+function Get-LeaveUiChoices {
+    if ($null -ne $ui -and $null -ne $ui.LeaveWinUpChk) { $wu=[bool]$ui.LeaveWinUpChk.IsChecked; $wd=[bool]$ui.LeaveWinDownChk.IsChecked; $lk=[bool]$ui.LeaveLockChk.IsChecked; $ul=[bool]$ui.LeaveUnlockChk.IsChecked
+        if ($wu -and $wd) { $wd=$false }; if ($lk -and $ul) { $lk=$false }
+        return [ordered]@{ windowsUp=$wu; windowsDown=$wd; lock=$lk; unlock=$ul; windows=$(if ($wu) { 'up' } elseif ($wd) { 'down' } else { 'none' }); doors=$(if ($lk) { 'lock' } elseif ($ul) { 'unlock' } else { 'none' }) } }
+    return (Get-LeaveChoicesFromCfg)
+}
+function Set-LeaveChoiceChecks { param($C) $script:LeaveChoiceSetting = $true; try { $ui.LeaveWinUpChk.IsChecked=[bool]$C.windowsUp; $ui.LeaveWinDownChk.IsChecked=[bool]$C.windowsDown; $ui.LeaveLockChk.IsChecked=[bool]$C.lock; $ui.LeaveUnlockChk.IsChecked=[bool]$C.unlock } catch {}; $script:LeaveChoiceSetting = $false }
+function Load-LeaveChoices { $c4335 = Get-LeaveChoicesFromCfg; Set-LeaveChoiceChecks $c4335; $script:LeaveChoiceSaved = ([string]$c4335.windowsUp + ',' + [string]$c4335.windowsDown + ',' + [string]$c4335.lock + ',' + [string]$c4335.unlock) }
+function Apply-LeaveChoice { param([string]$Name, [bool]$On) if ($script:LeaveChoiceSetting) { return }; $c = Get-LeaveUiChoices
+    if ($On) { switch ($Name) { 'windowsUp' { $c.windowsUp=$true; $c.windowsDown=$false } 'windowsDown' { $c.windowsDown=$true; $c.windowsUp=$false } 'lock' { $c.lock=$true; $c.unlock=$false } 'unlock' { $c.unlock=$true; $c.lock=$false } } }
+    else { switch ($Name) { 'windowsUp' { $c.windowsUp=$false } 'windowsDown' { $c.windowsDown=$false } 'lock' { $c.lock=$false } 'unlock' { $c.unlock=$false } } }
+    $c.windows = $(if ($c.windowsUp) { 'up' } elseif ($c.windowsDown) { 'down' } else { 'none' }); $c.doors = $(if ($c.lock) { 'lock' } elseif ($c.unlock) { 'unlock' } else { 'none' })
+    Set-LeaveChoiceChecks $c; Save-LeaveMins; try { Render-Leave } catch {} }
+function Get-LeaveStepsFor { param($C) $s = @($LeaveStepClimate); if ($C.windows -eq 'up') { $s += $LeaveStepWinUp } elseif ($C.windows -eq 'down') { $s += $LeaveStepWinDown }; if ($C.doors -eq 'lock') { $s += $LeaveStepLock } elseif ($C.doors -eq 'unlock') { $s += $LeaveStepUnlock }; return ,$s }
+function Get-LeaveRunSteps { if ($null -ne $script:Leave.steps -and @($script:Leave.steps).Count -gt 0) { return @($script:Leave.steps) }; return @($LeaveSteps) }
 function Get-LeaveSecPerMin {
     if ($CTL_DRYRUN -or $SelfTest) {
         $l = Get-LeaveCfg; $v = 0
@@ -3989,15 +4030,15 @@ function Get-LeaveUiMin {
 function Get-LeaveMins { return @((Get-LeaveUiMin $ui.LeaveWinMin 'windowsAfterMin'), (Get-LeaveUiMin $ui.LeaveUnlockMin 'unlockAfterMin'), (Get-LeaveUiMin $ui.LeaveStartMin 'startAfterMin')) }
 function Get-LeaveWaitSec { param([int]$Step = 1) $m = Get-LeaveMins; return [int]($(if ($Step -ge 2) { $m[1] } else { $m[0] }) * (Get-LeaveSecPerMin)) }
 function Save-LeaveMins {
-    $m = Get-LeaveMins
+    $m = Get-LeaveMins; $ch = Get-LeaveUiChoices; $chKey = ([string]$ch.windowsUp + ',' + [string]$ch.windowsDown + ',' + [string]$ch.lock + ',' + [string]$ch.unlock)
     $ui.LeaveWinMin.Text = [string]$m[0]; $ui.LeaveUnlockMin.Text = [string]$m[1]; $ui.LeaveStartMin.Text = [string]$m[2]
-    if ($null -ne $script:LeaveMinSaved -and $m[0] -eq $script:LeaveMinSaved[0] -and $m[1] -eq $script:LeaveMinSaved[1] -and $m[2] -eq $script:LeaveMinSaved[2]) { return }
-    $script:LeaveMinSaved = @($m[0], $m[1], $m[2])
+    if ($null -ne $script:LeaveMinSaved -and $m[0] -eq $script:LeaveMinSaved[0] -and $m[1] -eq $script:LeaveMinSaved[1] -and $m[2] -eq $script:LeaveMinSaved[2] -and $script:LeaveChoiceSaved -eq $chKey) { return }
+    $script:LeaveMinSaved = @($m[0], $m[1], $m[2]); $script:LeaveChoiceSaved = $chKey
     if ($SelfTest -and (Split-Path -Leaf $ConfigPath) -eq 'config.json') { return }   # self-test writes only its own test config
     try {
         $o = [ordered]@{}; $l = Get-LeaveCfg
         if ($null -ne $l) { foreach ($p in $l.PSObject.Properties) { $o[$p.Name] = $p.Value } }
-        $o['windowsAfterMin'] = $m[0]; $o['unlockAfterMin'] = $m[1]; $o['startAfterMin'] = $m[2]
+        $o['windowsAfterMin'] = $m[0]; $o['unlockAfterMin'] = $m[1]; $o['startAfterMin'] = $m[2]; $o['windowsUp'] = [bool]$ch.windowsUp; $o['windowsDown'] = [bool]$ch.windowsDown; $o['lock'] = [bool]$ch.lock; $o['unlock'] = [bool]$ch.unlock
         Save-ConfigProp 'leavingSoon' ([pscustomobject]$o); $script:Cfg = Read-Config
         Write-WidgetLog ('leaving soon waits saved: start ' + $m[2] + ' min, windows ' + $m[0] + ' min, unlock ' + $m[1] + ' min')
     } catch { Write-WidgetLog ('leaving soon waits save failed: ' + $_.Exception.Message) }
@@ -4011,10 +4052,10 @@ function Get-LeaveDevice {
     return $d
 }
 function Format-LeaveSpan { param([int]$Sec) if ($Sec -ge 60 -and $Sec % 60 -eq 0) { $m = $Sec / 60; return ('{0} minute{1}' -f $m, $(if ($m -eq 1) { '' } else { 's' })) }; return ('{0} second{1}' -f $Sec, $(if ($Sec -eq 1) { '' } else { 's' })) }
-function Get-LeaveSummary { param($M) $f = { param($n, $z, $t) if ([int]$n -le 0) { $z } else { $t -f [int]$n } }; return ((& $f $M[2] 'start now' 'start in {0} min') + ' · ' + (& $f $M[0] 'windows right away' 'windows {0} min later') + ' · ' + (& $f $M[1] 'unlock right after' 'unlock {0} min later')) }
+function Get-LeaveSummary { param($M, $C = $null) if ($null -eq $C) { $C = Get-LeaveUiChoices }; $f = { param($n, $z, $t) if ([int]$n -le 0) { $z } else { $t -f [int]$n } }; $w = $(if ($C.windows -eq 'up') { (& $f $M[0] 'windows up right away' 'windows up {0} min later') } elseif ($C.windows -eq 'down') { (& $f $M[0] 'windows down right away' 'windows down {0} min later') } else { 'no windows step' }); $d = $(if ($C.doors -eq 'lock') { (& $f $M[1] 'lock right after' 'lock {0} min later') } elseif ($C.doors -eq 'unlock') { (& $f $M[1] 'unlock right after' 'unlock {0} min later') } else { 'no lock/unlock step' }); return ((& $f $M[2] 'start now' 'start in {0} min') + ' · ' + $w + ' · ' + $d) }
 function Format-LeaveIn { param([int]$Min, [string]$Now, [string]$Later) if ($Min -le 0) { return $Now }; return ($Later -f (Format-LeaveSpan ($Min * 60))) }
 $script:Leave = [ordered]@{ running = $false; phase = 'idle'; step = 0; total = 3; dueAt = $null; job = $null; waitSec = 180; mins = @(0, 3, 3); waits = @(0, 180, 180); startAfterMin = 0; result = ''; kind = 'idle'; notes = @(); log = @(); ann = @(); startedAt = $null; endedAt = $null; hideAt = $null
-    snap = $null; snapJob = $null; snapUntil = $null; doneCmds = @(); undoing = $false; undo = @(); undoIdx = 0; undoDone = @(); undoFailed = @(); undoKept = @(); waitLog = @() }
+    snap = $null; snapJob = $null; snapUntil = $null; doneCmds = @(); undoing = $false; undo = @(); undoIdx = 0; undoDone = @(); undoFailed = @(); undoKept = @(); waitLog = @(); steps = $null; choices = $null; stepMins = @(0, 3, 3) }
 $script:LeaveFailCmd = $null     # self-test only: this command comes back failed (dry run)
 $script:LeaveFakeStart = $null   # self-test only: start state used instead of the Tessie cache read
 $script:LeaveSeen = @()          # self-test only: status-line texts seen
@@ -4049,17 +4090,23 @@ function Start-LeaveSoon {
     if ($L.running -or $L.undoing -or $null -ne $L.job) { return }
     if (-not (Test-CmdOn)) { Set-CtlResult 'err' 'Leaving Soon: commands are off (About / Privacy or config.json)'; return }
     Save-LeaveMins
-    $m = Get-LeaveMins; $spm = Get-LeaveSecPerMin
-    $sub = (Get-LeaveSummary $m) + "`n" + ($(if ($m[2] -gt 0) { 'Starts in ' + (Format-LeaveSpan ($m[2] * 60)) + ' (nothing happens until then; Stop just cancels). Then c' } else { 'C' }) + 'limate turns on now, {0}, then {1}. Each step is announced on Alexa. Stop cancels the rest and undoes the steps already done.' -f (Format-LeaveIn $m[0] 'the windows close right away' 'the windows close {0} later'), (Format-LeaveIn $m[1] 'the car unlocks right after that' 'the car unlocks {0} after that'))
+    $m = Get-LeaveMins; $spm = Get-LeaveSecPerMin; $ch = Get-LeaveUiChoices; $runSteps = Get-LeaveStepsFor $ch
+    $winPhrase = $(if ($ch.windows -eq 'up') { Format-LeaveIn $m[0] 'the windows close right away' 'the windows close {0} later' } elseif ($ch.windows -eq 'down') { Format-LeaveIn $m[0] 'the windows vent right away' 'the windows vent {0} later' } else { '' })
+    $doorPhrase = $(if ($ch.doors -eq 'lock') { Format-LeaveIn $m[1] 'the car locks right after that' 'the car locks {0} after that' } elseif ($ch.doors -eq 'unlock') { Format-LeaveIn $m[1] 'the car unlocks right after that' 'the car unlocks {0} after that' } else { '' })
+    $thenParts = @(@($winPhrase, $doorPhrase) | Where-Object { $_ })
+    $sub = (Get-LeaveSummary $m $ch) + "`n" + ($(if ($m[2] -gt 0) { 'Starts in ' + (Format-LeaveSpan ($m[2] * 60)) + ' (nothing happens until then; Stop just cancels). Then c' } else { 'C' }) + 'limate turns on now' + $(if ($thenParts.Count -gt 0) { ', ' + ($thenParts -join ', then ') } else { '' }) + '. Only checked Leaving Soon actions run. Each step is announced on Alexa. Stop cancels the rest and undoes the steps already done.')
     if (-not (Test-SkipConfirm 'leave') -and -not (Confirm-Ctl 'Are you sure? Start Leaving Soon?' $sub 'Start' 'Cancel')) { Set-CtlResult 'idle' 'Leaving Soon cancelled'; return }
-    $L.running = $true; $L.phase = $(if ($m[2] -gt 0) { 'pre' } else { 'snap' }); $L.step = 0; $L.mins = @(0, $m[0], $m[1]); $L.waits = @(0, ($m[0] * $spm), ($m[1] * $spm)); $L.waitSec = $L.waits[1]; $L.startAfterMin = $m[2]
+    $L.running = $true; $L.phase = $(if ($m[2] -gt 0) { 'pre' } else { 'snap' }); $L.step = 0; $L.choices = $ch; $L.steps = $runSteps; $L.total = @($runSteps).Count
+    $L.mins = @(0, $m[0], $m[1]); $alignedWaits = @(0); $alignedMins = @(0); foreach ($st4335 in @($runSteps | Select-Object -Skip 1)) { if ($st4335.kind2 -eq 'windows') { $alignedWaits += ($m[0] * $spm); $alignedMins += $m[0] } elseif ($st4335.kind2 -eq 'doors') { $alignedWaits += ($m[1] * $spm); $alignedMins += $m[1] } else { $alignedWaits += 0; $alignedMins += 0 } }
+    $L.waits = $alignedWaits; $L.stepMins = $alignedMins; $L.waitSec = $(if ($alignedWaits.Count -gt 1) { $alignedWaits[1] } else { 0 }); $L.startAfterMin = $m[2]
     $L.dueAt = Get-Date; $L.job = $null; $L.result = ''; $L.kind = 'busy'; $L.notes = @(); $L.log = @(); $L.ann = @(); $L.waitLog = @()
     $L.startedAt = Get-Date; $L.dueAt = $(if ($m[2] -gt 0) { (Get-Date).AddSeconds($m[2] * $spm) } else { Get-Date }); $L.endedAt = $null; $L.hideAt = $null
     $L.snap = $null; $L.snapJob = $null; $L.doneCmds = @(); $L.undoing = $false; $L.undo = @(); $L.undoIdx = 0; $L.undoDone = @(); $L.undoFailed = @(); $L.undoKept = @()
     $script:LeaveSeen = @()
-    Add-LeaveNote (Get-LeaveSummary $m)
-    Write-WidgetLog ('leaving soon start startAfter=' + $m[2] + 'min windows=' + $m[0] + 'min unlock=' + $m[1] + 'min' + $(if ($CTL_DRYRUN) { ' [DRY RUN ' + $spm + 's/min]' } else { '' }))
-    Send-LeaveAnnouncement ($(if ($m[2] -gt 0) { 'Leaving Soon starts in ' + (Format-LeaveSpan ($m[2] * 60)) + '. Then c' } else { 'Leaving Soon is starting. C' }) + 'limate is turning on now. {0}, and {1}.' -f (Format-LeaveIn $m[0] 'The windows close right away' 'The windows close in {0}'), (Format-LeaveIn $m[1] 'the car unlocks right after that' 'the car unlocks {0} after that')) 'start'
+    Add-LeaveNote (Get-LeaveSummary $m $ch)
+    Write-WidgetLog ('leaving soon start startAfter=' + $m[2] + 'min windows=' + $m[0] + 'min unlock/door=' + $m[1] + 'min windowsAction=' + $ch.windows + ' doorAction=' + $ch.doors + ' steps=' + (@($runSteps | ForEach-Object { $_.cmd }) -join ',') + $(if ($CTL_DRYRUN) { ' [DRY RUN ' + $spm + 's/min]' } else { '' }))
+    $annParts = @(); if ($ch.windows -eq 'up') { $annParts += (Format-LeaveIn $m[0] 'the windows close right away' 'the windows close in {0}') } elseif ($ch.windows -eq 'down') { $annParts += (Format-LeaveIn $m[0] 'the windows vent right away' 'the windows vent in {0}') }; if ($ch.doors -eq 'lock') { $annParts += (Format-LeaveIn $m[1] 'the car locks right after that' 'the car locks {0} after that') } elseif ($ch.doors -eq 'unlock') { $annParts += (Format-LeaveIn $m[1] 'the car unlocks right after that' 'the car unlocks {0} after that') }
+    Send-LeaveAnnouncement ($(if ($m[2] -gt 0) { 'Leaving Soon starts in ' + (Format-LeaveSpan ($m[2] * 60)) + '. Then c' } else { 'Leaving Soon is starting. C' }) + 'limate is turning on now.' + $(if ($annParts.Count -gt 0) { ' ' + ((@($annParts | ForEach-Object { $_.Substring(0,1).ToUpperInvariant() + $_.Substring(1) }) -join ', and ') + '.') } else { '' })) 'start'
     if ($m[2] -le 0) { Start-LeaveSnap }
     Set-Visible $ui.LeaveRow $true
     $script:LeaveTimer.Start()
@@ -4126,7 +4173,7 @@ function Start-LeaveJob {
     return ''
 }
 function Start-LeaveCommand {
-    $L = $script:Leave; $s = $LeaveSteps[$L.step]
+    $L = $script:Leave; $s = (Get-LeaveRunSteps)[$L.step]
     $err = Start-LeaveJob $s.cmd 'step'
     if ($err) { Stop-LeaveFailed $s $err; return }
     $L.phase = 'sending'
@@ -4148,9 +4195,9 @@ function Complete-LeaveCommand {
     $script:CtlLog = @(@($script:CtlLog) + [ordered]@{ at = (Get-LocalNow).ToString('s'); cmd = $j.cmd; query = @{}; url = $j.url; dryRun = [bool]$CTL_DRYRUN; ok = $ok; seconds = $secs; result = ('Leaving Soon ' + $(if ($j.kind -eq 'undo') { 'undo ' } else { '' }) + $j.cmd + ': ' + $(if ($ok) { 'ok' } else { 'failed: ' + $why })) }) | Select-Object -Last 12
     try { Request-LiveSoon 4 } catch {}
     if ($j.kind -eq 'undo') { Complete-LeaveUndo $ok $why; return }
-    $s = $LeaveSteps[$L.step]
+    $s = (Get-LeaveRunSteps)[$L.step]
     if ($ok) {
-        switch ($s.cmd) { 'start_climate' { Set-CtlOverride 'climateOn' $true } 'close_windows' { Set-CtlOverride 'windowsOpen' $false } 'unlock' { Set-CtlOverride 'locked' $false } }
+        switch ($s.cmd) { 'start_climate' { Set-CtlOverride 'climateOn' $true } 'close_windows' { Set-CtlOverride 'windowsOpen' $false } 'vent_windows' { Set-CtlOverride 'windowsOpen' $true } 'unlock' { Set-CtlOverride 'locked' $false } 'lock' { Set-CtlOverride 'locked' $true } }
         $L.doneCmds = @(@($L.doneCmds) + $s.cmd)
     }
     if (-not $L.running) {
@@ -4164,12 +4211,12 @@ function Complete-LeaveCommand {
     $L.step++
     if ($L.step -ge $L.total) {
         $L.running = $false; $L.phase = 'done'; $L.kind = 'ok'; $L.endedAt = Get-Date; $L.hideAt = (Get-Date).AddMinutes(2)
-        $L.result = ('Leaving Soon done · climate on, windows closed, unlocked · ' + (Format-Clock (Get-LocalNow)) + $(if ($CTL_DRYRUN) { ' (dry run, not sent)' } else { '' }))
+        $doneTxt4335 = @((Get-LeaveRunSteps) | Where-Object { @($L.doneCmds) -contains $_.cmd } | ForEach-Object { $_.done }); $L.result = ('Leaving Soon done · ' + ($doneTxt4335 -join ', ') + ' · ' + (Format-Clock (Get-LocalNow)) + $(if ($CTL_DRYRUN) { ' (dry run, not sent)' } else { '' }))
         Set-CtlResult 'ok' ('✓ ' + $L.result)
         Write-WidgetLog 'leaving soon done'
     } else {
         $L.waitSec = [int]$L.waits[$L.step]; $L.phase = 'wait'; $L.dueAt = (Get-Date).AddSeconds($L.waitSec)
-        $L.waitLog = @(@($L.waitLog) + [ordered]@{ beforeStep = ($L.step + 1); minutes = $L.mins[$L.step]; seconds = $L.waitSec })
+        $L.waitLog = @(@($L.waitLog) + [ordered]@{ beforeStep = ($L.step + 1); minutes = $(if ($null -ne $L.stepMins -and $L.step -lt @($L.stepMins).Count) { $L.stepMins[$L.step] } else { $L.mins[$L.step] }); seconds = $L.waitSec })
         Set-CtlResult 'ok' ('✓ Leaving Soon: ' + $s.done + $(if ($CTL_DRYRUN) { ' (dry run, not sent)' } else { '' }))
     }
     try { Render-Controls } catch {}
@@ -4177,7 +4224,7 @@ function Complete-LeaveCommand {
 function Stop-LeaveFailed {
     param($S, [string]$Why)
     $L = $script:Leave
-    $skipped = @($LeaveSteps | Select-Object -Skip ($L.step + 1) | ForEach-Object { $_.done -replace '^climate on$', 'climate' -replace '^windows closed$', 'close windows' -replace '^unlocked$', 'unlock' })
+    $skipped = @((Get-LeaveRunSteps) | Select-Object -Skip ($L.step + 1) | ForEach-Object { $_.done -replace '^climate on$', 'climate' -replace '^windows closed$', 'close windows' -replace '^windows vented$', 'vent windows' -replace '^unlocked$', 'unlock' -replace '^locked$', 'lock' })
     $L.running = $false; $L.phase = 'failed'; $L.kind = 'err'; $L.endedAt = Get-Date; $L.hideAt = $null
     $L.result = ('Step {0} of {1} failed: {2}: {3}{4}' -f ($L.step + 1), $L.total, $S.cmd, $Why, $(if ($skipped.Count -gt 0) { '. Skipped: ' + ($skipped -join ', ') } else { '' }))
     Set-CtlResult 'err' ('✕ Leaving Soon ' + $S.cmd + ' failed: ' + $Why)
@@ -4212,7 +4259,9 @@ function Start-LeaveUndoPlan {
         switch ($c) {
             'start_climate' { if ($null -eq $sn -or $null -eq $sn.climateOn) { $why = 'climate start state unknown, left on' } elseif (-not $sn.climateOn) { $need = $true } else { $why = 'climate was already on' } }
             'close_windows' { if ($null -eq $sn -or $null -eq $sn.anyOpen) { $why = 'window start state unknown, left closed' } elseif ($sn.anyOpen) { $need = $true } else { $why = 'windows were already closed' } }
+            'vent_windows' { if ($null -eq $sn -or $null -eq $sn.anyOpen) { $why = 'window start state unknown, left vented' } elseif (-not $sn.anyOpen) { $need = $true } else { $why = 'windows were already open' } }
             'unlock' { if ($null -eq $sn -or $null -eq $sn.locked -or $sn.locked) { $need = $true } else { $why = 'it was already unlocked' } }   # unknown -> lock (never leave it unlocked by mistake)
+            'lock' { if ($null -eq $sn -or $null -eq $sn.locked) { $why = 'door start state unknown, left locked' } elseif (-not $sn.locked) { $need = $true } else { $why = 'it was already locked' } }
         }
         if ($need) { $plan += $LeaveUndo[$c] } else { $kept += $why }
     }
@@ -4237,7 +4286,7 @@ function Complete-LeaveUndo {
     param([bool]$Ok, [string]$Why)
     $L = $script:Leave; $u = $L.undo[$L.undoIdx]; $L.undoIdx++
     if ($Ok) {
-        switch ($u.cmd) { 'stop_climate' { Set-CtlOverride 'climateOn' $false } 'vent_windows' { Set-CtlOverride 'windowsOpen' $true } 'lock' { Set-CtlOverride 'locked' $true } }
+        switch ($u.cmd) { 'stop_climate' { Set-CtlOverride 'climateOn' $false } 'vent_windows' { Set-CtlOverride 'windowsOpen' $true } 'close_windows' { Set-CtlOverride 'windowsOpen' $false } 'lock' { Set-CtlOverride 'locked' $true } 'unlock' { Set-CtlOverride 'locked' $false } }
         $L.undoDone = @(@($L.undoDone) + $u.done)
         Send-LeaveAnnouncement $u.spoken ('undo-' + $u.cmd)
     } else {
@@ -4253,7 +4302,7 @@ function Complete-LeaveUndo {
 function Complete-LeaveStop {
     $L = $script:Leave
     $L.undoing = $false; $L.phase = 'cancelled'; $L.endedAt = Get-Date
-    $doneTxt = @($LeaveSteps | Where-Object { @($L.doneCmds) -contains $_.cmd } | ForEach-Object { $_.done })
+    $doneTxt = @((Get-LeaveRunSteps) | Where-Object { @($L.doneCmds) -contains $_.cmd } | ForEach-Object { $_.done })
     $n = @($L.undo).Count; $bad = @($L.undoFailed).Count
     $t = 'Leaving Soon stopped · ' + $(if ($doneTxt.Count -gt 0) { ($doneTxt -join ', ') + ', ' } else { '' }) + 'the rest cancelled'
     if ($n -gt 0) { $t += (' · undid {0} of {1}{2}' -f @($L.undoDone).Count, $n, $(if (@($L.undoDone).Count -gt 0) { ': ' + (@($L.undoDone) -join ', ') } else { '' })) }
@@ -4283,7 +4332,7 @@ function Get-LeaveStepText {
     if (-not $L.running) { return $L.result }
     if ($L.phase -eq 'pre') { $left = [math]::Max(0, [int][math]::Ceiling(($L.dueAt - (Get-Date)).TotalSeconds)); return ('Starting in {0}:{1:00}' -f [math]::Floor($left / 60), ($left % 60)) }
     if ($L.phase -eq 'snap') { return ('Step 1 of {0} · reading the start state…' -f $L.total) }
-    $s = $LeaveSteps[[math]::Min($L.step, $L.total - 1)]
+    $runSteps4335 = Get-LeaveRunSteps; $s = $runSteps4335[[math]::Min($L.step, @($runSteps4335).Count - 1)]
     if ($L.phase -eq 'wait') {
         $left = [math]::Max(0, [int][math]::Ceiling(($L.dueAt - (Get-Date)).TotalSeconds))
         return ('Step {0} of {1} · {2} in {3}:{4:00}' -f ($L.step + 1), $L.total, $s.next, [math]::Floor($left / 60), ($left % 60))
@@ -4301,6 +4350,7 @@ function Render-Leave {
     foreach ($b in @($ui.LeaveStartDn, $ui.LeaveStartUp, $ui.LeaveWinDn, $ui.LeaveWinUp, $ui.LeaveUnlockDn, $ui.LeaveUnlockUp)) { $b.Tag = $r3; $b.Background = T 'BtnBg'; $b.BorderBrush = T 'BtnBorder'; $b.Foreground = T 'Text'; $b.IsEnabled = -not $busy }
     foreach ($tb in @($ui.LeaveStartMin, $ui.LeaveWinMin, $ui.LeaveUnlockMin)) { $tb.IsEnabled = -not $busy; $tb.BorderBrush = T 'Green'; $tb.Foreground = T 'Text' }
     foreach ($lb in @($ui.LeaveStartLbl, $ui.LeaveWinLbl, $ui.LeaveUnlockLbl)) { $lb.Foreground = T 'Caption' }
+    foreach ($cb4335 in @($ui.LeaveWinUpChk, $ui.LeaveWinDownChk, $ui.LeaveLockChk, $ui.LeaveUnlockChk)) { if ($null -ne $cb4335) { $cb4335.IsEnabled = -not $busy; $cb4335.Foreground = T 'Text' } }
     if ($ui.LeaveRow.Visibility -ne 'Visible') { return }
     $ui.LeaveStep.Text = Get-LeaveStepText
     if ($SelfTest -and @($script:LeaveSeen) -notcontains $ui.LeaveStep.Text -and @($script:LeaveSeen).Count -lt 200) { $script:LeaveSeen = @(@($script:LeaveSeen) + $ui.LeaveStep.Text) }
@@ -4318,7 +4368,11 @@ function Render-Leave {
 $ui.LeaveBtn.Add_Click({ try { Start-LeaveSoon } catch { Write-WidgetLog ('leaving soon: ' + $_.Exception.Message); Set-CtlResult 'err' ('Leaving Soon error: ' + $_.Exception.Message) } })
 $ui.LeaveStopBtn.Add_Click({ try { Stop-LeaveSoon } catch { Write-WidgetLog ('leaving soon stop: ' + $_.Exception.Message) } })
 # v4.3.16: wait boxes (digits only; - / + buttons, mouse wheel, Up / Down; saved on change)
-$ui.LeaveStartMin.Text = [string](Get-LeaveCfgMin 'startAfterMin'); $ui.LeaveWinMin.Text = [string](Get-LeaveCfgMin 'windowsAfterMin'); $ui.LeaveUnlockMin.Text = [string](Get-LeaveCfgMin 'unlockAfterMin'); $script:LeaveMinSaved = @(Get-LeaveMins)
+$ui.LeaveStartMin.Text = [string](Get-LeaveCfgMin 'startAfterMin'); $ui.LeaveWinMin.Text = [string](Get-LeaveCfgMin 'windowsAfterMin'); $ui.LeaveUnlockMin.Text = [string](Get-LeaveCfgMin 'unlockAfterMin'); $script:LeaveMinSaved = @(Get-LeaveMins); Load-LeaveChoices
+$ui.LeaveWinUpChk.Add_Checked({ try { Apply-LeaveChoice 'windowsUp' $true } catch {} }); $ui.LeaveWinUpChk.Add_Unchecked({ try { Apply-LeaveChoice 'windowsUp' $false } catch {} })
+$ui.LeaveWinDownChk.Add_Checked({ try { Apply-LeaveChoice 'windowsDown' $true } catch {} }); $ui.LeaveWinDownChk.Add_Unchecked({ try { Apply-LeaveChoice 'windowsDown' $false } catch {} })
+$ui.LeaveLockChk.Add_Checked({ try { Apply-LeaveChoice 'lock' $true } catch {} }); $ui.LeaveLockChk.Add_Unchecked({ try { Apply-LeaveChoice 'lock' $false } catch {} })
+$ui.LeaveUnlockChk.Add_Checked({ try { Apply-LeaveChoice 'unlock' $true } catch {} }); $ui.LeaveUnlockChk.Add_Unchecked({ try { Apply-LeaveChoice 'unlock' $false } catch {} })
 foreach ($pair in @(@($ui.LeaveStartMin, 'startAfterMin', $ui.LeaveStartDn, $ui.LeaveStartUp), @($ui.LeaveWinMin, 'windowsAfterMin', $ui.LeaveWinDn, $ui.LeaveWinUp), @($ui.LeaveUnlockMin, 'unlockAfterMin', $ui.LeaveUnlockDn, $ui.LeaveUnlockUp))) {
     $bx = $pair[0]; $ky = $pair[1]
     $bx.Add_PreviewTextInput({ param($s, $e) if ($e.Text -notmatch '^[0-9]+$') { $e.Handled = $true } })
@@ -10491,7 +10545,7 @@ function Start-SelfTest {
         if ($null -eq $script:SelfRec.v4332 -or -not $script:SelfRec.v4332.pass) { $fails += 'v4332' }
         $g = $r.guard; $g.pass = ($null -ne $g -and $g.whenWasCharging -eq $null -and $g.stopSent -eq 1 -and $g.dry -eq $true -and $g.stoppedFlag -and $null -eq $g.again)
         if (-not $g.pass) { $fails += 'guard' }
-        $sm = [ordered]@{ ver = ($AppVersion -eq '4.3.34' -and $ui.FooterVersion.Text -like ('*4.3.34*' + $AppDate)); bold = ($ui.FooterText.FontWeight -eq [System.Windows.FontWeights]::Bold -or $ui.FooterText.FontWeight.ToString() -match 'Bold|Black') }
+        $sm = [ordered]@{ ver = ($AppVersion -eq '4.3.35' -and $ui.FooterVersion.Text -like ('*4.3.35*' + $AppDate)); bold = ($ui.FooterText.FontWeight -eq [System.Windows.FontWeights]::Bold -or $ui.FooterText.FontWeight.ToString() -match 'Bold|Black') }
         $r.smoke = $sm; if (-not ($sm.ver)) { $fails += 'smoke' }
         $r.netCommandsSent = $script:NetCommandsSent; $r.announcementsSent = $script:AnnSent
         $r.summary = [ordered]@{ fails = $fails; allPass = ($fails.Count -eq 0 -and $script:NetCommandsSent -eq 0 -and $script:AnnSent -eq 0) } }
@@ -10528,8 +10582,19 @@ function Start-SelfTest {
             $r4334.pass = ($r4334.passHeights -and $r4334.passShortUnchanged -and $r4334.climateBlock)
             $script:SelfRec.v4334 = $r4334
         } catch { $script:SelfRec.v4334 = [ordered]@{ pass=$false; error=$_.Exception.Message } }
+
+        # v4.3.35 block: Leaving Soon choices pure + recorded scenario summary
+        try {
+            $r4335 = [ordered]@{}
+            $r4335.labels = @($ui.LeaveWinUpChk.Content.Text, $ui.LeaveWinDownChk.Content.Text, $ui.LeaveLockChk.Content.Text, $ui.LeaveUnlockChk.Content.Text)
+            $r4335.exists = ($null -ne $ui.LeaveWinUpChk -and $null -ne $ui.LeaveWinDownChk -and $null -ne $ui.LeaveLockChk -and $null -ne $ui.LeaveUnlockChk)
+            $r4335.downOnly = $script:SelfRec.v4335down; $r4335.upOnly = $script:SelfRec.v4335up; $r4335.lockOnly = $script:SelfRec.v4335lock; $r4335.unlockOnly = $script:SelfRec.v4335unlock; $r4335.none = $script:SelfRec.v4335none; $r4335.conflict = $script:SelfRec.v4335conflict; $r4335.undoDown = $script:SelfRec.v4335undoDown; $r4335.undoLock = $script:SelfRec.v4335undoLock
+            try { $rp35 = $script:Rect4315; $a35=& $rp35 $ui.AllOffBtn; $su35=& $rp35 $ui.AnnSetupBtn; $lk35=& $rp35 $ui.LockBtn; $v35=& $rp35 $ui.VentBtn; $cw35=& $rp35 $ui.CloseWinBtn; $tr35=& $rp35 $ui.TrunkBtn; $se35=& $rp35 $ui.SentryBtn; $cp35=& $rp35 $ui.CopBtn; $an35=& $rp35 $ui.AnnNowBtn; $r4335.layout=[ordered]@{ allOff=$a35; setup=$su35; lock=$lk35; vent=$v35; closeWin=$cw35; trunk=$tr35; sentry=$se35; cop=$cp35; announce=$an35; pass=(($a35.y -lt $lk35.y) -and ([math]::Abs($a35.y-$su35.y) -le 2) -and ([math]::Abs($v35.y-$cw35.y) -le 2) -and ([math]::Abs($v35.y-$tr35.y) -le 2) -and ([math]::Abs(($se35.y+$se35.h/2)-($cp35.y+$cp35.h/2)) -le 2) -and ($se35.y -gt $tr35.y) -and ($ui.AllOffBtn.Height -eq 31) -and ($ui.AnnSetupBtn.Height -eq 31) -and ($ui.CopBtn.Height -eq 37) -and ($ui.SentryBtn.Height -eq 31)) } } catch { $r4335.layout=[ordered]@{pass=$false;error=$_.Exception.Message} }
+            $r4335.pass = ($r4335.layout.pass -and $r4335.exists -and ($r4335.labels -join ',') -eq 'WINDOWS UP,WINDOWS DOWN,LOCK,UNLOCK' -and (($r4335.downOnly.cmds -join ',') -eq 'start_climate,vent_windows') -and (($r4335.upOnly.cmds -join ',') -eq 'start_climate,close_windows') -and (($r4335.lockOnly.cmds -join ',') -eq 'start_climate,lock') -and (($r4335.unlockOnly.cmds -join ',') -eq 'start_climate,unlock') -and (($r4335.none.cmds -join ',') -eq 'start_climate') -and $r4335.none.saved.windowsDown -and $r4335.none.saved.lock -and $r4335.none.reloaded.windowsDown -and $r4335.none.reloaded.lock -and $r4335.conflict.afterDown.windowsDown -and -not $r4335.conflict.afterDown.windowsUp -and $r4335.conflict.afterUp.windowsUp -and -not $r4335.conflict.afterUp.windowsDown -and (($r4335.undoDown.undoCmds -join ',') -match 'close_windows') -and (($r4335.undoLock.undoCmds -join ',') -match 'unlock'))
+            $script:SelfRec.v4335 = $r4335
+        } catch { $script:SelfRec.v4335 = [ordered]@{ pass=$false; error=$_.Exception.Message } }
         $r.smoke = [ordered]@{ appVersion = $AppVersion; footer = $ui.FooterVersion.Text; brand = $ui.FooterText.Text; bold = [string]$ui.FooterText.FontWeight; hookLines = $hook; hookBeforeShowDialog = $before; width = $window.Width; renderError = $err; dryRun = $CTL_DRYRUN; realCmdLog = $real
-            pass = ($AppVersion -eq '4.3.34' -and $ui.FooterVersion.Text -like ('*4.3.34*' + $AppDate) -and [string]$ui.FooterText.FontWeight -eq 'Bold' -and $hook -eq 1 -and $before -and $null -eq $err -and $CTL_DRYRUN -and [math]::Abs($window.Width - $winW) -lt 1) }
+            pass = ($AppVersion -eq '4.3.35' -and $ui.FooterVersion.Text -like ('*4.3.35*' + $AppDate) -and [string]$ui.FooterText.FontWeight -eq 'Bold' -and $hook -eq 1 -and $before -and $null -eq $err -and $CTL_DRYRUN -and [math]::Abs($window.Width - $winW) -lt 1) }
         $fails = @(); foreach ($k in 'pure', 'collapsed', 'place', 'expanded', 'calTags', 'showAll', 'fresh', 'smoke') { if ($null -eq $r[$k] -or -not $r[$k].pass) { $fails += $k } }
         $r.summary = [ordered]@{ fails = $fails; allPass = ($fails.Count -eq 0) } }
     & $add 'v4.3.22 summary' @() {
@@ -11500,6 +11565,28 @@ function Start-SelfTest {
     & $add 'v4.3.16 back to 3 / 3 min, close' @() { Stop-LeaveSoon; $script:LeaveFakeStart = $null; Set-LeaveMin $ui.LeaveWinMin 3; Set-LeaveMin $ui.LeaveUnlockMin 3
         $raw = Get-Content -LiteralPath $ConfigPath -Raw -Encoding UTF8 | ConvertFrom-Json; $script:SelfRec.v4316.finalSaved = @($raw.leavingSoon.windowsAfterMin, $raw.leavingSoon.unlockAfterMin)
         $script:SelfRec.v4316.hookLine = ((Get-Content -LiteralPath (Join-Path $scriptDir 'TessDesk.ps1') -Encoding UTF8 | Where-Object { $_ -like "try { . 'C:\Users\vanwi\cb_compact_addon.ps1'*" }).Count) }
+
+    # ---- v4.3.35: Leaving Soon WINDOWS UP/DOWN + LOCK/UNLOCK choices ----
+    $script:Rec4335 = { $L=$script:Leave; [ordered]@{ choices=(Get-LeaveUiChoices); steps=@((Get-LeaveRunSteps)|ForEach-Object{$_.cmd}); cmds=@($L.log|Where-Object{$_.kind -eq 'step'}|ForEach-Object{$_.cmd}); undoCmds=@($L.log|Where-Object{$_.kind -eq 'undo'}|ForEach-Object{$_.cmd}); done=@($L.doneCmds); result=$L.result; phase=$L.phase } }
+    $script:SetChoice4335 = { param($w,$d) Apply-LeaveChoice 'windowsUp' $false; Apply-LeaveChoice 'windowsDown' $false; Apply-LeaveChoice 'lock' $false; Apply-LeaveChoice 'unlock' $false; if ($w -eq 'up') { Apply-LeaveChoice 'windowsUp' $true } elseif ($w -eq 'down') { Apply-LeaveChoice 'windowsDown' $true }; if ($d -eq 'lock') { Apply-LeaveChoice 'lock' $true } elseif ($d -eq 'unlock') { Apply-LeaveChoice 'unlock' $true }; Set-LeaveMin $ui.LeaveWinMin 0; Set-LeaveMin $ui.LeaveUnlockMin 0; Set-LeaveMin $ui.LeaveStartMin 0 }
+    & $add 'v4.3.35 choices defaults + labels + conflict (last checked wins)' @() { $r=[ordered]@{}; $r.labels=@($ui.LeaveWinUpChk.Content.Text,$ui.LeaveWinDownChk.Content.Text,$ui.LeaveLockChk.Content.Text,$ui.LeaveUnlockChk.Content.Text); $r.default=(Get-LeaveChoicesFromCfg); Apply-LeaveChoice 'windowsDown' $true; $r.afterDown=(Get-LeaveUiChoices); Apply-LeaveChoice 'windowsUp' $true; $r.afterUp=(Get-LeaveUiChoices); Apply-LeaveChoice 'lock' $true; $r.afterLock=(Get-LeaveUiChoices); Apply-LeaveChoice 'unlock' $true; $r.afterUnlock=(Get-LeaveUiChoices); $script:SelfRec.v4335conflict=$r }
+    & $add 'v4.3.35 down only (DRY RUN)' @($true) { & $script:SetChoice4335 'down' 'none'; Stop-LeaveSoon; $script:LeaveFakeStart=$script:NoUndo4316; Start-LeaveSoon; & $script:Wait4315 { -not $script:Leave.running -and $null -eq $script:Leave.job } }
+    & $add 'v4.3.35 down only result' @() { $script:SelfRec.v4335down=(& $script:Rec4335) }
+    & $add 'v4.3.35 up only (DRY RUN)' @($true) { & $script:SetChoice4335 'up' 'none'; Stop-LeaveSoon; $script:LeaveFakeStart=$script:NoUndo4316; Start-LeaveSoon; & $script:Wait4315 { -not $script:Leave.running -and $null -eq $script:Leave.job } }
+    & $add 'v4.3.35 up only result' @() { $script:SelfRec.v4335up=(& $script:Rec4335) }
+    & $add 'v4.3.35 lock only (DRY RUN)' @($true) { & $script:SetChoice4335 'none' 'lock'; Stop-LeaveSoon; $script:LeaveFakeStart=$script:NoUndo4316; Start-LeaveSoon; & $script:Wait4315 { -not $script:Leave.running -and $null -eq $script:Leave.job } }
+    & $add 'v4.3.35 lock only result' @() { $script:SelfRec.v4335lock=(& $script:Rec4335) }
+    & $add 'v4.3.35 unlock only (DRY RUN)' @($true) { & $script:SetChoice4335 'none' 'unlock'; Stop-LeaveSoon; $script:LeaveFakeStart=$script:NoUndo4316; Start-LeaveSoon; & $script:Wait4315 { -not $script:Leave.running -and $null -eq $script:Leave.job } }
+    & $add 'v4.3.35 unlock only result' @() { $script:SelfRec.v4335unlock=(& $script:Rec4335) }
+    & $add 'v4.3.35 unchecked means no window/door command (DRY RUN)' @($true) { & $script:SetChoice4335 'none' 'none'; Stop-LeaveSoon; $script:LeaveFakeStart=$script:NoUndo4316; Start-LeaveSoon; & $script:Wait4315 { -not $script:Leave.running -and $null -eq $script:Leave.job } }
+    & $add 'v4.3.35 unchecked result + persistence file' @() { $r=(& $script:Rec4335); & $script:SetChoice4335 'down' 'lock'; $raw=Get-Content -LiteralPath $ConfigPath -Raw -Encoding UTF8 | ConvertFrom-Json; $r.saved=[ordered]@{windowsUp=$raw.leavingSoon.windowsUp;windowsDown=$raw.leavingSoon.windowsDown;lock=$raw.leavingSoon.lock;unlock=$raw.leavingSoon.unlock}; Set-LeaveChoiceChecks ([ordered]@{windowsUp=$true;windowsDown=$false;lock=$false;unlock=$true}); Load-LeaveChoices; $r.reloaded=(Get-LeaveUiChoices); $script:SelfRec.v4335none=$r }
+    & $add 'v4.3.35 stop/undo vented windows (DRY RUN, run to door wait)' @($true) { & $script:SetChoice4335 'down' 'lock'; Set-LeaveMin $ui.LeaveWinMin 0; Set-LeaveMin $ui.LeaveUnlockMin 1; Stop-LeaveSoon; $script:LeaveFakeStart=(& $script:Fake4316 $false 0 $false); Start-LeaveSoon; & $script:Wait4315 { $script:Leave.phase -eq 'wait' -and $script:Leave.step -eq 2 } }
+    & $add 'v4.3.35 stop/undo vented windows press Stop' @() { & $script:Click4316 $ui.LeaveStopBtn; & $script:Wait4315 { -not $script:Leave.running -and -not $script:Leave.undoing -and $null -eq $script:Leave.job } }
+    & $add 'v4.3.35 stop/undo vented result (close_windows, stop_climate)' @() { $script:SelfRec.v4335undoDown=(& $script:Rec4335) }
+    & $add 'v4.3.35 stop/undo lock in flight (DRY RUN)' @($true) { & $script:SetChoice4335 'none' 'lock'; Stop-LeaveSoon; $script:LeaveFakeStart=(& $script:Fake4316 $false 0 $false); Start-LeaveSoon; & $script:Wait4315 { $null -ne $script:Leave.job -and $script:Leave.job.cmd -eq 'lock' } }
+    & $add 'v4.3.35 stop/undo lock press Stop' @() { & $script:Click4316 $ui.LeaveStopBtn; & $script:Wait4315 { -not $script:Leave.running -and -not $script:Leave.undoing -and $null -eq $script:Leave.job -and $script:Leave.phase -eq 'cancelled' } }
+    & $add 'v4.3.35 stop/undo lock result (unlock undo)' @() { $script:SelfRec.v4335undoLock=(& $script:Rec4335); & $script:SetChoice4335 'up' 'unlock'; $script:LeaveFakeStart=$null }
+    & $add 'v4.3.35 summary (choices scenarios + layout, recomputed after scenarios)' @() { try { $r4335=[ordered]@{}; $r4335.labels=@($ui.LeaveWinUpChk.Content.Text,$ui.LeaveWinDownChk.Content.Text,$ui.LeaveLockChk.Content.Text,$ui.LeaveUnlockChk.Content.Text); $r4335.exists=($null -ne $ui.LeaveWinUpChk); $r4335.downOnly=$script:SelfRec.v4335down; $r4335.upOnly=$script:SelfRec.v4335up; $r4335.lockOnly=$script:SelfRec.v4335lock; $r4335.unlockOnly=$script:SelfRec.v4335unlock; $r4335.none=$script:SelfRec.v4335none; $r4335.conflict=$script:SelfRec.v4335conflict; $r4335.undoDown=$script:SelfRec.v4335undoDown; $r4335.undoLock=$script:SelfRec.v4335undoLock; $rp35=$script:Rect4315; $a35=& $rp35 $ui.AllOffBtn; $su35=& $rp35 $ui.AnnSetupBtn; $lk35=& $rp35 $ui.LockBtn; $v35=& $rp35 $ui.VentBtn; $cw35=& $rp35 $ui.CloseWinBtn; $tr35=& $rp35 $ui.TrunkBtn; $se35=& $rp35 $ui.SentryBtn; $cp35=& $rp35 $ui.CopBtn; $aos35=& $rp35 $ui.AllOffSetBtn; $r4335.layout=[ordered]@{allOffSet=$aos35;allOff=$a35;setup=$su35;lock=$lk35;vent=$v35;closeWin=$cw35;trunk=$tr35;sentry=$se35;cop=$cp35;pass=(($a35.y -lt $lk35.y) -and ([math]::Abs($a35.y-$su35.y) -le 2) -and ([math]::Abs($v35.y-$cw35.y) -le 2) -and ([math]::Abs($v35.y-$tr35.y) -le 2) -and ([math]::Abs(($se35.y+$se35.h/2)-($cp35.y+$cp35.h/2)) -le 2) -and ($se35.y -gt $tr35.y) -and ($ui.AllOffBtn.Height -eq 31) -and ($aos35.w -le 30) -and ($ui.AnnSetupBtn.Height -eq 31) -and ($ui.CopBtn.Height -eq 37) -and ($ui.SentryBtn.Height -eq 31))}; $r4335.pass=($r4335.layout.pass -and $r4335.exists -and (($r4335.labels -join ',') -eq 'WINDOWS UP,WINDOWS DOWN,LOCK,UNLOCK') -and (($r4335.downOnly.cmds -join ',') -eq 'start_climate,vent_windows') -and (($r4335.upOnly.cmds -join ',') -eq 'start_climate,close_windows') -and (($r4335.lockOnly.cmds -join ',') -eq 'start_climate,lock') -and (($r4335.unlockOnly.cmds -join ',') -eq 'start_climate,unlock') -and (($r4335.none.cmds -join ',') -eq 'start_climate') -and $r4335.none.saved.windowsDown -and $r4335.none.saved.lock -and $r4335.none.reloaded.windowsDown -and $r4335.none.reloaded.lock -and $r4335.conflict.afterDown.windowsDown -and -not $r4335.conflict.afterDown.windowsUp -and $r4335.conflict.afterUp.windowsUp -and -not $r4335.conflict.afterUp.windowsDown -and (($r4335.undoDown.undoCmds -join ',') -match 'close_windows') -and (($r4335.undoLock.undoCmds -join ',') -match 'unlock')); $script:SelfRec.v4335=$r4335 } catch { $script:SelfRec.v4335=[ordered]@{pass=$false;error=$_.Exception.Message} } }
     # ---- v4.3.17: layout (TESLA CONTROLS first, START / STOP under it) + CHARGE HISTORY & TOTALS dropdown (remembered in config.json ui.historyOpen) ----
     $script:SelfRec.v4317 = [ordered]@{ appVersion = $AppVersion; footer = $ui.FooterVersion.Text; footerBrand = $ui.FooterText.Text; footerBold = [string]$ui.FooterText.FontWeight; atStart = $script:SelfRec.v4317pre }
     $script:Shot4317 = { param($n) $f = 'tessdesk-v4317-' + $n + '.png'; Save-RootPng (Join-Path $script:SelfDir $f); $script:SelfRec.shots += $f }

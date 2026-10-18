@@ -2,7 +2,7 @@
    Everything (name, Tessie token, vehicle, rates) is stored in localStorage on this device only. */
 (function () {
   'use strict';
-/* TessDesk phone v4.3.32 (update TAB always visible: red NO UPDATE / green YES UPDATE, background staging + one-tap apply; TESLA CONTROLS: LOCK/FLASH/OVERHEAT top, A/C and HEAT matched ON/OFF wording with temp -/+ on the same line). v4.3.29 (DESIGN BY VAN). v4.3.29: SECTIONS with green outlines (Skip confirm + PSO bill match own sections, Health history in Battery, Trips dropdown). v4.3.28: Alexa limit notice + monthly counter, lean, home-only, no test announcements; ALL OFF never starts charging; flash pause = typed value. v4.3.27: Voice Monkey button (placeholder). v4.3.26: ALL OFF in TESLA CONTROLS. v4.3.25: CHARGING SCHEDULE reaches the car on firmware 2024.26+ (charge schedules, checked after each send). v4.3.24: FINISH BY defaults to 6:00 AM. v4.3.23: CHARGING SCHEDULE in the CHARGING card (START AT + FINISH BY, set on the car through Tessie). v4.3.22: CHARGE column in HEALTH HISTORY (highest charge % per day + Home / AC / Supercharger). v4.3.21: HEALTH HISTORY under START / STOP in the CHARGING card + CALIBRATION INFO; history runs fully in the app. v4.3.20: HEALTH HISTORY dropdown. Pure logic + UI for: PLUG-IN REMINDER, TRIPS, MORNING READY CHECK,
+/* TessDesk phone v4.3.35 (Leaving Soon WINDOWS UP/DOWN + LOCK/UNLOCK choices; Tesla Controls: ALL OFF+SETUP top, SENTRY+OVERHEAT low, VENT/CLOSE/TRUNK row). v4.3.32 (update TAB always visible: red NO UPDATE / green YES UPDATE, background staging + one-tap apply; TESLA CONTROLS: LOCK/FLASH/OVERHEAT top, A/C and HEAT matched ON/OFF wording with temp -/+ on the same line). v4.3.29 (DESIGN BY VAN). v4.3.29: SECTIONS with green outlines (Skip confirm + PSO bill match own sections, Health history in Battery, Trips dropdown). v4.3.28: Alexa limit notice + monthly counter, lean, home-only, no test announcements; ALL OFF never starts charging; flash pause = typed value. v4.3.27: Voice Monkey button (placeholder). v4.3.26: ALL OFF in TESLA CONTROLS. v4.3.25: CHARGING SCHEDULE reaches the car on firmware 2024.26+ (charge schedules, checked after each send). v4.3.24: FINISH BY defaults to 6:00 AM. v4.3.23: CHARGING SCHEDULE in the CHARGING card (START AT + FINISH BY, set on the car through Tessie). v4.3.22: CHARGE column in HEALTH HISTORY (highest charge % per day + Home / AC / Supercharger). v4.3.21: HEALTH HISTORY under START / STOP in the CHARGING card + CALIBRATION INFO; history runs fully in the app. v4.3.20: HEALTH HISTORY dropdown. Pure logic + UI for: PLUG-IN REMINDER, TRIPS, MORNING READY CHECK,
    PSO BILL MATCH (on/off switch), BATTERY HEALTH TREND + TIPS. No Alexa, no toasts (in-app banners only),
    cached data only (never wakes the car). The same functions are unit-tested headlessly. */
 (function (g) {
@@ -426,8 +426,8 @@
   var CFG = window.TD_CONFIG || {};
   var VARIANT = CFG.variant || 'main';
   var P = CFG.storagePrefix || 'td:';
-  var VERSION = 'v4.3.34';
-  var VERSION_DATE = 'Oct 17, 2026';
+  var VERSION = 'v4.3.35';
+  var VERSION_DATE = 'Oct 18, 2026';
   var TZ = 'America/Chicago';
   var DEFAULT_API = 'https://api.tessie.com';
   var REFRESH_MS = 60000, CHARGES_EVERY_S = 15 * 60, HEALTH_EVERY_S = 6 * 3600, HTTP_TIMEOUT_MS = 15000, CMD_TIMEOUT_MS = 90000;
@@ -1054,25 +1054,24 @@
     var ICON_UNLOCK = '<svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.6-1.7"/></svg>';
     var ICON_SNOW = '<svg viewBox="0 0 24 24"><path d="M12 2v20M4.9 6.5l14.2 11M4.9 17.5l14.2-11M9 4l3 2 3-2M9 20l3-2 3 2"/></svg>';
     var r = '<div class="card ctl' + (cmdOk ? '' : ' off') + '"><div class="ctl-hd"><h3>Tesla controls</h3>' + (!cmdOk ? '<span class="dry">OFF</span>' : (dry ? '<span class="dry">DRY RUN</span>' : '')) + '</div>' +
-      '<div class="ctl-row2 three">' +
+      '<div class="ctl-alloff-top4335">' + allOffBtn(dis) + '<button class="cbtn gear" id="cAnnSetup" aria-label="Announce on Alexa setup" title="Setup: what the rundown includes">' + ICON_GEAR + '<small>SETUP</small></button></div>' +
+      '<div class="ctl-row2 three lockflash4335">' +
       '<button class="cbtn big' + lockCls + '" id="cLock"' + dis + '>' + (locked === false ? ICON_UNLOCK : ICON_LOCK) + '<span><b>' + lockTxt + '</b><small>' + lockSub + '</small></span></button>' +
       '<div class="cbtn flash' + (flash.running ? ' running' : '') + '" id="cFlashBox"><b>FLASH LIGHTS</b><div class="fl-row">' +
       '<input id="cFlashN" type="number" inputmode="numeric" min="1" max="20" step="1" value="' + flash.n + '" aria-label="How many flashes (1-20)"' + (flash.running || dis ? ' disabled' : '') + '>' +
       '<input id="cFlashP" class="fl-p" type="number" inputmode="decimal" min="1" max="30" step="0.5" value="' + (flash.typed != null && !flash.running ? esc(String(flash.typed)) : flash.pause.toFixed(1)) + '" aria-label="Pause between flashes, seconds (1-30)" title="Pause between flashes, seconds (1-30, 0.5 s steps). Under 3 s each flash is sent without waiting for the car."' + (flash.running || dis ? ' disabled' : '') + '>' +
       '<button class="fl-go" id="cFlash"' + (flash.running ? '' : dis) + '>' + (flash.running ? 'STOP' : 'FLASH') + '</button></div>' +
       '<small>' + (flash.running ? 'Flashing ' + Math.max(1, flash.done) + ' of ' + flash.total + (flashGap() !== null ? ' \u00b7 ~' + flashGap().toFixed(1) + 's apart' : '') : 'flashes \u00b7 pause s') + '</small></div>' +
-      copBtn4332(car, dis) + '</div>' +
+      '</div>' +
       climateBlock4333(car, dis, clim, tC) +
       (flashStats() ? '<div class="fl-stats" id="cFlashStats" title="Flash lights: response time of each flash request (sent until Tessie answered), average, and the measured gap between successful flashes">' + flashStats() + '</div>' : '') +
       '<div class="ctl-row3b">' +
       '<button class="cbtn' + (win ? ' state' : '') + '" id="cVent"' + dis + '><b>VENT</b><small>' + (win ? 'VENTED / OPEN' : 'WINDOWS') + '</small></button>' +
       '<button class="cbtn' + (win === false ? ' state' : '') + '" id="cClose"' + dis + '><b>CLOSE</b><small>' + (win === false ? 'ALL CLOSED' : 'WINDOWS') + '</small></button>' +
-      defrostBtn4332(car, dis) + '</div>' +   // v4.3.32
-      trunkSentryRow(car, dis) +
+      trunkBtn4335(car, dis) + '</div>' +
+      sentryCopRow4335(car, dis) +
       (window.TDLeave ? TDLeave.html('main') : '') +   // v4.3.16 LEAVING SOON (leave.js)
-      '<div class="ann-row"><button class="cbtn ann" id="cAnnounce"><b>🔊 ANNOUNCE<span class="ann-long"> ON ALEXA</span></b><small>' + (annReady() ? (vmUse().blocked ? '<span class="vm-lim">' + esc(vmUseText()) + '</span>' : 'full status · ' + esc(targetsLabel(annTargets('rundown'))) + ' · ' + vmUse().count + '/' + VM_LIMIT) : 'set up Alexa (Connected apps)') + '</small></button>' +
-      allOffBtn(dis) +
-      '<button class="cbtn gear" id="cAnnSetup" aria-label="Announce on Alexa setup" title="Setup: what the rundown includes">' + ICON_GEAR + '<small>SETUP</small></button></div>' +
+      '<div class="ann-row ann-only4335"><button class="cbtn ann" id="cAnnounce"><b>🔊 ANNOUNCE<span class="ann-long"> ON ALEXA</span></b><small>' + (annReady() ? (vmUse().blocked ? '<span class="vm-lim">' + esc(vmUseText()) + '</span>' : 'full status · ' + esc(targetsLabel(annTargets('rundown'))) + ' · ' + vmUse().count + '/' + VM_LIMIT) : 'set up Alexa (Connected apps)') + '</small></button></div>' +
       '<div class="ctl-msg ' + ctlMsg.kind + '">' + (ctlMsg.kind === 'busy' ? '<span class="spin"></span>' : '') + '<span>' + esc(!cmdOk ? 'Commands are off: you did not allow TessDesk to send vehicle commands (Settings \u2192 Permissions).' : (ctlMsg.text || (dry ? 'Dry run: buttons are simulated, nothing is sent' : 'Ready'))) + '</span></div>' + skipRow() + '</div>';
     return r;
   }
@@ -1083,6 +1082,8 @@
       '<button class="cbtn' + (tr ? ' warn' : '') + '" id="cTrunk"' + dis + '><b>' + (tr ? 'TRUNK OPEN' : 'OPEN TRUNK') + '</b><small>' + (tr == null ? 'state unknown' : (tr ? 'tap to close' : 'rear · closed')) + '</small></button>' +
       '<button class="cbtn' + (se ? ' state' : '') + '" id="cSentry"' + dis + '><b>SENTRY MODE</b><small>' + (se == null ? 'state unknown' : (se ? 'ON · tap to turn off' : 'OFF · tap to turn on')) + '</small></button></div>';
   }
+  function trunkBtn4335(car, dis) { var tr = ctlVal('trunkOpen', car.trunkOpen); return '<button class="cbtn' + (tr ? ' warn' : '') + '" id="cTrunk"' + dis + '><b>' + (tr ? 'TRUNK OPEN' : 'OPEN TRUNK') + '</b><small>' + (tr == null ? 'state unknown' : (tr ? 'tap to close' : 'rear \u00b7 closed')) + '</small></button>'; }
+  function sentryCopRow4335(car, dis) { var se = ctlVal('sentry', car.sentry); return '<div class="ctl-row3b sentry-cop4335">' + '<button class="cbtn' + (se ? ' state' : '') + '" id="cSentry"' + dis + '><b>SENTRY MODE</b><small>' + (se == null ? 'state unknown' : (se ? 'ON \u00b7 tap to turn off' : 'OFF \u00b7 tap to turn on')) + '</small></button>' + copBtn4332(car, dis) + defrostBtn4332(car, dis) + '</div>'; }
   function onTrunk() {
     var c = curCar(); if (!c) return; var open = !!ctlVal('trunkOpen', c.trunkOpen);
     if (open) askCf('trunk', 'Are you sure?', 'Close trunk', 'Close the rear trunk? Make sure nothing and no one is in the way.').then(function (ok) { if (ok) runCmd('activate_rear_trunk', {}, 'Closing the trunk…', 'Trunk closing', function () { setOv('trunkOpen', false); }, 'Your Tesla trunk is closing.'); else { ctlMsg = { kind: 'idle', text: 'Trunk left open' }; render(); } });
