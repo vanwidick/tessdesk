@@ -1,4 +1,4 @@
-/* TessDesk LEAVING SOON v4.3.36 (phone; own LEAVING SOON section after Tesla Controls on the main app, standalone page unchanged). v4.3.35: explicit persisted WINDOWS UP / WINDOWS DOWN and LOCK / UNLOCK checkboxes (td:leaveChoices), mutually exclusive per pair (last checked wins), unchecked stage skipped, defaults WINDOWS UP + UNLOCK preserve prior close_windows + unlock; WINDOWS DOWN = vent_windows, LOCK = lock; Stop/undo reverses chosen actions where start state supports it. Design by Van. v4.3.19: 'Start after' (0-120 min, default 0) waits before the sequence begins;
+/* TessDesk LEAVING SOON v4.3.37 (phone; climate checkboxes CLIMATE ON/OFF, A/C, HEAT + HEATED DRIVER SEAT + STEERING WHEEL HEATER at Start after; own LEAVING SOON section after Tesla Controls). v4.3.36 (phone; own LEAVING SOON section after Tesla Controls on the main app, standalone page unchanged). v4.3.35: explicit persisted WINDOWS UP / WINDOWS DOWN and LOCK / UNLOCK checkboxes (td:leaveChoices), mutually exclusive per pair (last checked wins), unchecked stage skipped, defaults WINDOWS UP + UNLOCK preserve prior close_windows + unlock; WINDOWS DOWN = vent_windows, LOCK = lock; Stop/undo reverses chosen actions where start state supports it. Design by Van. v4.3.19: 'Start after' (0-120 min, default 0) waits before the sequence begins;
    Stop during it just cancels (nothing to undo); the same timestamp catch-up and 30-minute late limit apply to that step.
    Shared by the main phone app (TESLA CONTROLS) and the standalone Leaving Soon page (leaving/). Same behavior as desktop v4.3.16:
    confirm -> read the start state (Tessie GET /{vin}/state?use_cache=true, never wakes the car; fallback = last TessDesk refresh)
@@ -20,21 +20,104 @@
   var MAXMIN = 30, DEFMIN = 3, STARTMAX = 120, DEFSTART = 0, CMD_TIMEOUT = 90000, READ_TIMEOUT = 8000, STALE_SEND = 100000, LATE_NOTE = 3000, OWNER_STALE = 4000;
   var TAB = Math.random().toString(36).slice(2, 10);
   var STEP_CLIMATE = { cmd: 'start_climate', kind2: 'climate', doing: 'turning on climate', next: 'climate on', done: 'climate on', label: 'Climate', name: 'Climate on', what: 'turn on climate', spoken: 'Leaving Soon: climate is now on.' };
+  var STEP_CLIMATE_OFF = { cmd: 'stop_climate', kind2: 'climate', doing: 'turning climate off', next: 'climate off', done: 'climate off', label: 'Climate off', name: 'Climate off', what: 'turn off climate', spoken: 'Leaving Soon: climate is now off.' };
   var STEP_WINUP = { cmd: 'close_windows', kind2: 'windows', doing: 'closing windows', next: 'close windows', done: 'windows closed', label: 'Windows up', name: 'Close windows', what: 'close the windows', spoken: 'Leaving Soon: the windows are now closed.' };
   var STEP_WINDOWN = { cmd: 'vent_windows', kind2: 'windows', doing: 'venting windows', next: 'vent windows', done: 'windows vented', label: 'Windows down', name: 'Vent windows', what: 'vent the windows', spoken: 'Leaving Soon: the windows are now vented.' };
   var STEP_LOCK = { cmd: 'lock', kind2: 'doors', doing: 'locking', next: 'lock', done: 'locked', label: 'Lock', name: 'Lock', what: 'lock your Tesla', spoken: 'Leaving Soon: your Tesla is now locked.' };
   var STEP_UNLOCK = { cmd: 'unlock', kind2: 'doors', doing: 'unlocking', next: 'unlock', done: 'unlocked', label: 'Unlock', name: 'Unlock', what: 'unlock your Tesla', spoken: 'Leaving Soon: your Tesla is now unlocked.' };
   var STEPS = [STEP_CLIMATE, STEP_WINUP, STEP_UNLOCK];
-  function choices() { var c = load('leaveChoices', null) || {}; var hasW = c.windowsUp != null || c.windowsDown != null, hasD = c.lock != null || c.unlock != null; var wu = hasW ? !!c.windowsUp : true, wd = hasW ? !!c.windowsDown : false, lk = hasD ? !!c.lock : false, ul = hasD ? !!c.unlock : true; if (wu && wd) wd = false; if (lk && ul) lk = false; return { windowsUp: wu, windowsDown: wd, lock: lk, unlock: ul, windows: wu ? 'up' : (wd ? 'down' : 'none'), doors: lk ? 'lock' : (ul ? 'unlock' : 'none') }; }
-  function setChoice(name, on) { var c = choices(); if (on) { if (name === 'windowsUp') { c.windowsUp = true; c.windowsDown = false; } else if (name === 'windowsDown') { c.windowsDown = true; c.windowsUp = false; } else if (name === 'lock') { c.lock = true; c.unlock = false; } else if (name === 'unlock') { c.unlock = true; c.lock = false; } } else { c[name] = false; } c.windows = c.windowsUp ? 'up' : (c.windowsDown ? 'down' : 'none'); c.doors = c.lock ? 'lock' : (c.unlock ? 'unlock' : 'none'); save('leaveChoices', { windowsUp: c.windowsUp, windowsDown: c.windowsDown, lock: c.lock, unlock: c.unlock }); paint(); return c; }
-  function stepsFor(c) { var s = [STEP_CLIMATE]; if (c.windows === 'up') s.push(STEP_WINUP); else if (c.windows === 'down') s.push(STEP_WINDOWN); if (c.doors === 'lock') s.push(STEP_LOCK); else if (c.doors === 'unlock') s.push(STEP_UNLOCK); return s; }
+  function normClimate(co, cf, ca, ch) {
+    if (ca && ch) ch = false; if (co && cf) cf = false;
+    if (cf && (ca || ch || co)) { co = false; ca = false; ch = false; }
+    if ((ca || ch) && co) co = false; if ((ca || ch) && cf) cf = false;
+    var mode = ch ? 'heat' : (ca ? 'ac' : (cf ? 'off' : (co ? 'on' : 'none')));
+    return { climateOn: mode === 'on', climateOff: mode === 'off', climateAc: mode === 'ac', climateHeat: mode === 'heat', climate: mode };
+  }
+  function choices() {
+    var c = load('leaveChoices', null) || {};
+    var hasW = c.windowsUp != null || c.windowsDown != null, hasD = c.lock != null || c.unlock != null;
+    var hasC = c.climateOn != null || c.climateOff != null || c.climateAc != null || c.climateHeat != null;
+    var wu = hasW ? !!c.windowsUp : true, wd = hasW ? !!c.windowsDown : false, lk = hasD ? !!c.lock : false, ul = hasD ? !!c.unlock : true;
+    var co = hasC ? !!c.climateOn : true, cf = hasC ? !!c.climateOff : false, ca = hasC ? !!c.climateAc : false, ch = hasC ? !!c.climateHeat : false;
+    var seat = !!c.heatedDriverSeat, wheel = !!c.steeringWheelHeater;
+    if (wu && wd) wd = false; if (lk && ul) lk = false;
+    var cl = normClimate(co, cf, ca, ch);
+    return { windowsUp: wu, windowsDown: wd, lock: lk, unlock: ul, windows: wu ? 'up' : (wd ? 'down' : 'none'), doors: lk ? 'lock' : (ul ? 'unlock' : 'none'), climateOn: cl.climateOn, climateOff: cl.climateOff, climateAc: cl.climateAc, climateHeat: cl.climateHeat, climate: cl.climate, heatedDriverSeat: seat, steeringWheelHeater: wheel };
+  }
+  function setChoice(name, on) {
+    var c = choices();
+    if (on) {
+      if (name === 'windowsUp') { c.windowsUp = true; c.windowsDown = false; }
+      else if (name === 'windowsDown') { c.windowsDown = true; c.windowsUp = false; }
+      else if (name === 'lock') { c.lock = true; c.unlock = false; }
+      else if (name === 'unlock') { c.unlock = true; c.lock = false; }
+      else if (name === 'climateOn') { c.climateOn = true; c.climateOff = false; c.climateAc = false; c.climateHeat = false; }
+      else if (name === 'climateOff') { c.climateOff = true; c.climateOn = false; c.climateAc = false; c.climateHeat = false; }
+      else if (name === 'climateAc') { c.climateAc = true; c.climateHeat = false; c.climateOn = false; c.climateOff = false; }
+      else if (name === 'climateHeat') { c.climateHeat = true; c.climateAc = false; c.climateOn = false; c.climateOff = false; }
+      else if (name === 'heatedDriverSeat') { c.heatedDriverSeat = true; }
+      else if (name === 'steeringWheelHeater') { c.steeringWheelHeater = true; }
+    } else { c[name] = false; }
+    c.windows = c.windowsUp ? 'up' : (c.windowsDown ? 'down' : 'none'); c.doors = c.lock ? 'lock' : (c.unlock ? 'unlock' : 'none');
+    var cl = normClimate(!!c.climateOn, !!c.climateOff, !!c.climateAc, !!c.climateHeat);
+    c.climateOn = cl.climateOn; c.climateOff = cl.climateOff; c.climateAc = cl.climateAc; c.climateHeat = cl.climateHeat; c.climate = cl.climate;
+    save('leaveChoices', { windowsUp: c.windowsUp, windowsDown: c.windowsDown, lock: c.lock, unlock: c.unlock, climateOn: c.climateOn, climateOff: c.climateOff, climateAc: c.climateAc, climateHeat: c.climateHeat, heatedDriverSeat: !!c.heatedDriverSeat, steeringWheelHeater: !!c.steeringWheelHeater });
+    paint(); return c;
+  }
+  function heatCLeave() { var c = cfg() || {}, f = (c.heatTempF != null ? +c.heatTempF : 82), x = Math.round((f - 32) * 5 / 9 * 10) / 10; return Math.min(28, x); }
+  function setTempCLeave() {
+    var cc = cachedState(), cl = cc && cc.state && cc.state.climate_state, t = cl && cl.driver_temp_setting != null ? +cl.driver_temp_setting : null;
+    if (t == null && ov.tempC && ov.tempC.until > Date.now()) t = +ov.tempC.v;
+    return t != null ? t : 20.0;
+  }
+  function climateSteps(c) {
+    var mode = c.climate;
+    if (mode === 'none') return [];
+    if (mode === 'off') return [STEP_CLIMATE_OFF];
+    if (mode === 'on') return [STEP_CLIMATE];
+    if (mode === 'ac') {
+      var tc = setTempCLeave(), txt = tc.toFixed(1);
+      return [
+        { cmd: 'set_temperatures', query: { temperature: txt }, kind2: 'climate', doing: 'setting A/C to ' + txt + ' C', next: 'A/C set', done: 'A/C set ' + txt + ' C', label: 'A/C set', name: 'A/C set', what: 'set the A/C temperature', spoken: 'Leaving Soon: cabin set to ' + txt + ' degrees.' },
+        { cmd: 'start_climate', kind2: 'climate', doing: 'turning A/C on', next: 'A/C on', done: 'A/C on', label: 'A/C', name: 'A/C on', what: 'turn on A/C', spoken: 'Leaving Soon: A/C is now on.' }
+      ];
+    }
+    if (mode === 'heat') {
+      var hc = heatCLeave(), txt = hc.toFixed(1);
+      return [
+        { cmd: 'set_temperatures', query: { temperature: txt }, kind2: 'climate', doing: 'setting heat to ' + txt + ' C', next: 'heat set', done: 'heat set ' + txt + ' C', label: 'Heat set', name: 'Heat set', what: 'set the heat temperature', spoken: 'Leaving Soon: cabin set to ' + txt + ' degrees for heat.' },
+        { cmd: 'start_climate', kind2: 'climate', doing: 'turning heat on', next: 'heat on', done: 'heat on', label: 'Heat', name: 'Heat on', what: 'turn on heat', spoken: 'Leaving Soon: heat is now on.' }
+      ];
+    }
+    return [STEP_CLIMATE];
+  }
+  function driverSeatLevel() {
+    var cc = cachedState(), cl = cc && cc.state && cc.state.climate_state, l = cl && cl.seat_heater_left != null ? +cl.seat_heater_left : null;
+    if (l == null && ov.seatFL && ov.seatFL.until > Date.now()) l = +ov.seatFL.v;
+    if (l != null && l > 0) return Math.min(3, Math.max(1, l|0));
+    return 3; // TessDesk seat heat max when driver seat is currently off
+  }
+  function comfortSteps(c) {
+    var s = [];
+    if (c.heatedDriverSeat) {
+      var lv = driverSeatLevel();
+      s.push({ cmd: 'set_seat_heat', query: { seat: 'front_left', level: String(lv) }, kind2: 'comfort', doing: 'turning driver seat heat to ' + lv, next: 'driver seat heat ' + lv, done: 'driver seat heat ' + lv, label: 'Driver seat', name: 'Driver seat heat', what: 'turn on driver seat heat', spoken: 'Leaving Soon: driver seat heat is now level ' + lv + '.' });
+    }
+    if (c.steeringWheelHeater) {
+      s.push({ cmd: 'start_steering_wheel_heater', kind2: 'comfort', doing: 'turning wheel heat on', next: 'wheel heat on', done: 'wheel heat on', label: 'Wheel heat', name: 'Wheel heat', what: 'turn on steering wheel heat', spoken: 'Leaving Soon: steering wheel heat is now on.' });
+    }
+    return s;
+  }
+  function stepsFor(c) { var s = climateSteps(c).concat(comfortSteps(c)); if (c.windows === 'up') s.push(STEP_WINUP); else if (c.windows === 'down') s.push(STEP_WINDOWN); if (c.doors === 'lock') s.push(STEP_LOCK); else if (c.doors === 'unlock') s.push(STEP_UNLOCK); return s; }
   function runSteps(L) { return (L && L.steps && L.steps.length) ? L.steps : STEPS; }
   var UNDO = {
     start_climate: { cmd: 'stop_climate', doing: 'turning climate back off', done: 'climate off', what: 'turn climate back off', spoken: 'climate is off again.' },
     close_windows: { cmd: 'vent_windows', doing: 'venting the windows', done: 'windows vented', what: 'vent the windows', spoken: 'the windows are vented again.' },
     unlock: { cmd: 'lock', doing: 'locking', done: 'locked', what: 'lock your Tesla', spoken: 'your Tesla is locked again.' },
     vent_windows: { cmd: 'close_windows', doing: 'closing windows back', done: 'windows closed', what: 'close the windows back', spoken: 'the windows are closed again.' },
-    lock: { cmd: 'unlock', doing: 'unlocking again', done: 'unlocked', what: 'unlock your Tesla again', spoken: 'your Tesla is unlocked again.' }
+    lock: { cmd: 'unlock', doing: 'unlocking again', done: 'unlocked', what: 'unlock your Tesla again', spoken: 'your Tesla is unlocked again.' },
+    set_seat_heat: { cmd: 'set_seat_heat', query: { seat: 'front_left', level: '0' }, doing: 'turning driver seat heat off', done: 'driver seat heat off', what: 'turn driver seat heat off', spoken: 'driver seat heat is off again.' },
+    start_steering_wheel_heater: { cmd: 'stop_steering_wheel_heater', doing: 'turning wheel heat off', done: 'wheel heat off', what: 'turn steering wheel heat off', spoken: 'steering wheel heat is off again.' }
   };
   var UNDO_BY = {}; Object.keys(UNDO).forEach(function (k) { UNDO_BY[UNDO[k].cmd] = UNDO[k]; });
   var opts = {}, timer = null, dueTimer = null, inflight = {}, snapping = {}, msg = '', cmdLog = [], carReadAt = 0, carBusy = false, carErr = '', ov = {};
@@ -60,7 +143,7 @@
   var clockFmt = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Chicago', hour: 'numeric', minute: '2-digit' });
   function clock(ms) { return clockFmt.format(new Date(ms)); }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (ch) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]; }); }
-  function summary(m, c) { c = c || choices(); function f(n, z, t) { return n <= 0 ? z : t.replace('{0}', n); } var w = c.windows === 'up' ? f(m[0], 'windows up right away', 'windows up {0} min later') : (c.windows === 'down' ? f(m[0], 'windows down right away', 'windows down {0} min later') : 'no windows step'); var d = c.doors === 'lock' ? f(m[1], 'lock right after', 'lock {0} min later') : (c.doors === 'unlock' ? f(m[1], 'unlock right after', 'unlock {0} min later') : 'no lock/unlock step'); return f(m[2], 'start now', 'start in {0} min') + ' \u00b7 ' + w + ' \u00b7 ' + d; }
+  function summary(m, c) { c = c || choices(); function f(n, z, t) { return n <= 0 ? z : t.replace('{0}', n); } var cl = ({ on: 'climate on', off: 'climate off', ac: 'A/C (set temp)', heat: 'heat (setpoint)' })[c.climate] || 'no climate step'; var cm = []; if (c.heatedDriverSeat) cm.push('driver seat heat'); if (c.steeringWheelHeater) cm.push('wheel heat'); if (cm.length) cl += ' \u00b7 ' + cm.join(' \u00b7 '); var w = c.windows === 'up' ? f(m[0], 'windows up right away', 'windows up {0} min later') : (c.windows === 'down' ? f(m[0], 'windows down right away', 'windows down {0} min later') : 'no windows step'); var d = c.doors === 'lock' ? f(m[1], 'lock right after', 'lock {0} min later') : (c.doors === 'unlock' ? f(m[1], 'unlock right after', 'unlock {0} min later') : 'no lock/unlock step'); return f(m[2], 'start now', 'start in {0} min') + ' \u00b7 ' + cl + ' \u00b7 ' + w + ' \u00b7 ' + d; }
   function minTxt(m) { return m + ' minute' + (m === 1 ? '' : 's'); }
   function inTxt(m, now, later) { return m <= 0 ? now : later.replace('{0}', minTxt(m)); }
   function span(ms) { var s = Math.round(ms / 1000); if (s < 90) return s + ' s'; var m = Math.round(s / 60); return m < 90 ? m + ' min' : (Math.round(m / 6) / 10) + ' h'; }
@@ -71,9 +154,11 @@
 
   // ---------- Tessie ----------
   function apiBase(c) { return String(c.apiBase || DEFAULT_API).replace(/\/+$/, ''); }
-  function command(name) {
-    var c = cfg() || {}, path = '/' + c.vin + '/command/' + name + '?wait_for_completion=true', d = dry();
-    cmdLog.push({ at: new Date().toISOString(), cmd: name, dryRun: d }); if (cmdLog.length > 40) cmdLog.shift();
+  function command(name, query) {
+    var c = cfg() || {}, q = 'wait_for_completion=true';
+    Object.keys(query || {}).forEach(function (k) { if (k === 'wait_for_completion') return; q += '&' + k + '=' + encodeURIComponent(query[k]); });
+    var path = '/' + c.vin + '/command/' + name + '?' + q, d = dry();
+    cmdLog.push({ at: new Date().toISOString(), cmd: name, query: query || {}, dryRun: d }); if (cmdLog.length > 40) cmdLog.shift();
     if (d) return new Promise(function (res, rej) { setTimeout(function () { if (window.__leaveFail === name) rej(new Error('simulated failure (dry run test)')); else res({ result: true, dryRun: true }); }, window.__leaveDryMs != null ? window.__leaveDryMs : 1400); });
     var ctl = new AbortController(), t = setTimeout(function () { ctl.abort(); }, CMD_TIMEOUT);
     return fetch(apiBase(c) + path, { method: 'POST', headers: { Authorization: 'Bearer ' + c.token, Accept: 'application/json' }, cache: 'no-store', signal: ctl.signal }).then(function (r) {
@@ -96,7 +181,9 @@
   function snapFrom(v, src) {
     var vs = (v && v.vehicle_state) || null, cl = (v && v.climate_state) || null, w = {}, known = [];
     ['fd', 'fp', 'rd', 'rp'].forEach(function (k) { var x = vs ? vs[k + '_window'] : null; w[k] = x == null ? null : +x; if (x != null) known.push(+x); });
-    return { src: src, at: Date.now(), climateOn: cl && cl.is_climate_on != null ? !!cl.is_climate_on : null, windows: w,
+    return { src: src, at: Date.now(), climateOn: cl && cl.is_climate_on != null ? !!cl.is_climate_on : null,
+      seatFL: cl && cl.seat_heater_left != null ? +cl.seat_heater_left : null,
+      wheelFlag: cl && cl.steering_wheel_heater != null ? !!cl.steering_wheel_heater : null, windows: w,
       anyOpen: known.length ? known.some(function (x) { return x !== 0; }) : null, locked: vs && vs.locked != null ? !!vs.locked : null };
   }
 
@@ -176,14 +263,16 @@
     if (!hasSetup()) { msg = 'Set up your Tessie token first.'; paint(); return; }
     if (!cmdAllowed()) { msg = 'Commands are off: allow vehicle commands first (Settings \u2192 Permissions).'; paint(); return; }
     readInputs(); readChoices(); var m = mins(), ch = choices(), rsteps = stepsFor(ch);
+    var climPh = ({ on: 'climate turns on', off: 'climate turns off', ac: 'A/C turns on at the SET TEMP from Tesla Controls', heat: 'heat turns on at the heat setpoint from Tesla Controls' })[ch.climate] || '';
     var winPh = ch.windows === 'up' ? inTxt(m[0], 'the windows close right away', 'the windows close {0} later') : (ch.windows === 'down' ? inTxt(m[0], 'the windows vent right away', 'the windows vent {0} later') : '');
     var doorPh = ch.doors === 'lock' ? inTxt(m[1], 'the car locks right after that', 'the car locks {0} after that') : (ch.doors === 'unlock' ? inTxt(m[1], 'the car unlocks right after that', 'the car unlocks {0} after that') : '');
-    var parts = [winPh, doorPh].filter(Boolean);
-    var sub = summary(m, ch) + '. ' + (m[2] > 0 ? 'Nothing happens for ' + minTxt(m[2]) + ' (Stop just cancels). Then c' : 'C') + 'limate turns on' + (parts.length ? ', ' + parts.join(', then ') : '') +
-      '. Only checked Leaving Soon actions run. Each step is announced on Alexa. Stop cancels the rest and undoes the steps already done. Keep this page open during the countdown.';
+    var parts = [climPh, winPh, doorPh].filter(Boolean);
+    var sub = summary(m, ch) + '. ' + (m[2] > 0 ? 'Nothing happens for ' + minTxt(m[2]) + ' (Stop just cancels). Then ' : '') + (parts.length ? parts.join(', then ') : 'only later steps run') +
+      '. Only checked Leaving Soon actions run. Each step is announced on Alexa. Stop cancels the rest and undoes the steps already done (climate off is not turned back on). Keep this page open during the countdown.';
     return (skipLeave() ? Promise.resolve(true) : confirmBox('Are you sure? Start Leaving Soon?', 'Start', sub)).then(function (yes) {   // v4.3.18 SKIP CONFIRM
       if (!yes) { msg = 'Leaving Soon cancelled'; paint(); return false; }
       if (active(st())) return false;
+      if (!rsteps.length) { msg = 'Leaving Soon: check at least one climate, windows, or lock action'; paint(); return false; }
       var s = spm(), now = Date.now();
       var aligned = rsteps.map(function (st, i) { return i === 0 ? 0 : (st.kind2 === 'windows' ? m[0] * s * 1000 : (st.kind2 === 'doors' ? m[1] * s * 1000 : 0)); });
       put({ v: 1, id: now.toString(36) + TAB, phase: m[2] > 0 ? 'pre' : 'snap', mins: m, spm: s, waits: aligned, startWait: m[2] * s * 1000, steps: rsteps, choices: ch, startedAt: now, step: 0, dueAt: now + (m[2] > 0 ? m[2] * s * 1000 : 0),
@@ -207,16 +296,24 @@
       fin(cs ? snapFrom(cs.state, 'last TessDesk refresh (' + clock(cs.at) + '): ' + why) : snapFrom(null, 'unknown: ' + why));
     });
   }
-  function send(L, cmd, kind) {
-    var id = L.id; L.sending = { cmd: cmd, kind: kind, at: Date.now(), by: TAB }; put(L); inflight[id] = true; paint();
+  function send(L, cmd, kind, query) {
+    var id = L.id; L.sending = { cmd: cmd, kind: kind, at: Date.now(), by: TAB, query: query || null }; put(L); inflight[id] = true; paint();
     var t0 = Date.now();
-    command(cmd).then(function (j) { return { ok: true, dry: !!(j && j.dryRun) }; }, function (e) { var w = String(e.message || e); return { ok: false, why: w.length > 90 ? w.slice(0, 90) + '\u2026' : w }; }).then(function (res) {
+    command(cmd, query || {}).then(function (j) { return { ok: true, dry: !!(j && j.dryRun) }; }, function (e) { var w = String(e.message || e); return { ok: false, why: w.length > 90 ? w.slice(0, 90) + '\u2026' : w }; }).then(function (res) {
       delete inflight[id];
       var M = st(); if (!M || M.id !== id) return;
       M.sending = null;
-      M.log = (M.log || []).concat([{ at: new Date().toISOString(), cmd: cmd, kind: kind, ok: res.ok, error: res.why || '', ms: Date.now() - t0, dryRun: res.dry }]);
+      M.log = (M.log || []).concat([{ at: new Date().toISOString(), cmd: cmd, kind: kind, ok: res.ok, error: res.why || '', ms: Date.now() - t0, dryRun: res.dry, query: query || null }]);
       try { if (opts.onCmd) opts.onCmd(cmd, res.ok, res.dry); } catch (e) {}
-      if (res.ok) { var o = { start_climate: ['climateOn', true], close_windows: ['windowsOpen', false], vent_windows: ['windowsOpen', true], unlock: ['locked', false], lock: ['locked', true], stop_climate: ['climateOn', false] }[cmd]; if (o) ov[o[0]] = { v: o[1], until: Date.now() + 180000 }; if (!res.dry && opts.ownRefresh) setTimeout(function () { readCar(true); }, 6000); }
+      if (res.ok) {
+        var o = { start_climate: ['climateOn', true], close_windows: ['windowsOpen', false], vent_windows: ['windowsOpen', true], unlock: ['locked', false], lock: ['locked', true], stop_climate: ['climateOn', false] }[cmd];
+        if (o) ov[o[0]] = { v: o[1], until: Date.now() + 180000 };
+        if (cmd === 'set_temperatures' && query && query.temperature != null) ov.tempC = { v: +query.temperature, until: Date.now() + 180000 };
+        if (cmd === 'set_seat_heat' && query && query.seat === 'front_left') ov.seatFL = { v: +(query.level || 0), until: Date.now() + 180000 };
+        if (cmd === 'start_steering_wheel_heater') ov.wheel = { v: true, until: Date.now() + 180000 };
+        if (cmd === 'stop_steering_wheel_heater') ov.wheel = { v: false, until: Date.now() + 180000 };
+        if (!res.dry && opts.ownRefresh) setTimeout(function () { readCar(true); }, 6000);
+      }
       if (kind === 'undo') completeUndo(M, cmd, res); else completeStep(M, cmd, res);
     });
   }
@@ -227,7 +324,7 @@
     if (M.phase !== 'run') { put(M); paint(); return; }
     if (!res.ok) { fail(M, s, res.why); return; }
     var txt = s.spoken;
-    if (M.step === 0) { var ch2 = M.choices || choices(), wp = ch2.windows === 'up' ? cap(inTxt(M.mins[0], 'the windows close right away', 'the windows close in {0}')) : (ch2.windows === 'down' ? cap(inTxt(M.mins[0], 'the windows vent right away', 'the windows vent in {0}')) : ''), dp = ch2.doors === 'lock' ? inTxt(M.mins[1], 'the car locks right after that', 'the car locks {0} after that') : (ch2.doors === 'unlock' ? inTxt(M.mins[1], 'the car unlocks right after that', 'the car unlocks {0} after that') : ''); txt = 'Leaving Soon: climate is now on.' + (wp || dp ? ' ' + [wp, dp].filter(Boolean).join(', and ') + '.' : ''); }
+    if (M.step === 0 && s.kind2 === 'climate') { var ch2 = M.choices || choices(), cp = ({ on: 'climate is now on', off: 'climate is now off', ac: 'A/C is turning on', heat: 'heat is turning on' })[ch2.climate] || s.spoken.replace(/^Leaving Soon: /, ''), wp = ch2.windows === 'up' ? cap(inTxt(M.mins[0], 'the windows close right away', 'the windows close in {0}')) : (ch2.windows === 'down' ? cap(inTxt(M.mins[0], 'the windows vent right away', 'the windows vent in {0}')) : ''), dp = ch2.doors === 'lock' ? inTxt(M.mins[1], 'the car locks right after that', 'the car locks {0} after that') : (ch2.doors === 'unlock' ? inTxt(M.mins[1], 'the car unlocks right after that', 'the car unlocks {0} after that') : ''); txt = 'Leaving Soon: ' + cp + '.' + (wp || dp ? ' ' + [wp, dp].filter(Boolean).join(', and ') + '.' : ''); }
     announce(M, txt, cmd);
     M.step++;
     if (M.step >= RS.length) { M.phase = 'done'; M.kind = 'ok'; M.endedAt = Date.now(); M.result = 'Leaving Soon done \u00b7 ' + RS.filter(function (x) { return M.done.indexOf(x.cmd) >= 0; }).map(function (x) { return x.done; }).join(', ') + ' \u00b7 ' + clock(M.endedAt) + dryTag(); }
@@ -247,6 +344,10 @@
     d.forEach(function (c) {
       var need = false, why = '';
       if (c === 'start_climate') { if (!sn || sn.climateOn == null) why = 'climate start state unknown, left on'; else if (!sn.climateOn) need = true; else why = 'climate was already on'; }
+      if (c === 'stop_climate') { why = 'climate was turned off, left off (no unsafe reverse)'; }
+      if (c === 'set_temperatures') { why = 'set temperature left as set (not reversed)'; }
+      if (c === 'set_seat_heat') { if (!sn || sn.seatFL == null) why = 'driver seat start state unknown, left as set'; else if (+sn.seatFL <= 0) need = true; else why = 'driver seat heat was already on'; }
+      if (c === 'start_steering_wheel_heater') { if (!sn || sn.wheelFlag == null) why = 'wheel start state unknown, left on'; else if (!sn.wheelFlag) need = true; else why = 'wheel heater was already on'; }
       if (c === 'close_windows') { if (!sn || sn.anyOpen == null) why = 'window start state unknown, left closed'; else if (sn.anyOpen) need = true; else why = 'windows were already closed'; }
       if (c === 'vent_windows') { if (!sn || sn.anyOpen == null) why = 'window start state unknown, left vented'; else if (!sn.anyOpen) need = true; else why = 'windows were already open'; }
       if (c === 'unlock') { if (!sn || sn.locked == null || sn.locked) need = true; else why = 'it was already unlocked'; }   // unknown -> lock
@@ -331,10 +432,10 @@
       var late = now - L.dueAt, step = runSteps(L)[L.step];
       if (L.step > 0 && late > MAXMIN * L.spm * 1000) { expire(L, late); return; }
       if (L.step > 0 && late > LATE_NOTE) { L.late.push({ cmd: step.cmd, dueAt: L.dueAt, ranAt: now }); note(L, step.name + ' was due at ' + clock(L.dueAt) + ' and ran at ' + clock(now) + ' (' + span(late) + ' late: the page was closed or the screen was locked).'); }
-      send(L, step.cmd, 'step'); return;
+      send(L, step.cmd, 'step', step.query); return;
     } else if (L.phase === 'undo' && !L.sending) {
       if (L.undoIdx >= L.undo.length) { finishStop(L); return; }
-      send(L, L.undo[L.undoIdx], 'undo'); return;
+      var ucmd = L.undo[L.undoIdx], uq = (UNDO_BY[ucmd] && UNDO_BY[ucmd].query) || null; send(L, ucmd, 'undo', uq); return;
     }
     if ((L.phase === 'run' || L.phase === 'pre') && !L.sending) { clearTimeout(dueTimer); dueTimer = setTimeout(tick, Math.max(0, L.dueAt - now) + 15); }   // exact due time (the 1 s timer only repaints)
     put(L); paint();
@@ -391,6 +492,8 @@
     h += '<div class="lv-waits">' + pm('s', 'Start after', m[2], STARTMAX, 3) + pm('w', 'Windows after', m[0], MAXMIN, 2) + pm('u', 'Unlock after', m[1], MAXMIN, 2) + '</div>';
     var ch = act && L.choices ? L.choices : choices();
     function chk(name, label) { return '<label class="lv-choice"><input type="checkbox" data-lvchoice="' + name + '"' + (ch[name] ? ' checked' : '') + dis + '><span>' + label + '</span></label>'; }
+    h += '<div class="lv-choices lv-clim" id="lvClimate">' + chk('climateOn', 'CLIMATE ON') + chk('climateOff', 'CLIMATE OFF') + chk('climateAc', 'A/C') + chk('climateHeat', 'HEAT') + '</div>';
+    h += '<div class="lv-choices lv-comfort" id="lvComfort">' + chk('heatedDriverSeat', 'HEATED DRIVER SEAT') + chk('steeringWheelHeater', 'STEERING WHEEL HEATER') + '</div>';
     h += '<div class="lv-choices" id="lvChoices">' + chk('windowsUp', 'WINDOWS UP') + chk('windowsDown', 'WINDOWS DOWN') + chk('lock', 'LOCK') + chk('unlock', 'UNLOCK') + '</div>';
     if (L) {
       var pct = 0, wait = L.waits ? L.waits[Math.min(L.step, L.waits.length - 1)] : 0;
@@ -400,7 +503,8 @@
       else if (L.phase === 'undo') pct = L.undo.length ? L.undoIdx / L.undo.length * 100 : 100;
       else if (!act) pct = 100;
       var dots = runSteps(L).map(function (s, i) {
-        var c = L.done.indexOf(s.cmd) >= 0 ? (L.undo && L.undoIdx > L.undo.indexOf(UNDO[s.cmd].cmd) && L.undo.indexOf(UNDO[s.cmd].cmd) >= 0 ? 'undone' : 'done') : (act && L.phase === 'run' && L.step === i ? 'cur' : (L.phase === 'failed' && L.step === i ? 'bad' : ''));
+        var uCmd = UNDO[s.cmd] ? UNDO[s.cmd].cmd : null;
+        var c = L.done.indexOf(s.cmd) >= 0 ? (uCmd && L.undo && L.undo.indexOf(uCmd) >= 0 && L.undoIdx > L.undo.indexOf(uCmd) ? 'undone' : 'done') : (act && L.phase === 'run' && L.step === i ? 'cur' : (L.phase === 'failed' && L.step === i ? 'bad' : ''));
         return '<span class="lv-dot ' + c + '">' + (c === 'done' ? '\u2713 ' : (c === 'undone' ? '\u21ba ' : (c === 'bad' ? '\u2715 ' : ''))) + s.label + '</span>';
       }).join('');
       var pending = L.phase === 'undo' || L.phase === 'stopping', stopTxt = act ? (pending ? 'STOPPING\u2026' : 'STOP') : (L.phase === 'expired' && L.done.length ? 'UNDO' : 'CLOSE');
@@ -448,7 +552,7 @@
   window.addEventListener('storage', function (e) { if (e.key === P + 'leave' || e.key === P + 'leaveChoices' || e.key === P + 'leaveMins' || e.key === P + 'cache' || e.key === P + 'skipConfirm') { if (active(st())) ensureTimer(); paint(); } });
 
   window.TDLeave = {
-    version: 'v4.3.36', skipLeave: function () { return skipLeave(); }, choices: choices, setChoice: setChoice, stepsFor: stepsFor,
+    version: 'v4.3.37', skipLeave: function () { return skipLeave(); }, choices: choices, setChoice: setChoice, stepsFor: stepsFor,
     init: function (o) { opts = o || {}; if (active(st())) { ensureTimer(); setTimeout(tick, 0); } return window.TDLeave; },
     html: html, paint: paint, start: start, stop: stop, dismiss: dismiss, tick: tick, mins: mins, setMins: function (w, u, s2) { setMins(w, u, s2); paint(); }, summary: summary,
     state: st, active: function () { return active(st()); }, cmdLog: cmdLog, hasSetup: hasSetup, cmdAllowed: cmdAllowed, readCar: readCar, car: car,

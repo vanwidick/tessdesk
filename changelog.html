@@ -31,7 +31,17 @@
   <p class="lead">Every TessDesk version (desktop widget and phone app), newest first.</p>
 
   <!-- Add each new version at the top: <section class="rel new"> ... -->
-  <section class="rel new" id="v4.3.36">
+    <section class="rel new" id="v4.3.37">
+    <h2>v4.3.37 <small>Oct 18, 2026 (desktop and phone)</small></h2>
+    <div class="tag">NEW</div>
+    <ul>
+      <li><b>Leaving Soon climate choices:</b> saved checkboxes <b>CLIMATE ON</b>, <b>CLIMATE OFF</b>, <b>A/C</b>, and <b>HEAT</b> (mutually exclusive; default CLIMATE ON keeps the old start_climate behavior). They run at the Start after stage. A/C uses Tesla Controls shared SET TEMP; HEAT uses the heat setpoint. Climate OFF is not turned back on by Stop/undo.</li>
+      <li><b>Leaving Soon comfort:</b> saved checkboxes <b>HEATED DRIVER SEAT</b> and <b>STEERING WHEEL HEATER</b> (off by default). Driver seat uses the current driver seat level if already on (1–3), otherwise level 3; wheel uses start_steering_wheel_heater. Stop/undo turns them off only when Leaving Soon turned them on (start state tracked).</li>
+      <li>Timers (Start after / Windows after / Unlock after) and WINDOWS UP/DOWN + LOCK/UNLOCK choices unchanged.</li>
+    </ul>
+  </section>
+
+<section class="rel" id="v4.3.36">
     <h2>v4.3.36 <small>Oct 18, 2026 (desktop and phone)</small></h2>
     <ul>
       <li><b>LEAVING SOON is its own section:</b> the whole Leaving Soon block (start button, Start after / Windows after / Unlock after timers, WINDOWS UP / WINDOWS DOWN and LOCK / UNLOCK choices, and its status line) has moved out of Tesla Controls into a new <b>LEAVING SOON</b> section with the same green outline and title. On the desktop it sits right after Tesla Controls by default and joins the section arrows / lock system: move it up or down, lock it at the top, and your order is remembered (existing layouts get it placed right after Tesla Controls automatically). Commands, waits, confirms, Stop / undo and announcements are unchanged.</li>

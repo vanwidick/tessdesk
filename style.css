@@ -915,3 +915,9 @@ body { overscroll-behavior-y: contain; }
 .card.leaving4336 .lv { margin-top: 0; }
 .card.leaving4336 .lv-waits .lv-w:nth-child(3) { grid-column: 1 / -1; width: 100%; max-width: 270px; margin: 0 auto; }
 .card.leaving4336 .lv-choices { justify-content: center; }
+
+/* v4.3.37: Leaving Soon climate choices */
+.lv-choices.lv-clim { margin-bottom: 4px; }
+.card.leaving4336 .lv-choices.lv-clim { justify-content: center; }
+
+.lv-choices.lv-comfort { margin-bottom: 4px; justify-content: center; }

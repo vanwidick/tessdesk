@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-# TessDesk v4.3.36 (v4.3.36: LEAVING SOON is now its own top-level section (LeaveCard / 'leaving') with the same green outline/title as TESLA CONTROLS, immediately after Tesla Controls by default; it joins the v4.3.30 section order/lock system (arrows top-left, lock top-right, order+pin persisted in config sections; existing saved orders get 'leaving' inserted right after 'controls' by Merge-SecState4330). The whole Leaving Soon UI moved out of TESLA CONTROLS: LEAVING SOON start button (now a full-width 31px button in its own section), Start after / Windows after / Unlock after timers, WINDOWS UP/DOWN + LOCK/UNLOCK persisted mutually-exclusive checkboxes, status/result LeaveRow with STOP/CLOSE and DRY RUN wording in results: ALL kept, same commands/waits/undo/confirm/Alexa behaviour. ALL OFF + SETUP stay at the top of TESLA CONTROLS exactly as v4.3.35; no other Tesla Controls change; v4.3.35: Leaving Soon explicit persisted WINDOWS UP / WINDOWS DOWN and LOCK / UNLOCK checkboxes, mutually exclusive per pair, unchecked stage skipped, defaults WINDOWS UP + UNLOCK preserve prior close_windows+unlock; v4.3.34: tall buttons halfway back up (46->37, 38->31, 36->29) after 4.3.33 made them too smashed; short buttons unchanged; v4.3.33: WHEEL ON rename + climate-gated wheel on phone too, combined CLIMATE block (A/C + HEAT + shared SET TEMP, setpoint-proxy wording), one-owner eased scrolling with signature guards, tall buttons ~40% shorter; STEERING WHEEL matches Tessie: heater flag + level set but climate off = grey SET <level> / OFF, not HEAT ON; BATTERY HEALTH is its own section (health %, as-of, trend sparkline, HEALTH HISTORY + calibration notes) right after BATTERY, Tips stays in BATTERY; UPDATE button always visible: RED 'NO UPDATE' when current, GREEN flashing 'YES UPDATE' when newer, tap checks the cloud at once and YES UPDATE installs on the spot; phone v4.3.32 gets the same NO UPDATE / YES UPDATE button; v4.3.31: TIRE REFRESH button in TIRES under REMIND ME TO GET AIR: fresh pressures via Tessie, read-only, spinner + result; v4.3.30: LAYOUT: small up/down arrows at the top left of every section move it one place; a lock at the top right pins that section and everything above it at the top, the rest scrolls; both saved; Charging locked by default; v4.3.29: SECTIONS: TESLA CONTROLS, BATTERY (with HEALTH HISTORY), HEATED SEATS, TRIPS, CHARGE HISTORY, TIRES, DRIVES, CAMERAS outlined in the CHARGING green with green titles; v4.3.28: Alexa: 'Alexa limit reached' notice, Voice Monkey monthly counter (resets the 26th 7 PM CT), fewer announcements, only when home, no test announcements; ALL OFF never starts charging (no charge commands + stops a charge that starts after it); flash pause = the typed value; v4.3.27: Voice Monkey button next to ALEXA: placeholder, 'coming soon' note only; v4.3.26: ALL OFF in TESLA CONTROLS: windows, trunk, climate, seat + wheel heat, defrost, Sentry, Climate Keeper off, lock; v4.3.25: CHARGING SCHEDULE reaches the car on firmware 2024.26+: charge schedules, checked after each send; v4.3.24: FINISH BY defaults to 6:00 AM; v4.3.23: CHARGING SCHEDULE in START / STOP: START AT + FINISH BY, set on the car through Tessie; v4.3.22: CHARGE column in HEALTH HISTORY: highest charge % per day + Home / AC / Supercharger; v4.3.21: HEALTH HISTORY under START / STOP with CALIBRATION INFO; health history logged by the app itself; v4.3.20: HEALTH HISTORY dropdown, one entry per day, kept indefinitely; v4.3.19: 30% wider; PLUG-IN REMINDER; TRIPS; MORNING READY CHECK; PSO BILL MATCH with on/off; BATTERY HEALTH TREND + TIPS; LEAVING SOON 'Start after' delay; v4.3.18 CHARGING STATUS bar under the big cost with START / STOP, fits 364x990 without scrolling; v4.3.17: TESLA CONTROLS under the big cost, CHARGE HISTORY & TOTALS dropdown; v4.3.16 LEAVING SOON: adjustable 'Windows after' / 'Unlock after' minutes, Stop undoes the steps already done; v4.3.15: climate on, close windows, unlock; rolling 7 / 14 days and 30 / 60 days $ beside the big amount; Restore / Remember at the top right with fade-in, like Paycheck Live; TOTALS pop-up: week / month / year running totals; CAMERAS panel from saved Sentry / Dashcam clips; checks for updates on open / wake; compact-when-OFF via cb_compact_addon.ps1) - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
+# TessDesk v4.3.37 (v4.3.37: Leaving Soon climate checkboxes CLIMATE ON / CLIMATE OFF / A/C / HEAT plus HEATED DRIVER SEAT + STEERING WHEEL HEATER (persisted, mutually exclusive; default CLIMATE ON preserves prior start_climate). Climate choice runs at Start after: ON=start_climate, OFF=stop_climate, A/C=set_temperatures to Tesla Controls shared SET TEMP then start_climate, HEAT=set_temperatures to heat setpoint then start_climate. Stop/undo respects climate choice (OFF not reversed). Timers and WINDOWS/LOCK choices unchanged; v4.3.36: LEAVING SOON is now its own top-level section (LeaveCard / 'leaving') with the same green outline/title as TESLA CONTROLS, immediately after Tesla Controls by default; it joins the v4.3.30 section order/lock system (arrows top-left, lock top-right, order+pin persisted in config sections; existing saved orders get 'leaving' inserted right after 'controls' by Merge-SecState4330). The whole Leaving Soon UI moved out of TESLA CONTROLS: LEAVING SOON start button (now a full-width 31px button in its own section), Start after / Windows after / Unlock after timers, WINDOWS UP/DOWN + LOCK/UNLOCK persisted mutually-exclusive checkboxes, status/result LeaveRow with STOP/CLOSE and DRY RUN wording in results: ALL kept, same commands/waits/undo/confirm/Alexa behaviour. ALL OFF + SETUP stay at the top of TESLA CONTROLS exactly as v4.3.35; no other Tesla Controls change; v4.3.35: Leaving Soon explicit persisted WINDOWS UP / WINDOWS DOWN and LOCK / UNLOCK checkboxes, mutually exclusive per pair, unchecked stage skipped, defaults WINDOWS UP + UNLOCK preserve prior close_windows+unlock; v4.3.34: tall buttons halfway back up (46->37, 38->31, 36->29) after 4.3.33 made them too smashed; short buttons unchanged; v4.3.33: WHEEL ON rename + climate-gated wheel on phone too, combined CLIMATE block (A/C + HEAT + shared SET TEMP, setpoint-proxy wording), one-owner eased scrolling with signature guards, tall buttons ~40% shorter; STEERING WHEEL matches Tessie: heater flag + level set but climate off = grey SET <level> / OFF, not HEAT ON; BATTERY HEALTH is its own section (health %, as-of, trend sparkline, HEALTH HISTORY + calibration notes) right after BATTERY, Tips stays in BATTERY; UPDATE button always visible: RED 'NO UPDATE' when current, GREEN flashing 'YES UPDATE' when newer, tap checks the cloud at once and YES UPDATE installs on the spot; phone v4.3.32 gets the same NO UPDATE / YES UPDATE button; v4.3.31: TIRE REFRESH button in TIRES under REMIND ME TO GET AIR: fresh pressures via Tessie, read-only, spinner + result; v4.3.30: LAYOUT: small up/down arrows at the top left of every section move it one place; a lock at the top right pins that section and everything above it at the top, the rest scrolls; both saved; Charging locked by default; v4.3.29: SECTIONS: TESLA CONTROLS, BATTERY (with HEALTH HISTORY), HEATED SEATS, TRIPS, CHARGE HISTORY, TIRES, DRIVES, CAMERAS outlined in the CHARGING green with green titles; v4.3.28: Alexa: 'Alexa limit reached' notice, Voice Monkey monthly counter (resets the 26th 7 PM CT), fewer announcements, only when home, no test announcements; ALL OFF never starts charging (no charge commands + stops a charge that starts after it); flash pause = the typed value; v4.3.27: Voice Monkey button next to ALEXA: placeholder, 'coming soon' note only; v4.3.26: ALL OFF in TESLA CONTROLS: windows, trunk, climate, seat + wheel heat, defrost, Sentry, Climate Keeper off, lock; v4.3.25: CHARGING SCHEDULE reaches the car on firmware 2024.26+: charge schedules, checked after each send; v4.3.24: FINISH BY defaults to 6:00 AM; v4.3.23: CHARGING SCHEDULE in START / STOP: START AT + FINISH BY, set on the car through Tessie; v4.3.22: CHARGE column in HEALTH HISTORY: highest charge % per day + Home / AC / Supercharger; v4.3.21: HEALTH HISTORY under START / STOP with CALIBRATION INFO; health history logged by the app itself; v4.3.20: HEALTH HISTORY dropdown, one entry per day, kept indefinitely; v4.3.19: 30% wider; PLUG-IN REMINDER; TRIPS; MORNING READY CHECK; PSO BILL MATCH with on/off; BATTERY HEALTH TREND + TIPS; LEAVING SOON 'Start after' delay; v4.3.18 CHARGING STATUS bar under the big cost with START / STOP, fits 364x990 without scrolling; v4.3.17: TESLA CONTROLS under the big cost, CHARGE HISTORY & TOTALS dropdown; v4.3.16 LEAVING SOON: adjustable 'Windows after' / 'Unlock after' minutes, Stop undoes the steps already done; v4.3.15: climate on, close windows, unlock; rolling 7 / 14 days and 30 / 60 days $ beside the big amount; Restore / Remember at the top right with fade-in, like Paycheck Live; TOTALS pop-up: week / month / year running totals; CAMERAS panel from saved Sentry / Dashcam clips; checks for updates on open / wake; compact-when-OFF via cb_compact_addon.ps1) - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
 param(
     [string]$ConfigPath,
     [string]$Snapshot,    # optional: folder to write PNG snapshots of both themes
@@ -15,7 +15,7 @@ Add-Type -AssemblyName System.Xaml
 
 $ErrorActionPreference = 'Stop'
 $AppName    = 'TessDesk'
-$AppVersion = '4.3.36'
+$AppVersion = '4.3.37'
 $AppDate    = 'Oct 18, 2026'
 # ---------------- v4.3.30: section ORDER (up / down arrows, top left) + LOCK (top right) ----------------
 # The lock pins that section and everything above it at the top (PinStack, never scrolls); the rest scrolls (BodyStack).
@@ -2019,7 +2019,7 @@ function Open-Url433 {
           <StackPanel>
             <TextBlock x:Name="LeaveHdr" Text="LEAVING SOON" FontSize="12.5" FontWeight="Bold" Foreground="#FF9A9A9A" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="0,0,0,4"/>
 <Button x:Name="LeaveBtn" Style="{StaticResource CtlBtn}" Height="31" Margin="0,0,0,5" Padding="5,0,5,0" VerticalAlignment="Center"
-                      ToolTip="Leaving Soon: waits Start after, then climate on, then only the checked WINDOWS UP/DOWN action after Windows after, then only the checked LOCK/UNLOCK action after Unlock after. Checking UP clears DOWN (and LOCK clears UNLOCK); unchecked means that step is skipped. Asks first; Stop cancels and undoes done steps.">
+                      ToolTip="Leaving Soon: waits Start after, then the checked climate action (CLIMATE ON / OFF / A/C / HEAT; default ON), then only the checked WINDOWS UP/DOWN action after Windows after, then only the checked LOCK/UNLOCK action after Unlock after. Climate and windows/lock pairs are mutually exclusive. A/C uses Tesla Controls SET TEMP; HEAT uses the heat setpoint. Stop undoes done steps (climate OFF is not turned back on).">
                 <TextBlock x:Name="LeaveBtnTxt" Text="LEAVING SOON" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
               </Button>
             <!-- v4.3.36: timers, grouped and centred in the LEAVING SOON section (was right-aligned in TESLA CONTROLS) -->
@@ -2045,7 +2045,18 @@ function Open-Url433 {
               <TextBlock Text="min" FontSize="9.5" FontWeight="SemiBold" Foreground="#FF9A9A9A" VerticalAlignment="Center" Margin="2,0,0,0"/>
             </StackPanel>
             </Viewbox>
-<StackPanel x:Name="LeaveChoiceRow" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,4">
+<!-- v4.3.37: Leaving Soon climate choices (persisted leavingSoon.climateOn/Off/Ac/Heat; mutually exclusive; default CLIMATE ON) -->
+            <StackPanel x:Name="LeaveClimateRow" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,3">
+              <CheckBox x:Name="LeaveClimOnChk" Style="{StaticResource SkipCfChk}" VerticalAlignment="Center" Margin="0,0,8,0" ToolTip="Leaving Soon Start after: turn climate on (start_climate)"><TextBlock Text="CLIMATE ON" FontSize="9.5" FontWeight="Bold" VerticalAlignment="Center"/></CheckBox>
+              <CheckBox x:Name="LeaveClimOffChk" Style="{StaticResource SkipCfChk}" VerticalAlignment="Center" Margin="0,0,8,0" ToolTip="Leaving Soon Start after: turn climate off (stop_climate). Stop will not turn it back on."><TextBlock Text="CLIMATE OFF" FontSize="9.5" FontWeight="Bold" VerticalAlignment="Center"/></CheckBox>
+              <CheckBox x:Name="LeaveClimAcChk" Style="{StaticResource SkipCfChk}" VerticalAlignment="Center" Margin="0,0,8,0" ToolTip="Leaving Soon Start after: A/C — set cabin to Tesla Controls shared SET TEMP, then climate on"><TextBlock Text="A/C" FontSize="9.5" FontWeight="Bold" VerticalAlignment="Center"/></CheckBox>
+              <CheckBox x:Name="LeaveClimHeatChk" Style="{StaticResource SkipCfChk}" VerticalAlignment="Center" ToolTip="Leaving Soon Start after: HEAT — set cabin to the heat setpoint (climate.heatTempF), then climate on"><TextBlock Text="HEAT" FontSize="9.5" FontWeight="Bold" VerticalAlignment="Center"/></CheckBox>
+            </StackPanel>
+            <StackPanel x:Name="LeaveComfortRow" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,3">
+              <CheckBox x:Name="LeaveSeatChk" Style="{StaticResource SkipCfChk}" VerticalAlignment="Center" Margin="0,0,8,0" ToolTip="Leaving Soon Start after: turn the driver seat heater on (set_seat_heat front_left). Uses the current driver seat level if already set (1-3), otherwise level 3."><TextBlock Text="HEATED DRIVER SEAT" FontSize="9.5" FontWeight="Bold" VerticalAlignment="Center"/></CheckBox>
+              <CheckBox x:Name="LeaveWheelChk" Style="{StaticResource SkipCfChk}" VerticalAlignment="Center" ToolTip="Leaving Soon Start after: turn the steering wheel heater on (start_steering_wheel_heater)"><TextBlock Text="STEERING WHEEL HEATER" FontSize="9.5" FontWeight="Bold" VerticalAlignment="Center"/></CheckBox>
+            </StackPanel>
+            <StackPanel x:Name="LeaveChoiceRow" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,4">
               <CheckBox x:Name="LeaveWinUpChk" Style="{StaticResource SkipCfChk}" VerticalAlignment="Center" Margin="0,0,8,0" ToolTip="Leaving Soon Windows after step: close the windows (close_windows)"><TextBlock Text="WINDOWS UP" FontSize="9.5" FontWeight="Bold" VerticalAlignment="Center"/></CheckBox>
               <CheckBox x:Name="LeaveWinDownChk" Style="{StaticResource SkipCfChk}" VerticalAlignment="Center" Margin="0,0,8,0" ToolTip="Leaving Soon Windows after step: vent / lower the windows (vent_windows)"><TextBlock Text="WINDOWS DOWN" FontSize="9.5" FontWeight="Bold" VerticalAlignment="Center"/></CheckBox>
               <CheckBox x:Name="LeaveLockChk" Style="{StaticResource SkipCfChk}" VerticalAlignment="Center" Margin="0,0,8,0" ToolTip="Leaving Soon Unlock after step: lock the doors (lock)"><TextBlock Text="LOCK" FontSize="9.5" FontWeight="Bold" VerticalAlignment="Center"/></CheckBox>
@@ -3973,6 +3984,7 @@ $ui.FlashBtn.Add_Click({ try { Invoke-FlashLights } catch { Write-WidgetLog ('fl
 $LeaveDefaultDevice = 'echo-living-room-4hqjv'
 # v4.3.35: step templates; $LeaveSteps keeps the default sequence (climate, WINDOWS UP, UNLOCK) for legacy refs.
 $LeaveStepClimate = [pscustomobject]@{ cmd = 'start_climate'; kind2 = 'climate'; doing = 'turning on climate'; next = 'climate on'; done = 'climate on'; spoken = 'Leaving Soon: climate is now on.'; what = 'turn on climate' }
+$LeaveStepClimateOff = [pscustomobject]@{ cmd = 'stop_climate'; kind2 = 'climate'; doing = 'turning climate off'; next = 'climate off'; done = 'climate off'; spoken = 'Leaving Soon: climate is now off.'; what = 'turn off climate' }
 $LeaveStepWinUp = [pscustomobject]@{ cmd = 'close_windows'; kind2 = 'windows'; doing = 'closing windows'; next = 'closing windows'; done = 'windows closed'; spoken = 'Leaving Soon: the windows are now closed.'; what = 'close the windows' }
 $LeaveStepWinDown = [pscustomobject]@{ cmd = 'vent_windows'; kind2 = 'windows'; doing = 'venting windows'; next = 'venting windows'; done = 'windows vented'; spoken = 'Leaving Soon: the windows are now vented.'; what = 'vent the windows' }
 $LeaveStepLock = [pscustomobject]@{ cmd = 'lock'; kind2 = 'doors'; doing = 'locking'; next = 'locking'; done = 'locked'; spoken = 'Leaving Soon: your Tesla is now locked.'; what = 'lock your Tesla' }
@@ -3984,6 +3996,8 @@ $LeaveUndo = @{
     unlock        = [pscustomobject]@{ cmd = 'lock'; doing = 'locking'; done = 'locked'; spoken = 'Leaving Soon undo: your Tesla is locked again.'; what = 'lock your Tesla' }
     vent_windows  = [pscustomobject]@{ cmd = 'close_windows'; doing = 'closing windows back'; done = 'windows closed'; spoken = 'Leaving Soon undo: the windows are closed again.'; what = 'close the windows back' }
     lock          = [pscustomobject]@{ cmd = 'unlock'; doing = 'unlocking again'; done = 'unlocked'; spoken = 'Leaving Soon undo: your Tesla is unlocked again.'; what = 'unlock your Tesla again' }
+    set_seat_heat = [pscustomobject]@{ cmd = 'set_seat_heat'; query = @{ seat = 'front_left'; level = '0' }; doing = 'turning driver seat heat off'; done = 'driver seat heat off'; spoken = 'Leaving Soon undo: driver seat heat is off again.'; what = 'turn driver seat heat off' }
+    start_steering_wheel_heater = [pscustomobject]@{ cmd = 'stop_steering_wheel_heater'; doing = 'turning wheel heat off'; done = 'wheel heat off'; spoken = 'Leaving Soon undo: steering wheel heat is off again.'; what = 'turn steering wheel heat off' }
 }
 $LeaveMinMax = 30; $LeaveMinDefault = 3
 $LeaveStartMax = 120; $LeaveStartDefault = 0   # v4.3.19: 'Start after' (minutes before the sequence begins)
@@ -3996,32 +4010,120 @@ function Get-LeaveCfgMin {
     if ($null -ne $l) { try { if ($null -ne $l.$Key) { $v = [int]$l.$Key } } catch {} }
     return [int][math]::Min($sp[0], [math]::Max(0, $v))
 }
+function Normalize-LeaveClimate {
+    param([bool]$On, [bool]$Off, [bool]$Ac, [bool]$Heat)
+    # mutual exclusion: A/C vs HEAT, ON vs OFF; A/C/HEAT clear ON/OFF (more specific); OFF clears modes
+    if ($Ac -and $Heat) { $Heat = $false }
+    if ($On -and $Off) { $Off = $false }
+    if ($Off -and ($Ac -or $Heat -or $On)) { $On = $false; $Ac = $false; $Heat = $false }
+    if (($Ac -or $Heat) -and $On) { $On = $false }
+    if (($Ac -or $Heat) -and $Off) { $Off = $false }
+    $mode = $(if ($Heat) { 'heat' } elseif ($Ac) { 'ac' } elseif ($Off) { 'off' } elseif ($On) { 'on' } else { 'none' })
+    return [ordered]@{ climateOn = ($mode -eq 'on'); climateOff = ($mode -eq 'off'); climateAc = ($mode -eq 'ac'); climateHeat = ($mode -eq 'heat'); climate = $mode }
+}
 function Get-LeaveChoicesFromCfg {
-    $l = Get-LeaveCfg; $hasW = $false; $hasD = $false; $wu = $false; $wd = $false; $lk = $false; $ul = $false
+    $l = Get-LeaveCfg; $hasW = $false; $hasD = $false; $hasC = $false; $wu = $false; $wd = $false; $lk = $false; $ul = $false; $co = $false; $cf = $false; $ca = $false; $ch = $false
     if ($null -ne $l) { try {
         if ($null -ne $l.PSObject.Properties['windowsUp'] -or $null -ne $l.PSObject.Properties['windowsDown']) { $hasW = $true; $wu = [bool]$l.windowsUp; $wd = [bool]$l.windowsDown }
         if ($null -ne $l.PSObject.Properties['lock'] -or $null -ne $l.PSObject.Properties['unlock']) { $hasD = $true; $lk = [bool]$l.lock; $ul = [bool]$l.unlock }
+        if ($null -ne $l.PSObject.Properties['climateOn'] -or $null -ne $l.PSObject.Properties['climateOff'] -or $null -ne $l.PSObject.Properties['climateAc'] -or $null -ne $l.PSObject.Properties['climateHeat']) {
+            $hasC = $true; $co = [bool]$l.climateOn; $cf = [bool]$l.climateOff; $ca = [bool]$l.climateAc; $ch = [bool]$l.climateHeat
+        }
     } catch {} }
     if (-not $hasW) { $wu = $true; $wd = $false }   # default preserves pre-4.3.35 behaviour: close_windows
     if (-not $hasD) { $lk = $false; $ul = $true }   # default preserves pre-4.3.35 behaviour: unlock
-    if ($wu -and $wd) { $wd = $false }              # stored conflict normalized: WINDOWS UP wins
-    if ($lk -and $ul) { $lk = $false }              # stored conflict normalized: UNLOCK wins
-    return [ordered]@{ windowsUp = [bool]$wu; windowsDown = [bool]$wd; lock = [bool]$lk; unlock = [bool]$ul; windows = $(if ($wu) { 'up' } elseif ($wd) { 'down' } else { 'none' }); doors = $(if ($lk) { 'lock' } elseif ($ul) { 'unlock' } else { 'none' }) }
+    if (-not $hasC) { $co = $true; $cf = $false; $ca = $false; $ch = $false }   # v4.3.37 default: CLIMATE ON (prior start_climate)
+    $seat = $false; $wheel = $false
+    if ($null -ne $l) { try { if ($null -ne $l.PSObject.Properties['heatedDriverSeat']) { $seat = [bool]$l.heatedDriverSeat }; if ($null -ne $l.PSObject.Properties['steeringWheelHeater']) { $wheel = [bool]$l.steeringWheelHeater } } catch {} }
+    if ($wu -and $wd) { $wd = $false }
+    if ($lk -and $ul) { $lk = $false }
+    $cl = Normalize-LeaveClimate $co $cf $ca $ch
+    return [ordered]@{ windowsUp = [bool]$wu; windowsDown = [bool]$wd; lock = [bool]$lk; unlock = [bool]$ul; windows = $(if ($wu) { 'up' } elseif ($wd) { 'down' } else { 'none' }); doors = $(if ($lk) { 'lock' } elseif ($ul) { 'unlock' } else { 'none' }); climateOn = [bool]$cl.climateOn; climateOff = [bool]$cl.climateOff; climateAc = [bool]$cl.climateAc; climateHeat = [bool]$cl.climateHeat; climate = [string]$cl.climate; heatedDriverSeat = [bool]$seat; steeringWheelHeater = [bool]$wheel }
 }
 function Get-LeaveUiChoices {
-    if ($null -ne $ui -and $null -ne $ui.LeaveWinUpChk) { $wu=[bool]$ui.LeaveWinUpChk.IsChecked; $wd=[bool]$ui.LeaveWinDownChk.IsChecked; $lk=[bool]$ui.LeaveLockChk.IsChecked; $ul=[bool]$ui.LeaveUnlockChk.IsChecked
+    if ($null -ne $ui -and $null -ne $ui.LeaveWinUpChk) {
+        $wu=[bool]$ui.LeaveWinUpChk.IsChecked; $wd=[bool]$ui.LeaveWinDownChk.IsChecked; $lk=[bool]$ui.LeaveLockChk.IsChecked; $ul=[bool]$ui.LeaveUnlockChk.IsChecked
+        $co=$false; $cf=$false; $ca=$false; $ch=$false
+        try { if ($null -ne $ui.LeaveClimOnChk) { $co=[bool]$ui.LeaveClimOnChk.IsChecked; $cf=[bool]$ui.LeaveClimOffChk.IsChecked; $ca=[bool]$ui.LeaveClimAcChk.IsChecked; $ch=[bool]$ui.LeaveClimHeatChk.IsChecked } } catch {}
+        $seat=$false; $wheel=$false; try { if ($null -ne $ui.LeaveSeatChk) { $seat=[bool]$ui.LeaveSeatChk.IsChecked; $wheel=[bool]$ui.LeaveWheelChk.IsChecked } } catch {}
         if ($wu -and $wd) { $wd=$false }; if ($lk -and $ul) { $lk=$false }
-        return [ordered]@{ windowsUp=$wu; windowsDown=$wd; lock=$lk; unlock=$ul; windows=$(if ($wu) { 'up' } elseif ($wd) { 'down' } else { 'none' }); doors=$(if ($lk) { 'lock' } elseif ($ul) { 'unlock' } else { 'none' }) } }
+        $cl = Normalize-LeaveClimate $co $cf $ca $ch
+        return [ordered]@{ windowsUp=$wu; windowsDown=$wd; lock=$lk; unlock=$ul; windows=$(if ($wu) { 'up' } elseif ($wd) { 'down' } else { 'none' }); doors=$(if ($lk) { 'lock' } elseif ($ul) { 'unlock' } else { 'none' }); climateOn=[bool]$cl.climateOn; climateOff=[bool]$cl.climateOff; climateAc=[bool]$cl.climateAc; climateHeat=[bool]$cl.climateHeat; climate=[string]$cl.climate; heatedDriverSeat=[bool]$seat; steeringWheelHeater=[bool]$wheel }
+    }
     return (Get-LeaveChoicesFromCfg)
 }
-function Set-LeaveChoiceChecks { param($C) $script:LeaveChoiceSetting = $true; try { $ui.LeaveWinUpChk.IsChecked=[bool]$C.windowsUp; $ui.LeaveWinDownChk.IsChecked=[bool]$C.windowsDown; $ui.LeaveLockChk.IsChecked=[bool]$C.lock; $ui.LeaveUnlockChk.IsChecked=[bool]$C.unlock } catch {}; $script:LeaveChoiceSetting = $false }
-function Load-LeaveChoices { $c4335 = Get-LeaveChoicesFromCfg; Set-LeaveChoiceChecks $c4335; $script:LeaveChoiceSaved = ([string]$c4335.windowsUp + ',' + [string]$c4335.windowsDown + ',' + [string]$c4335.lock + ',' + [string]$c4335.unlock) }
+function Get-LeaveChoiceKey { param($C) return ([string]$C.windowsUp + ',' + [string]$C.windowsDown + ',' + [string]$C.lock + ',' + [string]$C.unlock + ',' + [string]$C.climateOn + ',' + [string]$C.climateOff + ',' + [string]$C.climateAc + ',' + [string]$C.climateHeat + ',' + [string]$C.heatedDriverSeat + ',' + [string]$C.steeringWheelHeater) }
+function Set-LeaveChoiceChecks { param($C) $script:LeaveChoiceSetting = $true; try {
+        $ui.LeaveWinUpChk.IsChecked=[bool]$C.windowsUp; $ui.LeaveWinDownChk.IsChecked=[bool]$C.windowsDown; $ui.LeaveLockChk.IsChecked=[bool]$C.lock; $ui.LeaveUnlockChk.IsChecked=[bool]$C.unlock
+        if ($null -ne $ui.LeaveClimOnChk) { $ui.LeaveClimOnChk.IsChecked=[bool]$C.climateOn; $ui.LeaveClimOffChk.IsChecked=[bool]$C.climateOff; $ui.LeaveClimAcChk.IsChecked=[bool]$C.climateAc; $ui.LeaveClimHeatChk.IsChecked=[bool]$C.climateHeat }
+        if ($null -ne $ui.LeaveSeatChk) { $ui.LeaveSeatChk.IsChecked=[bool]$C.heatedDriverSeat; $ui.LeaveWheelChk.IsChecked=[bool]$C.steeringWheelHeater }
+    } catch {}; $script:LeaveChoiceSetting = $false }
+function Load-LeaveChoices { $c4335 = Get-LeaveChoicesFromCfg; Set-LeaveChoiceChecks $c4335; $script:LeaveChoiceSaved = (Get-LeaveChoiceKey $c4335) }
 function Apply-LeaveChoice { param([string]$Name, [bool]$On) if ($script:LeaveChoiceSetting) { return }; $c = Get-LeaveUiChoices
-    if ($On) { switch ($Name) { 'windowsUp' { $c.windowsUp=$true; $c.windowsDown=$false } 'windowsDown' { $c.windowsDown=$true; $c.windowsUp=$false } 'lock' { $c.lock=$true; $c.unlock=$false } 'unlock' { $c.unlock=$true; $c.lock=$false } } }
-    else { switch ($Name) { 'windowsUp' { $c.windowsUp=$false } 'windowsDown' { $c.windowsDown=$false } 'lock' { $c.lock=$false } 'unlock' { $c.unlock=$false } } }
+    if ($On) {
+        switch ($Name) {
+            'windowsUp' { $c.windowsUp=$true; $c.windowsDown=$false }
+            'windowsDown' { $c.windowsDown=$true; $c.windowsUp=$false }
+            'lock' { $c.lock=$true; $c.unlock=$false }
+            'unlock' { $c.unlock=$true; $c.lock=$false }
+            'climateOn' { $c.climateOn=$true; $c.climateOff=$false; $c.climateAc=$false; $c.climateHeat=$false }
+            'climateOff' { $c.climateOff=$true; $c.climateOn=$false; $c.climateAc=$false; $c.climateHeat=$false }
+            'climateAc' { $c.climateAc=$true; $c.climateHeat=$false; $c.climateOn=$false; $c.climateOff=$false }
+            'climateHeat' { $c.climateHeat=$true; $c.climateAc=$false; $c.climateOn=$false; $c.climateOff=$false }
+            'heatedDriverSeat' { $c.heatedDriverSeat=$true }
+            'steeringWheelHeater' { $c.steeringWheelHeater=$true }
+        }
+    } else {
+        switch ($Name) {
+            'windowsUp' { $c.windowsUp=$false } 'windowsDown' { $c.windowsDown=$false } 'lock' { $c.lock=$false } 'unlock' { $c.unlock=$false }
+            'climateOn' { $c.climateOn=$false } 'climateOff' { $c.climateOff=$false } 'climateAc' { $c.climateAc=$false } 'climateHeat' { $c.climateHeat=$false }
+            'heatedDriverSeat' { $c.heatedDriverSeat=$false } 'steeringWheelHeater' { $c.steeringWheelHeater=$false }
+        }
+    }
     $c.windows = $(if ($c.windowsUp) { 'up' } elseif ($c.windowsDown) { 'down' } else { 'none' }); $c.doors = $(if ($c.lock) { 'lock' } elseif ($c.unlock) { 'unlock' } else { 'none' })
+    $cl = Normalize-LeaveClimate ([bool]$c.climateOn) ([bool]$c.climateOff) ([bool]$c.climateAc) ([bool]$c.climateHeat)
+    $c.climateOn=[bool]$cl.climateOn; $c.climateOff=[bool]$cl.climateOff; $c.climateAc=[bool]$cl.climateAc; $c.climateHeat=[bool]$cl.climateHeat; $c.climate=[string]$cl.climate
     Set-LeaveChoiceChecks $c; Save-LeaveMins; try { Render-Leave } catch {} }
-function Get-LeaveStepsFor { param($C) $s = @($LeaveStepClimate); if ($C.windows -eq 'up') { $s += $LeaveStepWinUp } elseif ($C.windows -eq 'down') { $s += $LeaveStepWinDown }; if ($C.doors -eq 'lock') { $s += $LeaveStepLock } elseif ($C.doors -eq 'unlock') { $s += $LeaveStepUnlock }; return ,$s }
+function New-LeaveClimateSteps {
+    param($C)
+    $mode = [string]$C.climate
+    if ($mode -eq 'none' -or -not $mode) { return ,@() }
+    if ($mode -eq 'off') { return ,@($LeaveStepClimateOff) }
+    if ($mode -eq 'on') { return ,@($LeaveStepClimate) }
+    if ($mode -eq 'ac') {
+        $tc = Get-ShownTempC; if ($null -eq $tc) { $tc = 20.0 }; $tc = [double]$tc; $txt = Format-Temp $tc; $sp = Get-SpokenTemp $tc
+        $set = [pscustomobject]@{ cmd = 'set_temperatures'; query = @{ temperature = $tc.ToString('0.0', $Inv) }; kind2 = 'climate'; doing = ('setting A/C to ' + $txt); next = ('A/C set ' + $txt); done = ('A/C set ' + $txt); spoken = ('Leaving Soon: cabin set to ' + $sp + '.'); what = 'set the A/C temperature' }
+        $on = [pscustomobject]@{ cmd = 'start_climate'; kind2 = 'climate'; doing = 'turning A/C on'; next = 'A/C on'; done = 'A/C on'; spoken = 'Leaving Soon: A/C is now on.'; what = 'turn on A/C' }
+        return ,@($set, $on)
+    }
+    if ($mode -eq 'heat') {
+        $hc = Get-HeatC; $txt = Format-Temp $hc; $sp = Get-SpokenTemp $hc
+        $set = [pscustomobject]@{ cmd = 'set_temperatures'; query = @{ temperature = $hc.ToString('0.0', $Inv) }; kind2 = 'climate'; doing = ('setting heat to ' + $txt); next = ('heat set ' + $txt); done = ('heat set ' + $txt); spoken = ('Leaving Soon: cabin set to ' + $sp + ' for heat.'); what = 'set the heat temperature' }
+        $on = [pscustomobject]@{ cmd = 'start_climate'; kind2 = 'climate'; doing = 'turning heat on'; next = 'heat on'; done = 'heat on'; spoken = 'Leaving Soon: heat is now on.'; what = 'turn on heat' }
+        return ,@($set, $on)
+    }
+    return ,@($LeaveStepClimate)
+}
+function Get-LeaveDriverSeatLevel {
+    $l = $null
+    try { if (Get-Command Get-SeatLevel -ErrorAction SilentlyContinue) { $l = Get-SeatLevel 'FL' } } catch {}
+    if ($null -eq $l) { try { $car = Get-CtlCar; if ($null -ne $car -and $null -ne $car.seatFL) { $l = [int]$car.seatFL } } catch {} }
+    if ($null -ne $l -and [int]$l -gt 0) { return [int][math]::Min(3, [math]::Max(1, [int]$l)) }
+    return 3   # sensible default: TessDesk seat heat max (off/1/2/3 cycle); used when driver seat is currently off
+}
+function New-LeaveComfortSteps {
+    param($C)
+    $s = @()
+    if ([bool]$C.heatedDriverSeat) {
+        $lv = Get-LeaveDriverSeatLevel
+        $s += [pscustomobject]@{ cmd = 'set_seat_heat'; query = @{ seat = 'front_left'; level = [string]$lv }; kind2 = 'comfort'; doing = ('turning driver seat heat to ' + $lv); next = ('driver seat heat ' + $lv); done = ('driver seat heat ' + $lv); spoken = ('Leaving Soon: driver seat heat is now level ' + $lv + '.'); what = 'turn on driver seat heat' }
+    }
+    if ([bool]$C.steeringWheelHeater) {
+        $s += [pscustomobject]@{ cmd = 'start_steering_wheel_heater'; kind2 = 'comfort'; doing = 'turning wheel heat on'; next = 'wheel heat on'; done = 'wheel heat on'; spoken = 'Leaving Soon: steering wheel heat is now on.'; what = 'turn on steering wheel heat' }
+    }
+    return ,$s
+}
+function Get-LeaveStepsFor { param($C) $s = @(New-LeaveClimateSteps $C) + @(New-LeaveComfortSteps $C); if ($C.windows -eq 'up') { $s += $LeaveStepWinUp } elseif ($C.windows -eq 'down') { $s += $LeaveStepWinDown }; if ($C.doors -eq 'lock') { $s += $LeaveStepLock } elseif ($C.doors -eq 'unlock') { $s += $LeaveStepUnlock }; return ,$s }
 function Get-LeaveRunSteps { if ($null -ne $script:Leave.steps -and @($script:Leave.steps).Count -gt 0) { return @($script:Leave.steps) }; return @($LeaveSteps) }
 function Get-LeaveSecPerMin {
     if ($CTL_DRYRUN -or $SelfTest) {
@@ -4041,7 +4143,7 @@ function Get-LeaveUiMin {
 function Get-LeaveMins { return @((Get-LeaveUiMin $ui.LeaveWinMin 'windowsAfterMin'), (Get-LeaveUiMin $ui.LeaveUnlockMin 'unlockAfterMin'), (Get-LeaveUiMin $ui.LeaveStartMin 'startAfterMin')) }
 function Get-LeaveWaitSec { param([int]$Step = 1) $m = Get-LeaveMins; return [int]($(if ($Step -ge 2) { $m[1] } else { $m[0] }) * (Get-LeaveSecPerMin)) }
 function Save-LeaveMins {
-    $m = Get-LeaveMins; $ch = Get-LeaveUiChoices; $chKey = ([string]$ch.windowsUp + ',' + [string]$ch.windowsDown + ',' + [string]$ch.lock + ',' + [string]$ch.unlock)
+    $m = Get-LeaveMins; $ch = Get-LeaveUiChoices; $chKey = (Get-LeaveChoiceKey $ch)
     $ui.LeaveWinMin.Text = [string]$m[0]; $ui.LeaveUnlockMin.Text = [string]$m[1]; $ui.LeaveStartMin.Text = [string]$m[2]
     if ($null -ne $script:LeaveMinSaved -and $m[0] -eq $script:LeaveMinSaved[0] -and $m[1] -eq $script:LeaveMinSaved[1] -and $m[2] -eq $script:LeaveMinSaved[2] -and $script:LeaveChoiceSaved -eq $chKey) { return }
     $script:LeaveMinSaved = @($m[0], $m[1], $m[2]); $script:LeaveChoiceSaved = $chKey
@@ -4049,7 +4151,7 @@ function Save-LeaveMins {
     try {
         $o = [ordered]@{}; $l = Get-LeaveCfg
         if ($null -ne $l) { foreach ($p in $l.PSObject.Properties) { $o[$p.Name] = $p.Value } }
-        $o['windowsAfterMin'] = $m[0]; $o['unlockAfterMin'] = $m[1]; $o['startAfterMin'] = $m[2]; $o['windowsUp'] = [bool]$ch.windowsUp; $o['windowsDown'] = [bool]$ch.windowsDown; $o['lock'] = [bool]$ch.lock; $o['unlock'] = [bool]$ch.unlock
+        $o['windowsAfterMin'] = $m[0]; $o['unlockAfterMin'] = $m[1]; $o['startAfterMin'] = $m[2]; $o['windowsUp'] = [bool]$ch.windowsUp; $o['windowsDown'] = [bool]$ch.windowsDown; $o['lock'] = [bool]$ch.lock; $o['unlock'] = [bool]$ch.unlock; $o['climateOn'] = [bool]$ch.climateOn; $o['climateOff'] = [bool]$ch.climateOff; $o['climateAc'] = [bool]$ch.climateAc; $o['climateHeat'] = [bool]$ch.climateHeat; $o['heatedDriverSeat'] = [bool]$ch.heatedDriverSeat; $o['steeringWheelHeater'] = [bool]$ch.steeringWheelHeater
         Save-ConfigProp 'leavingSoon' ([pscustomobject]$o); $script:Cfg = Read-Config
         Write-WidgetLog ('leaving soon waits saved: start ' + $m[2] + ' min, windows ' + $m[0] + ' min, unlock ' + $m[1] + ' min')
     } catch { Write-WidgetLog ('leaving soon waits save failed: ' + $_.Exception.Message) }
@@ -4063,7 +4165,7 @@ function Get-LeaveDevice {
     return $d
 }
 function Format-LeaveSpan { param([int]$Sec) if ($Sec -ge 60 -and $Sec % 60 -eq 0) { $m = $Sec / 60; return ('{0} minute{1}' -f $m, $(if ($m -eq 1) { '' } else { 's' })) }; return ('{0} second{1}' -f $Sec, $(if ($Sec -eq 1) { '' } else { 's' })) }
-function Get-LeaveSummary { param($M, $C = $null) if ($null -eq $C) { $C = Get-LeaveUiChoices }; $f = { param($n, $z, $t) if ([int]$n -le 0) { $z } else { $t -f [int]$n } }; $w = $(if ($C.windows -eq 'up') { (& $f $M[0] 'windows up right away' 'windows up {0} min later') } elseif ($C.windows -eq 'down') { (& $f $M[0] 'windows down right away' 'windows down {0} min later') } else { 'no windows step' }); $d = $(if ($C.doors -eq 'lock') { (& $f $M[1] 'lock right after' 'lock {0} min later') } elseif ($C.doors -eq 'unlock') { (& $f $M[1] 'unlock right after' 'unlock {0} min later') } else { 'no lock/unlock step' }); return ((& $f $M[2] 'start now' 'start in {0} min') + ' · ' + $w + ' · ' + $d) }
+function Get-LeaveSummary { param($M, $C = $null) if ($null -eq $C) { $C = Get-LeaveUiChoices }; $f = { param($n, $z, $t) if ([int]$n -le 0) { $z } else { $t -f [int]$n } }; $cl = $(switch ([string]$C.climate) { 'on' { 'climate on' } 'off' { 'climate off' } 'ac' { 'A/C (set temp)' } 'heat' { 'heat (setpoint)' } default { 'no climate step' } }); $cm = @(); if ([bool]$C.heatedDriverSeat) { $cm += 'driver seat heat' }; if ([bool]$C.steeringWheelHeater) { $cm += 'wheel heat' }; if ($cm.Count -gt 0) { $cl = $cl + ' · ' + ($cm -join ' · ') }; $w = $(if ($C.windows -eq 'up') { (& $f $M[0] 'windows up right away' 'windows up {0} min later') } elseif ($C.windows -eq 'down') { (& $f $M[0] 'windows down right away' 'windows down {0} min later') } else { 'no windows step' }); $d = $(if ($C.doors -eq 'lock') { (& $f $M[1] 'lock right after' 'lock {0} min later') } elseif ($C.doors -eq 'unlock') { (& $f $M[1] 'unlock right after' 'unlock {0} min later') } else { 'no lock/unlock step' }); return ((& $f $M[2] 'start now' 'start in {0} min') + ' · ' + $cl + ' · ' + $w + ' · ' + $d) }
 function Format-LeaveIn { param([int]$Min, [string]$Now, [string]$Later) if ($Min -le 0) { return $Now }; return ($Later -f (Format-LeaveSpan ($Min * 60))) }
 $script:Leave = [ordered]@{ running = $false; phase = 'idle'; step = 0; total = 3; dueAt = $null; job = $null; waitSec = 180; mins = @(0, 3, 3); waits = @(0, 180, 180); startAfterMin = 0; result = ''; kind = 'idle'; notes = @(); log = @(); ann = @(); startedAt = $null; endedAt = $null; hideAt = $null
     snap = $null; snapJob = $null; snapUntil = $null; doneCmds = @(); undoing = $false; undo = @(); undoIdx = 0; undoDone = @(); undoFailed = @(); undoKept = @(); waitLog = @(); steps = $null; choices = $null; stepMins = @(0, 3, 3) }
@@ -4104,9 +4206,11 @@ function Start-LeaveSoon {
     $m = Get-LeaveMins; $spm = Get-LeaveSecPerMin; $ch = Get-LeaveUiChoices; $runSteps = Get-LeaveStepsFor $ch
     $winPhrase = $(if ($ch.windows -eq 'up') { Format-LeaveIn $m[0] 'the windows close right away' 'the windows close {0} later' } elseif ($ch.windows -eq 'down') { Format-LeaveIn $m[0] 'the windows vent right away' 'the windows vent {0} later' } else { '' })
     $doorPhrase = $(if ($ch.doors -eq 'lock') { Format-LeaveIn $m[1] 'the car locks right after that' 'the car locks {0} after that' } elseif ($ch.doors -eq 'unlock') { Format-LeaveIn $m[1] 'the car unlocks right after that' 'the car unlocks {0} after that' } else { '' })
-    $thenParts = @(@($winPhrase, $doorPhrase) | Where-Object { $_ })
-    $sub = (Get-LeaveSummary $m $ch) + "`n" + ($(if ($m[2] -gt 0) { 'Starts in ' + (Format-LeaveSpan ($m[2] * 60)) + ' (nothing happens until then; Stop just cancels). Then c' } else { 'C' }) + 'limate turns on now' + $(if ($thenParts.Count -gt 0) { ', ' + ($thenParts -join ', then ') } else { '' }) + '. Only checked Leaving Soon actions run. Each step is announced on Alexa. Stop cancels the rest and undoes the steps already done.')
+    $climPhrase = $(switch ([string]$ch.climate) { 'on' { 'climate turns on' } 'off' { 'climate turns off' } 'ac' { 'A/C turns on at the SET TEMP from Tesla Controls' } 'heat' { 'heat turns on at the heat setpoint from Tesla Controls' } default { '' } })
+    $thenParts = @(@($climPhrase, $winPhrase, $doorPhrase) | Where-Object { $_ })
+    $sub = (Get-LeaveSummary $m $ch) + "`n" + ($(if ($m[2] -gt 0) { 'Starts in ' + (Format-LeaveSpan ($m[2] * 60)) + ' (nothing happens until then; Stop just cancels). Then ' } else { '' }) + $(if ($thenParts.Count -gt 0) { ($thenParts -join ', then ') } else { 'only later steps run' }) + '. Only checked Leaving Soon actions run. Each step is announced on Alexa. Stop cancels the rest and undoes the steps already done (climate off is not turned back on).')
     if (-not (Test-SkipConfirm 'leave') -and -not (Confirm-Ctl 'Are you sure? Start Leaving Soon?' $sub 'Start' 'Cancel')) { Set-CtlResult 'idle' 'Leaving Soon cancelled'; return }
+    if (@($runSteps).Count -eq 0) { Set-CtlResult 'idle' 'Leaving Soon: check at least one climate, windows, or lock action'; return }
     $L.running = $true; $L.phase = $(if ($m[2] -gt 0) { 'pre' } else { 'snap' }); $L.step = 0; $L.choices = $ch; $L.steps = $runSteps; $L.total = @($runSteps).Count
     $L.mins = @(0, $m[0], $m[1]); $alignedWaits = @(0); $alignedMins = @(0); foreach ($st4335 in @($runSteps | Select-Object -Skip 1)) { if ($st4335.kind2 -eq 'windows') { $alignedWaits += ($m[0] * $spm); $alignedMins += $m[0] } elseif ($st4335.kind2 -eq 'doors') { $alignedWaits += ($m[1] * $spm); $alignedMins += $m[1] } else { $alignedWaits += 0; $alignedMins += 0 } }
     $L.waits = $alignedWaits; $L.stepMins = $alignedMins; $L.waitSec = $(if ($alignedWaits.Count -gt 1) { $alignedWaits[1] } else { 0 }); $L.startAfterMin = $m[2]
@@ -4115,9 +4219,9 @@ function Start-LeaveSoon {
     $L.snap = $null; $L.snapJob = $null; $L.doneCmds = @(); $L.undoing = $false; $L.undo = @(); $L.undoIdx = 0; $L.undoDone = @(); $L.undoFailed = @(); $L.undoKept = @()
     $script:LeaveSeen = @()
     Add-LeaveNote (Get-LeaveSummary $m $ch)
-    Write-WidgetLog ('leaving soon start startAfter=' + $m[2] + 'min windows=' + $m[0] + 'min unlock/door=' + $m[1] + 'min windowsAction=' + $ch.windows + ' doorAction=' + $ch.doors + ' steps=' + (@($runSteps | ForEach-Object { $_.cmd }) -join ',') + $(if ($CTL_DRYRUN) { ' [DRY RUN ' + $spm + 's/min]' } else { '' }))
-    $annParts = @(); if ($ch.windows -eq 'up') { $annParts += (Format-LeaveIn $m[0] 'the windows close right away' 'the windows close in {0}') } elseif ($ch.windows -eq 'down') { $annParts += (Format-LeaveIn $m[0] 'the windows vent right away' 'the windows vent in {0}') }; if ($ch.doors -eq 'lock') { $annParts += (Format-LeaveIn $m[1] 'the car locks right after that' 'the car locks {0} after that') } elseif ($ch.doors -eq 'unlock') { $annParts += (Format-LeaveIn $m[1] 'the car unlocks right after that' 'the car unlocks {0} after that') }
-    Send-LeaveAnnouncement ($(if ($m[2] -gt 0) { 'Leaving Soon starts in ' + (Format-LeaveSpan ($m[2] * 60)) + '. Then c' } else { 'Leaving Soon is starting. C' }) + 'limate is turning on now.' + $(if ($annParts.Count -gt 0) { ' ' + ((@($annParts | ForEach-Object { $_.Substring(0,1).ToUpperInvariant() + $_.Substring(1) }) -join ', and ') + '.') } else { '' })) 'start'
+    Write-WidgetLog ('leaving soon start startAfter=' + $m[2] + 'min windows=' + $m[0] + 'min unlock/door=' + $m[1] + 'min climate=' + $ch.climate + ' windowsAction=' + $ch.windows + ' doorAction=' + $ch.doors + ' steps=' + (@($runSteps | ForEach-Object { $_.cmd }) -join ',') + $(if ($CTL_DRYRUN) { ' [DRY RUN ' + $spm + 's/min]' } else { '' }))
+    $annParts = @(); if ($ch.climate -eq 'on') { $annParts += 'climate turns on' } elseif ($ch.climate -eq 'off') { $annParts += 'climate turns off' } elseif ($ch.climate -eq 'ac') { $annParts += 'A/C turns on at the set temperature' } elseif ($ch.climate -eq 'heat') { $annParts += 'heat turns on at the heat setpoint' }; if ($ch.windows -eq 'up') { $annParts += (Format-LeaveIn $m[0] 'the windows close right away' 'the windows close in {0}') } elseif ($ch.windows -eq 'down') { $annParts += (Format-LeaveIn $m[0] 'the windows vent right away' 'the windows vent in {0}') }; if ($ch.doors -eq 'lock') { $annParts += (Format-LeaveIn $m[1] 'the car locks right after that' 'the car locks {0} after that') } elseif ($ch.doors -eq 'unlock') { $annParts += (Format-LeaveIn $m[1] 'the car unlocks right after that' 'the car unlocks {0} after that') }
+    Send-LeaveAnnouncement ($(if ($m[2] -gt 0) { 'Leaving Soon starts in ' + (Format-LeaveSpan ($m[2] * 60)) + '.' } else { 'Leaving Soon is starting.' }) + $(if ($annParts.Count -gt 0) { ' ' + ((@($annParts | ForEach-Object { $_.Substring(0,1).ToUpperInvariant() + $_.Substring(1) }) -join ', and ') + '.') } else { '' })) 'start'
     if ($m[2] -le 0) { Start-LeaveSnap }
     Set-Visible $ui.LeaveRow $true
     $script:LeaveTimer.Start()
@@ -4131,14 +4235,16 @@ function Get-LeaveSnapFrom {
     $known = @($w.Values | Where-Object { $null -ne $_ })
     return [pscustomobject]@{ src = $Src; at = (Get-LocalNow).ToString('s')
         climateOn = $(if ($null -ne $cl -and $null -ne $cl.is_climate_on) { [bool]$cl.is_climate_on } else { $null })
+        seatFL = $(if ($null -ne $cl -and $null -ne $cl.seat_heater_left) { [int]$cl.seat_heater_left } else { $null })
+        wheelFlag = $(if ($null -ne $cl -and $null -ne $cl.steering_wheel_heater) { [bool]$cl.steering_wheel_heater } else { $null })
         windows = $w; anyOpen = $(if ($known.Count -gt 0) { @($known | Where-Object { [int]$_ -ne 0 }).Count -gt 0 } else { $null })
         locked = $(if ($null -ne $vs -and $null -ne $vs.locked) { [bool]$vs.locked } else { $null }) }
 }
 function Set-LeaveSnapFallback {
     param([string]$Why)
     $L = $script:Leave; $c = Get-CtlCar
-    if ($null -eq $c) { $L.snap = [pscustomobject]@{ src = ('unknown: ' + $Why); at = (Get-LocalNow).ToString('s'); climateOn = $null; windows = $null; anyOpen = $null; locked = $null } }
-    else { $L.snap = [pscustomobject]@{ src = ('last TessDesk refresh: ' + $Why); at = (Get-LocalNow).ToString('s'); climateOn = $(if ($null -ne $c.climateOn) { [bool]$c.climateOn } else { $null }); windows = $c.windows; anyOpen = $(if ($null -ne $c.windowsOpen) { [bool]$c.windowsOpen } else { $null }); locked = $(if ($null -ne $c.locked) { [bool]$c.locked } else { $null }) } }
+    if ($null -eq $c) { $L.snap = [pscustomobject]@{ src = ('unknown: ' + $Why); at = (Get-LocalNow).ToString('s'); climateOn = $null; seatFL = $null; wheelFlag = $null; windows = $null; anyOpen = $null; locked = $null } }
+    else { $L.snap = [pscustomobject]@{ src = ('last TessDesk refresh: ' + $Why); at = (Get-LocalNow).ToString('s'); climateOn = $(if ($null -ne $c.climateOn) { [bool]$c.climateOn } else { $null }); seatFL = $(if ($null -ne $c.seatFL) { [int]$c.seatFL } else { $null }); wheelFlag = $(if ($null -ne $c.wheelFlag) { [bool]$c.wheelFlag } elseif ($null -ne $c.wheelOn) { [bool]$c.wheelOn } else { $null }); windows = $c.windows; anyOpen = $(if ($null -ne $c.windowsOpen) { [bool]$c.windowsOpen } else { $null }); locked = $(if ($null -ne $c.locked) { [bool]$c.locked } else { $null }) } }
     Add-LeaveNote ('Start state from the ' + $L.snap.src)
 }
 function Start-LeaveSnap {
@@ -4167,12 +4273,13 @@ function Step-LeaveSnap {
 }
 # ---- commands (forward steps and undo steps share one runner) ----
 function Start-LeaveJob {
-    param([string]$Cmd, [string]$Kind)
+    param([string]$Cmd, [string]$Kind, [hashtable]$Query = @{})
     $L = $script:Leave
     if (-not (Test-CmdOn)) { return 'commands are off' }
     $token = $null; try { $token = Get-TessieToken } catch {}
     if (-not $token -or -not $script:VIN) { return 'no Tessie token / VIN' }
-    $url = Get-CommandUrl $Cmd @{}
+    if ($null -eq $Query) { $Query = @{} }
+    $url = Get-CommandUrl $Cmd $Query
     $ps = [powershell]::Create()
     if ($CTL_DRYRUN) {
         if ($script:LeaveFailCmd -eq $Cmd) { [void]$ps.AddScript({ param($u) Start-Sleep -Milliseconds 800; [pscustomobject]@{ ok = $false; code = 200; error = 'simulated failure (self-test)'; dryRun = $true } }).AddArgument($url) }
@@ -4185,7 +4292,8 @@ function Start-LeaveJob {
 }
 function Start-LeaveCommand {
     $L = $script:Leave; $s = (Get-LeaveRunSteps)[$L.step]
-    $err = Start-LeaveJob $s.cmd 'step'
+    $q = @{}; try { if ($null -ne $s.query) { foreach ($pk in @($s.query.Keys)) { $q[$pk] = $s.query[$pk] } } } catch { try { if ($null -ne $s.query) { $s.query.PSObject.Properties | ForEach-Object { $q[$_.Name] = $_.Value } } } catch {} }
+    $err = Start-LeaveJob $s.cmd 'step' $q
     if ($err) { Stop-LeaveFailed $s $err; return }
     $L.phase = 'sending'
 }
@@ -4208,7 +4316,15 @@ function Complete-LeaveCommand {
     if ($j.kind -eq 'undo') { Complete-LeaveUndo $ok $why; return }
     $s = (Get-LeaveRunSteps)[$L.step]
     if ($ok) {
-        switch ($s.cmd) { 'start_climate' { Set-CtlOverride 'climateOn' $true } 'close_windows' { Set-CtlOverride 'windowsOpen' $false } 'vent_windows' { Set-CtlOverride 'windowsOpen' $true } 'unlock' { Set-CtlOverride 'locked' $false } 'lock' { Set-CtlOverride 'locked' $true } }
+        switch ($s.cmd) {
+            'start_climate' { Set-CtlOverride 'climateOn' $true }
+            'stop_climate' { Set-CtlOverride 'climateOn' $false }
+            'set_temperatures' { if ($null -ne $s.query -and $null -ne $s.query.temperature) { try { Set-CtlOverride 'tempC' ([double]::Parse([string]$s.query.temperature, $Inv)) } catch {} } }
+            'set_seat_heat' { if ($null -ne $s.query -and [string]$s.query.seat -eq 'front_left') { try { Set-CtlOverride 'seatFL' ([int]$s.query.level) } catch {} } }
+            'start_steering_wheel_heater' { Set-CtlOverride 'wheel' $true }
+            'stop_steering_wheel_heater' { Set-CtlOverride 'wheel' $false }
+            'close_windows' { Set-CtlOverride 'windowsOpen' $false } 'vent_windows' { Set-CtlOverride 'windowsOpen' $true } 'unlock' { Set-CtlOverride 'locked' $false } 'lock' { Set-CtlOverride 'locked' $true }
+        }
         $L.doneCmds = @(@($L.doneCmds) + $s.cmd)
     }
     if (-not $L.running) {
@@ -4235,7 +4351,7 @@ function Complete-LeaveCommand {
 function Stop-LeaveFailed {
     param($S, [string]$Why)
     $L = $script:Leave
-    $skipped = @((Get-LeaveRunSteps) | Select-Object -Skip ($L.step + 1) | ForEach-Object { $_.done -replace '^climate on$', 'climate' -replace '^windows closed$', 'close windows' -replace '^windows vented$', 'vent windows' -replace '^unlocked$', 'unlock' -replace '^locked$', 'lock' })
+    $skipped = @((Get-LeaveRunSteps) | Select-Object -Skip ($L.step + 1) | ForEach-Object { $_.done -replace '^climate on$', 'climate' -replace '^climate off$', 'climate off' -replace '^windows closed$', 'close windows' -replace '^windows vented$', 'vent windows' -replace '^unlocked$', 'unlock' -replace '^locked$', 'lock' })
     $L.running = $false; $L.phase = 'failed'; $L.kind = 'err'; $L.endedAt = Get-Date; $L.hideAt = $null
     $L.result = ('Step {0} of {1} failed: {2}: {3}{4}' -f ($L.step + 1), $L.total, $S.cmd, $Why, $(if ($skipped.Count -gt 0) { '. Skipped: ' + ($skipped -join ', ') } else { '' }))
     Set-CtlResult 'err' ('✕ Leaving Soon ' + $S.cmd + ' failed: ' + $Why)
@@ -4269,6 +4385,10 @@ function Start-LeaveUndoPlan {
         $need = $false; $why = ''
         switch ($c) {
             'start_climate' { if ($null -eq $sn -or $null -eq $sn.climateOn) { $why = 'climate start state unknown, left on' } elseif (-not $sn.climateOn) { $need = $true } else { $why = 'climate was already on' } }
+            'stop_climate' { $why = 'climate was turned off, left off (no unsafe reverse)' }   # v4.3.37: never undo OFF by turning climate back on
+            'set_temperatures' { $why = 'set temperature left as set (not reversed)' }   # v4.3.37: A/C/HEAT temp change is not undone
+            'set_seat_heat' { if ($null -eq $sn -or $null -eq $sn.seatFL) { $why = 'driver seat start state unknown, left as set' } elseif ([int]$sn.seatFL -le 0) { $need = $true } else { $why = 'driver seat heat was already on' } }
+            'start_steering_wheel_heater' { if ($null -eq $sn -or $null -eq $sn.wheelFlag) { $why = 'wheel start state unknown, left on' } elseif (-not [bool]$sn.wheelFlag) { $need = $true } else { $why = 'wheel heater was already on' } }
             'close_windows' { if ($null -eq $sn -or $null -eq $sn.anyOpen) { $why = 'window start state unknown, left closed' } elseif ($sn.anyOpen) { $need = $true } else { $why = 'windows were already closed' } }
             'vent_windows' { if ($null -eq $sn -or $null -eq $sn.anyOpen) { $why = 'window start state unknown, left vented' } elseif (-not $sn.anyOpen) { $need = $true } else { $why = 'windows were already open' } }
             'unlock' { if ($null -eq $sn -or $null -eq $sn.locked -or $sn.locked) { $need = $true } else { $why = 'it was already unlocked' } }   # unknown -> lock (never leave it unlocked by mistake)
@@ -4290,14 +4410,20 @@ function Start-LeaveUndoCommand {
     $L = $script:Leave
     if ($L.undoIdx -ge @($L.undo).Count) { Complete-LeaveStop; return }
     $u = $L.undo[$L.undoIdx]
-    $err = Start-LeaveJob $u.cmd 'undo'
+    $q = @{}; try { if ($null -ne $u.query) { foreach ($pk in @($u.query.Keys)) { $q[$pk] = $u.query[$pk] } } } catch { try { if ($null -ne $u.query) { $u.query.PSObject.Properties | ForEach-Object { $q[$_.Name] = $_.Value } } } catch {} }
+    $err = Start-LeaveJob $u.cmd 'undo' $q
     if ($err) { Complete-LeaveUndo $false $err }
 }
 function Complete-LeaveUndo {
     param([bool]$Ok, [string]$Why)
     $L = $script:Leave; $u = $L.undo[$L.undoIdx]; $L.undoIdx++
     if ($Ok) {
-        switch ($u.cmd) { 'stop_climate' { Set-CtlOverride 'climateOn' $false } 'vent_windows' { Set-CtlOverride 'windowsOpen' $true } 'close_windows' { Set-CtlOverride 'windowsOpen' $false } 'lock' { Set-CtlOverride 'locked' $true } 'unlock' { Set-CtlOverride 'locked' $false } }
+        switch ($u.cmd) {
+            'stop_climate' { Set-CtlOverride 'climateOn' $false }
+            'set_seat_heat' { Set-CtlOverride 'seatFL' 0 }
+            'stop_steering_wheel_heater' { Set-CtlOverride 'wheel' $false }
+            'vent_windows' { Set-CtlOverride 'windowsOpen' $true } 'close_windows' { Set-CtlOverride 'windowsOpen' $false } 'lock' { Set-CtlOverride 'locked' $true } 'unlock' { Set-CtlOverride 'locked' $false }
+        }
         $L.undoDone = @(@($L.undoDone) + $u.done)
         Send-LeaveAnnouncement $u.spoken ('undo-' + $u.cmd)
     } else {
@@ -4361,7 +4487,7 @@ function Render-Leave {
     foreach ($b in @($ui.LeaveStartDn, $ui.LeaveStartUp, $ui.LeaveWinDn, $ui.LeaveWinUp, $ui.LeaveUnlockDn, $ui.LeaveUnlockUp)) { $b.Tag = $r3; $b.Background = T 'BtnBg'; $b.BorderBrush = T 'BtnBorder'; $b.Foreground = T 'Text'; $b.IsEnabled = -not $busy }
     foreach ($tb in @($ui.LeaveStartMin, $ui.LeaveWinMin, $ui.LeaveUnlockMin)) { $tb.IsEnabled = -not $busy; $tb.BorderBrush = T 'Green'; $tb.Foreground = T 'Text' }
     foreach ($lb in @($ui.LeaveStartLbl, $ui.LeaveWinLbl, $ui.LeaveUnlockLbl)) { $lb.Foreground = T 'Caption' }
-    foreach ($cb4335 in @($ui.LeaveWinUpChk, $ui.LeaveWinDownChk, $ui.LeaveLockChk, $ui.LeaveUnlockChk)) { if ($null -ne $cb4335) { $cb4335.IsEnabled = -not $busy; $cb4335.Foreground = T 'Text' } }
+    foreach ($cb4335 in @($ui.LeaveWinUpChk, $ui.LeaveWinDownChk, $ui.LeaveLockChk, $ui.LeaveUnlockChk, $ui.LeaveClimOnChk, $ui.LeaveClimOffChk, $ui.LeaveClimAcChk, $ui.LeaveClimHeatChk, $ui.LeaveSeatChk, $ui.LeaveWheelChk)) { if ($null -ne $cb4335) { $cb4335.IsEnabled = -not $busy; $cb4335.Foreground = T 'Text' } }
     if ($ui.LeaveRow.Visibility -ne 'Visible') { return }
     $ui.LeaveStep.Text = Get-LeaveStepText
     if ($SelfTest -and @($script:LeaveSeen) -notcontains $ui.LeaveStep.Text -and @($script:LeaveSeen).Count -lt 200) { $script:LeaveSeen = @(@($script:LeaveSeen) + $ui.LeaveStep.Text) }
@@ -4384,6 +4510,12 @@ $ui.LeaveWinUpChk.Add_Checked({ try { Apply-LeaveChoice 'windowsUp' $true } catc
 $ui.LeaveWinDownChk.Add_Checked({ try { Apply-LeaveChoice 'windowsDown' $true } catch {} }); $ui.LeaveWinDownChk.Add_Unchecked({ try { Apply-LeaveChoice 'windowsDown' $false } catch {} })
 $ui.LeaveLockChk.Add_Checked({ try { Apply-LeaveChoice 'lock' $true } catch {} }); $ui.LeaveLockChk.Add_Unchecked({ try { Apply-LeaveChoice 'lock' $false } catch {} })
 $ui.LeaveUnlockChk.Add_Checked({ try { Apply-LeaveChoice 'unlock' $true } catch {} }); $ui.LeaveUnlockChk.Add_Unchecked({ try { Apply-LeaveChoice 'unlock' $false } catch {} })
+$ui.LeaveClimOnChk.Add_Checked({ try { Apply-LeaveChoice 'climateOn' $true } catch {} }); $ui.LeaveClimOnChk.Add_Unchecked({ try { Apply-LeaveChoice 'climateOn' $false } catch {} })
+$ui.LeaveClimOffChk.Add_Checked({ try { Apply-LeaveChoice 'climateOff' $true } catch {} }); $ui.LeaveClimOffChk.Add_Unchecked({ try { Apply-LeaveChoice 'climateOff' $false } catch {} })
+$ui.LeaveClimAcChk.Add_Checked({ try { Apply-LeaveChoice 'climateAc' $true } catch {} }); $ui.LeaveClimAcChk.Add_Unchecked({ try { Apply-LeaveChoice 'climateAc' $false } catch {} })
+$ui.LeaveClimHeatChk.Add_Checked({ try { Apply-LeaveChoice 'climateHeat' $true } catch {} }); $ui.LeaveClimHeatChk.Add_Unchecked({ try { Apply-LeaveChoice 'climateHeat' $false } catch {} })
+$ui.LeaveSeatChk.Add_Checked({ try { Apply-LeaveChoice 'heatedDriverSeat' $true } catch {} }); $ui.LeaveSeatChk.Add_Unchecked({ try { Apply-LeaveChoice 'heatedDriverSeat' $false } catch {} })
+$ui.LeaveWheelChk.Add_Checked({ try { Apply-LeaveChoice 'steeringWheelHeater' $true } catch {} }); $ui.LeaveWheelChk.Add_Unchecked({ try { Apply-LeaveChoice 'steeringWheelHeater' $false } catch {} })
 foreach ($pair in @(@($ui.LeaveStartMin, 'startAfterMin', $ui.LeaveStartDn, $ui.LeaveStartUp), @($ui.LeaveWinMin, 'windowsAfterMin', $ui.LeaveWinDn, $ui.LeaveWinUp), @($ui.LeaveUnlockMin, 'unlockAfterMin', $ui.LeaveUnlockDn, $ui.LeaveUnlockUp))) {
     $bx = $pair[0]; $ky = $pair[1]
     $bx.Add_PreviewTextInput({ param($s, $e) if ($e.Text -notmatch '^[0-9]+$') { $e.Handled = $true } })
@@ -10556,7 +10688,7 @@ function Start-SelfTest {
         if ($null -eq $script:SelfRec.v4332 -or -not $script:SelfRec.v4332.pass) { $fails += 'v4332' }
         $g = $r.guard; $g.pass = ($null -ne $g -and $g.whenWasCharging -eq $null -and $g.stopSent -eq 1 -and $g.dry -eq $true -and $g.stoppedFlag -and $null -eq $g.again)
         if (-not $g.pass) { $fails += 'guard' }
-        $sm = [ordered]@{ ver = ($AppVersion -eq '4.3.36' -and $ui.FooterVersion.Text -like ('*4.3.36*' + $AppDate)); bold = ($ui.FooterText.FontWeight -eq [System.Windows.FontWeights]::Bold -or $ui.FooterText.FontWeight.ToString() -match 'Bold|Black') }
+        $sm = [ordered]@{ ver = ($AppVersion -eq '4.3.37' -and $ui.FooterVersion.Text -like ('*4.3.37*' + $AppDate)); bold = ($ui.FooterText.FontWeight -eq [System.Windows.FontWeights]::Bold -or $ui.FooterText.FontWeight.ToString() -match 'Bold|Black') }
         $r.smoke = $sm; if (-not ($sm.ver)) { $fails += 'smoke' }
         $r.netCommandsSent = $script:NetCommandsSent; $r.announcementsSent = $script:AnnSent
         $r.summary = [ordered]@{ fails = $fails; allPass = ($fails.Count -eq 0 -and $script:NetCommandsSent -eq 0 -and $script:AnnSent -eq 0) } }
@@ -10622,8 +10754,42 @@ function Start-SelfTest {
             $r4336.pass = ($r4336.leaveCardExists -and $r4336.title -eq 'LEAVING SOON' -and $r4336.titleGreen -and $r4336.outlineGreen -and $r4336.inLeave -and $r4336.notInControls -and $r4336.allOffStillInControls -and $r4336.strip -and $r4336.migrateAfterControls -and $r4336.leaveBtnH -eq 31)
             $script:SelfRec.v4336 = $r4336
         } catch { $script:SelfRec.v4336 = [ordered]@{ pass=$false; error=$_.Exception.Message } }
+
+        # v4.3.37 lean pure: climate choice labels, defaults, exclusion, step cmds (no live leave run here; scenarios below when not Quick)
+        try {
+            $r4337 = [ordered]@{}
+            $r4337.labels = @($ui.LeaveClimOnChk.Content.Text, $ui.LeaveClimOffChk.Content.Text, $ui.LeaveClimAcChk.Content.Text, $ui.LeaveClimHeatChk.Content.Text)
+            $r4337.row = ($null -ne $ui.LeaveClimateRow)
+            $def = Get-LeaveChoicesFromCfg
+            Apply-LeaveChoice 'climateOff' $true; $aOff = Get-LeaveUiChoices
+            Apply-LeaveChoice 'climateOn' $true; $aOn = Get-LeaveUiChoices
+            Apply-LeaveChoice 'climateAc' $true; $aAc = Get-LeaveUiChoices
+            Apply-LeaveChoice 'climateHeat' $true; $aHt = Get-LeaveUiChoices
+            Apply-LeaveChoice 'climateOn' $true
+            $script:CtlPendingTempC = 21.5
+            $stepsOn = @(Get-LeaveStepsFor ([ordered]@{ climate='on'; windows='none'; doors='none'; climateOn=$true; climateOff=$false; climateAc=$false; climateHeat=$false; windowsUp=$false; windowsDown=$false; lock=$false; unlock=$false }))
+            $stepsOff = @(Get-LeaveStepsFor ([ordered]@{ climate='off'; windows='none'; doors='none'; climateOn=$false; climateOff=$true; climateAc=$false; climateHeat=$false; windowsUp=$false; windowsDown=$false; lock=$false; unlock=$false }))
+            $stepsAc = @(Get-LeaveStepsFor ([ordered]@{ climate='ac'; windows='none'; doors='none'; climateOn=$false; climateOff=$false; climateAc=$true; climateHeat=$false; windowsUp=$false; windowsDown=$false; lock=$false; unlock=$false }))
+            $stepsHt = @(Get-LeaveStepsFor ([ordered]@{ climate='heat'; windows='up'; doors='unlock'; climateOn=$false; climateOff=$false; climateAc=$false; climateHeat=$true; windowsUp=$true; windowsDown=$false; lock=$false; unlock=$true }))
+            $script:CtlPendingTempC = $null
+            $r4337.defaultOn = ($def.climate -eq 'on')
+            $r4337.excl = ($aOff.climate -eq 'off' -and $aOn.climate -eq 'on' -and $aAc.climate -eq 'ac' -and -not $aAc.climateHeat -and $aHt.climate -eq 'heat' -and -not $aHt.climateAc)
+            $r4337.onCmds = (($stepsOn | ForEach-Object { $_.cmd }) -join ',')
+            $r4337.offCmds = (($stepsOff | ForEach-Object { $_.cmd }) -join ',')
+            $r4337.acCmds = (($stepsAc | ForEach-Object { $_.cmd }) -join ',')
+            $r4337.acTemp = [string]($stepsAc | Where-Object { $_.cmd -eq 'set_temperatures' } | ForEach-Object { $_.query.temperature } | Select-Object -First 1)
+            $r4337.heatCmds = (($stepsHt | ForEach-Object { $_.cmd }) -join ',')
+            $r4337.heatHasWin = (($stepsHt | ForEach-Object { $_.cmd }) -join ',') -eq ('set_temperatures,start_climate,close_windows,unlock')
+            $r4337.comfortLabels = @($ui.LeaveSeatChk.Content.Text, $ui.LeaveWheelChk.Content.Text)
+            $stepsSeat = @(Get-LeaveStepsFor ([ordered]@{ climate='on'; windows='none'; doors='none'; climateOn=$true; climateOff=$false; climateAc=$false; climateHeat=$false; heatedDriverSeat=$true; steeringWheelHeater=$true; windowsUp=$false; windowsDown=$false; lock=$false; unlock=$false }))
+            $r4337.seatWheelCmds = (($stepsSeat | ForEach-Object { $_.cmd }) -join ',')
+            $r4337.seatLevel = [string]($stepsSeat | Where-Object { $_.cmd -eq 'set_seat_heat' } | ForEach-Object { $_.query.level } | Select-Object -First 1)
+            $r4337.seatDefaultOff = ([bool](Get-LeaveChoicesFromCfg).heatedDriverSeat -eq $false -and [bool](Get-LeaveChoicesFromCfg).steeringWheelHeater -eq $false)
+            $r4337.pass = ($r4337.row -and (($r4337.labels -join ',') -eq 'CLIMATE ON,CLIMATE OFF,A/C,HEAT') -and (($r4337.comfortLabels -join ',') -eq 'HEATED DRIVER SEAT,STEERING WHEEL HEATER') -and $r4337.defaultOn -and $r4337.excl -and $r4337.onCmds -eq 'start_climate' -and $r4337.offCmds -eq 'stop_climate' -and $r4337.acCmds -eq 'set_temperatures,start_climate' -and $r4337.acTemp -eq '21.5' -and $r4337.heatHasWin -and $r4337.seatWheelCmds -eq 'start_climate,set_seat_heat,start_steering_wheel_heater' -and $r4337.seatLevel -match '^[1-3]$' -and $r4337.seatDefaultOff)
+            $script:SelfRec.v4337 = $r4337
+        } catch { $script:SelfRec.v4337 = [ordered]@{ pass=$false; error=$_.Exception.Message } }
         $r.smoke = [ordered]@{ appVersion = $AppVersion; footer = $ui.FooterVersion.Text; brand = $ui.FooterText.Text; bold = [string]$ui.FooterText.FontWeight; hookLines = $hook; hookBeforeShowDialog = $before; width = $window.Width; renderError = $err; dryRun = $CTL_DRYRUN; realCmdLog = $real
-            pass = ($AppVersion -eq '4.3.36' -and $ui.FooterVersion.Text -like ('*4.3.36*' + $AppDate) -and [string]$ui.FooterText.FontWeight -eq 'Bold' -and $hook -eq 1 -and $before -and $null -eq $err -and $CTL_DRYRUN -and [math]::Abs($window.Width - $winW) -lt 1) }
+            pass = ($AppVersion -eq '4.3.37' -and $ui.FooterVersion.Text -like ('*4.3.37*' + $AppDate) -and [string]$ui.FooterText.FontWeight -eq 'Bold' -and $hook -eq 1 -and $before -and $null -eq $err -and $CTL_DRYRUN -and [math]::Abs($window.Width - $winW) -lt 1) }
         $fails = @(); foreach ($k in 'pure', 'collapsed', 'place', 'expanded', 'calTags', 'showAll', 'fresh', 'smoke') { if ($null -eq $r[$k] -or -not $r[$k].pass) { $fails += $k } }
         $r.summary = [ordered]@{ fails = $fails; allPass = ($fails.Count -eq 0) } }
     & $add 'v4.3.22 summary' @() {
@@ -11640,6 +11806,74 @@ function Start-SelfTest {
     & $add 'v4.3.36 leaving dry-run in own section (down + lock)' @($true) { & $script:SetChoice4335 'down' 'lock'; Stop-LeaveSoon; $script:LeaveFakeStart=$script:NoUndo4316; Start-LeaveSoon; & $script:Wait4315 { -not $script:Leave.running -and $null -eq $script:Leave.job } }
     & $add 'v4.3.36 leaving dry-run result' @() { $script:SelfRec.v4336scenario = (& $script:Rec4335); & $script:SetChoice4335 'up' 'unlock' }
     & $add 'v4.3.36 summary' @() { try { $s = $script:SelfRec.v4336section; $sc = $script:SelfRec.v4336scenario; $r = [ordered]@{ section=$s; scenario=$sc; v4335pass=[bool]$script:SelfRec.v4335.pass; pass=($s.inLeave -and $s.notInControls -and $s.allOffTop -and $s.allOffAboveLock -and $s.migrateAfterControls -and $s.defaultAfterControls -and $s.uiAfterControls -and $s.moveDown -and $s.movedAfterSkip -and $s.moveUpBack -and $s.backAfterControls -and $s.lockLeavingPinned -and $s.savedPin -eq 'leaving' -and $s.unlocked -and $s.stripUpDnLock -and $s.fit -and $s.titleGreen -and $s.outline -and (($sc.cmds -join ',') -eq 'start_climate,vent_windows,lock')) }; $script:SelfRec.v4336 = $r } catch { $script:SelfRec.v4336 = [ordered]@{ pass=$false; error=$_.Exception.Message } } }
+    # ---- v4.3.37 lean: Leaving Soon climate choices (dry run) ----
+    $script:SetClim4337 = { param($mode) Apply-LeaveChoice 'climateOn' $false; Apply-LeaveChoice 'climateOff' $false; Apply-LeaveChoice 'climateAc' $false; Apply-LeaveChoice 'climateHeat' $false; if ($mode -eq 'on') { Apply-LeaveChoice 'climateOn' $true } elseif ($mode -eq 'off') { Apply-LeaveChoice 'climateOff' $true } elseif ($mode -eq 'ac') { Apply-LeaveChoice 'climateAc' $true } elseif ($mode -eq 'heat') { Apply-LeaveChoice 'climateHeat' $true } }
+    $script:Rec4337 = { $L=$script:Leave; return [ordered]@{ phase=$L.phase; cmds=@($L.log | ForEach-Object { $_.cmd }); done=@($L.doneCmds); undoCmds=@($L.undo | ForEach-Object { $_.cmd }); result=$L.result; climate=(Get-LeaveUiChoices).climate; queries=@($L.steps | ForEach-Object { if ($_.cmd -eq 'set_temperatures' -and $null -ne $_.query) { [string]$_.query.temperature } else { '' } }) } }
+    & $add 'v4.3.37 climate labels + mutual exclusion + defaults' @() {
+        $r=[ordered]@{}; $r.labels=@($ui.LeaveClimOnChk.Content.Text,$ui.LeaveClimOffChk.Content.Text,$ui.LeaveClimAcChk.Content.Text,$ui.LeaveClimHeatChk.Content.Text)
+        $r.default=(Get-LeaveChoicesFromCfg); Apply-LeaveChoice 'climateOff' $true; $r.afterOff=(Get-LeaveUiChoices); Apply-LeaveChoice 'climateOn' $true; $r.afterOn=(Get-LeaveUiChoices)
+        Apply-LeaveChoice 'climateAc' $true; $r.afterAc=(Get-LeaveUiChoices); Apply-LeaveChoice 'climateHeat' $true; $r.afterHeat=(Get-LeaveUiChoices)
+        Apply-LeaveChoice 'climateOn' $true; $r.backOn=(Get-LeaveUiChoices)
+        $r.rowInLeave = ($null -ne $ui.LeaveClimateRow); $script:SelfRec.v4337conflict=$r }
+    & $add 'v4.3.37 climate ON only (DRY RUN)' @($true) { & $script:SetChoice4335 'none' 'none'; & $script:SetClim4337 'on'; Apply-LeaveChoice 'heatedDriverSeat' $false; Apply-LeaveChoice 'steeringWheelHeater' $false; Set-LeaveMin $ui.LeaveWinMin 0; Set-LeaveMin $ui.LeaveUnlockMin 0; Set-LeaveMin $ui.LeaveStartMin 0; Stop-LeaveSoon; $script:LeaveFakeStart=(& $script:Fake4316 $false 0 $true); Start-LeaveSoon; & $script:Wait4315 { $script:Leave.phase -eq 'done' -or $script:Leave.phase -eq 'cancelled' -or $script:Leave.phase -eq 'failed' }; $script:SelfRec.v4337on=(& $script:Rec4337) }
+    & $add 'v4.3.37 seat+wheel with climate ON (DRY RUN)' @($true) {
+        & $script:SetChoice4335 'none' 'none'; & $script:SetClim4337 'on'; Apply-LeaveChoice 'heatedDriverSeat' $true; Apply-LeaveChoice 'steeringWheelHeater' $true
+        Stop-LeaveSoon; $script:LeaveFakeStart=(& $script:Fake4316 $false 0 $true); Start-LeaveSoon
+        & $script:Wait4315 { $script:Leave.phase -eq 'done' -or $script:Leave.phase -eq 'cancelled' -or $script:Leave.phase -eq 'failed' }
+        $script:SelfRec.v4337seat=(& $script:Rec4337); Apply-LeaveChoice 'heatedDriverSeat' $false; Apply-LeaveChoice 'steeringWheelHeater' $false }
+    & $add 'v4.3.37 climate OFF only (DRY RUN)' @($true) { & $script:SetChoice4335 'none' 'none'; & $script:SetClim4337 'off'; Stop-LeaveSoon; $script:LeaveFakeStart=(& $script:Fake4316 $true 0 $true); Start-LeaveSoon; & $script:Wait4315 { $script:Leave.phase -eq 'done' -or $script:Leave.phase -eq 'cancelled' -or $script:Leave.phase -eq 'failed' }; $script:SelfRec.v4337off=(& $script:Rec4337) }
+    & $add 'v4.3.37 A/C uses SET TEMP then start_climate (DRY RUN)' @($true) {
+        & $script:SetChoice4335 'none' 'none'; & $script:SetClim4337 'ac'
+        $script:CtlPendingTempC = 21.5; Stop-LeaveSoon; $script:LeaveFakeStart=(& $script:Fake4316 $false 0 $true); Start-LeaveSoon
+        & $script:Wait4315 { $script:Leave.phase -eq 'done' -or $script:Leave.phase -eq 'cancelled' -or $script:Leave.phase -eq 'failed' }
+        $script:SelfRec.v4337ac=(& $script:Rec4337); $script:CtlPendingTempC = $null }
+    & $add 'v4.3.37 HEAT uses heat setpoint then start_climate (DRY RUN)' @($true) {
+        & $script:SetChoice4335 'none' 'none'; & $script:SetClim4337 'heat'; Stop-LeaveSoon; $script:LeaveFakeStart=(& $script:Fake4316 $false 0 $true); Start-LeaveSoon
+        & $script:Wait4315 { $script:Leave.phase -eq 'done' -or $script:Leave.phase -eq 'cancelled' -or $script:Leave.phase -eq 'failed' }
+        $script:SelfRec.v4337heat=(& $script:Rec4337) }
+    & $add 'v4.3.37 climate OFF stop/undo does not reverse (DRY RUN)' @($true) {
+        & $script:SetChoice4335 'up' 'unlock'; & $script:SetClim4337 'off'; Set-LeaveMin $ui.LeaveWinMin 1; Set-LeaveMin $ui.LeaveUnlockMin 0; Set-LeaveMin $ui.LeaveStartMin 0
+        Stop-LeaveSoon; $script:LeaveFakeStart=(& $script:Fake4316 $true 0 $true); Start-LeaveSoon
+        & $script:Wait4315 { $script:Leave.phase -eq 'wait' -and $script:Leave.step -ge 1 }
+        Stop-LeaveSoon; & $script:Wait4315 { $script:Leave.phase -eq 'cancelled' -or $script:Leave.phase -eq 'done' -or -not $script:Leave.undoing }
+        $script:SelfRec.v4337undoOff=(& $script:Rec4337) }
+    & $add 'v4.3.37 climate persistence save/reload' @() {
+        & $script:SetClim4337 'heat'; & $script:SetChoice4335 'down' 'lock'; Save-LeaveMins
+        $raw=Get-Content -LiteralPath $ConfigPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $r=[ordered]@{ saved=[ordered]@{climateOn=$raw.leavingSoon.climateOn;climateOff=$raw.leavingSoon.climateOff;climateAc=$raw.leavingSoon.climateAc;climateHeat=$raw.leavingSoon.climateHeat;windowsDown=$raw.leavingSoon.windowsDown;lock=$raw.leavingSoon.lock} }
+        Set-LeaveChoiceChecks ([ordered]@{windowsUp=$true;windowsDown=$false;lock=$false;unlock=$true;climateOn=$true;climateOff=$false;climateAc=$false;climateHeat=$false;windows='up';doors='unlock';climate='on'})
+        Load-LeaveChoices; $r.reloaded=(Get-LeaveUiChoices); $script:SelfRec.v4337persist=$r
+        & $script:SetClim4337 'on'; & $script:SetChoice4335 'up' 'unlock' }
+    & $add 'v4.3.37 summary' @() {
+        try {
+            $cf=$script:SelfRec.v4337conflict; $on=$script:SelfRec.v4337on; $off=$script:SelfRec.v4337off; $ac=$script:SelfRec.v4337ac; $ht=$script:SelfRec.v4337heat; $uo=$script:SelfRec.v4337undoOff; $ps=$script:SelfRec.v4337persist
+            $heatC = Get-HeatC
+            $r=[ordered]@{
+                labelsOk = (($cf.labels -join ',') -eq 'CLIMATE ON,CLIMATE OFF,A/C,HEAT')
+                defaultOn = ($cf.default.climate -eq 'on' -and $cf.default.climateOn)
+                exclOff = ($cf.afterOff.climate -eq 'off' -and -not $cf.afterOff.climateOn -and -not $cf.afterOff.climateAc)
+                exclOn = ($cf.afterOn.climate -eq 'on' -and -not $cf.afterOn.climateOff)
+                exclAc = ($cf.afterAc.climate -eq 'ac' -and -not $cf.afterAc.climateHeat -and -not $cf.afterAc.climateOn)
+                exclHeat = ($cf.afterHeat.climate -eq 'heat' -and -not $cf.afterHeat.climateAc)
+                onCmds = (($on.cmds -join ',') -eq 'start_climate')
+                seatCmds = (($script:SelfRec.v4337seat.cmds -join ',') -eq 'start_climate,set_seat_heat,start_steering_wheel_heater')
+                offCmds = (($off.cmds -join ',') -eq 'stop_climate')
+                acCmds = (($ac.cmds -join ',') -eq 'set_temperatures,start_climate')
+                acTemp = (($ac.queries | Where-Object { $_ }) -join ',') -eq '21.5'
+                heatCmds = (($ht.cmds -join ',') -eq 'set_temperatures,start_climate')
+                heatTemp = (($ht.queries | Where-Object { $_ }) -join ',') -eq ($heatC.ToString('0.0', $Inv))
+                undoNoStart = -not (($uo.undoCmds -join ',') -match 'start_climate')
+                undoKeptOff = (($uo.cmds -contains 'stop_climate') -and (($uo.undoCmds -join ',') -notmatch 'start_climate'))
+                persistHeat = ($ps.saved.climateHeat -and -not $ps.saved.climateOn -and $ps.reloaded.climate -eq 'heat' -and $ps.reloaded.windowsDown -and $ps.reloaded.lock)
+                rowInLeave = [bool]$cf.rowInLeave
+                realCommands = $script:NetCommandsSent; announcements = $script:AnnSent
+            }
+            $r.pass = ($r.labelsOk -and $r.defaultOn -and $r.exclOff -and $r.exclOn -and $r.exclAc -and $r.exclHeat -and $r.onCmds -and $r.seatCmds -and $r.offCmds -and $r.acCmds -and $r.acTemp -and $r.heatCmds -and $r.heatTemp -and $r.undoNoStart -and $r.undoKeptOff -and $r.persistHeat -and $r.rowInLeave -and $r.realCommands -eq 0 -and $r.announcements -eq 0)
+            $script:SelfRec.v4337 = $r
+            try { $ui.BodyScroll.ScrollToVerticalOffset(0); $window.UpdateLayout(); Save-RootPng (Join-Path $script:SelfDir 'tessdesk-v4337-leaving-soon.png'); $script:SelfRec.shots += 'tessdesk-v4337-leaving-soon.png' } catch {}
+        } catch { $script:SelfRec.v4337 = [ordered]@{ pass=$false; error=$_.Exception.Message } }
+    }
+
     # ---- v4.3.17: layout (TESLA CONTROLS first, START / STOP under it) + CHARGE HISTORY & TOTALS dropdown (remembered in config.json ui.historyOpen) ----
     $script:SelfRec.v4317 = [ordered]@{ appVersion = $AppVersion; footer = $ui.FooterVersion.Text; footerBrand = $ui.FooterText.Text; footerBold = [string]$ui.FooterText.FontWeight; atStart = $script:SelfRec.v4317pre }
     $script:Shot4317 = { param($n) $f = 'tessdesk-v4317-' + $n + '.png'; Save-RootPng (Join-Path $script:SelfDir $f); $script:SelfRec.shots += $f }
