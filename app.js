@@ -2,7 +2,7 @@
    Everything (name, Tessie token, vehicle, rates) is stored in localStorage on this device only. */
 (function () {
   'use strict';
-/* TessDesk phone v4.3.35 (Leaving Soon WINDOWS UP/DOWN + LOCK/UNLOCK choices; Tesla Controls: ALL OFF+SETUP top, SENTRY+OVERHEAT low, VENT/CLOSE/TRUNK row). v4.3.32 (update TAB always visible: red NO UPDATE / green YES UPDATE, background staging + one-tap apply; TESLA CONTROLS: LOCK/FLASH/OVERHEAT top, A/C and HEAT matched ON/OFF wording with temp -/+ on the same line). v4.3.29 (DESIGN BY VAN). v4.3.29: SECTIONS with green outlines (Skip confirm + PSO bill match own sections, Health history in Battery, Trips dropdown). v4.3.28: Alexa limit notice + monthly counter, lean, home-only, no test announcements; ALL OFF never starts charging; flash pause = typed value. v4.3.27: Voice Monkey button (placeholder). v4.3.26: ALL OFF in TESLA CONTROLS. v4.3.25: CHARGING SCHEDULE reaches the car on firmware 2024.26+ (charge schedules, checked after each send). v4.3.24: FINISH BY defaults to 6:00 AM. v4.3.23: CHARGING SCHEDULE in the CHARGING card (START AT + FINISH BY, set on the car through Tessie). v4.3.22: CHARGE column in HEALTH HISTORY (highest charge % per day + Home / AC / Supercharger). v4.3.21: HEALTH HISTORY under START / STOP in the CHARGING card + CALIBRATION INFO; history runs fully in the app. v4.3.20: HEALTH HISTORY dropdown. Pure logic + UI for: PLUG-IN REMINDER, TRIPS, MORNING READY CHECK,
+/* TessDesk phone v4.3.36 (LEAVING SOON is its own section right after Tesla Controls, same green section look; whole Leaving Soon UI moved out of Tesla Controls. Tesla Controls: ALL OFF+SETUP top unchanged, SENTRY+OVERHEAT low, VENT/CLOSE/TRUNK row). v4.3.35 (Leaving Soon WINDOWS UP/DOWN + LOCK/UNLOCK choices; Tesla Controls: ALL OFF+SETUP top, SENTRY+OVERHEAT low, VENT/CLOSE/TRUNK row). v4.3.32 (update TAB always visible: red NO UPDATE / green YES UPDATE, background staging + one-tap apply; TESLA CONTROLS: LOCK/FLASH/OVERHEAT top, A/C and HEAT matched ON/OFF wording with temp -/+ on the same line). v4.3.29 (DESIGN BY VAN). v4.3.29: SECTIONS with green outlines (Skip confirm + PSO bill match own sections, Health history in Battery, Trips dropdown). v4.3.28: Alexa limit notice + monthly counter, lean, home-only, no test announcements; ALL OFF never starts charging; flash pause = typed value. v4.3.27: Voice Monkey button (placeholder). v4.3.26: ALL OFF in TESLA CONTROLS. v4.3.25: CHARGING SCHEDULE reaches the car on firmware 2024.26+ (charge schedules, checked after each send). v4.3.24: FINISH BY defaults to 6:00 AM. v4.3.23: CHARGING SCHEDULE in the CHARGING card (START AT + FINISH BY, set on the car through Tessie). v4.3.22: CHARGE column in HEALTH HISTORY (highest charge % per day + Home / AC / Supercharger). v4.3.21: HEALTH HISTORY under START / STOP in the CHARGING card + CALIBRATION INFO; history runs fully in the app. v4.3.20: HEALTH HISTORY dropdown. Pure logic + UI for: PLUG-IN REMINDER, TRIPS, MORNING READY CHECK,
    PSO BILL MATCH (on/off switch), BATTERY HEALTH TREND + TIPS. No Alexa, no toasts (in-app banners only),
    cached data only (never wakes the car). The same functions are unit-tested headlessly. */
 (function (g) {
@@ -426,7 +426,7 @@
   var CFG = window.TD_CONFIG || {};
   var VARIANT = CFG.variant || 'main';
   var P = CFG.storagePrefix || 'td:';
-  var VERSION = 'v4.3.35';
+  var VERSION = 'v4.3.36';
   var VERSION_DATE = 'Oct 18, 2026';
   var TZ = 'America/Chicago';
   var DEFAULT_API = 'https://api.tessie.com';
@@ -1042,6 +1042,11 @@
   function setOv(k, v) { ctlOv[k] = { v: v, until: Date.now() + 180000 }; }
   function fmtTemp(c, units) { if (c == null) return '--'; return units === 'C' ? (Math.round(c * 2) / 2).toFixed(1) + '\u00b0C' : Math.round(c * 9 / 5 + 32) + '\u00b0F'; }
   function curCar() { var cfg = getCfg(); var v = cfg && compute(cfg); return v ? v.car : null; }
+  // v4.3.36: LEAVING SOON own top-level section, right after Tesla Controls (phone sections are the green .card.sec blocks; no arrow/lock reorder on phone)
+  function leavingSection4336() {
+    var dry = load('dryRun', false), cmdOk = cmdAllowed();
+    return '<div class="card sec leaving4336" id="leaveCard4336"><div class="lv-hd4336"><div class="sec-t">Leaving soon</div>' + (!cmdOk ? '<span class="dry">OFF</span>' : (dry ? '<span class="dry">DRY RUN</span>' : '')) + '</div>' + (window.TDLeave ? TDLeave.html('main') : '') + '</div>';
+  }
   function controlsCard(car) {
     var locked = ctlVal('locked', car.locked), win = ctlVal('windowsOpen', car.windowsOpen), clim = ctlVal('climateOn', car.climateOn);
     var cmdOk = cmdAllowed();
@@ -1070,10 +1075,9 @@
       '<button class="cbtn' + (win === false ? ' state' : '') + '" id="cClose"' + dis + '><b>CLOSE</b><small>' + (win === false ? 'ALL CLOSED' : 'WINDOWS') + '</small></button>' +
       trunkBtn4335(car, dis) + '</div>' +
       sentryCopRow4335(car, dis) +
-      (window.TDLeave ? TDLeave.html('main') : '') +   // v4.3.16 LEAVING SOON (leave.js)
       '<div class="ann-row ann-only4335"><button class="cbtn ann" id="cAnnounce"><b>🔊 ANNOUNCE<span class="ann-long"> ON ALEXA</span></b><small>' + (annReady() ? (vmUse().blocked ? '<span class="vm-lim">' + esc(vmUseText()) + '</span>' : 'full status · ' + esc(targetsLabel(annTargets('rundown'))) + ' · ' + vmUse().count + '/' + VM_LIMIT) : 'set up Alexa (Connected apps)') + '</small></button></div>' +
       '<div class="ctl-msg ' + ctlMsg.kind + '">' + (ctlMsg.kind === 'busy' ? '<span class="spin"></span>' : '') + '<span>' + esc(!cmdOk ? 'Commands are off: you did not allow TessDesk to send vehicle commands (Settings \u2192 Permissions).' : (ctlMsg.text || (dry ? 'Dry run: buttons are simulated, nothing is sent' : 'Ready'))) + '</span></div>' + skipRow() + '</div>';
-    return r;
+    return r + leavingSection4336();
   }
   // ---------- v4.3.3 OPEN TRUNK (rear only, no frunk) + SENTRY MODE ----------
   function trunkSentryRow(car, dis) {
@@ -2228,7 +2232,7 @@
     if (hero && !hero.parentNode.classList.contains('cost')) { var cc = secCard('cost', 'Cost summary'); hero.parentNode.insertBefore(cc, hero); cc.appendChild(hero); }
     var cb = w.querySelector('.card.chgbar');
     if (cb) { cb.classList.add('sec'); if (!cb.querySelector(':scope > .sec-t')) cb.insertBefore(secTitle('Charging'), cb.firstChild); }
-    var ctl = w.querySelector('.card.ctl'), sk = document.getElementById('skipRow');
+    var ctl = w.querySelector('.card.ctl'), sk = document.getElementById('skipRow'); var lv4336 = w.querySelector('.card.leaving4336'); if (lv4336) lv4336.classList.add('sec');
     if (ctl) { ctl.classList.add('sec'); if (sk && ctl.contains(sk)) { var sc = secCard('skipsec', 'Skip confirm'); ctl.parentNode.insertBefore(sc, ctl.nextSibling); sc.appendChild(sk); } }
     var bt = w.querySelector('.card.batt'), hh = document.getElementById('hhist'), bill = document.getElementById('billCard');
     if (bt) {

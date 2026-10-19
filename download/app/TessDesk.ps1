@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-# TessDesk v4.3.35 (v4.3.35: Leaving Soon explicit persisted WINDOWS UP / WINDOWS DOWN and LOCK / UNLOCK checkboxes, mutually exclusive per pair, unchecked stage skipped, defaults WINDOWS UP + UNLOCK preserve prior close_windows+unlock; v4.3.34: tall buttons halfway back up (46->37, 38->31, 36->29) after 4.3.33 made them too smashed; short buttons unchanged; v4.3.33: WHEEL ON rename + climate-gated wheel on phone too, combined CLIMATE block (A/C + HEAT + shared SET TEMP, setpoint-proxy wording), one-owner eased scrolling with signature guards, tall buttons ~40% shorter; STEERING WHEEL matches Tessie: heater flag + level set but climate off = grey SET <level> / OFF, not HEAT ON; BATTERY HEALTH is its own section (health %, as-of, trend sparkline, HEALTH HISTORY + calibration notes) right after BATTERY, Tips stays in BATTERY; UPDATE button always visible: RED 'NO UPDATE' when current, GREEN flashing 'YES UPDATE' when newer, tap checks the cloud at once and YES UPDATE installs on the spot; phone v4.3.32 gets the same NO UPDATE / YES UPDATE button; v4.3.31: TIRE REFRESH button in TIRES under REMIND ME TO GET AIR: fresh pressures via Tessie, read-only, spinner + result; v4.3.30: LAYOUT: small up/down arrows at the top left of every section move it one place; a lock at the top right pins that section and everything above it at the top, the rest scrolls; both saved; Charging locked by default; v4.3.29: SECTIONS: TESLA CONTROLS, BATTERY (with HEALTH HISTORY), HEATED SEATS, TRIPS, CHARGE HISTORY, TIRES, DRIVES, CAMERAS outlined in the CHARGING green with green titles; v4.3.28: Alexa: 'Alexa limit reached' notice, Voice Monkey monthly counter (resets the 26th 7 PM CT), fewer announcements, only when home, no test announcements; ALL OFF never starts charging (no charge commands + stops a charge that starts after it); flash pause = the typed value; v4.3.27: Voice Monkey button next to ALEXA: placeholder, 'coming soon' note only; v4.3.26: ALL OFF in TESLA CONTROLS: windows, trunk, climate, seat + wheel heat, defrost, Sentry, Climate Keeper off, lock; v4.3.25: CHARGING SCHEDULE reaches the car on firmware 2024.26+: charge schedules, checked after each send; v4.3.24: FINISH BY defaults to 6:00 AM; v4.3.23: CHARGING SCHEDULE in START / STOP: START AT + FINISH BY, set on the car through Tessie; v4.3.22: CHARGE column in HEALTH HISTORY: highest charge % per day + Home / AC / Supercharger; v4.3.21: HEALTH HISTORY under START / STOP with CALIBRATION INFO; health history logged by the app itself; v4.3.20: HEALTH HISTORY dropdown, one entry per day, kept indefinitely; v4.3.19: 30% wider; PLUG-IN REMINDER; TRIPS; MORNING READY CHECK; PSO BILL MATCH with on/off; BATTERY HEALTH TREND + TIPS; LEAVING SOON 'Start after' delay; v4.3.18 CHARGING STATUS bar under the big cost with START / STOP, fits 364x990 without scrolling; v4.3.17: TESLA CONTROLS under the big cost, CHARGE HISTORY & TOTALS dropdown; v4.3.16 LEAVING SOON: adjustable 'Windows after' / 'Unlock after' minutes, Stop undoes the steps already done; v4.3.15: climate on, close windows, unlock; rolling 7 / 14 days and 30 / 60 days $ beside the big amount; Restore / Remember at the top right with fade-in, like Paycheck Live; TOTALS pop-up: week / month / year running totals; CAMERAS panel from saved Sentry / Dashcam clips; checks for updates on open / wake; compact-when-OFF via cb_compact_addon.ps1) - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
+# TessDesk v4.3.36 (v4.3.36: LEAVING SOON is now its own top-level section (LeaveCard / 'leaving') with the same green outline/title as TESLA CONTROLS, immediately after Tesla Controls by default; it joins the v4.3.30 section order/lock system (arrows top-left, lock top-right, order+pin persisted in config sections; existing saved orders get 'leaving' inserted right after 'controls' by Merge-SecState4330). The whole Leaving Soon UI moved out of TESLA CONTROLS: LEAVING SOON start button (now a full-width 31px button in its own section), Start after / Windows after / Unlock after timers, WINDOWS UP/DOWN + LOCK/UNLOCK persisted mutually-exclusive checkboxes, status/result LeaveRow with STOP/CLOSE and DRY RUN wording in results: ALL kept, same commands/waits/undo/confirm/Alexa behaviour. ALL OFF + SETUP stay at the top of TESLA CONTROLS exactly as v4.3.35; no other Tesla Controls change; v4.3.35: Leaving Soon explicit persisted WINDOWS UP / WINDOWS DOWN and LOCK / UNLOCK checkboxes, mutually exclusive per pair, unchecked stage skipped, defaults WINDOWS UP + UNLOCK preserve prior close_windows+unlock; v4.3.34: tall buttons halfway back up (46->37, 38->31, 36->29) after 4.3.33 made them too smashed; short buttons unchanged; v4.3.33: WHEEL ON rename + climate-gated wheel on phone too, combined CLIMATE block (A/C + HEAT + shared SET TEMP, setpoint-proxy wording), one-owner eased scrolling with signature guards, tall buttons ~40% shorter; STEERING WHEEL matches Tessie: heater flag + level set but climate off = grey SET <level> / OFF, not HEAT ON; BATTERY HEALTH is its own section (health %, as-of, trend sparkline, HEALTH HISTORY + calibration notes) right after BATTERY, Tips stays in BATTERY; UPDATE button always visible: RED 'NO UPDATE' when current, GREEN flashing 'YES UPDATE' when newer, tap checks the cloud at once and YES UPDATE installs on the spot; phone v4.3.32 gets the same NO UPDATE / YES UPDATE button; v4.3.31: TIRE REFRESH button in TIRES under REMIND ME TO GET AIR: fresh pressures via Tessie, read-only, spinner + result; v4.3.30: LAYOUT: small up/down arrows at the top left of every section move it one place; a lock at the top right pins that section and everything above it at the top, the rest scrolls; both saved; Charging locked by default; v4.3.29: SECTIONS: TESLA CONTROLS, BATTERY (with HEALTH HISTORY), HEATED SEATS, TRIPS, CHARGE HISTORY, TIRES, DRIVES, CAMERAS outlined in the CHARGING green with green titles; v4.3.28: Alexa: 'Alexa limit reached' notice, Voice Monkey monthly counter (resets the 26th 7 PM CT), fewer announcements, only when home, no test announcements; ALL OFF never starts charging (no charge commands + stops a charge that starts after it); flash pause = the typed value; v4.3.27: Voice Monkey button next to ALEXA: placeholder, 'coming soon' note only; v4.3.26: ALL OFF in TESLA CONTROLS: windows, trunk, climate, seat + wheel heat, defrost, Sentry, Climate Keeper off, lock; v4.3.25: CHARGING SCHEDULE reaches the car on firmware 2024.26+: charge schedules, checked after each send; v4.3.24: FINISH BY defaults to 6:00 AM; v4.3.23: CHARGING SCHEDULE in START / STOP: START AT + FINISH BY, set on the car through Tessie; v4.3.22: CHARGE column in HEALTH HISTORY: highest charge % per day + Home / AC / Supercharger; v4.3.21: HEALTH HISTORY under START / STOP with CALIBRATION INFO; health history logged by the app itself; v4.3.20: HEALTH HISTORY dropdown, one entry per day, kept indefinitely; v4.3.19: 30% wider; PLUG-IN REMINDER; TRIPS; MORNING READY CHECK; PSO BILL MATCH with on/off; BATTERY HEALTH TREND + TIPS; LEAVING SOON 'Start after' delay; v4.3.18 CHARGING STATUS bar under the big cost with START / STOP, fits 364x990 without scrolling; v4.3.17: TESLA CONTROLS under the big cost, CHARGE HISTORY & TOTALS dropdown; v4.3.16 LEAVING SOON: adjustable 'Windows after' / 'Unlock after' minutes, Stop undoes the steps already done; v4.3.15: climate on, close windows, unlock; rolling 7 / 14 days and 30 / 60 days $ beside the big amount; Restore / Remember at the top right with fade-in, like Paycheck Live; TOTALS pop-up: week / month / year running totals; CAMERAS panel from saved Sentry / Dashcam clips; checks for updates on open / wake; compact-when-OFF via cb_compact_addon.ps1) - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
 param(
     [string]$ConfigPath,
     [string]$Snapshot,    # optional: folder to write PNG snapshots of both themes
@@ -15,14 +15,14 @@ Add-Type -AssemblyName System.Xaml
 
 $ErrorActionPreference = 'Stop'
 $AppName    = 'TessDesk'
-$AppVersion = '4.3.35'
+$AppVersion = '4.3.36'
 $AppDate    = 'Oct 18, 2026'
 # ---------------- v4.3.30: section ORDER (up / down arrows, top left) + LOCK (top right) ----------------
 # The lock pins that section and everything above it at the top (PinStack, never scrolls); the rest scrolls (BodyStack).
 # Saved in config.json sections = { order = [...]; pin = key or null }. Default = 4.3.29 order with Charging locked (looks like 4.3.29).
-$SecKeys4330 = @('cameras', 'cost', 'charging', 'controls', 'skip', 'battery', 'health', 'bill', 'trips', 'history', 'seats', 'tires', 'drives')
-$SecCardOf4330 = @{ cameras = 'CamCard'; cost = 'CostCard'; charging = 'ChgCard'; controls = 'CtlCard'; skip = 'SkipCard'; battery = 'BattCard'; health = 'HealthCard'; bill = 'BillCard'; trips = 'TripsCard'; history = 'RowsCard'; seats = 'SeatsCard'; tires = 'TiresCard'; drives = 'DrivesCard' }
-$SecNames4330 = @{ cameras = 'Cameras'; cost = 'Cost summary'; charging = 'Charging'; controls = 'Tesla controls'; skip = 'Skip confirm'; battery = 'Battery'; health = 'Battery health'; bill = 'PSO bill match'; trips = 'Trips'; history = 'Charge history & totals'; seats = 'Heated seats'; tires = 'Tires'; drives = 'Drives' }
+$SecKeys4330 = @('cameras', 'cost', 'charging', 'controls', 'leaving', 'skip', 'battery', 'health', 'bill', 'trips', 'history', 'seats', 'tires', 'drives')  # v4.3.36: 'leaving' after 'controls'
+$SecCardOf4330 = @{ cameras = 'CamCard'; cost = 'CostCard'; charging = 'ChgCard'; controls = 'CtlCard'; leaving = 'LeaveCard'; skip = 'SkipCard'; battery = 'BattCard'; health = 'HealthCard'; bill = 'BillCard'; trips = 'TripsCard'; history = 'RowsCard'; seats = 'SeatsCard'; tires = 'TiresCard'; drives = 'DrivesCard' }
+$SecNames4330 = @{ cameras = 'Cameras'; cost = 'Cost summary'; charging = 'Charging'; controls = 'Tesla controls'; leaving = 'Leaving soon'; skip = 'Skip confirm'; battery = 'Battery'; health = 'Battery health'; bill = 'PSO bill match'; trips = 'Trips'; history = 'Charge history & totals'; seats = 'Heated seats'; tires = 'Tires'; drives = 'Drives' }
 $script:SecStrip4330 = @{}; $script:SecTail4330 = $null
 function Merge-SecState4330 {
     param($S)
@@ -140,8 +140,8 @@ function Apply-SectionLayout4330 {
 $SecBrush4329 = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(0x49, 0xDF, 0x93)); $SecBrush4329.Freeze()
 $SecFill4329 = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(0x13, 0x26, 0x1B)); $SecFill4329.Freeze()
 $SecRoot4329 = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(0x06, 0x12, 0x0B)); $SecRoot4329.Freeze()
-$SecCards4329 = @('CostCard', 'ChgCard', 'CtlCard', 'SkipCard', 'BattCard', 'HealthCard', 'BillCard', 'TripsCard', 'RowsCard', 'SeatsCard', 'TiresCard', 'DrivesCard', 'CamCard')
-$SecTitles4329 = @('CostCardTitle', 'ChgCardTitle', 'CtlHdr', 'SkipCardTitle', 'BattHdr', 'HealthHdr', 'BillHdr', 'TripsHdr', 'ChgHistHdr', 'SeatsHdr', 'TiresHdr', 'DrivesHdr', 'CamHdr', 'TripsArrow', 'ChgHistArrow')
+$SecCards4329 = @('CostCard', 'ChgCard', 'CtlCard', 'LeaveCard', 'SkipCard', 'BattCard', 'HealthCard', 'BillCard', 'TripsCard', 'RowsCard', 'SeatsCard', 'TiresCard', 'DrivesCard', 'CamCard')  # v4.3.36 LeaveCard
+$SecTitles4329 = @('CostCardTitle', 'ChgCardTitle', 'CtlHdr', 'LeaveHdr', 'SkipCardTitle', 'BattHdr', 'HealthHdr', 'BillHdr', 'TripsHdr', 'ChgHistHdr', 'SeatsHdr', 'TiresHdr', 'DrivesHdr', 'CamHdr', 'TripsArrow', 'ChgHistArrow')  # v4.3.36 LeaveHdr
 function Apply-Sections4329 {
     try { $ui.RootBorder.Background = $SecRoot4329 } catch {}
     foreach ($n in $SecCards4329) { $e = $ui[$n]; if ($null -eq $e) { continue }; $e.BorderBrush = $SecBrush4329; $e.BorderThickness = [System.Windows.Thickness]::new(2); $e.Background = $SecFill4329; $e.CornerRadius = [System.Windows.CornerRadius]::new(10) }
@@ -1835,10 +1835,7 @@ function Open-Url433 {
               <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
               <TextBlock x:Name="CtlHdr" Grid.ColumnSpan="3" Text="TESLA CONTROLS" FontSize="12.5" FontWeight="Bold" Foreground="#FF9A9A9A" HorizontalAlignment="Left" VerticalAlignment="Center"/>
               <!-- v4.3.15: LEAVING SOON, same line as the heading, over the Flash Lights column (right edge = Flash Lights box right edge) -->
-              <Button x:Name="LeaveBtn" Grid.Column="1" Style="{StaticResource CtlBtn}" Height="17" Margin="3,0,3,0" Padding="5,0,5,0" HorizontalAlignment="Right" VerticalAlignment="Center"
-                      ToolTip="Leaving Soon: waits Start after, then climate on, then only the checked WINDOWS UP/DOWN action after Windows after, then only the checked LOCK/UNLOCK action after Unlock after. Checking UP clears DOWN (and LOCK clears UNLOCK); unchecked means that step is skipped. Asks first; Stop cancels and undoes done steps.">
-                <TextBlock x:Name="LeaveBtnTxt" Text="LEAVING SOON" FontSize="9" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-              </Button>
+              
               <TextBlock x:Name="CtlMode" Grid.Column="2" Text="" FontSize="10" FontWeight="Bold" Foreground="#FFFFB020" HorizontalAlignment="Right" VerticalAlignment="Center"/>
             </Grid>
             <!-- v4.3.35 layout: ALL OFF + SETUP at the TOP of TESLA CONTROLS -->
@@ -1867,47 +1864,10 @@ function Open-Url433 {
               </Button>
             </Grid>
                         <!-- v4.3.16: Leaving Soon waits, minutes 0-30 (default 3, 0 = right away), saved in config.json leavingSoon. v4.3.19: Start after (0-120, default 0) first -->
-            <Viewbox x:Name="LeaveWaitFit" Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Right" Margin="0,-1,0,4">
-            <StackPanel x:Name="LeaveWaitRow" Orientation="Horizontal" HorizontalAlignment="Right">
-              <TextBlock x:Name="LeaveStartLbl" Text="Start after" FontSize="9.5" FontWeight="SemiBold" Foreground="#FF9A9A9A" VerticalAlignment="Center" Margin="0,0,2,0"/>
-              <Button x:Name="LeaveStartDn" Style="{StaticResource CtlBtn}" Width="16" Height="17" Padding="0" ToolTip="1 minute less"><TextBlock Text="&#x2212;" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-2,0,0"/></Button>
-              <TextBox x:Name="LeaveStartMin" Text="0" Width="26" Height="17" Margin="1,0,1,0" FontSize="10" FontWeight="Bold" TextAlignment="Center" VerticalContentAlignment="Center" Padding="0" MaxLength="3"
-                       Background="#33000000" Foreground="#FFFFFFFF" BorderBrush="#FF49DF93" BorderThickness="1" CaretBrush="#FFFFFFFF" ToolTip="Leaving Soon: minutes to wait after you press LEAVING SOON before it starts (before climate turns on). 0-120, 0 = start right away; type a number, or use the mouse wheel or Up/Down"/>
-              <Button x:Name="LeaveStartUp" Style="{StaticResource CtlBtn}" Width="16" Height="17" Padding="0" ToolTip="1 minute more"><TextBlock Text="+" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-2,0,0"/></Button>
-              <TextBlock Text="min" FontSize="9.5" FontWeight="SemiBold" Foreground="#FF9A9A9A" VerticalAlignment="Center" Margin="2,0,7,0"/>
-              <TextBlock x:Name="LeaveWinLbl" Text="Windows after" FontSize="9.5" FontWeight="SemiBold" Foreground="#FF9A9A9A" VerticalAlignment="Center" Margin="0,0,2,0"/>
-              <Button x:Name="LeaveWinDn" Style="{StaticResource CtlBtn}" Width="16" Height="17" Padding="0" ToolTip="1 minute less"><TextBlock Text="&#x2212;" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-2,0,0"/></Button>
-              <TextBox x:Name="LeaveWinMin" Text="3" Width="22" Height="17" Margin="1,0,1,0" FontSize="10" FontWeight="Bold" TextAlignment="Center" VerticalContentAlignment="Center" Padding="0" MaxLength="2"
-                       Background="#33000000" Foreground="#FFFFFFFF" BorderBrush="#FF49DF93" BorderThickness="1" CaretBrush="#FFFFFFFF" ToolTip="Leaving Soon: minutes from climate on to closing the windows (0-30, 0 = right away; mouse wheel or Up/Down changes it)"/>
-              <Button x:Name="LeaveWinUp" Style="{StaticResource CtlBtn}" Width="16" Height="17" Padding="0" ToolTip="1 minute more"><TextBlock Text="+" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-2,0,0"/></Button>
-              <TextBlock Text="min" FontSize="9.5" FontWeight="SemiBold" Foreground="#FF9A9A9A" VerticalAlignment="Center" Margin="2,0,7,0"/>
-              <TextBlock x:Name="LeaveUnlockLbl" Text="Unlock after" FontSize="9.5" FontWeight="SemiBold" Foreground="#FF9A9A9A" VerticalAlignment="Center" Margin="0,0,2,0"/>
-              <Button x:Name="LeaveUnlockDn" Style="{StaticResource CtlBtn}" Width="16" Height="17" Padding="0" ToolTip="1 minute less"><TextBlock Text="&#x2212;" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-2,0,0"/></Button>
-              <TextBox x:Name="LeaveUnlockMin" Text="3" Width="22" Height="17" Margin="1,0,1,0" FontSize="10" FontWeight="Bold" TextAlignment="Center" VerticalContentAlignment="Center" Padding="0" MaxLength="2"
-                       Background="#33000000" Foreground="#FFFFFFFF" BorderBrush="#FF49DF93" BorderThickness="1" CaretBrush="#FFFFFFFF" ToolTip="Leaving Soon: minutes from closing the windows to unlocking (0-30, 0 = right away; mouse wheel or Up/Down changes it)"/>
-              <Button x:Name="LeaveUnlockUp" Style="{StaticResource CtlBtn}" Width="16" Height="17" Padding="0" ToolTip="1 minute more"><TextBlock Text="+" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-2,0,0"/></Button>
-              <TextBlock Text="min" FontSize="9.5" FontWeight="SemiBold" Foreground="#FF9A9A9A" VerticalAlignment="Center" Margin="2,0,0,0"/>
-            </StackPanel>
-            </Viewbox>
+            
             <!-- v4.3.35: Leaving Soon action choices (persisted leavingSoon.windowsUp/windowsDown/lock/unlock; mutually exclusive pairs) -->
-            <StackPanel x:Name="LeaveChoiceRow" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,4">
-              <CheckBox x:Name="LeaveWinUpChk" Style="{StaticResource SkipCfChk}" VerticalAlignment="Center" Margin="0,0,8,0" ToolTip="Leaving Soon Windows after step: close the windows (close_windows)"><TextBlock Text="WINDOWS UP" FontSize="9.5" FontWeight="Bold" VerticalAlignment="Center"/></CheckBox>
-              <CheckBox x:Name="LeaveWinDownChk" Style="{StaticResource SkipCfChk}" VerticalAlignment="Center" Margin="0,0,8,0" ToolTip="Leaving Soon Windows after step: vent / lower the windows (vent_windows)"><TextBlock Text="WINDOWS DOWN" FontSize="9.5" FontWeight="Bold" VerticalAlignment="Center"/></CheckBox>
-              <CheckBox x:Name="LeaveLockChk" Style="{StaticResource SkipCfChk}" VerticalAlignment="Center" Margin="0,0,8,0" ToolTip="Leaving Soon Unlock after step: lock the doors (lock)"><TextBlock Text="LOCK" FontSize="9.5" FontWeight="Bold" VerticalAlignment="Center"/></CheckBox>
-              <CheckBox x:Name="LeaveUnlockChk" Style="{StaticResource SkipCfChk}" VerticalAlignment="Center" ToolTip="Leaving Soon Unlock after step: unlock the doors (unlock)"><TextBlock Text="UNLOCK" FontSize="9.5" FontWeight="Bold" VerticalAlignment="Center"/></CheckBox>
-            </StackPanel>
-            <Border x:Name="LeaveRow" Visibility="Collapsed" CornerRadius="6" BorderThickness="1" BorderBrush="#FF49DF93" Background="#1A49DF93" Padding="7,3,4,3" Margin="0,0,0,6">
-              <Grid>
-                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                <StackPanel VerticalAlignment="Center">
-                  <TextBlock x:Name="LeaveStep" Text="" FontSize="10.5" FontWeight="Bold" TextWrapping="Wrap" Foreground="#FFFFFFFF"/>
-                  <TextBlock x:Name="LeaveNote" Text="" FontSize="9" TextWrapping="Wrap" Foreground="#FF9A9A9A" Visibility="Collapsed"/>
-                </StackPanel>
-                <Button x:Name="LeaveStopBtn" Grid.Column="1" Style="{StaticResource CtlBtn}" Height="20" Margin="6,0,0,0" Padding="9,0,9,0" VerticalAlignment="Center" ToolTip="Stop Leaving Soon: the remaining steps are cancelled">
-                  <TextBlock x:Name="LeaveStopTxt" Text="STOP" FontSize="9.5" FontWeight="Bold" HorizontalAlignment="Center"/>
-                </Button>
-              </Grid>
-            </Border>
+            
+            
             <UniformGrid x:Name="CtlTopRow" Columns="2" Rows="1">
 <Button x:Name="LockBtn" Style="{StaticResource CtlBtn}" Height="37" Margin="0,0,3,0" Padding="2,1,2,1" ToolTip="Lock / unlock your Tesla">
                 <Grid>
@@ -2050,6 +2010,57 @@ function Open-Url433 {
                   <Ellipse.RenderTransform><RotateTransform x:Name="CtlSpinRot" Angle="0"/></Ellipse.RenderTransform>
                 </Ellipse>
                 <TextBlock x:Name="CtlResult" Grid.Column="1" Text="Ready" FontSize="10" TextWrapping="Wrap" VerticalAlignment="Center" Foreground="#FF888888"/>
+              </Grid>
+            </Border>
+          </StackPanel>
+        </Border>
+
+        <Border x:Name="LeaveCard" CornerRadius="10" Background="#FF111111" BorderBrush="#FF222222" BorderThickness="1" Padding="10,4,10,6" Margin="0,0,0,6">
+          <StackPanel>
+            <TextBlock x:Name="LeaveHdr" Text="LEAVING SOON" FontSize="12.5" FontWeight="Bold" Foreground="#FF9A9A9A" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="0,0,0,4"/>
+<Button x:Name="LeaveBtn" Style="{StaticResource CtlBtn}" Height="31" Margin="0,0,0,5" Padding="5,0,5,0" VerticalAlignment="Center"
+                      ToolTip="Leaving Soon: waits Start after, then climate on, then only the checked WINDOWS UP/DOWN action after Windows after, then only the checked LOCK/UNLOCK action after Unlock after. Checking UP clears DOWN (and LOCK clears UNLOCK); unchecked means that step is skipped. Asks first; Stop cancels and undoes done steps.">
+                <TextBlock x:Name="LeaveBtnTxt" Text="LEAVING SOON" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+              </Button>
+            <!-- v4.3.36: timers, grouped and centred in the LEAVING SOON section (was right-aligned in TESLA CONTROLS) -->
+<Viewbox x:Name="LeaveWaitFit" Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Center" Margin="0,0,0,4">
+            <StackPanel x:Name="LeaveWaitRow" Orientation="Horizontal" HorizontalAlignment="Center">
+              <TextBlock x:Name="LeaveStartLbl" Text="Start after" FontSize="9.5" FontWeight="SemiBold" Foreground="#FF9A9A9A" VerticalAlignment="Center" Margin="0,0,2,0"/>
+              <Button x:Name="LeaveStartDn" Style="{StaticResource CtlBtn}" Width="16" Height="17" Padding="0" ToolTip="1 minute less"><TextBlock Text="&#x2212;" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-2,0,0"/></Button>
+              <TextBox x:Name="LeaveStartMin" Text="0" Width="26" Height="17" Margin="1,0,1,0" FontSize="10" FontWeight="Bold" TextAlignment="Center" VerticalContentAlignment="Center" Padding="0" MaxLength="3"
+                       Background="#33000000" Foreground="#FFFFFFFF" BorderBrush="#FF49DF93" BorderThickness="1" CaretBrush="#FFFFFFFF" ToolTip="Leaving Soon: minutes to wait after you press LEAVING SOON before it starts (before climate turns on). 0-120, 0 = start right away; type a number, or use the mouse wheel or Up/Down"/>
+              <Button x:Name="LeaveStartUp" Style="{StaticResource CtlBtn}" Width="16" Height="17" Padding="0" ToolTip="1 minute more"><TextBlock Text="+" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-2,0,0"/></Button>
+              <TextBlock Text="min" FontSize="9.5" FontWeight="SemiBold" Foreground="#FF9A9A9A" VerticalAlignment="Center" Margin="2,0,7,0"/>
+              <TextBlock x:Name="LeaveWinLbl" Text="Windows after" FontSize="9.5" FontWeight="SemiBold" Foreground="#FF9A9A9A" VerticalAlignment="Center" Margin="0,0,2,0"/>
+              <Button x:Name="LeaveWinDn" Style="{StaticResource CtlBtn}" Width="16" Height="17" Padding="0" ToolTip="1 minute less"><TextBlock Text="&#x2212;" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-2,0,0"/></Button>
+              <TextBox x:Name="LeaveWinMin" Text="3" Width="22" Height="17" Margin="1,0,1,0" FontSize="10" FontWeight="Bold" TextAlignment="Center" VerticalContentAlignment="Center" Padding="0" MaxLength="2"
+                       Background="#33000000" Foreground="#FFFFFFFF" BorderBrush="#FF49DF93" BorderThickness="1" CaretBrush="#FFFFFFFF" ToolTip="Leaving Soon: minutes from climate on to closing the windows (0-30, 0 = right away; mouse wheel or Up/Down changes it)"/>
+              <Button x:Name="LeaveWinUp" Style="{StaticResource CtlBtn}" Width="16" Height="17" Padding="0" ToolTip="1 minute more"><TextBlock Text="+" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-2,0,0"/></Button>
+              <TextBlock Text="min" FontSize="9.5" FontWeight="SemiBold" Foreground="#FF9A9A9A" VerticalAlignment="Center" Margin="2,0,7,0"/>
+              <TextBlock x:Name="LeaveUnlockLbl" Text="Unlock after" FontSize="9.5" FontWeight="SemiBold" Foreground="#FF9A9A9A" VerticalAlignment="Center" Margin="0,0,2,0"/>
+              <Button x:Name="LeaveUnlockDn" Style="{StaticResource CtlBtn}" Width="16" Height="17" Padding="0" ToolTip="1 minute less"><TextBlock Text="&#x2212;" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-2,0,0"/></Button>
+              <TextBox x:Name="LeaveUnlockMin" Text="3" Width="22" Height="17" Margin="1,0,1,0" FontSize="10" FontWeight="Bold" TextAlignment="Center" VerticalContentAlignment="Center" Padding="0" MaxLength="2"
+                       Background="#33000000" Foreground="#FFFFFFFF" BorderBrush="#FF49DF93" BorderThickness="1" CaretBrush="#FFFFFFFF" ToolTip="Leaving Soon: minutes from closing the windows to unlocking (0-30, 0 = right away; mouse wheel or Up/Down changes it)"/>
+              <Button x:Name="LeaveUnlockUp" Style="{StaticResource CtlBtn}" Width="16" Height="17" Padding="0" ToolTip="1 minute more"><TextBlock Text="+" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-2,0,0"/></Button>
+              <TextBlock Text="min" FontSize="9.5" FontWeight="SemiBold" Foreground="#FF9A9A9A" VerticalAlignment="Center" Margin="2,0,0,0"/>
+            </StackPanel>
+            </Viewbox>
+<StackPanel x:Name="LeaveChoiceRow" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,4">
+              <CheckBox x:Name="LeaveWinUpChk" Style="{StaticResource SkipCfChk}" VerticalAlignment="Center" Margin="0,0,8,0" ToolTip="Leaving Soon Windows after step: close the windows (close_windows)"><TextBlock Text="WINDOWS UP" FontSize="9.5" FontWeight="Bold" VerticalAlignment="Center"/></CheckBox>
+              <CheckBox x:Name="LeaveWinDownChk" Style="{StaticResource SkipCfChk}" VerticalAlignment="Center" Margin="0,0,8,0" ToolTip="Leaving Soon Windows after step: vent / lower the windows (vent_windows)"><TextBlock Text="WINDOWS DOWN" FontSize="9.5" FontWeight="Bold" VerticalAlignment="Center"/></CheckBox>
+              <CheckBox x:Name="LeaveLockChk" Style="{StaticResource SkipCfChk}" VerticalAlignment="Center" Margin="0,0,8,0" ToolTip="Leaving Soon Unlock after step: lock the doors (lock)"><TextBlock Text="LOCK" FontSize="9.5" FontWeight="Bold" VerticalAlignment="Center"/></CheckBox>
+              <CheckBox x:Name="LeaveUnlockChk" Style="{StaticResource SkipCfChk}" VerticalAlignment="Center" ToolTip="Leaving Soon Unlock after step: unlock the doors (unlock)"><TextBlock Text="UNLOCK" FontSize="9.5" FontWeight="Bold" VerticalAlignment="Center"/></CheckBox>
+            </StackPanel>
+<Border x:Name="LeaveRow" Visibility="Collapsed" CornerRadius="6" BorderThickness="1" BorderBrush="#FF49DF93" Background="#1A49DF93" Padding="7,3,4,3" Margin="0">
+              <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <StackPanel VerticalAlignment="Center">
+                  <TextBlock x:Name="LeaveStep" Text="" FontSize="10.5" FontWeight="Bold" TextWrapping="Wrap" Foreground="#FFFFFFFF"/>
+                  <TextBlock x:Name="LeaveNote" Text="" FontSize="9" TextWrapping="Wrap" Foreground="#FF9A9A9A" Visibility="Collapsed"/>
+                </StackPanel>
+                <Button x:Name="LeaveStopBtn" Grid.Column="1" Style="{StaticResource CtlBtn}" Height="20" Margin="6,0,0,0" Padding="9,0,9,0" VerticalAlignment="Center" ToolTip="Stop Leaving Soon: the remaining steps are cancelled">
+                  <TextBlock x:Name="LeaveStopTxt" Text="STOP" FontSize="9.5" FontWeight="Bold" HorizontalAlignment="Center"/>
+                </Button>
               </Grid>
             </Border>
           </StackPanel>
@@ -10424,7 +10435,7 @@ function Start-SelfTest {
         Save-Cfg4319 'sections' $saved
         Apply-SectionLayout4330; $window.UpdateLayout(); $r.restored = ((& $kids $ui.PinStack) -join ',') -eq 'CamCard,CostCard,ChgCard'
         $r.realCommands = $script:NetCommandsSent; $r.announcements = $script:AnnSent
-        $r.pass = ($r.defaultOrder -and $r.defaultPin -eq 'charging' -and $r.defaultPinned -and $r.notesLast -and $r.peakBeforeRows -and $r.strips -eq 13 -and $r.chgLockOn -and $r.moveUp -and $r.battBeforeSkip -and $r.uiBattBeforeSkip -and $r.topUpDisabled -and $r.lastDnDisabled -and $r.cantMoveLastDown -and $r.lockBattOk -and $r.pinCapOk -and $r.saved -and $r.onDisk -and $r.unlockEmpty -and $r.moveCost -and $r.moveChg -and $r.allPinnedCap -and $r.mergeOk -and $r.restored)
+        $r.pass = ($r.defaultOrder -and $r.defaultPin -eq 'charging' -and $r.defaultPinned -and $r.notesLast -and $r.peakBeforeRows -and $r.strips -eq 14 -and $r.chgLockOn -and $r.moveUp -and $r.battBeforeSkip -and $r.uiBattBeforeSkip -and $r.topUpDisabled -and $r.lastDnDisabled -and $r.cantMoveLastDown -and $r.lockBattOk -and $r.pinCapOk -and $r.saved -and $r.onDisk -and $r.unlockEmpty -and $r.moveCost -and $r.moveChg -and $r.allPinnedCap -and $r.mergeOk -and $r.restored)
         $script:SelfRec.v4328.layout = $r }
     & $add 'v4.3.31 TIRE REFRESH button (Tires section, under REMIND ME TO GET AIR): mock read, spinner, success + error, fits 473, 0 real commands' @() {
         $r = [ordered]@{}; $keepT = $script:View.tires; $c0 = $script:NetCommandsSent; $window.UpdateLayout()
@@ -10545,7 +10556,7 @@ function Start-SelfTest {
         if ($null -eq $script:SelfRec.v4332 -or -not $script:SelfRec.v4332.pass) { $fails += 'v4332' }
         $g = $r.guard; $g.pass = ($null -ne $g -and $g.whenWasCharging -eq $null -and $g.stopSent -eq 1 -and $g.dry -eq $true -and $g.stoppedFlag -and $null -eq $g.again)
         if (-not $g.pass) { $fails += 'guard' }
-        $sm = [ordered]@{ ver = ($AppVersion -eq '4.3.35' -and $ui.FooterVersion.Text -like ('*4.3.35*' + $AppDate)); bold = ($ui.FooterText.FontWeight -eq [System.Windows.FontWeights]::Bold -or $ui.FooterText.FontWeight.ToString() -match 'Bold|Black') }
+        $sm = [ordered]@{ ver = ($AppVersion -eq '4.3.36' -and $ui.FooterVersion.Text -like ('*4.3.36*' + $AppDate)); bold = ($ui.FooterText.FontWeight -eq [System.Windows.FontWeights]::Bold -or $ui.FooterText.FontWeight.ToString() -match 'Bold|Black') }
         $r.smoke = $sm; if (-not ($sm.ver)) { $fails += 'smoke' }
         $r.netCommandsSent = $script:NetCommandsSent; $r.announcementsSent = $script:AnnSent
         $r.summary = [ordered]@{ fails = $fails; allPass = ($fails.Count -eq 0 -and $script:NetCommandsSent -eq 0 -and $script:AnnSent -eq 0) } }
@@ -10565,7 +10576,7 @@ function Start-SelfTest {
             $w1 = Get-WheelInfo4332 (& $mk4333 $true 2 $false); $w2 = Get-WheelInfo4332 (& $mk4333 $true 2 $true); $w3 = Get-WheelInfo4332 (& $mk4333 $false 2 $true)
             $r4333.wheel = [ordered]@{ setOff=$w1.text; wheelOn=$w2.text; boolFalseLevel2=$w3.text; pass=(($w1.text -eq 'SET 2 · OFF') -and ($w2.text -eq 'WHEEL ON · 2') -and ($w3.text -eq 'SET 2 · OFF') -and (-not $w1.active) -and $w2.active) }
             $r4333.climateBlock = [ordered]@{ exists=($null -ne $ui.ClimateBlock4333); state=$ui.ClimateState4333.Text; ac=$ui.ClimTxt.Text; heat=$ui.HeatTxt.Text; pass=(($null -ne $ui.ClimateBlock4333) -and ($ui.ClimTxt.Text -match '^A/C') -and ($ui.HeatTxt.Text -match '^HEAT')) }
-            $r4333.heights = [ordered]@{ lock=[math]::Round($ui.LockBtn.ActualHeight,1); clim=[math]::Round($ui.ClimBtn.ActualHeight,1); heat=[math]::Round($ui.HeatBtn.ActualHeight,1); leave=$ui.LeaveBtn.Height; pass=(($ui.LockBtn.Height -eq 37) -and ($ui.ClimBtn.Height -eq 31) -and ($ui.LeaveBtn.Height -eq 17)) }  # v4.3.34 heights supersede 4333 condensed
+            $r4333.heights = [ordered]@{ lock=[math]::Round($ui.LockBtn.ActualHeight,1); clim=[math]::Round($ui.ClimBtn.ActualHeight,1); heat=[math]::Round($ui.HeatBtn.ActualHeight,1); leave=$ui.LeaveBtn.Height; pass=(($ui.LockBtn.Height -eq 37) -and ($ui.ClimBtn.Height -eq 31) -and ($ui.LeaveBtn.Height -eq 31)) }  # v4.3.36: LeaveBtn is a full-width 31px button in its own LEAVING SOON section (was 17px header button); v4.3.34 heights otherwise
             $r4333.scroll = [ordered]@{ pinScrollbar=[string]$ui.PinScroll.VerticalScrollBarVisibility; pass=([string]$ui.PinScroll.VerticalScrollBarVisibility -eq 'Disabled') }
             $r4333.raw = Get-RawClimate4333
             $r4333.pass = ($r4333.wheel.pass -and $r4333.climateBlock.pass -and $r4333.heights.pass -and $r4333.scroll.pass)
@@ -10577,7 +10588,7 @@ function Start-SelfTest {
             $r4334 = [ordered]@{}
             $r4334.heights = [ordered]@{ lock=$ui.LockBtn.Height; flash=$ui.FlashBox.Height; cop=$ui.CopBtn.Height; clim=$ui.ClimBtn.Height; heat=$ui.HeatBtn.Height; tempDn=$ui.TempDownBtn.Height; tempUp=$ui.TempUpBtn.Height; chgStart=$ui.ChgStartBtn.Height; chgStop=$ui.ChgStopBtn.Height; trunk=$ui.TrunkBtn.Height; sentry=$ui.SentryBtn.Height; ann=$ui.AnnNowBtn.Height; allOff=$ui.AllOffBtn.Height; leave=$ui.LeaveBtn.Height; vent=$ui.VentBtn.Height; defrost=$ui.DefrostBtn.Height }
             $r4334.passHeights = (($ui.LockBtn.Height -eq 37) -and ($ui.FlashBox.Height -eq 37) -and ($ui.CopBtn.Height -eq 37) -and ($ui.ClimBtn.Height -eq 31) -and ($ui.HeatBtn.Height -eq 31) -and ($ui.TempDownBtn.Height -eq 31) -and ($ui.ChgStartBtn.Height -eq 29) -and ($ui.ChgStopBtn.Height -eq 29) -and ($ui.TrunkBtn.Height -eq 31) -and ($ui.SentryBtn.Height -eq 31) -and ($ui.AnnNowBtn.Height -eq 31) -and ($ui.AllOffBtn.Height -eq 31))
-            $r4334.passShortUnchanged = (($ui.LeaveBtn.Height -eq 17) -and ($ui.VentBtn.Height -eq 32) -and ($ui.DefrostBtn.Height -eq 32))
+            $r4334.passShortUnchanged = (($ui.LeaveBtn.Height -eq 31) -and ($ui.VentBtn.Height -eq 32) -and ($ui.DefrostBtn.Height -eq 32))  # v4.3.36 LeaveBtn 31 in own section; Vent/Defrost short unchanged
             $r4334.climateBlock = ($null -ne $ui.ClimateBlock4333)
             $r4334.pass = ($r4334.passHeights -and $r4334.passShortUnchanged -and $r4334.climateBlock)
             $script:SelfRec.v4334 = $r4334
@@ -10593,8 +10604,26 @@ function Start-SelfTest {
             $r4335.pass = ($r4335.layout.pass -and $r4335.exists -and ($r4335.labels -join ',') -eq 'WINDOWS UP,WINDOWS DOWN,LOCK,UNLOCK' -and (($r4335.downOnly.cmds -join ',') -eq 'start_climate,vent_windows') -and (($r4335.upOnly.cmds -join ',') -eq 'start_climate,close_windows') -and (($r4335.lockOnly.cmds -join ',') -eq 'start_climate,lock') -and (($r4335.unlockOnly.cmds -join ',') -eq 'start_climate,unlock') -and (($r4335.none.cmds -join ',') -eq 'start_climate') -and $r4335.none.saved.windowsDown -and $r4335.none.saved.lock -and $r4335.none.reloaded.windowsDown -and $r4335.none.reloaded.lock -and $r4335.conflict.afterDown.windowsDown -and -not $r4335.conflict.afterDown.windowsUp -and $r4335.conflict.afterUp.windowsUp -and -not $r4335.conflict.afterUp.windowsDown -and (($r4335.undoDown.undoCmds -join ',') -match 'close_windows') -and (($r4335.undoLock.undoCmds -join ',') -match 'unlock'))
             $script:SelfRec.v4335 = $r4335
         } catch { $script:SelfRec.v4335 = [ordered]@{ pass=$false; error=$_.Exception.Message } }
+
+        # v4.3.36 block: LEAVING SOON own section (initial; recomputed after scenarios below)
+        try {
+            $r4336 = [ordered]@{}
+            $up4336 = { param($e, $c) $q = $e; while ($q) { if ($q -eq $c) { return $true }; $q = [System.Windows.Media.VisualTreeHelper]::GetParent($q) }; return $false }
+            $r4336.leaveCardExists = ($null -ne $ui.LeaveCard -and $null -ne $ui.LeaveHdr)
+            $r4336.title = $ui.LeaveHdr.Text; $r4336.titleGreen = ([string]$ui.LeaveHdr.Foreground -eq '#FF49DF93')
+            $r4336.outlineGreen = ([string]$ui.LeaveCard.BorderBrush -eq '#FF49DF93' -and $ui.LeaveCard.BorderThickness.Left -eq 2)
+            $r4336.inLeave = (& $up4336 $ui.LeaveBtn $ui.LeaveCard) -and (& $up4336 $ui.LeaveWaitRow $ui.LeaveCard) -and (& $up4336 $ui.LeaveChoiceRow $ui.LeaveCard) -and (& $up4336 $ui.LeaveRow $ui.LeaveCard) -and (& $up4336 $ui.LeaveWinUpChk $ui.LeaveCard)
+            $r4336.notInControls = -not (& $up4336 $ui.LeaveBtn $ui.CtlCard) -and -not (& $up4336 $ui.LeaveWaitRow $ui.CtlCard) -and -not (& $up4336 $ui.LeaveChoiceRow $ui.CtlCard)
+            $r4336.allOffStillInControls = (& $up4336 $ui.AllOffBtn $ui.CtlCard) -and (& $up4336 $ui.AnnSetupBtn $ui.CtlCard)
+            $r4336.strip = $script:SecStrip4330.ContainsKey('leaving')
+            $mig4336 = Merge-SecState4330 ([pscustomobject]@{ order = @('cameras','cost','charging','controls','skip','battery','health','bill','trips','history','seats','tires','drives'); pin = 'charging' })
+            $r4336.migrationOrder = @($mig4336.order); $r4336.migrateAfterControls = ([array]::IndexOf(@($mig4336.order), 'leaving') -eq [array]::IndexOf(@($mig4336.order), 'controls') + 1)
+            $r4336.leaveBtnH = $ui.LeaveBtn.Height
+            $r4336.pass = ($r4336.leaveCardExists -and $r4336.title -eq 'LEAVING SOON' -and $r4336.titleGreen -and $r4336.outlineGreen -and $r4336.inLeave -and $r4336.notInControls -and $r4336.allOffStillInControls -and $r4336.strip -and $r4336.migrateAfterControls -and $r4336.leaveBtnH -eq 31)
+            $script:SelfRec.v4336 = $r4336
+        } catch { $script:SelfRec.v4336 = [ordered]@{ pass=$false; error=$_.Exception.Message } }
         $r.smoke = [ordered]@{ appVersion = $AppVersion; footer = $ui.FooterVersion.Text; brand = $ui.FooterText.Text; bold = [string]$ui.FooterText.FontWeight; hookLines = $hook; hookBeforeShowDialog = $before; width = $window.Width; renderError = $err; dryRun = $CTL_DRYRUN; realCmdLog = $real
-            pass = ($AppVersion -eq '4.3.35' -and $ui.FooterVersion.Text -like ('*4.3.35*' + $AppDate) -and [string]$ui.FooterText.FontWeight -eq 'Bold' -and $hook -eq 1 -and $before -and $null -eq $err -and $CTL_DRYRUN -and [math]::Abs($window.Width - $winW) -lt 1) }
+            pass = ($AppVersion -eq '4.3.36' -and $ui.FooterVersion.Text -like ('*4.3.36*' + $AppDate) -and [string]$ui.FooterText.FontWeight -eq 'Bold' -and $hook -eq 1 -and $before -and $null -eq $err -and $CTL_DRYRUN -and [math]::Abs($window.Width - $winW) -lt 1) }
         $fails = @(); foreach ($k in 'pure', 'collapsed', 'place', 'expanded', 'calTags', 'showAll', 'fresh', 'smoke') { if ($null -eq $r[$k] -or -not $r[$k].pass) { $fails += $k } }
         $r.summary = [ordered]@{ fails = $fails; allPass = ($fails.Count -eq 0) } }
     & $add 'v4.3.22 summary' @() {
@@ -11587,6 +11616,30 @@ function Start-SelfTest {
     & $add 'v4.3.35 stop/undo lock press Stop' @() { & $script:Click4316 $ui.LeaveStopBtn; & $script:Wait4315 { -not $script:Leave.running -and -not $script:Leave.undoing -and $null -eq $script:Leave.job -and $script:Leave.phase -eq 'cancelled' } }
     & $add 'v4.3.35 stop/undo lock result (unlock undo)' @() { $script:SelfRec.v4335undoLock=(& $script:Rec4335); & $script:SetChoice4335 'up' 'unlock'; $script:LeaveFakeStart=$null }
     & $add 'v4.3.35 summary (choices scenarios + layout, recomputed after scenarios)' @() { try { $r4335=[ordered]@{}; $r4335.labels=@($ui.LeaveWinUpChk.Content.Text,$ui.LeaveWinDownChk.Content.Text,$ui.LeaveLockChk.Content.Text,$ui.LeaveUnlockChk.Content.Text); $r4335.exists=($null -ne $ui.LeaveWinUpChk); $r4335.downOnly=$script:SelfRec.v4335down; $r4335.upOnly=$script:SelfRec.v4335up; $r4335.lockOnly=$script:SelfRec.v4335lock; $r4335.unlockOnly=$script:SelfRec.v4335unlock; $r4335.none=$script:SelfRec.v4335none; $r4335.conflict=$script:SelfRec.v4335conflict; $r4335.undoDown=$script:SelfRec.v4335undoDown; $r4335.undoLock=$script:SelfRec.v4335undoLock; $rp35=$script:Rect4315; $a35=& $rp35 $ui.AllOffBtn; $su35=& $rp35 $ui.AnnSetupBtn; $lk35=& $rp35 $ui.LockBtn; $v35=& $rp35 $ui.VentBtn; $cw35=& $rp35 $ui.CloseWinBtn; $tr35=& $rp35 $ui.TrunkBtn; $se35=& $rp35 $ui.SentryBtn; $cp35=& $rp35 $ui.CopBtn; $aos35=& $rp35 $ui.AllOffSetBtn; $r4335.layout=[ordered]@{allOffSet=$aos35;allOff=$a35;setup=$su35;lock=$lk35;vent=$v35;closeWin=$cw35;trunk=$tr35;sentry=$se35;cop=$cp35;pass=(($a35.y -lt $lk35.y) -and ([math]::Abs($a35.y-$su35.y) -le 2) -and ([math]::Abs($v35.y-$cw35.y) -le 2) -and ([math]::Abs($v35.y-$tr35.y) -le 2) -and ([math]::Abs(($se35.y+$se35.h/2)-($cp35.y+$cp35.h/2)) -le 2) -and ($se35.y -gt $tr35.y) -and ($ui.AllOffBtn.Height -eq 31) -and ($aos35.w -le 30) -and ($ui.AnnSetupBtn.Height -eq 31) -and ($ui.CopBtn.Height -eq 37) -and ($ui.SentryBtn.Height -eq 31))}; $r4335.pass=($r4335.layout.pass -and $r4335.exists -and (($r4335.labels -join ',') -eq 'WINDOWS UP,WINDOWS DOWN,LOCK,UNLOCK') -and (($r4335.downOnly.cmds -join ',') -eq 'start_climate,vent_windows') -and (($r4335.upOnly.cmds -join ',') -eq 'start_climate,close_windows') -and (($r4335.lockOnly.cmds -join ',') -eq 'start_climate,lock') -and (($r4335.unlockOnly.cmds -join ',') -eq 'start_climate,unlock') -and (($r4335.none.cmds -join ',') -eq 'start_climate') -and $r4335.none.saved.windowsDown -and $r4335.none.saved.lock -and $r4335.none.reloaded.windowsDown -and $r4335.none.reloaded.lock -and $r4335.conflict.afterDown.windowsDown -and -not $r4335.conflict.afterDown.windowsUp -and $r4335.conflict.afterUp.windowsUp -and -not $r4335.conflict.afterUp.windowsDown -and (($r4335.undoDown.undoCmds -join ',') -match 'close_windows') -and (($r4335.undoLock.undoCmds -join ',') -match 'unlock')); $script:SelfRec.v4335=$r4335 } catch { $script:SelfRec.v4335=[ordered]@{pass=$false;error=$_.Exception.Message} } }
+
+    # ---- v4.3.36: LEAVING SOON own section, order/lock, migration, fit, one dry-run scenario in new home ----
+    & $add 'v4.3.36 leaving section + migration + reorder/lock (DRY RUN)' @() {
+        $r = [ordered]@{}; $savedSec = Get-Cfg4319 'sections'
+        $up = { param($e, $c) $q = $e; while ($q) { if ($q -eq $c) { return $true }; $q = [System.Windows.Media.VisualTreeHelper]::GetParent($q) }; return $false }
+        $r.inLeave = (& $up $ui.LeaveBtn $ui.LeaveCard) -and (& $up $ui.LeaveStartMin $ui.LeaveCard) -and (& $up $ui.LeaveWinMin $ui.LeaveCard) -and (& $up $ui.LeaveUnlockMin $ui.LeaveCard) -and (& $up $ui.LeaveWinUpChk $ui.LeaveCard) -and (& $up $ui.LeaveUnlockChk $ui.LeaveCard)
+        $r.notInControls = -not (& $up $ui.LeaveBtn $ui.CtlCard) -and -not (& $up $ui.LeaveWaitRow $ui.CtlCard)
+        $r.allOffTop = (& $up $ui.AllOffBtn $ui.CtlCard); $window.UpdateLayout(); $rp = $script:Rect4315; $ao = & $rp $ui.AllOffBtn; $lk = & $rp $ui.LockBtn; $r.allOffAboveLock = ($ao.y -lt $lk.y)
+        $mig = Merge-SecState4330 ([pscustomobject]@{ order = @('cameras','cost','charging','controls','skip','battery','health','bill','trips','history','seats','tires','drives'); pin = 'charging' }); $r.migrateAfterControls = ([array]::IndexOf(@($mig.order), 'leaving') -eq [array]::IndexOf(@($mig.order), 'controls') + 1); $r.migrationOrder = @($mig.order)
+        Save-Cfg4319 'sections' $null; Apply-SectionLayout4330; $window.UpdateLayout(); $d = Get-SecState4330; $r.defaultAfterControls = ([array]::IndexOf(@($d.order), 'leaving') -eq [array]::IndexOf(@($d.order), 'controls') + 1)
+        $kids = @($ui.BodyStack.Children | ForEach-Object { $_.Name }); $pinKids = @($ui.PinStack.Children | ForEach-Object { $_.Name }); $allKids = @($pinKids + $kids); $r.uiAfterControls = ([array]::IndexOf($allKids, 'LeaveCard') -eq [array]::IndexOf($allKids, 'CtlCard') + 1)
+        $r.moveDown = Move-Section4330 'leaving' 1; $o = @((Get-SecState4330).order); $r.movedAfterSkip = ([array]::IndexOf($o, 'leaving') -eq [array]::IndexOf($o, 'skip') + 1)
+        $r.moveUpBack = Move-Section4330 'leaving' -1; $o = @((Get-SecState4330).order); $r.backAfterControls = ([array]::IndexOf($o, 'leaving') -eq [array]::IndexOf($o, 'controls') + 1)
+        Set-SectionLock4330 'leaving'; $window.UpdateLayout(); $pk = @($ui.PinStack.Children | ForEach-Object { $_.Name }); $r.lockLeavingPinned = ($pk[-1] -eq 'LeaveCard' -and $pk -contains 'CtlCard'); $r.savedPin = [string](Get-Cfg4319 'sections').pin
+        Set-SectionLock4330 'leaving'; $r.unlocked = ($null -eq (Get-SecState4330).pin)
+        $r.stripUpDnLock = ($null -ne $script:SecStrip4330['leaving'].up -and $null -ne $script:SecStrip4330['leaving'].dn -and $null -ne $script:SecStrip4330['leaving'].lock)
+        $window.UpdateLayout(); $r.cardW = [math]::Round($ui.LeaveCard.ActualWidth,1); $r.waitW = [math]::Round($ui.LeaveWaitRow.ActualWidth,1); $r.choiceW = [math]::Round($ui.LeaveChoiceRow.ActualWidth,1); $r.btnW = [math]::Round($ui.LeaveBtn.ActualWidth,1); $r.btnTxtW = [math]::Round($ui.LeaveBtnTxt.ActualWidth,1)
+        $r.fit = ($r.cardW -le 473 -and $r.waitW -le $r.cardW -and $r.choiceW -le $r.cardW -and $r.btnTxtW -le $r.btnW -and $ui.LeaveBtn.Height -eq 31)
+        $r.titleGreen = ([string]$ui.LeaveHdr.Foreground -eq '#FF49DF93'); $r.outline = ([string]$ui.LeaveCard.BorderBrush -eq '#FF49DF93' -and $ui.LeaveCard.BorderThickness.Left -eq 2)
+        Save-Cfg4319 'sections' $savedSec; Apply-SectionLayout4330; $window.UpdateLayout()
+        $script:SelfRec.v4336section = $r }
+    & $add 'v4.3.36 leaving dry-run in own section (down + lock)' @($true) { & $script:SetChoice4335 'down' 'lock'; Stop-LeaveSoon; $script:LeaveFakeStart=$script:NoUndo4316; Start-LeaveSoon; & $script:Wait4315 { -not $script:Leave.running -and $null -eq $script:Leave.job } }
+    & $add 'v4.3.36 leaving dry-run result' @() { $script:SelfRec.v4336scenario = (& $script:Rec4335); & $script:SetChoice4335 'up' 'unlock' }
+    & $add 'v4.3.36 summary' @() { try { $s = $script:SelfRec.v4336section; $sc = $script:SelfRec.v4336scenario; $r = [ordered]@{ section=$s; scenario=$sc; v4335pass=[bool]$script:SelfRec.v4335.pass; pass=($s.inLeave -and $s.notInControls -and $s.allOffTop -and $s.allOffAboveLock -and $s.migrateAfterControls -and $s.defaultAfterControls -and $s.uiAfterControls -and $s.moveDown -and $s.movedAfterSkip -and $s.moveUpBack -and $s.backAfterControls -and $s.lockLeavingPinned -and $s.savedPin -eq 'leaving' -and $s.unlocked -and $s.stripUpDnLock -and $s.fit -and $s.titleGreen -and $s.outline -and (($sc.cmds -join ',') -eq 'start_climate,vent_windows,lock')) }; $script:SelfRec.v4336 = $r } catch { $script:SelfRec.v4336 = [ordered]@{ pass=$false; error=$_.Exception.Message } } }
     # ---- v4.3.17: layout (TESLA CONTROLS first, START / STOP under it) + CHARGE HISTORY & TOTALS dropdown (remembered in config.json ui.historyOpen) ----
     $script:SelfRec.v4317 = [ordered]@{ appVersion = $AppVersion; footer = $ui.FooterVersion.Text; footerBrand = $ui.FooterText.Text; footerBold = [string]$ui.FooterText.FontWeight; atStart = $script:SelfRec.v4317pre }
     $script:Shot4317 = { param($n) $f = 'tessdesk-v4317-' + $n + '.png'; Save-RootPng (Join-Path $script:SelfDir $f); $script:SelfRec.shots += $f }

@@ -1,4 +1,4 @@
-/* TessDesk LEAVING SOON v4.3.35 (phone). v4.3.35: explicit persisted WINDOWS UP / WINDOWS DOWN and LOCK / UNLOCK checkboxes (td:leaveChoices), mutually exclusive per pair (last checked wins), unchecked stage skipped, defaults WINDOWS UP + UNLOCK preserve prior close_windows + unlock; WINDOWS DOWN = vent_windows, LOCK = lock; Stop/undo reverses chosen actions where start state supports it. Design by Van. v4.3.19: 'Start after' (0-120 min, default 0) waits before the sequence begins;
+/* TessDesk LEAVING SOON v4.3.36 (phone; own LEAVING SOON section after Tesla Controls on the main app, standalone page unchanged). v4.3.35: explicit persisted WINDOWS UP / WINDOWS DOWN and LOCK / UNLOCK checkboxes (td:leaveChoices), mutually exclusive per pair (last checked wins), unchecked stage skipped, defaults WINDOWS UP + UNLOCK preserve prior close_windows + unlock; WINDOWS DOWN = vent_windows, LOCK = lock; Stop/undo reverses chosen actions where start state supports it. Design by Van. v4.3.19: 'Start after' (0-120 min, default 0) waits before the sequence begins;
    Stop during it just cancels (nothing to undo); the same timestamp catch-up and 30-minute late limit apply to that step.
    Shared by the main phone app (TESLA CONTROLS) and the standalone Leaving Soon page (leaving/). Same behavior as desktop v4.3.16:
    confirm -> read the start state (Tessie GET /{vin}/state?use_cache=true, never wakes the car; fallback = last TessDesk refresh)
@@ -448,7 +448,7 @@
   window.addEventListener('storage', function (e) { if (e.key === P + 'leave' || e.key === P + 'leaveChoices' || e.key === P + 'leaveMins' || e.key === P + 'cache' || e.key === P + 'skipConfirm') { if (active(st())) ensureTimer(); paint(); } });
 
   window.TDLeave = {
-    version: 'v4.3.35', skipLeave: function () { return skipLeave(); }, choices: choices, setChoice: setChoice, stepsFor: stepsFor,
+    version: 'v4.3.36', skipLeave: function () { return skipLeave(); }, choices: choices, setChoice: setChoice, stepsFor: stepsFor,
     init: function (o) { opts = o || {}; if (active(st())) { ensureTimer(); setTimeout(tick, 0); } return window.TDLeave; },
     html: html, paint: paint, start: start, stop: stop, dismiss: dismiss, tick: tick, mins: mins, setMins: function (w, u, s2) { setMins(w, u, s2); paint(); }, summary: summary,
     state: st, active: function () { return active(st()); }, cmdLog: cmdLog, hasSetup: hasSetup, cmdAllowed: cmdAllowed, readCar: readCar, car: car,
