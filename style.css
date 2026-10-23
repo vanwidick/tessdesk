@@ -921,3 +921,15 @@ body { overscroll-behavior-y: contain; }
 .card.leaving4336 .lv-choices.lv-clim { justify-content: center; }
 
 .lv-choices.lv-comfort { margin-bottom: 4px; justify-content: center; }
+
+/* v4.3.39: Cost summary battery row (same look as Battery; % a little smaller) */
+.batt-top.cost-batt4339 { justify-content: center; height: auto; min-height: 0; margin: 0 0 4px; gap: 2px 12px; flex-wrap: wrap; }
+.batt-top.cost-batt4339 .pct { font-size: 42px; color: #fff; }
+.batt-top.cost-batt4339 .rng b { color: #fff; }
+body.compact .batt-top.cost-batt4339 { height: auto; } body.compact .batt-top.cost-batt4339 .pct { font-size: 30px; }
+/* v4.3.39: tall buttons halfway back up again (4.3.34 -> toward pre-4.3.33), same width; Leaving Soon and short/compact buttons unchanged */
+.cbtn.big { min-height:60px; } .cbtn { min-height:49px; } .cbtn.sq { min-height:49px; } .ctl-row2.three .cbtn.big, .cbtn.flash { min-height:60px; } .cbtn.lv-go { min-height:47px; } .climate-row4333 .cbtn { min-height:60px; }
+body.compact .cbtn, body.compact .cbtn.sq { min-height: 36px; } body.compact .cbtn.big { min-height: 42px; } body.compact .cbtn.remind { min-height: 32px; }
+/* v4.3.39: button wording never clipped: long labels wrap (centered) instead of overflowing */
+#cSentry b, #cTrunk b, #cDefrost b, #cCop b, .ctl-row3b .cbtn b, .sentry-cop4335 .cbtn b, body:not(.compact) .ctl-row3b .cbtn b { white-space: normal; overflow-wrap: anywhere; line-height: 1.1; text-align: center; }
+#cSentry small, #cTrunk small, #cDefrost small, #cCop small { white-space: normal; text-align: center; line-height: 1.15; }
