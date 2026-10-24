@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-# TessDesk v4.3.38 (v4.3.38: Leaving Soon fix - empty comfort step (seat/wheel unchecked) no longer injects a blank step that aborted windows/lock with Tessie 'Not found'; New-LeaveComfortSteps/Get-LeaveStepsFor filter empty steps. Desktop only; everything else 4.3.37 unchanged; v4.3.37: Leaving Soon climate checkboxes CLIMATE ON / CLIMATE OFF / A/C / HEAT plus HEATED DRIVER SEAT + STEERING WHEEL HEATER (persisted, mutually exclusive; default CLIMATE ON preserves prior start_climate). Climate choice runs at Start after: ON=start_climate, OFF=stop_climate, A/C=set_temperatures to Tesla Controls shared SET TEMP then start_climate, HEAT=set_temperatures to heat setpoint then start_climate. Stop/undo respects climate choice (OFF not reversed). Timers and WINDOWS/LOCK choices unchanged; v4.3.36: LEAVING SOON is now its own top-level section (LeaveCard / 'leaving') with the same green outline/title as TESLA CONTROLS, immediately after Tesla Controls by default; it joins the v4.3.30 section order/lock system (arrows top-left, lock top-right, order+pin persisted in config sections; existing saved orders get 'leaving' inserted right after 'controls' by Merge-SecState4330). The whole Leaving Soon UI moved out of TESLA CONTROLS: LEAVING SOON start button (now a full-width 31px button in its own section), Start after / Windows after / Unlock after timers, WINDOWS UP/DOWN + LOCK/UNLOCK persisted mutually-exclusive checkboxes, status/result LeaveRow with STOP/CLOSE and DRY RUN wording in results: ALL kept, same commands/waits/undo/confirm/Alexa behaviour. ALL OFF + SETUP stay at the top of TESLA CONTROLS exactly as v4.3.35; no other Tesla Controls change; v4.3.35: Leaving Soon explicit persisted WINDOWS UP / WINDOWS DOWN and LOCK / UNLOCK checkboxes, mutually exclusive per pair, unchecked stage skipped, defaults WINDOWS UP + UNLOCK preserve prior close_windows+unlock; v4.3.34: tall buttons halfway back up (46->37, 38->31, 36->29) after 4.3.33 made them too smashed; short buttons unchanged; v4.3.33: WHEEL ON rename + climate-gated wheel on phone too, combined CLIMATE block (A/C + HEAT + shared SET TEMP, setpoint-proxy wording), one-owner eased scrolling with signature guards, tall buttons ~40% shorter; STEERING WHEEL matches Tessie: heater flag + level set but climate off = grey SET <level> / OFF, not HEAT ON; BATTERY HEALTH is its own section (health %, as-of, trend sparkline, HEALTH HISTORY + calibration notes) right after BATTERY, Tips stays in BATTERY; UPDATE button always visible: RED 'NO UPDATE' when current, GREEN flashing 'YES UPDATE' when newer, tap checks the cloud at once and YES UPDATE installs on the spot; phone v4.3.32 gets the same NO UPDATE / YES UPDATE button; v4.3.31: TIRE REFRESH button in TIRES under REMIND ME TO GET AIR: fresh pressures via Tessie, read-only, spinner + result; v4.3.30: LAYOUT: small up/down arrows at the top left of every section move it one place; a lock at the top right pins that section and everything above it at the top, the rest scrolls; both saved; Charging locked by default; v4.3.29: SECTIONS: TESLA CONTROLS, BATTERY (with HEALTH HISTORY), HEATED SEATS, TRIPS, CHARGE HISTORY, TIRES, DRIVES, CAMERAS outlined in the CHARGING green with green titles; v4.3.28: Alexa: 'Alexa limit reached' notice, Voice Monkey monthly counter (resets the 26th 7 PM CT), fewer announcements, only when home, no test announcements; ALL OFF never starts charging (no charge commands + stops a charge that starts after it); flash pause = the typed value; v4.3.27: Voice Monkey button next to ALEXA: placeholder, 'coming soon' note only; v4.3.26: ALL OFF in TESLA CONTROLS: windows, trunk, climate, seat + wheel heat, defrost, Sentry, Climate Keeper off, lock; v4.3.25: CHARGING SCHEDULE reaches the car on firmware 2024.26+: charge schedules, checked after each send; v4.3.24: FINISH BY defaults to 6:00 AM; v4.3.23: CHARGING SCHEDULE in START / STOP: START AT + FINISH BY, set on the car through Tessie; v4.3.22: CHARGE column in HEALTH HISTORY: highest charge % per day + Home / AC / Supercharger; v4.3.21: HEALTH HISTORY under START / STOP with CALIBRATION INFO; health history logged by the app itself; v4.3.20: HEALTH HISTORY dropdown, one entry per day, kept indefinitely; v4.3.19: 30% wider; PLUG-IN REMINDER; TRIPS; MORNING READY CHECK; PSO BILL MATCH with on/off; BATTERY HEALTH TREND + TIPS; LEAVING SOON 'Start after' delay; v4.3.18 CHARGING STATUS bar under the big cost with START / STOP, fits 364x990 without scrolling; v4.3.17: TESLA CONTROLS under the big cost, CHARGE HISTORY & TOTALS dropdown; v4.3.16 LEAVING SOON: adjustable 'Windows after' / 'Unlock after' minutes, Stop undoes the steps already done; v4.3.15: climate on, close windows, unlock; rolling 7 / 14 days and 30 / 60 days $ beside the big amount; Restore / Remember at the top right with fade-in, like Paycheck Live; TOTALS pop-up: week / month / year running totals; CAMERAS panel from saved Sentry / Dashcam clips; checks for updates on open / wake; compact-when-OFF via cb_compact_addon.ps1) - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
+# TessDesk v4.3.40 (v4.3.40: the window is resizable (drag any edge or corner, min 420x480); REMEMBER / RESTORE sit in the footer next to SHARE; last-used size and place come back on restart and are pulled back on screen; TessDesk fits itself under MONEY LINE (above the taskbar) while MONEY LINE is open and goes back when it closes; built on 4.3.38 (4.3.39 desktop still pending); v4.3.38: Leaving Soon fix - empty comfort step (seat/wheel unchecked) no longer injects a blank step that aborted windows/lock with Tessie 'Not found'; New-LeaveComfortSteps/Get-LeaveStepsFor filter empty steps. Desktop only; everything else 4.3.37 unchanged; v4.3.37: Leaving Soon climate checkboxes CLIMATE ON / CLIMATE OFF / A/C / HEAT plus HEATED DRIVER SEAT + STEERING WHEEL HEATER (persisted, mutually exclusive; default CLIMATE ON preserves prior start_climate). Climate choice runs at Start after: ON=start_climate, OFF=stop_climate, A/C=set_temperatures to Tesla Controls shared SET TEMP then start_climate, HEAT=set_temperatures to heat setpoint then start_climate. Stop/undo respects climate choice (OFF not reversed). Timers and WINDOWS/LOCK choices unchanged; v4.3.36: LEAVING SOON is now its own top-level section (LeaveCard / 'leaving') with the same green outline/title as TESLA CONTROLS, immediately after Tesla Controls by default; it joins the v4.3.30 section order/lock system (arrows top-left, lock top-right, order+pin persisted in config sections; existing saved orders get 'leaving' inserted right after 'controls' by Merge-SecState4330). The whole Leaving Soon UI moved out of TESLA CONTROLS: LEAVING SOON start button (now a full-width 31px button in its own section), Start after / Windows after / Unlock after timers, WINDOWS UP/DOWN + LOCK/UNLOCK persisted mutually-exclusive checkboxes, status/result LeaveRow with STOP/CLOSE and DRY RUN wording in results: ALL kept, same commands/waits/undo/confirm/Alexa behaviour. ALL OFF + SETUP stay at the top of TESLA CONTROLS exactly as v4.3.35; no other Tesla Controls change; v4.3.35: Leaving Soon explicit persisted WINDOWS UP / WINDOWS DOWN and LOCK / UNLOCK checkboxes, mutually exclusive per pair, unchecked stage skipped, defaults WINDOWS UP + UNLOCK preserve prior close_windows+unlock; v4.3.34: tall buttons halfway back up (46->37, 38->31, 36->29) after 4.3.33 made them too smashed; short buttons unchanged; v4.3.33: WHEEL ON rename + climate-gated wheel on phone too, combined CLIMATE block (A/C + HEAT + shared SET TEMP, setpoint-proxy wording), one-owner eased scrolling with signature guards, tall buttons ~40% shorter; STEERING WHEEL matches Tessie: heater flag + level set but climate off = grey SET <level> / OFF, not HEAT ON; BATTERY HEALTH is its own section (health %, as-of, trend sparkline, HEALTH HISTORY + calibration notes) right after BATTERY, Tips stays in BATTERY; UPDATE button always visible: RED 'NO UPDATE' when current, GREEN flashing 'YES UPDATE' when newer, tap checks the cloud at once and YES UPDATE installs on the spot; phone v4.3.32 gets the same NO UPDATE / YES UPDATE button; v4.3.31: TIRE REFRESH button in TIRES under REMIND ME TO GET AIR: fresh pressures via Tessie, read-only, spinner + result; v4.3.30: LAYOUT: small up/down arrows at the top left of every section move it one place; a lock at the top right pins that section and everything above it at the top, the rest scrolls; both saved; Charging locked by default; v4.3.29: SECTIONS: TESLA CONTROLS, BATTERY (with HEALTH HISTORY), HEATED SEATS, TRIPS, CHARGE HISTORY, TIRES, DRIVES, CAMERAS outlined in the CHARGING green with green titles; v4.3.28: Alexa: 'Alexa limit reached' notice, Voice Monkey monthly counter (resets the 26th 7 PM CT), fewer announcements, only when home, no test announcements; ALL OFF never starts charging (no charge commands + stops a charge that starts after it); flash pause = the typed value; v4.3.27: Voice Monkey button next to ALEXA: placeholder, 'coming soon' note only; v4.3.26: ALL OFF in TESLA CONTROLS: windows, trunk, climate, seat + wheel heat, defrost, Sentry, Climate Keeper off, lock; v4.3.25: CHARGING SCHEDULE reaches the car on firmware 2024.26+: charge schedules, checked after each send; v4.3.24: FINISH BY defaults to 6:00 AM; v4.3.23: CHARGING SCHEDULE in START / STOP: START AT + FINISH BY, set on the car through Tessie; v4.3.22: CHARGE column in HEALTH HISTORY: highest charge % per day + Home / AC / Supercharger; v4.3.21: HEALTH HISTORY under START / STOP with CALIBRATION INFO; health history logged by the app itself; v4.3.20: HEALTH HISTORY dropdown, one entry per day, kept indefinitely; v4.3.19: 30% wider; PLUG-IN REMINDER; TRIPS; MORNING READY CHECK; PSO BILL MATCH with on/off; BATTERY HEALTH TREND + TIPS; LEAVING SOON 'Start after' delay; v4.3.18 CHARGING STATUS bar under the big cost with START / STOP, fits 364x990 without scrolling; v4.3.17: TESLA CONTROLS under the big cost, CHARGE HISTORY & TOTALS dropdown; v4.3.16 LEAVING SOON: adjustable 'Windows after' / 'Unlock after' minutes, Stop undoes the steps already done; v4.3.15: climate on, close windows, unlock; rolling 7 / 14 days and 30 / 60 days $ beside the big amount; Restore / Remember at the top right with fade-in, like Paycheck Live; TOTALS pop-up: week / month / year running totals; CAMERAS panel from saved Sentry / Dashcam clips; checks for updates on open / wake; compact-when-OFF via cb_compact_addon.ps1) - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
 param(
     [string]$ConfigPath,
     [string]$Snapshot,    # optional: folder to write PNG snapshots of both themes
@@ -15,8 +15,8 @@ Add-Type -AssemblyName System.Xaml
 
 $ErrorActionPreference = 'Stop'
 $AppName    = 'TessDesk'
-$AppVersion = '4.3.38'
-$AppDate    = 'Oct 19, 2026'
+$AppVersion = '4.3.40'
+$AppDate    = 'Oct 24, 2026'
 # ---------------- v4.3.30: section ORDER (up / down arrows, top left) + LOCK (top right) ----------------
 # The lock pins that section and everything above it at the top (PinStack, never scrolls); the rest scrolls (BodyStack).
 # Saved in config.json sections = { order = [...]; pin = key or null }. Default = 4.3.29 order with Charging locked (looks like 4.3.29).
@@ -2592,10 +2592,19 @@ function Open-Url433 {
           </StackPanel>
           <!-- v4.3.12: Restore / Remember moved to the top right (fade in on mouse move, like Paycheck Live); SHARE stays here -->
           <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,5,0,0">
+            <!-- v4.3.40: RESTORE / REMEMBER in the footer, always visible -->
+            <Border x:Name="RestoreBtn" CornerRadius="8" Background="#FF444444" Padding="9,1,9,2" Margin="0,0,6,0" Cursor="Hand" VerticalAlignment="Center"
+                    ToolTip="RESTORE: back to the remembered size and place (473x990 if nothing is remembered)">
+              <TextBlock x:Name="RestoreTxt" Text="&#x27F2; RESTORE" FontSize="9.5" FontWeight="Bold" Foreground="#FFDDDDDD" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
             <!-- v4.3.7: SHARE the TessDesk links (Messenger, text, email, copy, send to phone); never a token, never sent automatically -->
             <Border x:Name="ShareBtn" CornerRadius="8" BorderBrush="#FF49DF93" BorderThickness="1.5" Background="#1A49DF93" Padding="9,1,9,2" Margin="0,0,0,0" Cursor="Hand" VerticalAlignment="Center"
                     ToolTip="SHARE: send the TessDesk phone / download link to someone (only the link, never your token)">
               <TextBlock x:Name="ShareTxt" Text="SHARE" FontSize="9.5" FontWeight="Bold" Foreground="#FFFFFFFF"/>
+            </Border>
+            <Border x:Name="KeepBtn" CornerRadius="8" Background="#FF444444" Padding="9,1,9,2" Margin="6,0,0,0" Cursor="Hand" VerticalAlignment="Center"
+                    ToolTip="REMEMBER: save TessDesk's current size and place (used by RESTORE and at startup)">
+              <TextBlock x:Name="KeepTxt" Text="REMEMBER" FontSize="9.5" FontWeight="Bold" Foreground="#FFDDDDDD" HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Border>
           </StackPanel>
         </StackPanel>
@@ -2687,15 +2696,11 @@ function Open-Url433 {
     </Border>
     <!-- v4.3.12: Restore / Remember at the top right under the title bar, exactly like Paycheck Live (Margin 0,34,14,0; fade in on mouse move, hide 2.2 s after the mouse stops) -->
     <StackPanel x:Name="DwRow" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,34,14,0" Opacity="0" IsHitTestVisible="False" Panel.ZIndex="50">
-      <Border x:Name="RestoreBtn" CornerRadius="4" Background="#FF444444" Padding="6,0,6,0" Height="16" Cursor="Hand" VerticalAlignment="Center"
-              ToolTip="Restore TessDesk to its saved size and place">
-        <TextBlock x:Name="RestoreTxt" Text="&#x27F2; Restore" FontFamily="Segoe UI" FontSize="9" FontWeight="SemiBold" Foreground="#FFDDDDDD" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-      </Border>
-      <Border x:Name="KeepBtn" CornerRadius="4" Background="#FF444444" Padding="6,0,6,0" Height="16" Margin="3,0,0,0" Cursor="Hand" VerticalAlignment="Center"
-              ToolTip="Remember TessDesk's current size and place (used by Restore and startup)">
-        <TextBlock x:Name="KeepTxt" Text="Remember" FontFamily="Segoe UI" FontSize="9" FontWeight="SemiBold" Foreground="#FFDDDDDD" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-      </Border>
     </StackPanel>
+    <!-- v4.3.40: standard resize grip, bottom-right corner -->
+    <Grid x:Name="ResizeGrip4340" Width="16" Height="16" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,4,4" Panel.ZIndex="60" Cursor="SizeNWSE" Background="#01000000" ToolTip="Drag to resize TessDesk">
+      <Path x:Name="ResizeGripPath4340" Data="M14,4 L4,14 M14,8 L8,14 M14,12 L12,14" Stroke="#FF49DF93" StrokeThickness="1.5" Opacity="0.9" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+    </Grid>
    </Grid>
   </Border>
 </Window>
@@ -6669,7 +6674,7 @@ function Confirm-Fit {
         $fitSig4333 = [string]$window.Width + 'x' + [string]$window.Height + ':' + [string]$ui.BodyScroll.ExtentHeight + ':' + [string]$ui.PinStack.Children.Count + ':' + ($script:Sig4333.Values -join ','); if ($script:Sig4333['fit'] -eq $fitSig4333) { return }; $script:Sig4333['fit']=$fitSig4333  # v4.3.33 only on change
         if ($script:Layout -eq 'compact') { Update-CompactScale; return }
         $m = Get-ContentNeed
-        if ($m[0] -gt $m[1] + 0.5) {
+        if (-not $script:NoGrow4340 -and $m[0] -gt $m[1] + 0.5) {
             $wa = [System.Windows.SystemParameters]::WorkArea
             $newH = [math]::Min($window.Height + ($m[0] - $m[1]) + 4, $wa.Bottom - $window.Top)
             if ($newH -gt $window.Height) { $window.Height = [math]::Ceiling($newH); $script:FitGrew = $window.Height; $window.UpdateLayout() }
@@ -6870,7 +6875,7 @@ try {
 # ---------------- v4.3.11: Restore / Remember look and feel like Paycheck Live's ----------------
 # Same pill as Paycheck Live (#FF444444, hover #FF666666 with white text), label reads restored / saved / failed for 1.4 s
 # (button disabled meanwhile) and its tooltip then shows what happened. The save / restore logic is unchanged (desk_window_layout.json TESSDESK entry).
-$DwLbl = @{ restore = ([string][char]0x27F2 + ' Restore'); remember = 'Remember' }
+$DwLbl = @{ restore = ([string][char]0x27F2 + ' RESTORE'); remember = 'REMEMBER' }
 $script:DwBrush = @{}
 function Get-DwBrush { param([string]$Hex) if (-not $script:DwBrush.ContainsKey($Hex)) { $b = [System.Windows.Media.BrushConverter]::new().ConvertFromString($Hex); $b.Freeze(); $script:DwBrush[$Hex] = $b }; return $script:DwBrush[$Hex] }
 function Set-DwHover { param($Btn, [bool]$On) $Btn.Background = Get-DwBrush $(if ($On) { '#FF666666' } else { '#FF444444' }); $Btn.Child.Foreground = Get-DwBrush $(if ($On) { '#FFFFFFFF' } else { '#FFDDDDDD' }) }
@@ -6931,11 +6936,41 @@ function Test-SpotUsable {
         return (($l + $w) -gt ($vl + 40) -and $l -lt ($vl + $vw - 40) -and $t -ge ($vt - 10) -and $t -lt ($vt + $vh - 40))
     } catch { return $false }
 }
+# v4.3.40: resizable window helpers (min size, default size, on-screen clamp in WPF units)
+$script:MinW4340 = 420; $script:MinH4340 = 480; $script:DefW4340 = 473; $script:DefH4340 = 990; $script:NoGrow4340 = $false
+try { Add-Type -AssemblyName System.Drawing } catch {}
+try { Add-Type -Namespace TD4340 -Name W -MemberDefinition @'
+[DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern IntPtr FindWindow(string c, string t);
+[DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
+[DllImport("user32.dll")] public static extern bool IsIconic(IntPtr h);
+[StructLayout(LayoutKind.Sequential)] public struct RECT { public int L, T, R, B; }
+[DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
+[DllImport("user32.dll")] public static extern bool ReleaseCapture();
+[DllImport("user32.dll")] public static extern IntPtr SendMessage(IntPtr h, int m, IntPtr w, IntPtr l);
+'@ } catch {}
+function Get-Dip4340 { try { $ps = [System.Windows.PresentationSource]::FromVisual($window); if ($null -ne $ps) { return [double]$ps.CompositionTarget.TransformFromDevice.M11 } } catch {}; return 1.0 }
+function Get-WorkAreaFor4340 {
+    param([double]$L, [double]$T, [double]$W, [double]$H)
+    $k = Get-Dip4340
+    $scr = [System.Windows.Forms.Screen]::FromRectangle([System.Drawing.Rectangle]::new([int]($L / $k), [int]($T / $k), [int][math]::Max(1, $W / $k), [int][math]::Max(1, $H / $k)))
+    $wa = $scr.WorkingArea
+    return [pscustomobject]@{ left = $wa.Left * $k; top = $wa.Top * $k; right = $wa.Right * $k; bottom = $wa.Bottom * $k; name = $scr.DeviceName }
+}
+function Get-ClampedSpot4340 {
+    param([double]$L, [double]$T, [double]$W, [double]$H, $WA)
+    if ($null -eq $WA) { $WA = Get-WorkAreaFor4340 $L $T $W $H }
+    $W = [math]::Max($script:MinW4340, [math]::Min($W, $WA.right - $WA.left)); $H = [math]::Max($script:MinH4340, [math]::Min($H, $WA.bottom - $WA.top))
+    $L = [math]::Max($WA.left, [math]::Min($L, $WA.right - $W)); $T = [math]::Max($WA.top, [math]::Min($T, $WA.bottom - $H))
+    return [pscustomobject]@{ left = $L; top = $T; width = $W; height = $H }
+}
 function Set-TdSpot {
+    # v4.3.40: any size >= the minimum (was: forced to 473 wide), always pulled fully onto the nearest screen's work area
     param($S)
-    $window.Left = [double]$S.left; $window.Top = [double]$S.top
-    if ($null -ne $S.width -and [double]$S.width -ge 200) { $ww = [double]$S.width; if ($ww -lt $winW) { $window.Left = [math]::Max(0, $window.Left - ($winW - $ww)); $ww = $winW }; $window.Width = $ww }
-    if ($null -ne $S.height -and [double]$S.height -ge 400) { $window.Height = [double]$S.height }
+    $w0 = $(if ($null -ne $S.width -and [double]$S.width -ge 200) { [double]$S.width } else { $window.Width })
+    $h0 = $(if ($null -ne $S.height -and [double]$S.height -ge 300) { [double]$S.height } else { $window.Height })
+    $cl = Get-ClampedSpot4340 ([double]$S.left) ([double]$S.top) $w0 $h0 $null
+    $window.Left = $cl.left; $window.Top = $cl.top; $window.Width = $cl.width; $window.Height = $cl.height
+    $script:LastClamp4340 = $cl; $script:NoGrow4340 = $true
 }
 function Get-DeskLayoutPath {
     if ($SelfTest) { if ($script:SelfDeskPath) { return $script:SelfDeskPath }; return $null }   # a self-test never writes the real file
@@ -7010,22 +7045,26 @@ function Invoke-KeepSpot {
 }
 function Invoke-RestoreSpot {
     $S = Get-DeskSaved
-    if ($null -ne $S -and -not (Test-SpotUsable $S)) { Set-SpotBtnFeedback $ui.RestoreTxt 'failed' $DwLbl.restore; Set-DwTip $ui.RestoreBtn 'restore' $null 'the remembered spot is not on any screen right now'; Show-TdToast 'The remembered spot is not on any screen right now' $false; return }
+    if ($false) { Set-SpotBtnFeedback $ui.RestoreTxt 'failed' $DwLbl.restore; Set-DwTip $ui.RestoreBtn 'restore' $null 'the remembered spot is not on any screen right now'; Show-TdToast 'The remembered spot is not on any screen right now' $false; return }
     if ($window.WindowState -ne [System.Windows.WindowState]::Normal) { $window.WindowState = [System.Windows.WindowState]::Normal }
     if ($null -eq $S) {
         if ($null -eq $script:DWL_Default) { Set-SpotBtnFeedback $ui.RestoreTxt 'failed' $DwLbl.restore; Set-DwTip $ui.RestoreBtn 'restore' $null 'no saved place'; Show-TdToast 'No spot remembered yet: press Remember first' $false; return }
-        $window.Left = [double]$script:DWL_Default.left; $window.Top = [double]$script:DWL_Default.top   # nothing remembered: the startup place, size unchanged
-        $from = 'startup place'
+        Set-TdSpot ([pscustomobject]@{ left = [double]$script:DWL_Default.left; top = [double]$script:DWL_Default.top; width = $script:DefW4340; height = $script:DefH4340 })   # v4.3.40: nothing remembered: startup place at the default 473x990
+        $from = 'default size'
     } else { Set-TdSpot $S; $from = [string]$S.from }
     try { $window.UpdateLayout(); [void]$window.Activate() } catch {}
     $script:KeepLast = [ordered]@{ action = 'restore'; spot = $S; from = $from; at = [ordered]@{ left = $window.Left; top = $window.Top; width = $window.Width; height = $window.Height } }
+    try { $script:MLState4340.active = $false; $script:MLState4340.pre = $null; $script:MLState4340.pausedSig = $null; Invoke-MLFit4340 -Force } catch {}   # v4.3.40: RESTORE keeps the fit under MONEY LINE
     Write-WidgetLog ('RESTORE: moved to ' + [math]::Round($window.Left) + ',' + [math]::Round($window.Top) + ' (' + $from + ')')
     Set-SpotBtnFeedback $ui.RestoreTxt 'restored' $DwLbl.restore
     Set-DwTip $ui.RestoreBtn 'restore' ([ordered]@{ x = $window.Left; y = $window.Top; w = $window.ActualWidth; h = $window.ActualHeight })
 }
 # startup: remember the place TessDesk picked itself (RESTORE falls back to it), then open at the remembered spot
 $script:DWL_Default = [pscustomobject]@{ left = $window.Left; top = $window.Top }
-try { $sp0 = Get-DeskSaved; if ($null -ne $sp0 -and (Test-SpotUsable $sp0)) { Set-TdSpot $sp0; $script:StartedAtKept = $true; $script:StartedFrom = [string]$sp0.from } } catch {}
+try { $sp0 = Get-DeskSaved; if ($null -ne $sp0) { Set-TdSpot $sp0; $script:StartedAtKept = $true; $script:StartedFrom = [string]$sp0.from } } catch {}
+
+# v4.3.40: last-used size and place (saved 3 s after a move / resize) win at startup
+try { $ls4340 = $c.lastSpot4340; if (-not $SelfTest -and $null -ne $ls4340 -and $null -ne $ls4340.left) { Set-TdSpot $ls4340; $script:StartedAtKept = $true; $script:StartedFrom = 'config.json lastSpot4340' } } catch {}
 
 # ---------------- v4.3.7: SHARE (links only; the app that opens does the sending, never TessDesk) ----------------
 $ShareLinks = [ordered]@{ phone = 'https://vanwidick.github.io/tessdesk/'; download = 'https://vanwidick.github.io/tessdesk/download.html' }
@@ -9823,7 +9862,7 @@ $ui.BillSaveBtn.Add_Click({ try { Save-BillInputs } catch { Write-WidgetLog ('bi
 foreach ($bx in @($ui.BillFrom, $ui.BillTo, $ui.BillKwh, $ui.BillUsd)) { $bx.Add_PreviewKeyDown({ param($s9, $e9) try { if ($e9.Key -eq 'Enter') { Save-BillInputs; $e9.Handled = $true } } catch {} }) }
 $ui.TripsMoreBtn.Add_Click({ try { Set-TripsOpen (-not (Get-TripsOpen)) } catch { Write-WidgetLog ('trips more: ' + $_.Exception.Message) } })
 # v4.3.19: 30% wider (473 px). A layout saved at the old width (or the compact add-on restoring it) is widened back to $winW.
-$script:WidthGuard = $false
+$script:WidthGuard = $true   # v4.3.40: resizable, the 473 width guard is off (min size 420x480 instead)
 $window.Add_SizeChanged({
     try {
         if ($script:WidthGuard) { return }
@@ -9834,6 +9873,82 @@ $window.Add_SizeChanged({
         }
     } catch {}
 })
+# ---------------- v4.3.40: resizable window, last-used size, off-screen clamp, fit under MONEY LINE ----------------
+$script:MLTitle4340 = 'MONEY LINE'; if ($SelfTest) { $script:MLTitle4340 = 'TESSDESK SELFTEST NO MONEY LINE 4340' }
+$script:MLFitOn4340 = $true; try { if ($null -ne $c.moneyLineFit -and -not [bool]$c.moneyLineFit) { $script:MLFitOn4340 = $false } } catch {}
+$script:MLState4340 = [ordered]@{ active = $false; sig = ''; pre = $null; pausedSig = $null; last = $null }
+$script:UserSizeAt4340 = [DateTime]::MinValue
+try { $wc4340 = New-Object System.Windows.Shell.WindowChrome; $wc4340.CaptionHeight = 0; $wc4340.ResizeBorderThickness = [System.Windows.Thickness]::new(6); $wc4340.GlassFrameThickness = [System.Windows.Thickness]::new(0); $wc4340.CornerRadius = [System.Windows.CornerRadius]::new(0); $wc4340.UseAeroCaptionButtons = $false; [System.Windows.Shell.WindowChrome]::SetWindowChrome($window, $wc4340); $window.ResizeMode = 'CanResize' } catch { Write-WidgetLog ('resize chrome: ' + $_.Exception.Message) }
+function Test-CompactOff4340 { try { if ($null -ne $script:CbCompact) { return [bool]$script:CbCompact.Off } } catch {}; return $false }
+function Update-MinSize4340 { if (Test-CompactOff4340) { $window.MinWidth = 0 } else { $window.MinWidth = $script:MinW4340; if ($window.MinHeight -lt $script:MinH4340) { $window.MinHeight = $script:MinH4340 } } }
+function Get-MLRect4340 {
+    try {
+        $h = [TD4340.W]::FindWindow($null, $script:MLTitle4340); if ($h -eq [IntPtr]::Zero) { return $null }
+        if (-not [TD4340.W]::IsWindowVisible($h) -or [TD4340.W]::IsIconic($h)) { return $null }
+        $r = New-Object 'TD4340.W+RECT'; if (-not [TD4340.W]::GetWindowRect($h, [ref]$r)) { return $null }
+        $k = Get-Dip4340; $scr = [System.Windows.Forms.Screen]::FromHandle($h); $wa = $scr.WorkingArea
+        return [pscustomobject]@{ left = $r.L * $k; top = $r.T * $k; right = $r.R * $k; bottom = $r.B * $k; wa = [pscustomobject]@{ left = $wa.Left * $k; top = $wa.Top * $k; right = $wa.Right * $k; bottom = $wa.Bottom * $k; name = $scr.DeviceName } }
+    } catch { return $null }
+}
+function Get-MLFit4340 {
+    # pure: where TessDesk goes under MONEY LINE (same screen, overlapping columns), or $null
+    param($ML, $Cur, [string]$CurScreen)
+    if ($null -eq $ML -or $null -eq $Cur) { return $null }
+    if ($CurScreen -and $ML.wa.name -and $CurScreen -ne [string]$ML.wa.name) { return $null }
+    if (([double]$Cur.left + [double]$Cur.width) -le $ML.left -or [double]$Cur.left -ge $ML.right) { return $null }
+    $top = [math]::Ceiling($ML.bottom) + 2; if ($top -lt $ML.wa.top) { $top = $ML.wa.top }
+    $h = $ML.wa.bottom - $top; if ($h -lt $script:MinH4340) { return $null }
+    $w = [math]::Max($script:MinW4340, [math]::Min([double]$Cur.width, $ML.wa.right - $ML.wa.left))
+    $l = [math]::Max($ML.wa.left, [math]::Min([double]$Cur.left, $ML.wa.right - $w))
+    return [pscustomobject]@{ left = $l; top = $top; width = $w; height = $h }
+}
+function Invoke-MLFit4340 {
+    param([switch]$Force)
+    try {
+        if (-not $script:MLFitOn4340 -or (Test-CompactOff4340)) { return }
+        if ($window.WindowState -ne [System.Windows.WindowState]::Normal) { return }
+        $st = $script:MLState4340
+        if (-not $Force -and ([DateTime]::UtcNow - $script:UserSizeAt4340).TotalSeconds -lt 8) { return }   # never fight a drag / resize in progress
+        $ml = Get-MLRect4340
+        $sig = $(if ($ml) { '{0},{1},{2},{3}' -f [int]$ml.left, [int]$ml.top, [int]$ml.right, [int]$ml.bottom } else { '' })
+        if ($null -ne $st.pausedSig) { if ($st.pausedSig -eq $sig -and -not $Force) { return }; $st.pausedSig = $null }
+        $cur = [pscustomobject]@{ left = $window.Left; top = $window.Top; width = $window.Width; height = $window.Height }
+        $base = $(if ($st.active -and $st.pre) { $st.pre } else { $cur })
+        $fit = $null; if ($ml) { $fit = Get-MLFit4340 $ml $base (Get-TdMonitor) }
+        if ($fit) {
+            if (-not $st.active) { $st.pre = $cur; $st.active = $true; Write-WidgetLog ('MONEY LINE at ' + $sig + ': fitting TessDesk under it') }
+            if ([math]::Abs($window.Top - $fit.top) -gt 1 -or [math]::Abs($window.Height - $fit.height) -gt 1 -or [math]::Abs($window.Left - $fit.left) -gt 1 -or [math]::Abs($window.Width - $fit.width) -gt 1) {
+                $window.Left = $fit.left; $window.Top = $fit.top; $window.Width = $fit.width; $window.Height = $fit.height
+                $script:NoGrow4340 = $true; $st.last = $fit
+            }
+            $st.sig = $sig
+        } elseif ($st.active) {
+            $st.active = $false; $st.sig = ''
+            $back = Get-DeskSaved; if ($null -eq $back) { $back = $st.pre }
+            if ($null -ne $back) { Set-TdSpot $back }
+            $st.pre = $null
+            Write-WidgetLog 'MONEY LINE gone: TessDesk back to its remembered size'
+        }
+    } catch { Write-WidgetLog ('money line fit: ' + $_.Exception.Message) }
+}
+$script:LastSave4340 = New-Object System.Windows.Threading.DispatcherTimer; $script:LastSave4340.Interval = [TimeSpan]::FromSeconds(3)
+$script:LastSave4340.Add_Tick({ try { $script:LastSave4340.Stop(); if ($SelfTest -or $script:MLState4340.active -or (Test-CompactOff4340) -or $window.WindowState -ne [System.Windows.WindowState]::Normal) { return }
+    Save-ConfigProp 'lastSpot4340' ([ordered]@{ left = [int][math]::Round($window.Left); top = [int][math]::Round($window.Top); width = [int][math]::Round($window.Width); height = [int][math]::Round($window.Height); savedAt = (Get-LocalNow).ToString('s') }) } catch {} })
+function Set-Moved4340 {
+    param([bool]$Size)
+    $down = (([System.Windows.Forms.Control]::MouseButtons -band [System.Windows.Forms.MouseButtons]::Left) -ne 0)
+    if ($down) { $script:UserSizeAt4340 = [DateTime]::UtcNow; if ($script:MLState4340.active) { $script:MLState4340.pausedSig = $script:MLState4340.sig }; if ($Size) { $script:NoGrow4340 = $true } }
+    $script:LastSave4340.Stop(); $script:LastSave4340.Start()
+}
+$window.Add_SizeChanged({ try { Set-Moved4340 $true } catch {} })
+$window.Add_LocationChanged({ try { Set-Moved4340 $false } catch {} })
+$script:MLTimer4340 = New-Object System.Windows.Threading.DispatcherTimer; $script:MLTimer4340.Interval = [TimeSpan]::FromSeconds(3)
+$script:MLTimer4340.Add_Tick({ try { Update-MinSize4340; Invoke-MLFit4340 } catch {} })
+$window.Add_ContentRendered({ try { Update-MinSize4340; Invoke-MLFit4340; $script:MLTimer4340.Start() } catch {} })
+# v4.3.40: bottom-right grip = a normal Windows corner resize (WM_NCLBUTTONDOWN + HTBOTTOMRIGHT)
+$script:GripHT4340 = 17
+function Start-GripResize4340 { $script:UserSizeAt4340 = [DateTime]::UtcNow; if ($script:MLState4340.active) { $script:MLState4340.pausedSig = $script:MLState4340.sig }; $script:NoGrow4340 = $true; [void][TD4340.W]::ReleaseCapture(); [void][TD4340.W]::SendMessage((Get-TdHwnd), 0xA1, [IntPtr]$script:GripHT4340, [IntPtr]::Zero) }
+try { $ui.ResizeGrip4340.Add_MouseLeftButtonDown({ param($s, $e) try { $e.Handled = $true; Start-GripResize4340 } catch { Write-WidgetLog ('grip: ' + $_.Exception.Message) } }) } catch {}
 # Show local/cached data immediately; the first Tessie call runs once the window is on screen.
 try {
     $script:View = Build-FallbackView (Read-LocalJson) 'Live: connecting…' 'starting'
@@ -10688,7 +10803,7 @@ function Start-SelfTest {
         if ($null -eq $script:SelfRec.v4332 -or -not $script:SelfRec.v4332.pass) { $fails += 'v4332' }
         $g = $r.guard; $g.pass = ($null -ne $g -and $g.whenWasCharging -eq $null -and $g.stopSent -eq 1 -and $g.dry -eq $true -and $g.stoppedFlag -and $null -eq $g.again)
         if (-not $g.pass) { $fails += 'guard' }
-        $sm = [ordered]@{ ver = ($AppVersion -eq '4.3.38' -and $ui.FooterVersion.Text -like ('*4.3.38*' + $AppDate)); bold = ($ui.FooterText.FontWeight -eq [System.Windows.FontWeights]::Bold -or $ui.FooterText.FontWeight.ToString() -match 'Bold|Black') }
+        $sm = [ordered]@{ ver = ($AppVersion -eq '4.3.40' -and $ui.FooterVersion.Text -like ('*4.3.40*' + $AppDate)); bold = ($ui.FooterText.FontWeight -eq [System.Windows.FontWeights]::Bold -or $ui.FooterText.FontWeight.ToString() -match 'Bold|Black') }
         $r.smoke = $sm; if (-not ($sm.ver)) { $fails += 'smoke' }
         $r.netCommandsSent = $script:NetCommandsSent; $r.announcementsSent = $script:AnnSent
         $r.summary = [ordered]@{ fails = $fails; allPass = ($fails.Count -eq 0 -and $script:NetCommandsSent -eq 0 -and $script:AnnSent -eq 0) } }
@@ -10799,7 +10914,7 @@ function Start-SelfTest {
             $script:SelfRec.v4338 = $r4338
         } catch { $script:SelfRec.v4338 = [ordered]@{ pass=$false; error=$_.Exception.Message } }
         $r.smoke = [ordered]@{ appVersion = $AppVersion; footer = $ui.FooterVersion.Text; brand = $ui.FooterText.Text; bold = [string]$ui.FooterText.FontWeight; hookLines = $hook; hookBeforeShowDialog = $before; width = $window.Width; renderError = $err; dryRun = $CTL_DRYRUN; realCmdLog = $real
-            pass = ($AppVersion -eq '4.3.38' -and $ui.FooterVersion.Text -like ('*4.3.38*' + $AppDate) -and [string]$ui.FooterText.FontWeight -eq 'Bold' -and $hook -eq 1 -and $before -and $null -eq $err -and $CTL_DRYRUN -and [math]::Abs($window.Width - $winW) -lt 1) }
+            pass = ($AppVersion -eq '4.3.40' -and $ui.FooterVersion.Text -like ('*4.3.40*' + $AppDate) -and [string]$ui.FooterText.FontWeight -eq 'Bold' -and $hook -eq 1 -and $before -and $null -eq $err -and $CTL_DRYRUN -and [math]::Abs($window.Width - $winW) -lt 1) }
         $fails = @(); foreach ($k in 'pure', 'collapsed', 'place', 'expanded', 'calTags', 'showAll', 'fresh', 'smoke') { if ($null -eq $r[$k] -or -not $r[$k].pass) { $fails += $k } }
         $r.summary = [ordered]@{ fails = $fails; allPass = ($fails.Count -eq 0) } }
     & $add 'v4.3.22 summary' @() {
@@ -10837,6 +10952,69 @@ function Start-SelfTest {
         $r26 = $script:SelfRec.v4326.summary; if ($null -eq $r26 -or -not $r26.allPass) { $fails += 'v4326' }
         $r.netCommandsSent = $script:NetCommandsSent; $r.announcementsSent = $script:AnnSent
         $r.summary = [ordered]@{ fails = $fails; allPass = ($fails.Count -eq 0 -and $script:NetCommandsSent -eq 0 -and $script:AnnSent -eq 0) } }
+    & $add 'v4.3.40 resizable window: resize, remember, restore, off-screen clamp, MONEY LINE fit' @() {
+        $r40 = [ordered]@{}
+        $origML = ${function:Get-MLRect4340}
+        try {
+            $s0 = [pscustomobject]@{ left = $window.Left; top = $window.Top; width = $window.Width; height = $window.Height }
+            $script:SelfDeskPath = Join-Path $scriptDir 'desk_window_layout.test4340.json'; Remove-Item -LiteralPath $script:SelfDeskPath -ErrorAction SilentlyContinue
+            $r40.chrome = (($null -ne [System.Windows.Shell.WindowChrome]::GetWindowChrome($window)) -and ([string]$window.ResizeMode -eq 'CanResize'))
+            Update-MinSize4340; $r40.min = '{0}x{1}' -f $window.MinWidth, $window.MinHeight
+            $window.Left = 100; $window.Top = 40; $window.Width = 620; $window.Height = 720; $window.UpdateLayout(); Confirm-Fit; $window.UpdateLayout()
+            $r40.resize = [ordered]@{ w = [int]$window.ActualWidth; h = [int]$window.ActualHeight; viewport = [int]$ui.BodyScroll.ViewportHeight; extent = [int]$ui.BodyScroll.ExtentHeight; bodyW = [int]$ui.BodyScroll.ActualWidth; pinned = $ui.PinStack.Children.Count }
+            $r40.resizeOk = ([math]::Abs($window.ActualWidth - 620) -lt 2 -and [math]::Abs($window.ActualHeight - 720) -lt 2 -and $ui.BodyScroll.ExtentHeight -gt $ui.BodyScroll.ViewportHeight -and $ui.BodyScroll.ActualWidth -gt 500)
+            $window.Width = 300; $window.Height = 200; $window.UpdateLayout(); $r40.minClamp = ([int]$window.ActualWidth -ge 420 -and [int]$window.ActualHeight -ge 480)
+            $t40 = [int]((Get-WorkAreaFor4340 200 60 600 760).top + 20); $r40.t40 = $t40; $window.Left = 200; $window.Top = $t40; $window.Width = 600; $window.Height = 760; $window.UpdateLayout()
+            Invoke-KeepSpot; $ks = (Read-Config).keptSpot
+            $r40.remember = [ordered]@{ ok = [bool]$script:KeepLast.ok; saved = ('{0},{1} {2}x{3}' -f $ks.left, $ks.top, $ks.width, $ks.height); err = [string]$script:KeepLast.error }
+            $r40.rememberOk = ($r40.remember.ok -and [int]$ks.width -eq 600 -and [int]$ks.height -eq 760 -and [int]$ks.left -eq 200 -and [int]$ks.top -eq $t40)
+            $window.Left = 400; $window.Top = 100; $window.Width = 500; $window.Height = 600; $window.UpdateLayout(); Invoke-RestoreSpot; $window.UpdateLayout()
+            $r40.restore = [ordered]@{ at = ('{0},{1} {2}x{3}' -f [int]$window.Left, [int]$window.Top, [int]$window.Width, [int]$window.Height); from = [string]$script:KeepLast.from }
+            $r40.restoreOk = ([int]$window.Width -eq 600 -and [int]$window.Height -eq 760 -and [int]$window.Left -eq 200 -and [int]$window.Top -eq $t40)
+            $kp = $script:KeptSpot; $script:KeptSpot = $null; Remove-Item -LiteralPath $script:SelfDeskPath -ErrorAction SilentlyContinue
+            $window.Width = 500; $window.Height = 600; $window.UpdateLayout(); Invoke-RestoreSpot; $window.UpdateLayout()
+            $wa0 = Get-WorkAreaFor4340 $window.Left $window.Top $window.Width $window.Height
+            $r40.restoreDefault = ('{0}x{1} (work area h {2})' -f [int]$window.Width, [int]$window.Height, [int]($wa0.bottom - $wa0.top))
+            $r40.restoreDefaultOk = ([int]$window.Width -eq 473 -and [int]$window.Height -eq [int][math]::Min(990, $wa0.bottom - $wa0.top))
+            $script:KeptSpot = $kp
+            Set-TdSpot ([pscustomobject]@{ left = 99999; top = -5000; width = 473; height = 990 }); $window.UpdateLayout()
+            $wa1 = Get-WorkAreaFor4340 $window.Left $window.Top $window.Width $window.Height
+            $r40.offscreen = ('{0},{1} {2}x{3}' -f [int]$window.Left, [int]$window.Top, [int]$window.Width, [int]$window.Height)
+            $r40.offscreenOk = ($window.Left -ge $wa1.left - 0.5 -and ($window.Left + $window.Width) -le $wa1.right + 1 -and $window.Top -ge $wa1.top - 0.5 -and ($window.Top + $window.Height) -le $wa1.bottom + 1)
+            $window.UpdateLayout(); $gp = $ui.ResizeGrip4340.TransformToAncestor($window).Transform([System.Windows.Point]::new(0, 0)); $fp = $ui.FooterText.TransformToAncestor($window).Transform([System.Windows.Point]::new(0, 0))
+            $gR = [System.Windows.Rect]::new($gp.X, $gp.Y, $ui.ResizeGrip4340.ActualWidth, $ui.ResizeGrip4340.ActualHeight); $fR = [System.Windows.Rect]::new($fp.X, $fp.Y, $ui.FooterText.ActualWidth, $ui.FooterText.ActualHeight)
+            $r40.grip = [ordered]@{ rect = [string]$gR; footer = [string]$fR; winW = [int]$window.ActualWidth; winH = [int]$window.ActualHeight; visible = $ui.ResizeGrip4340.IsVisible; cursor = [string]$ui.ResizeGrip4340.Cursor; stroke = [string]$ui.ResizeGripPath4340.Stroke; ht = $script:GripHT4340 }
+            $r40.gripOk = ($ui.ResizeGrip4340.IsVisible -and -not $gR.IntersectsWith($fR) -and ($window.ActualWidth - $gR.Right) -lt 10 -and ($window.ActualHeight - $gR.Bottom) -lt 10 -and $script:GripHT4340 -eq 17 -and [string]$ui.ResizeGrip4340.Cursor -eq 'SizeNWSE')
+            # MONEY LINE: pure placement with fake rects
+            $waF = [pscustomobject]@{ left = 0; top = 0; right = 1920; bottom = 1032; name = 'S1' }
+            $mlF = [pscustomobject]@{ left = 0; top = 0; right = 1920; bottom = 216; wa = $waF }
+            $tdF = [pscustomobject]@{ left = 1433; top = 34; width = 473; height = 990 }
+            $f1 = Get-MLFit4340 $mlF $tdF 'S1'
+            $r40.mlPure = ('{0},{1} {2}x{3}' -f $f1.left, $f1.top, $f1.width, $f1.height)
+            $r40.mlPureOk = ($f1.top -eq 218 -and $f1.height -eq 814 -and $f1.left -eq 1433 -and $f1.width -eq 473 -and $null -eq (Get-MLFit4340 $mlF $tdF 'S2') -and $null -eq (Get-MLFit4340 ([pscustomobject]@{ left = 0; top = 0; right = 800; bottom = 216; wa = $waF }) $tdF 'S1') -and $null -eq (Get-MLFit4340 $null $tdF 'S1'))
+            $r40.mlRealNotMatched = ($null -eq (Get-MLRect4340))
+            # MONEY LINE: live cycle with a stubbed finder (open -> fit, manual resize -> paused, RESTORE -> fit again, close -> remembered size)
+            Set-TdSpot $kp; $window.UpdateLayout()
+            $waL = Get-WorkAreaFor4340 $window.Left $window.Top $window.Width $window.Height; $waL.name = (Get-TdMonitor)
+            $script:FakeML4340 = [pscustomobject]@{ left = $waL.left; top = $waL.top; right = $waL.right; bottom = $waL.top + 150; wa = $waL }
+            ${function:script:Get-MLRect4340} = { return $script:FakeML4340 }
+            Invoke-MLFit4340 -Force; $window.UpdateLayout()
+            $expTop = [math]::Ceiling($waL.top + 150) + 2
+            $r40.mlOpen = ('{0},{1} {2}x{3} active {4}' -f [int]$window.Left, [int]$window.Top, [int]$window.Width, [int]$window.Height, $script:MLState4340.active)
+            $r40.mlOpenOk = ($script:MLState4340.active -and [math]::Abs($window.Top - $expTop) -lt 1 -and [math]::Abs(($window.Top + $window.Height) - $waL.bottom) -lt 1 -and [int]$window.Left -eq 200 -and [int]$window.Width -eq 600)
+            $script:MLState4340.pausedSig = $script:MLState4340.sig; $window.Height = 600; Invoke-MLFit4340; $window.UpdateLayout()
+            $r40.mlPausedOk = ([int]$window.Height -eq 600)
+            Invoke-RestoreSpot; $window.UpdateLayout()
+            $r40.mlRestoreOk = ($script:MLState4340.active -and [math]::Abs($window.Top - $expTop) -lt 1 -and $null -eq $script:MLState4340.pausedSig)
+            $script:FakeML4340 = $null; Invoke-MLFit4340 -Force; $window.UpdateLayout()
+            $r40.mlClose = ('{0},{1} {2}x{3}' -f [int]$window.Left, [int]$window.Top, [int]$window.Width, [int]$window.Height)
+            $r40.mlCloseOk = (-not $script:MLState4340.active -and [int]$window.Width -eq 600 -and [int]$window.Height -eq 760 -and [int]$window.Left -eq 200 -and [int]$window.Top -eq $t40)
+        } catch { $r40.error = $_.Exception.Message }
+        ${function:script:Get-MLRect4340} = $origML; $script:FakeML4340 = $null
+        try { $window.Left = $s0.left; $window.Top = $s0.top; $window.Width = $s0.width; $window.Height = $s0.height; $window.UpdateLayout() } catch {}
+        $r40.realCommandsSent = $script:NetCommandsSent; $r40.announcementsSent = $script:AnnSent
+        $r40.pass = ($null -eq $r40.error -and $r40.chrome -and $r40.resizeOk -and $r40.gripOk -and $r40.minClamp -and $r40.rememberOk -and $r40.restoreOk -and $r40.restoreDefaultOk -and $r40.offscreenOk -and $r40.mlPureOk -and $r40.mlRealNotMatched -and $r40.mlOpenOk -and $r40.mlPausedOk -and $r40.mlRestoreOk -and $r40.mlCloseOk -and $script:NetCommandsSent -eq 0 -and $script:AnnSent -eq 0)
+        $script:SelfRec.v4340 = $r40 }
     if ($Quick4328) { return (Start-SelfTimer) }
     # v4.3.17: record the dropdown's start state, then open it (not saved) so the older steps can snapshot the history rows
     $script:SelfRec.v4317pre = [ordered]@{ open = [bool]$script:ChgHist.open; body = [string]$ui.ChgHistBody.Visibility; arrow = $ui.ChgHistArrow.Text; savedSetting = $(try { [string](Read-Config).ui.historyOpen } catch { '' }) }; Set-ChgHistOpen $true $false
