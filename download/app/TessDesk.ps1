@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-# TessDesk v4.3.40 (v4.3.40: the window is resizable (drag any edge or corner, min 420x480); REMEMBER / RESTORE sit in the footer next to SHARE; last-used size and place come back on restart and are pulled back on screen; TessDesk fits itself under MONEY LINE (above the taskbar) while MONEY LINE is open and goes back when it closes; built on 4.3.38 (4.3.39 desktop still pending); v4.3.38: Leaving Soon fix - empty comfort step (seat/wheel unchecked) no longer injects a blank step that aborted windows/lock with Tessie 'Not found'; New-LeaveComfortSteps/Get-LeaveStepsFor filter empty steps. Desktop only; everything else 4.3.37 unchanged; v4.3.37: Leaving Soon climate checkboxes CLIMATE ON / CLIMATE OFF / A/C / HEAT plus HEATED DRIVER SEAT + STEERING WHEEL HEATER (persisted, mutually exclusive; default CLIMATE ON preserves prior start_climate). Climate choice runs at Start after: ON=start_climate, OFF=stop_climate, A/C=set_temperatures to Tesla Controls shared SET TEMP then start_climate, HEAT=set_temperatures to heat setpoint then start_climate. Stop/undo respects climate choice (OFF not reversed). Timers and WINDOWS/LOCK choices unchanged; v4.3.36: LEAVING SOON is now its own top-level section (LeaveCard / 'leaving') with the same green outline/title as TESLA CONTROLS, immediately after Tesla Controls by default; it joins the v4.3.30 section order/lock system (arrows top-left, lock top-right, order+pin persisted in config sections; existing saved orders get 'leaving' inserted right after 'controls' by Merge-SecState4330). The whole Leaving Soon UI moved out of TESLA CONTROLS: LEAVING SOON start button (now a full-width 31px button in its own section), Start after / Windows after / Unlock after timers, WINDOWS UP/DOWN + LOCK/UNLOCK persisted mutually-exclusive checkboxes, status/result LeaveRow with STOP/CLOSE and DRY RUN wording in results: ALL kept, same commands/waits/undo/confirm/Alexa behaviour. ALL OFF + SETUP stay at the top of TESLA CONTROLS exactly as v4.3.35; no other Tesla Controls change; v4.3.35: Leaving Soon explicit persisted WINDOWS UP / WINDOWS DOWN and LOCK / UNLOCK checkboxes, mutually exclusive per pair, unchecked stage skipped, defaults WINDOWS UP + UNLOCK preserve prior close_windows+unlock; v4.3.34: tall buttons halfway back up (46->37, 38->31, 36->29) after 4.3.33 made them too smashed; short buttons unchanged; v4.3.33: WHEEL ON rename + climate-gated wheel on phone too, combined CLIMATE block (A/C + HEAT + shared SET TEMP, setpoint-proxy wording), one-owner eased scrolling with signature guards, tall buttons ~40% shorter; STEERING WHEEL matches Tessie: heater flag + level set but climate off = grey SET <level> / OFF, not HEAT ON; BATTERY HEALTH is its own section (health %, as-of, trend sparkline, HEALTH HISTORY + calibration notes) right after BATTERY, Tips stays in BATTERY; UPDATE button always visible: RED 'NO UPDATE' when current, GREEN flashing 'YES UPDATE' when newer, tap checks the cloud at once and YES UPDATE installs on the spot; phone v4.3.32 gets the same NO UPDATE / YES UPDATE button; v4.3.31: TIRE REFRESH button in TIRES under REMIND ME TO GET AIR: fresh pressures via Tessie, read-only, spinner + result; v4.3.30: LAYOUT: small up/down arrows at the top left of every section move it one place; a lock at the top right pins that section and everything above it at the top, the rest scrolls; both saved; Charging locked by default; v4.3.29: SECTIONS: TESLA CONTROLS, BATTERY (with HEALTH HISTORY), HEATED SEATS, TRIPS, CHARGE HISTORY, TIRES, DRIVES, CAMERAS outlined in the CHARGING green with green titles; v4.3.28: Alexa: 'Alexa limit reached' notice, Voice Monkey monthly counter (resets the 26th 7 PM CT), fewer announcements, only when home, no test announcements; ALL OFF never starts charging (no charge commands + stops a charge that starts after it); flash pause = the typed value; v4.3.27: Voice Monkey button next to ALEXA: placeholder, 'coming soon' note only; v4.3.26: ALL OFF in TESLA CONTROLS: windows, trunk, climate, seat + wheel heat, defrost, Sentry, Climate Keeper off, lock; v4.3.25: CHARGING SCHEDULE reaches the car on firmware 2024.26+: charge schedules, checked after each send; v4.3.24: FINISH BY defaults to 6:00 AM; v4.3.23: CHARGING SCHEDULE in START / STOP: START AT + FINISH BY, set on the car through Tessie; v4.3.22: CHARGE column in HEALTH HISTORY: highest charge % per day + Home / AC / Supercharger; v4.3.21: HEALTH HISTORY under START / STOP with CALIBRATION INFO; health history logged by the app itself; v4.3.20: HEALTH HISTORY dropdown, one entry per day, kept indefinitely; v4.3.19: 30% wider; PLUG-IN REMINDER; TRIPS; MORNING READY CHECK; PSO BILL MATCH with on/off; BATTERY HEALTH TREND + TIPS; LEAVING SOON 'Start after' delay; v4.3.18 CHARGING STATUS bar under the big cost with START / STOP, fits 364x990 without scrolling; v4.3.17: TESLA CONTROLS under the big cost, CHARGE HISTORY & TOTALS dropdown; v4.3.16 LEAVING SOON: adjustable 'Windows after' / 'Unlock after' minutes, Stop undoes the steps already done; v4.3.15: climate on, close windows, unlock; rolling 7 / 14 days and 30 / 60 days $ beside the big amount; Restore / Remember at the top right with fade-in, like Paycheck Live; TOTALS pop-up: week / month / year running totals; CAMERAS panel from saved Sentry / Dashcam clips; checks for updates on open / wake; compact-when-OFF via cb_compact_addon.ps1) - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
+# TessDesk v4.3.41 (v4.3.41: Leaving Soon start says 'Starting leaving now sequence' on Alexa the moment the start is accepted (replaces the old start announcement, home-only, monthly counter, limit-reached skip); merges the 4.3.39 desktop changes: battery % + rated range at the top of COST SUMMARY, tall buttons halfway back up (37->42, 31->35, 29->33), VENT/CLOSE/DEFROST tighter padding, labels shrink only if needed; v4.3.40: the window is resizable (drag any edge or corner, min 420x480); REMEMBER / RESTORE sit in the footer next to SHARE; last-used size and place come back on restart and are pulled back on screen; TessDesk fits itself under MONEY LINE (above the taskbar) while MONEY LINE is open and goes back when it closes; built on 4.3.38 (4.3.39 desktop still pending); v4.3.38: Leaving Soon fix - empty comfort step (seat/wheel unchecked) no longer injects a blank step that aborted windows/lock with Tessie 'Not found'; New-LeaveComfortSteps/Get-LeaveStepsFor filter empty steps. Desktop only; everything else 4.3.37 unchanged; v4.3.37: Leaving Soon climate checkboxes CLIMATE ON / CLIMATE OFF / A/C / HEAT plus HEATED DRIVER SEAT + STEERING WHEEL HEATER (persisted, mutually exclusive; default CLIMATE ON preserves prior start_climate). Climate choice runs at Start after: ON=start_climate, OFF=stop_climate, A/C=set_temperatures to Tesla Controls shared SET TEMP then start_climate, HEAT=set_temperatures to heat setpoint then start_climate. Stop/undo respects climate choice (OFF not reversed). Timers and WINDOWS/LOCK choices unchanged; v4.3.36: LEAVING SOON is now its own top-level section (LeaveCard / 'leaving') with the same green outline/title as TESLA CONTROLS, immediately after Tesla Controls by default; it joins the v4.3.30 section order/lock system (arrows top-left, lock top-right, order+pin persisted in config sections; existing saved orders get 'leaving' inserted right after 'controls' by Merge-SecState4330). The whole Leaving Soon UI moved out of TESLA CONTROLS: LEAVING SOON start button (now a full-width 31px button in its own section), Start after / Windows after / Unlock after timers, WINDOWS UP/DOWN + LOCK/UNLOCK persisted mutually-exclusive checkboxes, status/result LeaveRow with STOP/CLOSE and DRY RUN wording in results: ALL kept, same commands/waits/undo/confirm/Alexa behaviour. ALL OFF + SETUP stay at the top of TESLA CONTROLS exactly as v4.3.35; no other Tesla Controls change; v4.3.35: Leaving Soon explicit persisted WINDOWS UP / WINDOWS DOWN and LOCK / UNLOCK checkboxes, mutually exclusive per pair, unchecked stage skipped, defaults WINDOWS UP + UNLOCK preserve prior close_windows+unlock; v4.3.34: tall buttons halfway back up (46->37, 38->31, 36->29) after 4.3.33 made them too smashed; short buttons unchanged; v4.3.33: WHEEL ON rename + climate-gated wheel on phone too, combined CLIMATE block (A/C + HEAT + shared SET TEMP, setpoint-proxy wording), one-owner eased scrolling with signature guards, tall buttons ~40% shorter; STEERING WHEEL matches Tessie: heater flag + level set but climate off = grey SET <level> / OFF, not HEAT ON; BATTERY HEALTH is its own section (health %, as-of, trend sparkline, HEALTH HISTORY + calibration notes) right after BATTERY, Tips stays in BATTERY; UPDATE button always visible: RED 'NO UPDATE' when current, GREEN flashing 'YES UPDATE' when newer, tap checks the cloud at once and YES UPDATE installs on the spot; phone v4.3.32 gets the same NO UPDATE / YES UPDATE button; v4.3.31: TIRE REFRESH button in TIRES under REMIND ME TO GET AIR: fresh pressures via Tessie, read-only, spinner + result; v4.3.30: LAYOUT: small up/down arrows at the top left of every section move it one place; a lock at the top right pins that section and everything above it at the top, the rest scrolls; both saved; Charging locked by default; v4.3.29: SECTIONS: TESLA CONTROLS, BATTERY (with HEALTH HISTORY), HEATED SEATS, TRIPS, CHARGE HISTORY, TIRES, DRIVES, CAMERAS outlined in the CHARGING green with green titles; v4.3.28: Alexa: 'Alexa limit reached' notice, Voice Monkey monthly counter (resets the 26th 7 PM CT), fewer announcements, only when home, no test announcements; ALL OFF never starts charging (no charge commands + stops a charge that starts after it); flash pause = the typed value; v4.3.27: Voice Monkey button next to ALEXA: placeholder, 'coming soon' note only; v4.3.26: ALL OFF in TESLA CONTROLS: windows, trunk, climate, seat + wheel heat, defrost, Sentry, Climate Keeper off, lock; v4.3.25: CHARGING SCHEDULE reaches the car on firmware 2024.26+: charge schedules, checked after each send; v4.3.24: FINISH BY defaults to 6:00 AM; v4.3.23: CHARGING SCHEDULE in START / STOP: START AT + FINISH BY, set on the car through Tessie; v4.3.22: CHARGE column in HEALTH HISTORY: highest charge % per day + Home / AC / Supercharger; v4.3.21: HEALTH HISTORY under START / STOP with CALIBRATION INFO; health history logged by the app itself; v4.3.20: HEALTH HISTORY dropdown, one entry per day, kept indefinitely; v4.3.19: 30% wider; PLUG-IN REMINDER; TRIPS; MORNING READY CHECK; PSO BILL MATCH with on/off; BATTERY HEALTH TREND + TIPS; LEAVING SOON 'Start after' delay; v4.3.18 CHARGING STATUS bar under the big cost with START / STOP, fits 364x990 without scrolling; v4.3.17: TESLA CONTROLS under the big cost, CHARGE HISTORY & TOTALS dropdown; v4.3.16 LEAVING SOON: adjustable 'Windows after' / 'Unlock after' minutes, Stop undoes the steps already done; v4.3.15: climate on, close windows, unlock; rolling 7 / 14 days and 30 / 60 days $ beside the big amount; Restore / Remember at the top right with fade-in, like Paycheck Live; TOTALS pop-up: week / month / year running totals; CAMERAS panel from saved Sentry / Dashcam clips; checks for updates on open / wake; compact-when-OFF via cb_compact_addon.ps1) - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
 param(
     [string]$ConfigPath,
     [string]$Snapshot,    # optional: folder to write PNG snapshots of both themes
@@ -15,8 +15,8 @@ Add-Type -AssemblyName System.Xaml
 
 $ErrorActionPreference = 'Stop'
 $AppName    = 'TessDesk'
-$AppVersion = '4.3.40'
-$AppDate    = 'Oct 24, 2026'
+$AppVersion = '4.3.41'
+$AppDate    = 'Oct 25, 2026'
 # ---------------- v4.3.30: section ORDER (up / down arrows, top left) + LOCK (top right) ----------------
 # The lock pins that section and everything above it at the top (PinStack, never scrolls); the rest scrolls (BodyStack).
 # Saved in config.json sections = { order = [...]; pin = key or null }. Default = 4.3.29 order with Charging locked (looks like 4.3.29).
@@ -1678,6 +1678,14 @@ function Open-Url433 {
         <Border x:Name="CostCard" CornerRadius="10" Background="#FF13261B" BorderBrush="#FF49DF93" BorderThickness="2" Padding="10,4,10,6" Margin="0,0,0,4">   <!-- v4.3.29 section -->
           <StackPanel>
             <TextBlock x:Name="CostCardTitle" Text="COST SUMMARY" FontSize="11.5" FontWeight="Black" Foreground="#FF49DF93" Margin="0,0,0,2"/>
+            <!-- v4.3.39: battery % + rated range (mirrors BATTERY, same poll) -->
+            <StackPanel x:Name="CostBattRow" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,2">
+              <TextBlock x:Name="CostBattPct" Text="--" FontSize="32" FontWeight="Bold" Foreground="#FFFFFFFF" VerticalAlignment="Bottom"/>
+              <StackPanel VerticalAlignment="Bottom" Margin="10,0,0,7">
+                <TextBlock x:Name="CostBattRange" Text="" FontSize="19" FontWeight="SemiBold" Foreground="#FFFFFFFF"/>
+                <TextBlock x:Name="CostBattRangeCap" Text="" FontSize="8" FontWeight="SemiBold" Foreground="#FF888888" Margin="0,-1,0,0"/>
+              </StackPanel>
+            </StackPanel>
           <Grid x:Name="HeroRow" HorizontalAlignment="Stretch">
             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
             <Grid x:Name="HeroL" Grid.Column="0">
@@ -1754,13 +1762,13 @@ function Open-Url433 {
               </Viewbox>
             </Grid>
             <StackPanel x:Name="ChgBtnCol" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-              <Button x:Name="ChgStartBtn" Style="{StaticResource CtlBtn}" Width="70" Height="29" Margin="0,0,4,0" Padding="2,1,2,1" ToolTip="Start charging (car must be plugged in)">
+              <Button x:Name="ChgStartBtn" Style="{StaticResource CtlBtn}" Width="70" Height="33" Margin="0,0,4,0" Padding="2,1,2,1" ToolTip="Start charging (car must be plugged in)">
                 <StackPanel HorizontalAlignment="Center">
                   <TextBlock x:Name="ChgStartTxt" Text="&#x25B6; START" FontSize="11.5" FontWeight="Bold" HorizontalAlignment="Center"/>
                   <TextBlock x:Name="ChgStartSub" Text="" FontSize="7" FontWeight="SemiBold" Foreground="#FF888888" HorizontalAlignment="Center"/>
                 </StackPanel>
               </Button>
-              <Button x:Name="ChgStopBtn" Style="{StaticResource CtlBtn}" Width="70" Height="29" Padding="2,1,2,1" ToolTip="Stop charging (asks first)">
+              <Button x:Name="ChgStopBtn" Style="{StaticResource CtlBtn}" Width="70" Height="33" Padding="2,1,2,1" ToolTip="Stop charging (asks first)">
                 <StackPanel HorizontalAlignment="Center">
                   <TextBlock x:Name="ChgStopTxt" Text="&#x25A0; STOP" FontSize="11.5" FontWeight="Bold" HorizontalAlignment="Center"/>
                   <TextBlock x:Name="ChgStopSub" Text="" FontSize="7" FontWeight="SemiBold" Foreground="#FF888888" HorizontalAlignment="Center"/>
@@ -1843,7 +1851,7 @@ function Open-Url433 {
               <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="58"/></Grid.ColumnDefinitions>
 <Grid Grid.Column="0" Margin="0,0,3,0">
               <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="26"/></Grid.ColumnDefinitions>
-              <Button x:Name="AllOffBtn" Style="{StaticResource CtlBtn}" Height="31" Margin="0,0,3,0" Padding="2" Background="#FF2A1012" BorderBrush="#FFE5484D" ToolTip="ALL OFF: close windows, close the trunk (if open), climate off, seat + wheel heat off, defrost off, Sentry off, Dog / Camp off, lock. Skips anything already off. Press again to cancel the remaining steps.">
+              <Button x:Name="AllOffBtn" Style="{StaticResource CtlBtn}" Height="35" Margin="0,0,3,0" Padding="2" Background="#FF2A1012" BorderBrush="#FFE5484D" ToolTip="ALL OFF: close windows, close the trunk (if open), climate off, seat + wheel heat off, defrost off, Sentry off, Dog / Camp off, lock. Skips anything already off. Press again to cancel the remaining steps.">
                 <StackPanel HorizontalAlignment="Center">
                   <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                     <TextBlock x:Name="AllOffIcon" Text="&#xE7E8;" FontFamily="Segoe MDL2 Assets" FontSize="11" VerticalAlignment="Center" Margin="0,0,4,0" Foreground="#FFFF6B6E"/>
@@ -1852,14 +1860,14 @@ function Open-Url433 {
                   <TextBlock x:Name="AllOffSub" Text="EVERYTHING" FontSize="7.5" FontWeight="SemiBold" Foreground="#FFE89A9C" HorizontalAlignment="Center"/>
                 </StackPanel>
               </Button>
-              <Button x:Name="AllOffSetBtn" Grid.Column="1" Style="{StaticResource CtlBtn}" Height="31" Padding="0" Background="#FF2A1012" BorderBrush="#FFE5484D" ToolTip="ALL OFF setup: pick which steps ALL OFF runs (saved)">
+              <Button x:Name="AllOffSetBtn" Grid.Column="1" Style="{StaticResource CtlBtn}" Height="35" Padding="0" Background="#FF2A1012" BorderBrush="#FFE5484D" ToolTip="ALL OFF setup: pick which steps ALL OFF runs (saved)">
                 <TextBlock x:Name="AllOffSetIcon" Text="&#xE713;" FontFamily="Segoe MDL2 Assets" FontSize="12" HorizontalAlignment="Center" Foreground="#FFFF6B6E"/>
               </Button>
               </Grid>
-<Button x:Name="AnnSetupBtn" Grid.Column="1" Style="{StaticResource CtlBtn}" Height="31" Margin="3,0,0,0" Padding="0" ToolTip="Announce Setup: rundown items, speakers (pick Echos, Test, Add speaker), charging-started announcement">
+<Button x:Name="AnnSetupBtn" Grid.Column="1" Style="{StaticResource CtlBtn}" Height="35" Margin="3,0,0,0" Padding="0" ToolTip="Announce Setup: rundown items, speakers (pick Echos, Test, Add speaker), charging-started announcement">
                 <StackPanel HorizontalAlignment="Center">
                   <TextBlock Text="&#xE713;" FontFamily="Segoe MDL2 Assets" FontSize="15" HorizontalAlignment="Center"/>
-                  <TextBlock x:Name="AnnSetupTxt" Text="SETUP" FontSize="8" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                  <TextBlock x:Name="AnnSetupTxt" Text="SETUP" FontSize="8" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,1,0,0"/>
                 </StackPanel>
               </Button>
             </Grid>
@@ -1869,7 +1877,7 @@ function Open-Url433 {
             
             
             <UniformGrid x:Name="CtlTopRow" Columns="2" Rows="1">
-<Button x:Name="LockBtn" Style="{StaticResource CtlBtn}" Height="37" Margin="0,0,3,0" Padding="2,1,2,1" ToolTip="Lock / unlock your Tesla">
+<Button x:Name="LockBtn" Style="{StaticResource CtlBtn}" Height="42" Margin="0,0,3,0" Padding="2,1,2,1" ToolTip="Lock / unlock your Tesla">
                 <Grid>
                   <Grid.ColumnDefinitions><ColumnDefinition Width="22"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                   <TextBlock x:Name="LockIcon" Text="&#xE72E;" FontFamily="Segoe MDL2 Assets" FontSize="18" VerticalAlignment="Center" HorizontalAlignment="Center"/>
@@ -1879,7 +1887,7 @@ function Open-Url433 {
                   </StackPanel>
                 </Grid>
               </Button>
-<Border x:Name="FlashBox" Height="37" Margin="3,0,3,0" CornerRadius="10" BorderThickness="1.5" BorderBrush="#FF49DF93" Background="#2649DF93" Padding="5,1,5,1" ToolTip="Flash the headlights (Tessie flash), 1-20 times with the pause you set (1-30 s). Asks first; Stop ends early.">
+<Border x:Name="FlashBox" Height="42" Margin="3,0,3,0" CornerRadius="10" BorderThickness="1.5" BorderBrush="#FF49DF93" Background="#2649DF93" Padding="5,1,5,1" ToolTip="Flash the headlights (Tessie flash), 1-20 times with the pause you set (1-30 s). Asks first; Stop ends early.">
                 <StackPanel VerticalAlignment="Center">
                   <Viewbox StretchDirection="DownOnly" HorizontalAlignment="Center"><TextBlock x:Name="FlashTxt" Text="FLASH LIGHTS" FontSize="8" FontWeight="Bold"/></Viewbox>
                   <Grid Margin="0,1,0,0">
@@ -1908,7 +1916,7 @@ function Open-Url433 {
                 </DockPanel>
                 <TextBlock x:Name="ClimateDetail4333" Text="set temp is a setpoint" FontSize="8.5" FontWeight="SemiBold" Foreground="#FF9A9A9A" Margin="0,-1,0,4" TextTrimming="CharacterEllipsis"/>
                 <Grid x:Name="AcTempRow"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="62"/><ColumnDefinition Width="34"/><ColumnDefinition Width="34"/></Grid.ColumnDefinitions>
-<Button Grid.Column="0" x:Name="ClimBtn" Style="{StaticResource CtlBtn}" Height="31" Margin="0,0,3,0" Padding="3,1,3,1" ToolTip="A/C: turn climate on/off at the cool set temperature (same command as before)">
+<Button Grid.Column="0" x:Name="ClimBtn" Style="{StaticResource CtlBtn}" Height="35" Margin="0,0,3,0" Padding="3,1,3,1" ToolTip="A/C: turn climate on/off at the cool set temperature (same command as before)">
                 <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="18"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                   <TextBlock x:Name="ClimIcon" Text="❄" FontFamily="Segoe UI Symbol" FontSize="13" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                   <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="2,0,0,0">
@@ -1916,7 +1924,7 @@ function Open-Url433 {
                     <Viewbox StretchDirection="DownOnly" HorizontalAlignment="Left"><TextBlock x:Name="ClimSub" Text="tap to turn on" FontSize="7.5" Foreground="#FF888888"/></Viewbox>
                   </StackPanel></Grid>
               </Button>
-<Button Grid.Column="1" x:Name="HeatBtn" Style="{StaticResource CtlBtn}" Height="31" Margin="3,0,3,0" Padding="3,1,3,1" ToolTip="HEAT: climate on at the warm heat setpoint (82F default). Tesla has no separate heater command; this is a setpoint proxy, not measured airflow.">
+<Button Grid.Column="1" x:Name="HeatBtn" Style="{StaticResource CtlBtn}" Height="35" Margin="3,0,3,0" Padding="3,1,3,1" ToolTip="HEAT: climate on at the warm heat setpoint (82F default). Tesla has no separate heater command; this is a setpoint proxy, not measured airflow.">
                 <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="18"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                   <TextBlock x:Name="HeatIcon" Text="♨" FontFamily="Segoe UI Symbol" FontSize="13" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                   <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="2,0,0,0">
@@ -1930,32 +1938,32 @@ function Open-Url433 {
                 <TextBlock x:Name="HeatTempVal" Text="--" FontSize="1" Visibility="Collapsed"/>
                 <TextBlock x:Name="HeatTempCap" Text="SET TEMP" FontSize="1" Visibility="Collapsed"/>
               </StackPanel>
-<Button x:Name="TempDownBtn" Grid.Column="3" Style="{StaticResource CtlBtn}" Height="31" Padding="0" ToolTip="Cooler (shared climate set temperature)"><TextBlock Text="−" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,-3,0,0"/></Button>
-<Button x:Name="TempUpBtn" Grid.Column="4" Style="{StaticResource CtlBtn}" Height="31" Padding="0" ToolTip="Warmer (shared climate set temperature)"><TextBlock Text="+" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,-2,0,0"/></Button>
+<Button x:Name="TempDownBtn" Grid.Column="3" Style="{StaticResource CtlBtn}" Height="35" Padding="0" ToolTip="Cooler (shared climate set temperature)"><TextBlock Text="−" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,-3,0,0"/></Button>
+<Button x:Name="TempUpBtn" Grid.Column="4" Style="{StaticResource CtlBtn}" Height="35" Padding="0" ToolTip="Warmer (shared climate set temperature)"><TextBlock Text="+" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,-2,0,0"/></Button>
 <Button x:Name="HeatTempDownBtn" Visibility="Collapsed" Width="1" Height="1"/><Button x:Name="HeatTempUpBtn" Visibility="Collapsed" Width="1" Height="1"/>
                 </Grid>
               </StackPanel>
             </Border>
             <!-- v4.3.32: windows + defrost below the A/C and HEAT blocks -->
             <UniformGrid Columns="3" Rows="1" Margin="0,4,0,0">
-<Button x:Name="VentBtn" Style="{StaticResource CtlBtn}" Height="32" Margin="0,0,3,0" Padding="2" ToolTip="Vent all windows">
+<Button x:Name="VentBtn" Style="{StaticResource CtlBtn}" Height="32" Margin="0,0,3,0" Padding="2,0,2,0" ToolTip="Vent all windows">
                 <StackPanel HorizontalAlignment="Center">
                   <TextBlock x:Name="VentTxt" Text="VENT" FontSize="13" FontWeight="Bold" HorizontalAlignment="Center"/>
                   <TextBlock x:Name="VentSub" Text="WINDOWS" FontSize="7.5" FontWeight="SemiBold" Foreground="#FF888888" HorizontalAlignment="Center"/>
                 </StackPanel>
               </Button>
-<Button x:Name="CloseWinBtn" Style="{StaticResource CtlBtn}" Height="32" Margin="3,0,0,0" Padding="2" ToolTip="Close all windows">
+<Button x:Name="CloseWinBtn" Style="{StaticResource CtlBtn}" Height="32" Margin="3,0,0,0" Padding="2,0,2,0" ToolTip="Close all windows">
                 <StackPanel HorizontalAlignment="Center">
                   <TextBlock x:Name="CloseWinTxt" Text="CLOSE" FontSize="13" FontWeight="Bold" HorizontalAlignment="Center"/>
                   <TextBlock x:Name="CloseWinSub" Text="WINDOWS" FontSize="7.5" FontWeight="SemiBold" Foreground="#FF888888" HorizontalAlignment="Center"/>
                 </StackPanel>
               </Button>
-<Button x:Name="TrunkBtn" Style="{StaticResource CtlBtn}" Height="31" Margin="3,0,0,0" Padding="2" ToolTip="Open the rear trunk (asks Are you sure? first)">
+<Button x:Name="TrunkBtn" Style="{StaticResource CtlBtn}" Height="35" Margin="3,0,0,0" Padding="2" ToolTip="Open the rear trunk (asks Are you sure? first)">
                 <StackPanel HorizontalAlignment="Center">
-                  <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                  <Viewbox StretchDirection="DownOnly" HorizontalAlignment="Center"><StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                     <TextBlock x:Name="TrunkIcon" Text="&#xE7EF;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
                     <TextBlock x:Name="TrunkTxt" Text="OPEN TRUNK" FontSize="13" FontWeight="Bold" VerticalAlignment="Center"/>
-                  </StackPanel>
+                  </StackPanel></Viewbox>
                   <TextBlock x:Name="TrunkSub" Text="REAR" FontSize="7.5" FontWeight="SemiBold" Foreground="#FF888888" HorizontalAlignment="Center"/>
                 </StackPanel>
               </Button>
@@ -1964,36 +1972,36 @@ function Open-Url433 {
             <!-- v4.3.35 layout: SENTRY MODE + OVERHEAT PROTECTION low row (DEFROST keeps this row too) -->
             <Grid x:Name="CtlLowRow4335" Margin="0,4,0,0">
               <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-<Button x:Name="SentryBtn" Grid.Column="0" Style="{StaticResource CtlBtn}" Height="31" Margin="0,0,3,0" Padding="2" ToolTip="Sentry Mode on / off (shows the car's current state, asks first)">
+<Button x:Name="SentryBtn" Grid.Column="0" Style="{StaticResource CtlBtn}" Height="35" Margin="0,0,3,0" Padding="2" ToolTip="Sentry Mode on / off (shows the car's current state, asks first)">
                 <StackPanel HorizontalAlignment="Center">
-                  <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                  <Viewbox StretchDirection="DownOnly" HorizontalAlignment="Center"><StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                     <TextBlock x:Name="SentryIcon" Text="&#xE7B3;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
                     <TextBlock x:Name="SentryTxt" Text="SENTRY MODE" FontSize="13" FontWeight="Bold" VerticalAlignment="Center"/>
-                  </StackPanel>
+                  </StackPanel></Viewbox>
                   <TextBlock x:Name="SentrySub" Text="STATE UNKNOWN" FontSize="7.5" FontWeight="SemiBold" Foreground="#FF888888" HorizontalAlignment="Center"/>
                 </StackPanel>
               </Button>
-<Button Grid.Column="1" x:Name="CopBtn" Style="{StaticResource CtlBtn}" Height="37" Margin="3,0,3,0" Padding="3,2,3,2" ToolTip="Cabin Overheat Protection: off, on, fan only">
+<Button Grid.Column="1" x:Name="CopBtn" Style="{StaticResource CtlBtn}" Height="42" Margin="3,0,3,0" Padding="3,2,3,2" ToolTip="Cabin Overheat Protection: off, on, fan only">
                 <StackPanel HorizontalAlignment="Center">
-                  <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                  <Viewbox StretchDirection="DownOnly" HorizontalAlignment="Center"><StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                     <TextBlock x:Name="CopIcon" Text="☀" FontFamily="Segoe UI Symbol" FontSize="13" Margin="0,0,4,0" VerticalAlignment="Center"/>
                     <TextBlock x:Name="CopTxt" Text="OVERHEAT" FontSize="12.5" FontWeight="Bold" VerticalAlignment="Center"/>
-                  </StackPanel>
+                  </StackPanel></Viewbox>
                   <Viewbox StretchDirection="DownOnly" HorizontalAlignment="Center" MaxWidth="96"><TextBlock x:Name="CopSub" Text="" FontSize="9" FontWeight="SemiBold" Foreground="#FF888888"/></Viewbox>
                 </StackPanel>
               </Button>
-<Button Grid.Column="2" x:Name="DefrostBtn" Style="{StaticResource CtlBtn}" Height="32" Margin="3,0,0,0" Padding="3,2,3,2" ToolTip="Max defrost on / off">
+<Button Grid.Column="2" x:Name="DefrostBtn" Style="{StaticResource CtlBtn}" Height="32" Margin="3,0,0,0" Padding="3,0,3,0" ToolTip="Max defrost on / off">
                 <StackPanel HorizontalAlignment="Center">
-                  <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                  <Viewbox StretchDirection="DownOnly" HorizontalAlignment="Center"><StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                     <TextBlock x:Name="DefrostIcon" Text="❄" FontFamily="Segoe UI Symbol" FontSize="13" Margin="0,0,4,0" VerticalAlignment="Center"/>
                     <TextBlock x:Name="DefrostTxt" Text="DEFROST" FontSize="12.5" FontWeight="Bold" VerticalAlignment="Center"/>
-                  </StackPanel>
-                  <Viewbox StretchDirection="DownOnly" HorizontalAlignment="Center" MaxWidth="96"><TextBlock x:Name="DefrostSub" Text="" FontSize="9" FontWeight="SemiBold" Foreground="#FF888888"/></Viewbox>
+                  </StackPanel></Viewbox>
+                  <Viewbox StretchDirection="DownOnly" HorizontalAlignment="Center" MaxWidth="96"><TextBlock x:Name="DefrostSub" Text="" FontSize="8" FontWeight="SemiBold" Foreground="#FF888888"/></Viewbox>
                 </StackPanel>
               </Button>
             </Grid>
             <!-- v4.3.35: ANNOUNCE stays low, full width -->
-            <Button x:Name="AnnNowBtn" Style="{StaticResource CtlBtn}" Height="31" Margin="0,4,0,0" Padding="4,2,4,2" ToolTip="Announce on Alexa: one push speaks a full status rundown (asks to confirm)">
+            <Button x:Name="AnnNowBtn" Style="{StaticResource CtlBtn}" Height="35" Margin="0,4,0,0" Padding="4,2,4,2" ToolTip="Announce on Alexa: one push speaks a full status rundown (asks to confirm)">
                 <StackPanel HorizontalAlignment="Center">
                   <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                     <TextBlock Text="&#xE767;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
@@ -3055,6 +3063,14 @@ function Get-LimitBounds {
 }
 function Set-ThumbAt { param([double]$Pct) [System.Windows.Controls.Canvas]::SetLeft($ui.LimitThumb, $BBarX + [math]::Max(0, [math]::Min(100, $Pct)) / 100.0 * $BBarW - 2) }
 
+function Sync-CostBatt4339 {
+    # v4.3.39: COST SUMMARY battery row copies the BATTERY section texts (same data, same poll)
+    try {
+        if ($null -eq $ui.CostBattPct) { return }
+        $ui.CostBattPct.Text = [string]$ui.BattPct.Text; $ui.CostBattRange.Text = [string]$ui.BattRange.Text; $ui.CostBattRangeCap.Text = [string]$ui.BattRangeCap.Text
+        $ui.CostBattPct.Foreground = $ui.BattPct.Foreground; $ui.CostBattRange.Foreground = $ui.BattRange.Foreground; $ui.CostBattRangeCap.Foreground = $ui.BattRangeCap.Foreground
+    } catch {}
+}
 function Render-Bar {
     param($bar, [string]$AccentKey)
     $acc = T $AccentKey
@@ -3063,7 +3079,7 @@ function Render-Bar {
         $ui.BarFill.Width = 0; $ui.BarFrom.Width = 0; $ui.BarBall.Visibility = 'Collapsed'; $ui.FromTick.Visibility = 'Collapsed'
         $ui.LimitThumb.Visibility = 'Collapsed'; Render-VSlider $null $null
         $ui.BarStartLbl.Text = '--'; $ui.BarLimitLbl.Text = '--'; $ui.FromMi.Text = ' '; $ui.LimitMi.Text = ' '
-        $ui.BattPct.Text = '--'; $ui.BattRange.Text = ''; $ui.BattRangeCap.Text = ''; $ui.BattState.Text = ''
+        $ui.BattPct.Text = '--'; $ui.BattRange.Text = ''; $ui.BattRangeCap.Text = ''; $ui.BattState.Text = ''; Sync-CostBatt4339
         return
     }
     $cur = [double]$bar.current
@@ -3078,6 +3094,7 @@ function Render-Bar {
         $ui.BattRange.Text = ('{0:N0} mi' -f [double]$car.rangeMi)
         $ui.BattRangeCap.Text = $(switch ([string]$car.rangeKind) { 'ideal' { 'IDEAL RANGE' } 'estimated' { 'EST. RANGE' } default { 'RATED RANGE' } })
     } else { $ui.BattRange.Text = ''; $ui.BattRangeCap.Text = '' }
+    Sync-CostBatt4339
     if ($script:View.accent -eq 'green') { $ui.BattState.Text = ('CHARGING → {0:N0}%' -f $limit); $ui.BattState.Foreground = T 'Green' }
     else { $ui.BattState.Text = ''; if ($null -ne $car) { $ui.BattState.Text = (Get-FriendlyChargeState ([string]$car.chargingState)).ToUpperInvariant() }; $ui.BattState.Foreground = T 'Caption' }
     # 0-100% bar: dim fill up to FROM, bright fill for what this charge added, ball at the current %
@@ -4203,6 +4220,7 @@ function Complete-LeaveAnn {
     Write-WidgetLog ('leaving soon announce failed ' + $Tag + ': ' + $why)
     Render-Leave
 }
+$script:LeaveNowPhrase4341 = 'Starting leaving now sequence.'
 function Start-LeaveSoon {
     $L = $script:Leave
     if ($L.running -or $L.undoing -or $null -ne $L.job) { return }
@@ -4226,7 +4244,7 @@ function Start-LeaveSoon {
     Add-LeaveNote (Get-LeaveSummary $m $ch)
     Write-WidgetLog ('leaving soon start startAfter=' + $m[2] + 'min windows=' + $m[0] + 'min unlock/door=' + $m[1] + 'min climate=' + $ch.climate + ' windowsAction=' + $ch.windows + ' doorAction=' + $ch.doors + ' steps=' + (@($runSteps | ForEach-Object { $_.cmd }) -join ',') + $(if ($CTL_DRYRUN) { ' [DRY RUN ' + $spm + 's/min]' } else { '' }))
     $annParts = @(); if ($ch.climate -eq 'on') { $annParts += 'climate turns on' } elseif ($ch.climate -eq 'off') { $annParts += 'climate turns off' } elseif ($ch.climate -eq 'ac') { $annParts += 'A/C turns on at the set temperature' } elseif ($ch.climate -eq 'heat') { $annParts += 'heat turns on at the heat setpoint' }; if ($ch.windows -eq 'up') { $annParts += (Format-LeaveIn $m[0] 'the windows close right away' 'the windows close in {0}') } elseif ($ch.windows -eq 'down') { $annParts += (Format-LeaveIn $m[0] 'the windows vent right away' 'the windows vent in {0}') }; if ($ch.doors -eq 'lock') { $annParts += (Format-LeaveIn $m[1] 'the car locks right after that' 'the car locks {0} after that') } elseif ($ch.doors -eq 'unlock') { $annParts += (Format-LeaveIn $m[1] 'the car unlocks right after that' 'the car unlocks {0} after that') }
-    Send-LeaveAnnouncement ($(if ($m[2] -gt 0) { 'Leaving Soon starts in ' + (Format-LeaveSpan ($m[2] * 60)) + '.' } else { 'Leaving Soon is starting.' }) + $(if ($annParts.Count -gt 0) { ' ' + ((@($annParts | ForEach-Object { $_.Substring(0,1).ToUpperInvariant() + $_.Substring(1) }) -join ', and ') + '.') } else { '' })) 'start'
+    Send-LeaveAnnouncement $script:LeaveNowPhrase4341 'start'   # v4.3.41: the one start announcement (replaces 'Leaving Soon is starting...' / 'starts in ...')
     if ($m[2] -le 0) { Start-LeaveSnap }
     Set-Visible $ui.LeaveRow $true
     $script:LeaveTimer.Start()
@@ -10803,7 +10821,7 @@ function Start-SelfTest {
         if ($null -eq $script:SelfRec.v4332 -or -not $script:SelfRec.v4332.pass) { $fails += 'v4332' }
         $g = $r.guard; $g.pass = ($null -ne $g -and $g.whenWasCharging -eq $null -and $g.stopSent -eq 1 -and $g.dry -eq $true -and $g.stoppedFlag -and $null -eq $g.again)
         if (-not $g.pass) { $fails += 'guard' }
-        $sm = [ordered]@{ ver = ($AppVersion -eq '4.3.40' -and $ui.FooterVersion.Text -like ('*4.3.40*' + $AppDate)); bold = ($ui.FooterText.FontWeight -eq [System.Windows.FontWeights]::Bold -or $ui.FooterText.FontWeight.ToString() -match 'Bold|Black') }
+        $sm = [ordered]@{ ver = ($AppVersion -eq '4.3.41' -and $ui.FooterVersion.Text -like ('*4.3.41*' + $AppDate)); bold = ($ui.FooterText.FontWeight -eq [System.Windows.FontWeights]::Bold -or $ui.FooterText.FontWeight.ToString() -match 'Bold|Black') }
         $r.smoke = $sm; if (-not ($sm.ver)) { $fails += 'smoke' }
         $r.netCommandsSent = $script:NetCommandsSent; $r.announcementsSent = $script:AnnSent
         $r.summary = [ordered]@{ fails = $fails; allPass = ($fails.Count -eq 0 -and $script:NetCommandsSent -eq 0 -and $script:AnnSent -eq 0) } }
@@ -10913,8 +10931,64 @@ function Start-SelfTest {
             $r4338.pass = ($r4338.offNoComfort -eq 'stop_climate,close_windows,lock' -and $r4338.offCount -eq 3 -and $r4338.offBlank -eq 0 -and $r4338.onNoComfort -eq 'start_climate,close_windows,lock' -and $r4338.onComfort -eq 'start_climate,set_seat_heat,start_steering_wheel_heater,close_windows,lock' -and $r4338.comfortBlank -eq 0)
             $script:SelfRec.v4338 = $r4338
         } catch { $script:SelfRec.v4338 = [ordered]@{ pass=$false; error=$_.Exception.Message } }
+        # v4.3.39 lean: COST SUMMARY battery row + button label fit (dry run, UI only)
+        try {
+            $r4339 = [ordered]@{}
+            $window.UpdateLayout(); $yB = $ui.CostBattRow.TranslatePoint([System.Windows.Point]::new(0,0), $ui.CostCard).Y; $yH = $ui.HeroRow.TranslatePoint([System.Windows.Point]::new(0,0), $ui.CostCard).Y; $r4339.y = @($yB, $yH)   # v4.3.41: layout-based (4.3.40 changed the CostCard tree)
+            $r4339.orderOk = ($ui.CostBattRow.IsVisible -and $ui.CostCard.IsAncestorOf($ui.CostBattRow) -and $ui.CostCard.IsAncestorOf($ui.HeroRow) -and $yB -lt $yH -and $yB + $ui.CostBattRow.ActualHeight -le $yH + 1)
+            $r4339.sizes = @([double]$ui.CostBattPct.FontSize, [double]$ui.BattPct.FontSize, [double]$ui.CostBattRange.FontSize, [double]$ui.BattRange.FontSize)
+            $r4339.white = ([string]$ui.CostBattPct.Foreground -eq [string]$ui.BattPct.Foreground -and [string]$ui.CostBattRange.Foreground -eq [string]$ui.BattRange.Foreground)
+            $savedBar = $null; if ($null -ne $script:View) { $savedBar = $script:View.bar }
+            $ak4339 = 'Green'; try { if ($null -ne $script:View) { $ak4339 = Get-AccentKey $script:View.accent } } catch {}   # v4.3.41: real accent key (4.3.39 test used 'Accent')
+            Render-Bar ([pscustomobject]@{ current = 43; start = 40; limit = 80 }) $ak4339
+            $r4339.poll1 = @($ui.CostBattPct.Text, $ui.BattPct.Text, $ui.CostBattRange.Text, $ui.CostBattRangeCap.Text)
+            Render-Bar ([pscustomobject]@{ current = 44; start = 40; limit = 80 }) $ak4339
+            $r4339.poll2 = @($ui.CostBattPct.Text, $ui.BattPct.Text)
+            Render-Bar $savedBar $ak4339; if ($null -ne $script:View) { try { Render-View } catch {} }
+            $r4339.restored = ($ui.CostBattPct.Text -eq $ui.BattPct.Text -and $ui.CostBattRange.Text -eq $ui.BattRange.Text)
+            $window.UpdateLayout()
+            $want = [ordered]@{ LockBtn=42; FlashBox=42; CopBtn=42; ClimBtn=35; HeatBtn=35; TempDownBtn=35; TempUpBtn=35; TrunkBtn=35; SentryBtn=35; AnnNowBtn=35; AllOffBtn=35; AllOffSetBtn=35; AnnSetupBtn=35; ChgStartBtn=33; ChgStopBtn=33; VentBtn=32; CloseWinBtn=32; DefrostBtn=32; LeaveBtn=31 }
+            $hOk = $true; $fit = [ordered]@{}; $fitOk = $true
+            foreach ($k in $want.Keys) {
+                $e = $ui[$k]; if ([double]$e.Height -ne [double]$want[$k]) { $hOk = $false }
+                if ($e -is [System.Windows.Controls.Button] -and $e.IsVisible) {
+                    $c = $e.Content; $c.Measure([System.Windows.Size]::new([double]::PositiveInfinity, [double]::PositiveInfinity))
+                    $availH = $e.ActualHeight - $e.Padding.Top - $e.Padding.Bottom - 3; $availW = $e.ActualWidth - $e.Padding.Left - $e.Padding.Right - 3
+                    $ok = ($c.DesiredSize.Height -le $availH + 0.5) -and ($c.RenderSize.Width -le $availW + 0.5)
+                    $fit[$k] = ('{0:N1}/{1:N1} h {2:N1}/{3:N1} w {4}' -f $c.DesiredSize.Height, $availH, $c.RenderSize.Width, $availW, $ok); if (-not $ok) { $fitOk = $false }
+                }
+            }
+            $r4339.heights = $hOk; $r4339.fit = $fit; $r4339.fitOk = $fitOk
+            $r4339.pass = ($r4339.orderOk -and $r4339.sizes[0] -lt $r4339.sizes[1] -and $r4339.sizes[2] -eq $r4339.sizes[3] -and $r4339.white -and $r4339.poll1[0] -eq '43%' -and $r4339.poll1[1] -eq '43%' -and $r4339.poll2[0] -eq '44%' -and $r4339.restored -and $hOk -and $fitOk)
+            $script:SelfRec.v4339 = $r4339
+        } catch { $script:SelfRec.v4339 = [ordered]@{ pass=$false; error=$_.Exception.Message } }
+        # v4.3.41 lean: Leaving Soon start -> exactly one 'Starting leaving now sequence.' (DRY RUN, sender stubbed)
+        try {
+            $r41 = [ordered]@{}; $skip0 = $script:SkipCf['leave']; $home0 = $script:Ann4328HomeMock; $mem0 = $script:VmUsageMem; $fake0 = $script:LeaveFakeStart; $al0 = $script:AlexaOn
+            $sent0 = $script:AnnSent; $net0 = $script:NetCommandsSent
+            $script:SkipCf['leave'] = $true; $script:LeaveFakeStart = [pscustomobject]@{ climate_state = [pscustomobject]@{ is_climate_on = $true }; vehicle_state = [pscustomobject]@{ locked = $true; fd_window = 0; fp_window = 0; rd_window = 0; rp_window = 0 } }
+            $tap41 = { param($AtHome, $Blocked)
+                Stop-LeaveSoon; $script:Ann4328HomeMock = $AtHome
+                $script:VmUsageMem = [pscustomobject]@{ period = (Get-VmPeriod)[0].ToString('yyyy-MM-dd'); count = $(if ($Blocked) { 200 } else { 5 }); blocked = [bool]$Blocked; reason = $(if ($Blocked) { 'test' } else { '' }) }
+                $a0 = @($script:AnnLog).Count; $t0 = Get-Date
+                $ui.LeaveBtn.RaiseEvent((New-Object System.Windows.RoutedEventArgs([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent)))
+                $new = @(@($script:AnnLog) | Select-Object -Skip $a0 | Where-Object { $_.why -eq 'leaving' })
+                $o = [ordered]@{ running = [bool]$script:Leave.running; leavingAnns = $new.Count; text = $(if ($new.Count) { $new[0].text } else { '' }); result = $(if ($new.Count) { [string]$new[0].result } else { '' }); ms = [int]((Get-Date) - $t0).TotalMilliseconds
+                    startTags = @(@($script:Leave.ann) | Where-Object { $_.tag -eq 'start' }).Count; all = @($new | ForEach-Object { [string]$_.text + ' => ' + [string]$_.result }); leaveResult = [string]$script:Leave.result; notes = @($script:Leave.notes); phase = [string]$script:Leave.phase }
+                Stop-LeaveSoon; return $o }
+            $r41.home = & $tap41 $true $false
+            $r41.away = & $tap41 $false $false
+            $r41.limit = & $tap41 $true $true
+            $script:SkipCf['leave'] = $skip0; $script:Ann4328HomeMock = $home0; $script:VmUsageMem = $mem0; $script:LeaveFakeStart = $fake0
+            $r41.realAnnouncementsSent = $script:AnnSent - $sent0; $r41.realCommandsSent = $script:NetCommandsSent - $net0
+            $P = 'Starting leaving now sequence.'
+            $r41.pass = ($r41.home.leavingAnns -ge 1 -and $r41.home.startTags -eq 1 -and @($r41.home.all | Where-Object { $_ -match '(?i)leaving soon (is starting|starts in)|starting leaving now' }).Count -eq 1 -and $r41.home.text -eq $P -and $r41.home.result -like 'DRY RUN*' `
+                -and $r41.away.startTags -eq 1 -and $r41.away.result -like '*not home*' -and $r41.limit.result -like '*limit reached*' `
+                -and $r41.realAnnouncementsSent -eq 0 -and $r41.realCommandsSent -eq 0 -and $CTL_DRYRUN)
+            $script:SelfRec.v4341 = $r41
+        } catch { $script:SelfRec.v4341 = [ordered]@{ pass=$false; error=$_.Exception.Message } }
         $r.smoke = [ordered]@{ appVersion = $AppVersion; footer = $ui.FooterVersion.Text; brand = $ui.FooterText.Text; bold = [string]$ui.FooterText.FontWeight; hookLines = $hook; hookBeforeShowDialog = $before; width = $window.Width; renderError = $err; dryRun = $CTL_DRYRUN; realCmdLog = $real
-            pass = ($AppVersion -eq '4.3.40' -and $ui.FooterVersion.Text -like ('*4.3.40*' + $AppDate) -and [string]$ui.FooterText.FontWeight -eq 'Bold' -and $hook -eq 1 -and $before -and $null -eq $err -and $CTL_DRYRUN -and [math]::Abs($window.Width - $winW) -lt 1) }
+            pass = ($AppVersion -eq '4.3.41' -and $ui.FooterVersion.Text -like ('*4.3.41*' + $AppDate) -and [string]$ui.FooterText.FontWeight -eq 'Bold' -and $hook -eq 1 -and $before -and $null -eq $err -and $CTL_DRYRUN -and [math]::Abs($window.Width - $winW) -lt 1) }
         $fails = @(); foreach ($k in 'pure', 'collapsed', 'place', 'expanded', 'calTags', 'showAll', 'fresh', 'smoke') { if ($null -eq $r[$k] -or -not $r[$k].pass) { $fails += $k } }
         $r.summary = [ordered]@{ fails = $fails; allPass = ($fails.Count -eq 0) } }
     & $add 'v4.3.22 summary' @() {

@@ -218,11 +218,11 @@
   function announce(L, text, tag) {
     var a = annCfg(), rec = { at: Date.now(), tag: tag, text: text, device: annDevice(), result: '' }, bl = load('vmBlock', null);
     if (!annReady()) rec.result = 'skipped: Alexa not set up (Settings \u2192 Connected apps: Voice Monkey token + disclosure)';
-    else if (dry()) rec.result = 'DRY RUN: not sent';
+    else if (!(tag === 'start' || /^(failed|cancel|undo-failed)/.test(tag))) rec.result = 'skipped: lean mode (only start, cancel and failures are spoken)';   // v4.3.29; v4.3.41: 'start' = Starting leaving now sequence (replaces start_climate)
     else if (bl && Date.parse(bl.until) > Date.now()) rec.result = 'skipped: ' + bl.why;
-    else if (!(tag === 'start_climate' || /^(failed|cancel|undo-failed)/.test(tag))) rec.result = 'skipped: lean mode (only start, cancel and failures are spoken)';   // v4.3.29
     else if (vmBlocked28()) rec.result = 'skipped: Alexa limit reached (Voice Monkey free plan, resets the 26th at 7 PM CT)';
     else if (!vmHome28()) rec.result = 'skipped: not home (car not at the home location)';
+    else if (dry()) rec.result = 'DRY RUN: not sent';
     else rec.result = 'sending';
     L.ann = (L.ann || []).concat([rec]).slice(-20);
     if (/^skipped/.test(rec.result) && !L.annNoted) { L.annNoted = true; note(L, 'Alexa ' + rec.result); }
@@ -258,6 +258,7 @@
   }
   function skipLeave() { var s = load('skipConfirm', null); return !!(s && s.leave === true); }   // v4.3.18: td:skipConfirm (shared with the main app's SKIP CONFIRM row)
   function setSkipLeave(on) { var s = load('skipConfirm', null); if (!s || typeof s !== 'object') s = {}; s.leave = !!on; save('skipConfirm', s); }
+  var LEAVE_NOW_PHRASE = 'Starting leaving now sequence.';   // v4.3.41
   function start() {
     var L = st(); if (active(L)) return;
     if (!hasSetup()) { msg = 'Set up your Tessie token first.'; paint(); return; }
@@ -278,6 +279,7 @@
       put({ v: 1, id: now.toString(36) + TAB, phase: m[2] > 0 ? 'pre' : 'snap', mins: m, spm: s, waits: aligned, startWait: m[2] * s * 1000, steps: rsteps, choices: ch, startedAt: now, step: 0, dueAt: now + (m[2] > 0 ? m[2] * s * 1000 : 0),
         sending: null, snapAt: 0, snap: null, done: [], undo: [], undoIdx: 0, undoDone: [], undoFailed: [], notes: [], late: [], log: [], ann: [], announced: 0,
         result: '', kind: 'busy', endedAt: 0, dry: dry(), owner: { by: TAB, at: now } });
+      var L0 = st(); announce(L0, LEAVE_NOW_PHRASE, 'start'); put(L0);   // v4.3.41: the one start announcement, right at the tap
       msg = ''; ensureTimer(); tick(); return true;
     });
   }
