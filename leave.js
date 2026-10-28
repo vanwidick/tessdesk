@@ -108,7 +108,12 @@
     }
     return s;
   }
-  function stepsFor(c) { var s = climateSteps(c).concat(comfortSteps(c)); if (c.windows === 'up') s.push(STEP_WINUP); else if (c.windows === 'down') s.push(STEP_WINDOWN); if (c.doors === 'lock') s.push(STEP_LOCK); else if (c.doors === 'unlock') s.push(STEP_UNLOCK); return s; }
+  // v4.3.42: a HEAT or A/C Leaving Soon run never starts charging. The step builders never add a charge command (checked Oct 28, 2026);
+  // this guard drops any charge-start / limit / amps / schedule command from a heat/A/C plan and refuses it at send. Other modes unchanged.
+  var NO_CHARGE_4342 = ['start_charging', 'charge_start', 'charge_standard', 'charge_max_range', 'set_charge_limit', 'set_charging_amps', 'add_charge_schedule', 'remove_charge_schedule', 'set_scheduled_charging', 'set_scheduled_departure'];
+  function heatAir4342(c) { return !!c && (c.climate === 'heat' || c.climate === 'ac'); }
+  function chargeCmd4342(cmd) { return NO_CHARGE_4342.indexOf(String(cmd)) >= 0; }
+  function stepsFor(c) { var s = climateSteps(c).concat(comfortSteps(c)); if (c.windows === 'up') s.push(STEP_WINUP); else if (c.windows === 'down') s.push(STEP_WINDOWN); if (c.doors === 'lock') s.push(STEP_LOCK); else if (c.doors === 'unlock') s.push(STEP_UNLOCK); if (heatAir4342(c)) s = s.filter(function (x) { return !chargeCmd4342(x.cmd); }); return s; }
   function runSteps(L) { return (L && L.steps && L.steps.length) ? L.steps : STEPS; }
   var UNDO = {
     start_climate: { cmd: 'stop_climate', doing: 'turning climate back off', done: 'climate off', what: 'turn climate back off', spoken: 'climate is off again.' },
@@ -301,7 +306,8 @@
   function send(L, cmd, kind, query) {
     var id = L.id; L.sending = { cmd: cmd, kind: kind, at: Date.now(), by: TAB, query: query || null }; put(L); inflight[id] = true; paint();
     var t0 = Date.now();
-    command(cmd, query || {}).then(function (j) { return { ok: true, dry: !!(j && j.dryRun) }; }, function (e) { var w = String(e.message || e); return { ok: false, why: w.length > 90 ? w.slice(0, 90) + '\u2026' : w }; }).then(function (res) {
+    var g42 = kind === 'step' && heatAir4342(L.choices) && chargeCmd4342(cmd);   // v4.3.42: never sent in a heat/A/C run
+    (g42 ? Promise.resolve({ result: true, dryRun: true, skipped4342: true }) : command(cmd, query || {})).then(function (j) { return { ok: true, dry: !!(j && j.dryRun), skipped: !!(j && j.skipped4342) }; }, function (e) { var w = String(e.message || e); return { ok: false, why: w.length > 90 ? w.slice(0, 90) + '\u2026' : w }; }).then(function (res) {
       delete inflight[id];
       var M = st(); if (!M || M.id !== id) return;
       M.sending = null;
@@ -321,13 +327,14 @@
   }
   function completeStep(M, cmd, res) {
     var RS = runSteps(M), s = RS[M.step];
-    if (res.ok && M.done.indexOf(cmd) < 0) M.done.push(cmd);
+    if (res.skipped) note(M, 'Skipped ' + cmd + ': heat/A/C run never starts charging (not sent).');
+    if (res.ok && !res.skipped && M.done.indexOf(cmd) < 0) M.done.push(cmd);
     if (M.phase === 'stopping') { note(M, 'The ' + cmd + ' request was already sent: ' + (res.ok ? 'it went through' : 'it failed (' + res.why + ')') + '.'); planUndo(M); return; }
     if (M.phase !== 'run') { put(M); paint(); return; }
     if (!res.ok) { fail(M, s, res.why); return; }
     var txt = s.spoken;
     if (M.step === 0 && s.kind2 === 'climate') { var ch2 = M.choices || choices(), cp = ({ on: 'climate is now on', off: 'climate is now off', ac: 'A/C is turning on', heat: 'heat is turning on' })[ch2.climate] || s.spoken.replace(/^Leaving Soon: /, ''), wp = ch2.windows === 'up' ? cap(inTxt(M.mins[0], 'the windows close right away', 'the windows close in {0}')) : (ch2.windows === 'down' ? cap(inTxt(M.mins[0], 'the windows vent right away', 'the windows vent in {0}')) : ''), dp = ch2.doors === 'lock' ? inTxt(M.mins[1], 'the car locks right after that', 'the car locks {0} after that') : (ch2.doors === 'unlock' ? inTxt(M.mins[1], 'the car unlocks right after that', 'the car unlocks {0} after that') : ''); txt = 'Leaving Soon: ' + cp + '.' + (wp || dp ? ' ' + [wp, dp].filter(Boolean).join(', and ') + '.' : ''); }
-    announce(M, txt, cmd);
+    if (!res.skipped) announce(M, txt, cmd);
     M.step++;
     if (M.step >= RS.length) { M.phase = 'done'; M.kind = 'ok'; M.endedAt = Date.now(); M.result = 'Leaving Soon done \u00b7 ' + RS.filter(function (x) { return M.done.indexOf(x.cmd) >= 0; }).map(function (x) { return x.done; }).join(', ') + ' \u00b7 ' + clock(M.endedAt) + dryTag(); }
     else M.dueAt = Date.now() + M.waits[M.step];
@@ -554,7 +561,7 @@
   window.addEventListener('storage', function (e) { if (e.key === P + 'leave' || e.key === P + 'leaveChoices' || e.key === P + 'leaveMins' || e.key === P + 'cache' || e.key === P + 'skipConfirm') { if (active(st())) ensureTimer(); paint(); } });
 
   window.TDLeave = {
-    version: 'v4.3.37', skipLeave: function () { return skipLeave(); }, choices: choices, setChoice: setChoice, stepsFor: stepsFor,
+    version: 'v4.3.37', skipLeave: function () { return skipLeave(); }, choices: choices, setChoice: setChoice, stepsFor: stepsFor, chargeCmd4342: chargeCmd4342, heatAir4342: heatAir4342, send4342: function (L, c, k, q) { return send(L, c, k, q); },
     init: function (o) { opts = o || {}; if (active(st())) { ensureTimer(); setTimeout(tick, 0); } return window.TDLeave; },
     html: html, paint: paint, start: start, stop: stop, dismiss: dismiss, tick: tick, mins: mins, setMins: function (w, u, s2) { setMins(w, u, s2); paint(); }, summary: summary,
     state: st, active: function () { return active(st()); }, cmdLog: cmdLog, hasSetup: hasSetup, cmdAllowed: cmdAllowed, readCar: readCar, car: car,
