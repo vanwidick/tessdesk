@@ -195,7 +195,7 @@
   // ---------- Voice Monkey (Leaving Soon only) ----------
   function annCfg() { var c = cfg() || {}; return c.announce || {}; }
   function annDevice() { var a = annCfg(); return a.leavingSoonDevice || a.device || DEF_DEVICE; }
-  function annReady() { var c = cfg() || {}, a = annCfg(); return !!(c.consent && c.consent.announcements && a.token); }
+  function annReady() { var c = cfg() || {}, a = annCfg(); return !!(c.consent && c.consent.announcements && (a.token || (window.TDVM && TDVM.anyReady()))); }
   function vmSend(token, device, text) {
     var ctl = new AbortController(), t = setTimeout(function () { ctl.abort(); }, 20000);
     return fetch(VM_API + '/announce', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: token, device: device, speech: text }), signal: ctl.signal })
@@ -208,7 +208,7 @@
             var quota = /QUOTA/i.test(res.error), until = j && (j.periodEnd || j.lockoutUntil), u = until ? Date.parse(until) : NaN;
             if (isNaN(u)) u = Date.now() + (quota ? 3600000 : 120000);
             res.why = quota ? 'Voice Monkey monthly limit reached (resets ' + new Date(u).toLocaleDateString('en-US', { timeZone: 'America/Chicago', month: 'short', day: 'numeric' }) + ')' : 'Voice Monkey is throttling announcements until ' + clock(u);
-            save('vmBlock', { until: new Date(u).toISOString(), why: res.why, code: 429, error: res.error });
+            save((window.TDVM ? TDVM.bk(TDVM.cur) : 'vmBlock'), { until: new Date(u).toISOString(), why: res.why, code: 429, error: res.error });
           }
           return res;
         });
@@ -216,12 +216,12 @@
   }
   // v4.3.29: shared with the main app (td:vmUsage): count each successful announcement, Alexa limit reached until the 26th 7 PM CT
   function vmKey28() { var o = {}; new Intl.DateTimeFormat('en-US', { timeZone: 'America/Chicago', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', hourCycle: 'h23' }).formatToParts(new Date()).forEach(function (p) { o[p.type] = +p.value; }); var y = o.year, m = o.month; if (o.day < 26 || (o.day === 26 && o.hour < 19)) { m--; if (m < 1) { m = 12; y--; } } return y + '-' + (m < 10 ? '0' : '') + m + '-26'; }
-  function vmUse28() { var k = vmKey28(), u = load('vmUsage', null); return u && u.period === k ? { period: k, count: +u.count || 0, blocked: !!u.blocked, reason: u.reason || '' } : { period: k, count: 0, blocked: false, reason: '' }; }
+  function vmUse28() { var k = vmKey28(), u = load((window.TDVM ? TDVM.uk(TDVM.cur) : 'vmUsage'), null); return u && u.period === k ? { period: k, count: +u.count || 0, blocked: !!u.blocked, reason: u.reason || '' } : { period: k, count: 0, blocked: false, reason: '' }; }
   function vmBlocked28() { var u = vmUse28(); return u.blocked || u.count >= 200; }
   function vmHome28() { if (window.__vmHomeMock != null) return !!window.__vmHomeMock; try { var c = load('cache', null), ds = c && c.state && c.state.drive_state; if (ds && ds.latitude != null) { var r = Math.PI / 180, x = (ds.longitude - -96.03282) * r * Math.cos((ds.latitude + 36.10364) / 2 * r), y = (ds.latitude - 36.10364) * r; return Math.sqrt(x * x + y * y) * 3958.8 <= 0.15; } } catch (e) {} return false; }
-  function vmNote28(ok, code) { var u = vmUse28(); if (ok) u.count++; if (code === 429) { u.blocked = true; u.reason = 'Voice Monkey refused: HTTP 429'; } u.updated = new Date().toISOString(); save('vmUsage', u); }
+  function vmNote28(ok, code) { var u = vmUse28(); if (ok) u.count++; if (code === 429) { u.blocked = true; u.reason = 'Voice Monkey refused: HTTP 429'; } u.updated = new Date().toISOString(); save((window.TDVM ? TDVM.uk(TDVM.cur) : 'vmUsage'), u); }
   function announce(L, text, tag) {
-    var a = annCfg(), rec = { at: Date.now(), tag: tag, text: text, device: annDevice(), result: '' }, bl = load('vmBlock', null);
+    if (window.TDVM) TDVM.pick(); var a = annCfg(), n1 = !window.TDVM || TDVM.cur <= 1, rec = { at: Date.now(), tag: tag, text: text, device: n1 ? annDevice() : TDVM.dev(''), acct: n1 ? 1 : TDVM.cur, result: '' }, bl = load((window.TDVM ? TDVM.bk(TDVM.cur) : 'vmBlock'), null);
     if (!annReady()) rec.result = 'skipped: Alexa not set up (Settings \u2192 Connected apps: Voice Monkey token + disclosure)';
     else if (!(tag === 'start' || /^(failed|cancel|undo-failed)/.test(tag))) rec.result = 'skipped: lean mode (only start, cancel and failures are spoken)';   // v4.3.29; v4.3.41: 'start' = Starting leaving now sequence (replaces start_climate)
     else if (bl && Date.parse(bl.until) > Date.now()) rec.result = 'skipped: ' + bl.why;
@@ -234,7 +234,8 @@
     if (rec.result !== 'sending') return rec;
     L.announced = (L.announced || 0) + 1;
     var id = L.id, idx = L.ann.length - 1;
-    vmSend(a.token, rec.device, text).then(function (r) {
+    vmSend(n1 ? a.token : TDVM.tok(''), rec.device, text).then(function (r) {
+      if (!r.ok && window.TDVM) TDVM.setErr(rec.acct, r.why || r.error || ('HTTP ' + r.code));
       vmNote28(!!r.ok, r.code);   // v4.3.29
       var M = st(); if (!M || M.id !== id || !M.ann || !M.ann[idx]) return;
       M.ann[idx].result = r.ok ? 'announced' : 'failed: ' + (r.why || (r.code ? 'HTTP ' + r.code + (r.error && r.error !== 'HTTP ' + r.code ? ' ' + r.error : '') : r.error));

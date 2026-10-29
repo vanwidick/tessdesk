@@ -933,3 +933,20 @@ body.compact .cbtn, body.compact .cbtn.sq { min-height: 36px; } body.compact .cb
 /* v4.3.39: button wording never clipped: long labels wrap (centered) instead of overflowing */
 #cSentry b, #cTrunk b, #cDefrost b, #cCop b, .ctl-row3b .cbtn b, .sentry-cop4335 .cbtn b, body:not(.compact) .ctl-row3b .cbtn b { white-space: normal; overflow-wrap: anywhere; line-height: 1.1; text-align: center; }
 #cSentry small, #cTrunk small, #cDefrost small, #cCop small { white-space: normal; text-align: center; line-height: 1.15; }
+
+/* v1: Voice Monkey panel + 100% OFF NIGHTS */
+.vmp .vmp-box{background:#161616;border:1px solid #22C55E;border-radius:10px;padding:12px 14px;max-width:420px;width:calc(100% - 28px);max-height:86vh;overflow:auto;color:#ddd;font-size:13px}
+.vmp-hd{display:flex;justify-content:space-between;align-items:center;color:#22C55E;font-size:15px}
+.vmp-x{background:none;border:0;color:#aaa;font-size:18px;min-width:44px;min-height:44px}
+.vmp-sub{color:#aaa;margin:2px 0 6px}
+.vmp-acct{border:1px solid #444;border-radius:7px;padding:7px 9px;margin-top:7px}
+.vmp-acct.act{border-color:#22C55E}
+.vmp-st{font-weight:700}.vmp-st.ok{color:#22C55E}.vmp-st.warn{color:#FFB020}.vmp-st.bad{color:#FF6B6E}
+.vmp-cnt{font-weight:600;color:#eee}.vmp-err{color:#888}
+.vmp-btns{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px}
+.vmp-btns button{min-height:44px;padding:0 12px;background:#1e1e1e;color:#22C55E;border:1px solid #22C55E;border-radius:6px;font-weight:700;font-size:12px}
+.vmp-btns button.red{color:#FF6B6E;border-color:#FF6B6E}.vmp-btns button.amber{color:#FFB020;border-color:#FFB020}
+.vmp-msg{margin-top:6px;font-weight:600;color:#ccc}.vmp-note{margin-top:6px;color:#777;font-size:11px}
+.vmp-steps{padding-left:18px;margin:6px 0}.vmp-steps a{color:#22C55E}
+.vmp input{width:100%;box-sizing:border-box;min-height:44px;margin-top:6px;background:#0e0e0e;color:#eee;border:1px solid #444;border-radius:6px;padding:0 10px;font-size:14px}
+.sch-100 b{font-size:10.5px}

@@ -4,7 +4,7 @@
    it is saved only in this browser (td:leaveCfg) and sent only to api.tessie.com / api-v3.voicemonkey.io. */
 (function () {
   'use strict';
-  var VERSION = 'v4.3.42', VERSION_DATE = 'Oct 28, 2026', P = 'td:', L = window.TDLeave, root = document.getElementById('lp'), setup = false;
+  var VERSION = 'v1', VERSION_DATE = 'Oct 28, 2026', P = 'td:', L = window.TDLeave, root = document.getElementById('lp'), setup = false;
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function load(k, d) { try { var v = localStorage.getItem(P + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }
   function save(k, v) { try { localStorage.setItem(P + k, JSON.stringify(v)); } catch (e) {} }

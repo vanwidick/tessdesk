@@ -426,7 +426,7 @@
   var CFG = window.TD_CONFIG || {};
   var VARIANT = CFG.variant || 'main';
   var P = CFG.storagePrefix || 'td:';
-  var VERSION = 'v4.3.42';
+  var VERSION = 'v1';
   var VERSION_DATE = 'Oct 28, 2026';
   var TZ = 'America/Chicago';
   var DEFAULT_API = 'https://api.tessie.com';
@@ -899,7 +899,9 @@
   document.addEventListener('click', function (e) { var t = e.target; if (t && t.id === 'shareLink') { e.preventDefault(); showShare(); } });
   // ---------- v4.3.3: new-version check (version.json on this site; no data is sent) ----------
   var upd = { latest: null, checkedAt: 0, info: null, checking: false, checked: false, manual: false, ready: false };   // v4.3.32
-  function verGt(a, b) { a = String(a || '').replace(/^v/, '').split('.'); b = String(b || '').replace(/^v/, '').split('.'); for (var i = 0; i < Math.max(a.length, b.length); i++) { var x = +a[i] || 0, y = +b[i] || 0; if (x !== y) return x > y; } return false; }
+  function tdVerN(s) { s = String(s || '').replace(/^v/i, ''); return /^\d+$/.test(s) ? '100.' + s : s; }   // v1: vN = internal 100.N (newer than every 4.x)
+  function tdFmtV(s) { s = tdVerN(s); var m = /^100\.(\d+)$/.exec(s); return m ? 'v' + m[1] : 'v' + s; }
+  function verGt(a, b) { a = tdVerN(a); b = tdVerN(b); a = String(a || '').replace(/^v/, '').split('.'); b = String(b || '').replace(/^v/, '').split('.'); for (var i = 0; i < Math.max(a.length, b.length); i++) { var x = +a[i] || 0, y = +b[i] || 0; if (x !== y) return x > y; } return false; }
   function checkUpdate(force) {
     if (VARIANT === 'test' && !force) return;
     if (!force && Date.now() - upd.checkedAt < 45 * 60 * 1000) return;   // v4.3.28: every ~45 min (was 6 h)
@@ -936,7 +938,7 @@
     if (upd.checking) return;
     upd.manual = true; upd.checkedAt = 0; checkUpdate(true);
   }
-  function updBanner() { if (upd.ready) return '<button class="upd-banner pulse" id="btnUpdApp" type="button" title="YES UPDATE - READY: v' + esc(upd.latest) + ' downloaded and checked, tap to install"><b>YES UPDATE</b><small>READY \u00b7 tap to install</small></button>'; if (upd.latest) return '<button class="upd-banner pulse" id="btnUpdApp" type="button" title="YES UPDATE: v' + esc(upd.latest) + ' is out, tap to install"><b>YES UPDATE</b><small>v' + esc(upd.latest) + ' \u00b7 tap to install</small></button>'; if (upd.checking) return '<button class="upd-banner noupd" id="btnUpdApp" type="button" title="NO UPDATE: checking the cloud"><b>NO UPDATE</b><small>checking\u2026</small></button>'; return '<button class="upd-banner noupd" id="btnUpdApp" type="button" title="NO UPDATE: tap to check the cloud now"><b>NO UPDATE</b><small>' + (upd.checked ? 'Already up to date ' + esc(VERSION) : esc(VERSION) + ' \u00b7 tap to check') + '</small></button>'; }   // v4.3.32: small left TAB, always visible
+  function updBanner() { if (upd.ready) return '<button class="upd-banner pulse" id="btnUpdApp" type="button" title="YES UPDATE - READY: ' + esc(tdFmtV(upd.latest)) + ' downloaded and checked, tap to install"><b>YES UPDATE</b><small>READY \u00b7 tap to install</small></button>'; if (upd.latest) return '<button class="upd-banner pulse" id="btnUpdApp" type="button" title="YES UPDATE: ' + esc(tdFmtV(upd.latest)) + ' is out, tap to install"><b>YES UPDATE</b><small>' + esc(tdFmtV(upd.latest)) + ' \u00b7 tap to install</small></button>'; if (upd.checking) return '<button class="upd-banner noupd" id="btnUpdApp" type="button" title="NO UPDATE: checking the cloud"><b>NO UPDATE</b><small>checking\u2026</small></button>'; return '<button class="upd-banner noupd" id="btnUpdApp" type="button" title="NO UPDATE: tap to check the cloud now"><b>NO UPDATE</b><small>' + (upd.checked ? 'Already up to date ' + esc(VERSION) : esc(VERSION) + ' \u00b7 tap to check') + '</small></button>'; }   // v4.3.32: small left TAB, always visible
   function applyUpdate() {
     window.__tdUpdTapped = (window.__tdUpdTapped || 0) + 1;
     var el = document.getElementById('btnUpdApp'); if (el) el.querySelector('b').textContent = 'Refreshing\u2026';
@@ -1680,8 +1682,8 @@
     var C = schC(), W = schShown(), off = !cmdAllowed() || sched.sync || sched.status === 'verifying', st = schStatus(C), L = sched.last;
     sched.rate = schRate(window.__schChargesMock || cache.charges); sched.est = schEst(W, C, sched.rate);
     var startLive = W.startOn && (!W.finishOn || C.api === 'new'), tg = W.target != null ? W.target : 80, opts = '';
-    for (var p = Math.max(50, C.limitMin); p <= Math.min(100, C.limitMax); p += 5) opts += '<option value="' + p + '"' + (p === tg ? ' selected' : '') + '>' + p + '%</option>';
-    if (tg % 5) opts = '<option value="' + tg + '" selected>' + tg + '%</option>' + opts;
+    var o100 = off100(); for (var p = Math.max(50, C.limitMin); p <= Math.min(o100 ? 90 : 100, C.limitMax); p += 5) opts += '<option value="' + p + '"' + (p === tg ? ' selected' : '') + '>' + p + '%</option>';
+    if (tg % 5 || (o100 && tg > 90)) opts = '<option value="' + tg + '" selected>' + tg + '%</option>' + opts;
     var dis = off ? ' disabled' : '';
     return '<div class="sch" id="schBox" title="Car schedule now: ' + esc(schCarText(C)) + (L ? ' \u00b7 Last change: ' + esc(String(L.summary || '')) + ' \u00b7 ' + (L.ok ? 'OK' : 'FAILED') + ' \u00b7 ' + esc(String(L.reason || '')) + ' (' + esc(String(L.when || '')) + ')' : '') + '">' +
       '<label class="sch-t' + (startLive ? ' on' : (W.startOn ? ' over' : '')) + '"><input type="checkbox" id="schStart" data-sch="1"' + (W.startOn ? ' checked' : '') + dis + '><b>START AT</b></label>' +
@@ -1690,7 +1692,8 @@
       '<label class="sch-t' + (W.finishOn ? ' on' : '') + '"><input type="checkbox" id="schFin" data-sch="1"' + (W.finishOn ? ' checked' : '') + dis + '><b>FINISH BY</b></label>' +
       '<input class="sch-in' + (W.finishOn ? '' : ' dim') + '" type="time" step="900" id="schFinT" data-sch="1" value="' + schHHMM(W.finishMin) + '"' + dis + ' aria-label="FINISH BY time">' +
       '<select class="sch-in sch-p' + (W.finishOn ? '' : ' dim') + '" id="schTgt" data-sch="1"' + dis + ' aria-label="FINISH BY target %">' + opts + '</select>' +
-      '<div class="sch-e" id="schEst">' + esc(sched.est.text) + '</div></div>';
+      '<label class="sch-t sch-100' + (o100 ? ' on' : '') + '" title="TessDesk setting only: FINISH BY targets stop at 90%. Nothing is sent to the car when you switch it."><input type="checkbox" id="schOff100"' + (o100 ? ' checked' : '') + '><b>100% OFF NIGHTS</b></label>' +
+      '<div class="sch-e" id="schEst">' + esc(sched.est.text + off100Note(W, C)) + '</div></div>';
   }
   function schSet(ch) {
     if (sched.sync) return;
@@ -1698,6 +1701,7 @@
     Object.keys(ch).forEach(function (k) { w[k] = ch[k]; });
     w.startMin = ((Math.round(w.startMin) % 1440) + 1440) % 1440; w.finishMin = ((Math.round(w.finishMin) % 1440) + 1440) % 1440;
     if (w.target != null) w.target = Math.max(C.limitMin, Math.min(C.limitMax, Math.round(w.target)));
+    if (off100() && 'target' in ch && w.target > 90) w.target = 90;   // v1: 100% OFF NIGHTS
     sched.want = w; sched.dirty = true; sched.status = 'pending'; sched.reason = '';
     clearTimeout(sched.timer); sched.timer = setTimeout(function () { sched.timer = null; schSync(); }, window.__schDebounceMs || 2000);
     render();
@@ -1967,11 +1971,12 @@
   var VM_API = 'https://api-v3.voicemonkey.io', annLog = [];
   function annCfg() { var c = getCfg() || {}; return c.announce || {}; }
   function annConsent() { var c = getCfg() || {}; return !!(c.consent && c.consent.announcements); }
-  function annReady() { var a = annCfg(); return annConsent() && !!a.token && !!a.device; }
+  function annReady() { var a = annCfg(); return annConsent() && ((!!a.token && !!a.device) || TDVM.anyReady()); }
   function alexaOn() { return !!load('alexa', false); }
   function setAlexa(on) { save('alexa', !!on); if (on && !annReady()) ctlMsg = { kind: 'idle', text: 'Alexa is on, but Voice Monkey is not set up yet: Settings \u2192 Connected apps.' }; render(); }
   var ICON_VM = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="12" fill="#22C55E"/><circle cx="5.6" cy="11.4" r="2.9" fill="#7A4A24"/><circle cx="18.4" cy="11.4" r="2.9" fill="#7A4A24"/><circle cx="5.6" cy="11.4" r="1.5" fill="#F3C99B"/><circle cx="18.4" cy="11.4" r="1.5" fill="#F3C99B"/><circle cx="12" cy="12.3" r="7" fill="#7A4A24"/><circle cx="9.7" cy="11" r="2.5" fill="#F3C99B"/><circle cx="14.3" cy="11" r="2.5" fill="#F3C99B"/><ellipse cx="12" cy="14.9" rx="4.6" ry="3.3" fill="#F3C99B"/><circle cx="9.8" cy="11.1" r="1" fill="#2B1A0E"/><circle cx="14.2" cy="11.1" r="1" fill="#2B1A0E"/><path d="M10.1 15.3 Q12 17 13.9 15.3" fill="none" stroke="#2B1A0E" stroke-width="0.9" stroke-linecap="round"/></svg>';   // v4.3.27: monkey face in Voice Monkey style (own drawing, not hotlinked)
-  function vmSoon() { tdToast('Voice Monkey setup coming soon'); }   // placeholder: no network, nothing saved
+  function vmSoon() { vmPanel(); }
+  function vmSoonOld() { tdToast('Voice Monkey setup coming soon'); }   // placeholder: no network, nothing saved
   function alexaChip() {
     return '<button class="alexa' + (alexaOn() ? ' on' : '') + '" id="btnAlexa" aria-pressed="' + alexaOn() + '" title="Announce control results on Alexa (Voice Monkey)"><span>ALEXA</span><i></i></button>' +
       '<button class="icon-btn vm" id="btnVM" aria-label="Voice Monkey" title="Voice Monkey">' + ICON_VM + '</button>' +   // v4.3.27: placeholder, no functionality yet
@@ -2038,32 +2043,105 @@
     var ny = m === 12 ? y + 1 : y, nm = m === 12 ? 1 : m + 1;
     return { key: y + '-' + (m < 10 ? '0' : '') + m + '-26', reset: VM_MON[nm - 1] + ' 26, 7 PM CT' };
   }
-  function vmUse() { var p = vmPeriod(), u = load('vmUsage', null), o = { period: p.key, count: 0, blocked: false, reason: '', resetAt: p.reset };
+  function vmUse() { var p = vmPeriod(), u = load(TDVM.uk(TDVM.cur), null), o = { period: p.key, count: 0, blocked: false, reason: '', resetAt: p.reset };
     if (u && u.period === p.key) { o.count = +u.count || 0; o.blocked = !!u.blocked; o.reason = u.reason || ''; }
-    var b = load('vmBlock', null); if (b && Date.parse(b.until) > Date.now() && /QUOTA|limit/i.test((b.why || '') + (b.error || ''))) { o.blocked = true; o.reason = o.reason || b.why; }
+    var b = load(TDVM.bk(TDVM.cur), null); if (b && Date.parse(b.until) > Date.now() && /QUOTA|limit/i.test((b.why || '') + (b.error || ''))) { o.blocked = true; o.reason = o.reason || b.why; }
     if (o.count >= VM_LIMIT) o.blocked = true; return o; }
-  function vmUseSave(o) { save('vmUsage', { period: o.period, count: o.count, blocked: o.blocked, reason: o.reason, updated: new Date().toISOString() }); }
+  function vmUseSave(o) { save(TDVM.uk(TDVM.cur), { period: o.period, count: o.count, blocked: o.blocked, reason: o.reason, updated: new Date().toISOString() }); }
   function vmCount(n) { if (!n) return; var o = vmUse(); o.count += n; vmUseSave(o); try { render(); } catch (e) {} }
   function vmLimitHit(why) { var o = vmUse(), first = !o.blocked; o.blocked = true; o.reason = why; vmUseSave(o); if (first) { try { tdToast('Alexa limit reached \u00b7 Voice Monkey free plan (200/month) \u00b7 resets ' + o.resetAt, 'err'); } catch (e) {} } try { render(); } catch (e) {} }
   function vmUseText() { var o = vmUse(); return o.blocked ? 'Alexa limit reached \u00b7 resets ' + o.resetAt : 'Alexa ' + o.count + '/' + VM_LIMIT + ' this month'; }
   function vmHome() { if (window.__vmHomeMock != null) return !!window.__vmHomeMock; try { var ds = cache && cache.state && cache.state.drive_state; if (ds && ds.latitude != null) return TD4319.nearHome(ds.latitude, ds.longitude); } catch (e) {} return false; }
   function vmGate(why) {
     if (why === 'action') return 'skipped: lean mode (control results are shown, not spoken)';
-    var u = vmUse(); if (u.blocked) return 'skipped: Alexa limit reached (Voice Monkey ' + u.count + '/' + VM_LIMIT + ', resets ' + u.resetAt + ')';
+    TDVM.pick(); var u = vmUse(); if (u.blocked) return 'skipped: Alexa limit reached on every account (Voice Monkey account ' + TDVM.cur + ' ' + u.count + '/' + VM_LIMIT + ', resets ' + u.resetAt + ')';
     if (!vmHome()) return 'skipped: not home (car not at the home location)';
     return '';
   }
   function vmPost(dev, text) {
     var a = annCfg(), u = vmUse();
     if (u.blocked) return Promise.resolve({ ok: false, status: 429, skipped: true });
-    return fetch(VM_API + '/announce', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: a.token, device: dev, speech: text }) })
-      .then(function (r) { if (r.ok) vmCount(1); if (r.status === 429) vmLimitHit('Voice Monkey refused: HTTP 429'); return r; });
+    return fetch(VM_API + '/announce', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: TDVM.tok(a.token), device: dev, speech: text }) })
+      .then(function (r) { if (!r.ok) TDVM.setErr(TDVM.cur, 'HTTP ' + r.status); if (r.ok) vmCount(1); if (r.status === 429) vmLimitHit('Voice Monkey refused: HTTP 429'); return r; });
   }
+  // ---------- v1: Voice Monkey panel (logo button) + up to 3 accounts (window.TDVM, vmacct.js) + 100% OFF NIGHTS ----------
+  var vmPanelMsg = '';
+  function vmPanelClose() { var d = document.getElementById('vmPanel'); if (d) d.parentNode.removeChild(d); }
+  function vmPanelHtml() {
+    var m = TDVM.model(), act = TDVM.active(), h = '<div class="vmp-box" role="dialog" aria-label="Voice Monkey"><div class="vmp-hd"><b>VOICE MONKEY</b><button type="button" class="vmp-x" id="vmpX" aria-label="Close">\u2715</button></div>' +
+      '<div class="vmp-sub">Alexa ' + (alexaOn() ? 'ON' : 'OFF') + ' \u00b7 ' + (act ? 'announcing with account ' + act : 'no account can announce now') + (annConsent() ? '' : ' \u00b7 disclosure not accepted (Settings \u203a Connected apps)') + '</div>';
+    m.forEach(function (a) {
+      h += '<div class="vmp-acct' + (a.active ? ' act' : '') + '"><div class="vmp-st ' + (a.status === 'CONNECTED' ? 'ok' : (a.blocked ? 'warn' : 'bad')) + '">' + esc(a.label.toUpperCase()) + ' \u00b7 ' + a.status + (a.active ? ' \u00b7 ACTIVE' : '') + '</div>' +
+        '<div>Token: ' + (a.token ? 'saved on this device' : 'missing') + ' \u00b7 Device: ' + esc(a.device || '\u2014') + '</div>' +
+        '<div class="vmp-cnt">Used ' + a.count + ' / ' + a.limit + ' this month \u00b7 resets ' + esc(a.resetAt) + '</div>' +
+        '<div class="vmp-err">Last error: ' + esc(a.lastErr || a.reason || 'none') + '</div>' +
+        '<div class="vmp-btns"><button type="button" data-vmfix="' + a.n + '">' + (a.token ? 'NEW MONKEY / FIX' : 'CONNECT') + '</button>' + (a.n > 1 ? '<button type="button" class="red" data-vmrm="' + a.n + '">REMOVE</button>' : '') + '</div></div>';
+    });
+    h += '<div class="vmp-btns">' + (TDVM.nextFree() ? '<button type="button" id="vmpAdd">+ ADD ACCOUNT</button>' : '') + '<button type="button" class="amber" id="vmpTest">TEST ANNOUNCEMENT\u2026</button></div>' +
+      (vmPanelMsg ? '<div class="vmp-msg" id="vmpMsg">' + esc(vmPanelMsg) + '</div>' : '') + '<div class="vmp-note">Rollover: account 1 until 200, then 2, then 3. Free plan = 200 announcements a month each.</div></div>';
+    return h;
+  }
+  function vmFormHtml(n, mode) {
+    var a = TDVM.acct(n) || {};
+    return '<div class="vmp-box" role="dialog"><div class="vmp-hd"><b>' + (mode === 'add' ? 'ADD ACCOUNT ' + n : 'NEW MONKEY / FIX ACCOUNT ' + n) + '</b><button type="button" class="vmp-x" id="vmpX" aria-label="Close">\u2715</button></div>' +
+      '<ol class="vmp-steps"><li><a href="https://app.voicemonkey.io" target="_blank" rel="noopener">Sign in / create your account at app.voicemonkey.io</a></li><li><a href="https://app.voicemonkey.io/tokens" target="_blank" rel="noopener">Create an API token</a> and copy it</li><li><a href="https://app.voicemonkey.io/speakers" target="_blank" rel="noopener">Add your Echo as a speaker</a> and enable the Voice Monkey Alexa skill</li><li>Paste the token, find your speaker, save.</li></ol>' +
+      '<input type="password" id="vmfTok" autocomplete="off" placeholder="' + (a.token ? 'token saved \u2014 leave empty to keep' : 'Voice Monkey API token') + '">' +
+      '<input type="text" id="vmfDev" list="vmfList" placeholder="speaker device id" value="' + esc(a.device || '') + '"><datalist id="vmfList"></datalist>' +
+      '<div class="vmp-btns"><button type="button" id="vmfFind">FIND SPEAKERS + CHECK</button><button type="button" id="vmfSave" data-n="' + n + '">SAVE</button><button type="button" id="vmfBack">BACK</button></div><div class="vmp-msg" id="vmfMsg"></div></div>';
+  }
+  function vmPanelShow(html) {
+    var d = document.getElementById('vmPanel'); if (!d) { d = document.createElement('div'); d.id = 'vmPanel'; d.className = 'modal vmp'; document.body.appendChild(d); d.addEventListener('click', vmPanelClick); }
+    d.innerHTML = html;
+  }
+  function vmPanel() { vmPanelMsg = ''; vmPanelShow(vmPanelHtml()); }
+  function vmPanelClick(e) {
+    var t = e.target.closest ? e.target.closest('button,#vmPanel') : e.target; if (!t) return;
+    if (t.id === 'vmPanel') { vmPanelClose(); return; }
+    if (t.id === 'vmpX') { vmPanelClose(); return; }
+    if (t.id === 'vmfBack') { vmPanelShow(vmPanelHtml()); return; }
+    if (t.getAttribute('data-vmfix')) { vmPanelShow(vmFormHtml(+t.getAttribute('data-vmfix'), 'fix')); return; }
+    if (t.id === 'vmpAdd') { var nf = TDVM.nextFree(); if (nf) vmPanelShow(vmFormHtml(nf, 'add')); return; }
+    if (t.getAttribute('data-vmrm')) { var rn = +t.getAttribute('data-vmrm'); confirmBox('Remove Voice Monkey account ' + rn + ' from TessDesk?', 'Remove', 'Your Voice Monkey account itself is not changed').then(function (ok) { if (ok) TDVM.remove(rn); vmPanelShow(vmPanelHtml()); }); return; }
+    if (t.id === 'vmpTest') { vmTest(); return; }
+    if (t.id === 'vmfFind') {
+      var n = +document.getElementById('vmfSave').getAttribute('data-n'), tok = document.getElementById('vmfTok').value.trim() || (TDVM.acct(n) || {}).token, msg = document.getElementById('vmfMsg');
+      if (!tok) { msg.textContent = 'Paste the API token first.'; return; }
+      msg.textContent = 'Checking\u2026';
+      fetch(VM_API + '/devices', { headers: { Authorization: 'Bearer ' + tok } }).then(function (r) { if (!r.ok) throw new Error(r.status === 401 ? 'HTTP 401 (token not valid)' : 'HTTP ' + r.status); return r.json(); }).then(function (j) {
+        var sp = (j.data || []).filter(function (d) { return d.capability === 'speakers'; }), dl = document.getElementById('vmfList'), dv = document.getElementById('vmfDev');
+        if (dl) dl.innerHTML = sp.map(function (d) { return '<option value="' + esc(d.id) + '">' + esc(d.name || d.id) + '</option>'; }).join('');
+        if (dv && !dv.value && sp.length) dv.value = sp[0].id;
+        msg.textContent = sp.length ? 'Token OK \u00b7 ' + sp.length + ' speaker(s): ' + sp.map(function (d) { return (d.name || d.id) + ' (' + d.id + ')'; }).join(', ') : 'Token OK, but no speakers yet: add one (step 3), then check again.';
+      }, function (er) { msg.textContent = 'Check failed: ' + (er.message || er); TDVM.setErr(n, 'Check failed: ' + (er.message || er)); });
+      return;
+    }
+    if (t.id === 'vmfSave') {
+      var sn = +t.getAttribute('data-n'), st = document.getElementById('vmfTok').value.trim(), sd = document.getElementById('vmfDev').value.trim(), sm = document.getElementById('vmfMsg');
+      if (!st && !(TDVM.acct(sn) || {}).token) { sm.textContent = 'Paste the API token first.'; return; }
+      if (!sd) { sm.textContent = 'Pick or type the speaker (device id).'; return; }
+      TDVM.save(sn, st, sd); vmPanelMsg = 'Account ' + sn + ' saved.'; vmPanelShow(vmPanelHtml()); try { render(); } catch (er2) {} return;
+    }
+  }
+  function vmTest() {
+    var act = TDVM.active(); if (!act) { vmPanelMsg = 'No account can announce right now (none set up, or every month is used up).'; vmPanelShow(vmPanelHtml()); return; }
+    var u = TDVM.usage(act), a = TDVM.acct(act);
+    confirmBox('Send a test announcement on ' + a.label + '?', 'Send test', 'Uses 1 of ' + u.limit + ' (' + u.count + ' used, resets ' + u.resetAt + ') \u00b7 speaker ' + a.device).then(function (ok) {
+      if (!ok) { vmPanelMsg = 'Test cancelled \u00b7 nothing sent'; vmPanelShow(vmPanelHtml()); return; }
+      var rec = announce('This is a TessDesk test. Voice Monkey is connected.', 'vm-test', true);
+      vmPanelMsg = 'Test: ' + (rec && rec.result ? rec.result : 'sent'); vmPanelShow(vmPanelHtml());
+    });
+  }
+  // 100% OFF NIGHTS: TessDesk setting only (td:off100Nights). ON = the FINISH BY target list stops at 90%; picks above 90% are capped
+  // before anything is queued; nothing is sent when it is switched on. A target/limit already above 90% only gets a note.
+  function off100() { return !!load('off100Nights', false); }
+  function off100Note(W, C) { if (!off100()) return ''; return ((W.target != null && W.target > 90) || (C && C.limit != null && C.limit > 90)) ? ' \u00b7 100% OFF NIGHTS: target/limit is above 90%, lower it yourself (TessDesk does not change it)' : ' \u00b7 100% off nights (max 90%)'; }
+  document.addEventListener('change', function (e) { if (e.target && e.target.id === 'schOff100') { save('off100Nights', !!e.target.checked); try { render(); } catch (er) {} } });
+  window.TessDeskV1 = { vmPanel: vmPanel, vmTest: vmTest, off100: off100, off100Note: off100Note };
   function announce(text, why, force) {
-    var a = annCfg(), tg = annTargets(why), rec = { at: new Date().toISOString(), why: why || 'action', text: text, device: tg.join(','), dryRun: !!load('dryRun', false), sent: false, result: '' };
+    TDVM.pick(); var a = annCfg(), tg = TDVM.targets(annTargets(why)), rec = { at: new Date().toISOString(), why: why || 'action', text: text, device: tg.join(','), dryRun: !!load('dryRun', false), sent: false, result: '', acct: TDVM.cur };
     if (!force && !alexaOn()) rec.result = 'skipped: Alexa toggle off';
     else if (!annConsent()) rec.result = 'skipped: announcement disclosure not accepted';
-    else if (!a.token || !a.device) rec.result = 'skipped: Voice Monkey not set up';
+    else if (!TDVM.tok(a.token) || !TDVM.dev(a.device)) rec.result = 'skipped: Voice Monkey not set up';
     else if (vmGate(why)) rec.result = vmGate(why);   // v4.3.28
     else if (rec.dryRun) rec.result = 'DRY RUN: not sent to Voice Monkey';
     else {
@@ -2269,7 +2347,7 @@
     on('bRemind', openReminder); on('bRemSetup', openRemSetup); on('btnLayout', function () { setLayout(layoutMode() === 'compact' ? 'full' : 'compact'); });
     on('cChgStart', onChgStart); on('cChgStop', onChgStop); on('cHeat', onHeat); on('cDefrost', onDefrost); on('cCop', onCop); on('sWheel', onWheel);
     on('btnCam', function () { camSetOn(!camOn()); }); camMount(); on('btnTot', totOpen);
-    on('btnAlexa', function () { setAlexa(!alexaOn()); }); on('btnVM', vmSoon); on('btnSched', function () { screen = 'settings'; render(); var e = document.getElementById('apps'); if (e) e.scrollIntoView(); });
+    on('btnAlexa', function () { setAlexa(!alexaOn()); }); on('btnVM', vmPanel); on('btnSched', function () { screen = 'settings'; render(); var e = document.getElementById('apps'); if (e) e.scrollIntoView(); });
     Array.prototype.forEach.call(document.querySelectorAll('[data-seat]'), function (g) { g.onclick = function () { if (!g.classList.contains('dis')) onSeat(g.getAttribute('data-seat')); }; });
     bindVSlider(); bindAmps();
     on('cAnnounce', onAnnounce); on('cAllOff', onAllOff); on('cAllOffSet', openAllOffSetup); on('cAnnSetup', openAnnSetup); on('pkStop', onChgStop);
@@ -2678,7 +2756,7 @@
     });
   }
   function sendRundown(r) {
-    var a = annCfg(), dry = !!load('dryRun', false), results = [], tg = annTargets('rundown');
+    TDVM.pick(); var a = annCfg(), dry = !!load('dryRun', false), results = [], tg = TDVM.targets(annTargets('rundown'));
     function one(i) {
       if (i >= r.parts.length) return Promise.resolve();
       var txt = r.parts[i], rec = { at: new Date().toISOString(), why: 'rundown ' + (i + 1) + '/' + r.parts.length, text: txt, device: tg.join(','), dryRun: dry, sent: false, result: '' };

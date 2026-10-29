@@ -1,18 +1,18 @@
 {
  "app": "TessDesk",
- "version": "4.3.42",
+ "version": "100.1",
  "date": "Oct 28, 2026",
- "setup": "4.4.42",
- "changelog": "https://vanwidick.github.io/tessdesk/changelog.html#v4.3.42",
+ "setup": "100.1",
+ "changelog": "https://vanwidick.github.io/tessdesk/changelog.html#v1",
  "download": "https://vanwidick.github.io/tessdesk/download.html",
  "desktop": {
-  "version": "4.3.42",
+  "version": "100.1",
   "files": [
    {
     "name": "TessDesk.ps1",
     "url": "https://vanwidick.github.io/tessdesk/download/app/TessDesk.ps1",
-    "sha256": "af2953c37a7426f4a02ee644c7ef8761e8a4e3f7806d72213feec27ee270c3c2",
-    "bytes": 1214399
+    "sha256": "5f81ed8c028f7918e678f90ed45d07d5d3ff3c475ef4dfb9cfb1f5dff0056b8d",
+    "bytes": 1241397
    },
    {
     "name": "TessDesk-Announce.ps1",
@@ -38,11 +38,16 @@
     "sha256": "db019220b9999a8d0ee8ea36f30d44b17a19242a817188edbb7876b6c314f109",
     "bytes": 4669
    }
-  ]
+  ],
+  "display": "v1"
  },
  "phone": {
-  "version": "4.3.42",
-  "cache": "tessdesk-v4.3.42",
+  "version": "100.1",
+  "display": "v1",
+  "cache": "tessdesk-v1",
   "date": "Oct 28, 2026"
- }
+ },
+ "display": "v1",
+ "setupDisplay": "v1",
+ "setupFile": "TessDesk-Setup-v1.zip"
 }

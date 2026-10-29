@@ -1,5 +1,5 @@
 ﻿#Requires -Version 5.1
-# TessDesk v4.3.42 (v4.3.42: Leaving Soon never starts charging when the run turns on HEAT or A/C (charge-start, limit, amps and schedule commands are filtered from the plan and refused at send in heat/A/C runs; CLIMATE ON / OFF runs unchanged; the charge schedule is never touched); v4.3.41: Leaving Soon start says 'Starting leaving now sequence' on Alexa the moment the start is accepted (replaces the old start announcement, home-only, monthly counter, limit-reached skip); merges the 4.3.39 desktop changes: battery % + rated range at the top of COST SUMMARY, tall buttons halfway back up (37->42, 31->35, 29->33), VENT/CLOSE/DEFROST tighter padding, labels shrink only if needed; v4.3.40: the window is resizable (drag any edge or corner, min 420x480); REMEMBER / RESTORE sit in the footer next to SHARE; last-used size and place come back on restart and are pulled back on screen; TessDesk fits itself under MONEY LINE (above the taskbar) while MONEY LINE is open and goes back when it closes; built on 4.3.38 (4.3.39 desktop still pending); v4.3.38: Leaving Soon fix - empty comfort step (seat/wheel unchecked) no longer injects a blank step that aborted windows/lock with Tessie 'Not found'; New-LeaveComfortSteps/Get-LeaveStepsFor filter empty steps. Desktop only; everything else 4.3.37 unchanged; v4.3.37: Leaving Soon climate checkboxes CLIMATE ON / CLIMATE OFF / A/C / HEAT plus HEATED DRIVER SEAT + STEERING WHEEL HEATER (persisted, mutually exclusive; default CLIMATE ON preserves prior start_climate). Climate choice runs at Start after: ON=start_climate, OFF=stop_climate, A/C=set_temperatures to Tesla Controls shared SET TEMP then start_climate, HEAT=set_temperatures to heat setpoint then start_climate. Stop/undo respects climate choice (OFF not reversed). Timers and WINDOWS/LOCK choices unchanged; v4.3.36: LEAVING SOON is now its own top-level section (LeaveCard / 'leaving') with the same green outline/title as TESLA CONTROLS, immediately after Tesla Controls by default; it joins the v4.3.30 section order/lock system (arrows top-left, lock top-right, order+pin persisted in config sections; existing saved orders get 'leaving' inserted right after 'controls' by Merge-SecState4330). The whole Leaving Soon UI moved out of TESLA CONTROLS: LEAVING SOON start button (now a full-width 31px button in its own section), Start after / Windows after / Unlock after timers, WINDOWS UP/DOWN + LOCK/UNLOCK persisted mutually-exclusive checkboxes, status/result LeaveRow with STOP/CLOSE and DRY RUN wording in results: ALL kept, same commands/waits/undo/confirm/Alexa behaviour. ALL OFF + SETUP stay at the top of TESLA CONTROLS exactly as v4.3.35; no other Tesla Controls change; v4.3.35: Leaving Soon explicit persisted WINDOWS UP / WINDOWS DOWN and LOCK / UNLOCK checkboxes, mutually exclusive per pair, unchecked stage skipped, defaults WINDOWS UP + UNLOCK preserve prior close_windows+unlock; v4.3.34: tall buttons halfway back up (46->37, 38->31, 36->29) after 4.3.33 made them too smashed; short buttons unchanged; v4.3.33: WHEEL ON rename + climate-gated wheel on phone too, combined CLIMATE block (A/C + HEAT + shared SET TEMP, setpoint-proxy wording), one-owner eased scrolling with signature guards, tall buttons ~40% shorter; STEERING WHEEL matches Tessie: heater flag + level set but climate off = grey SET <level> / OFF, not HEAT ON; BATTERY HEALTH is its own section (health %, as-of, trend sparkline, HEALTH HISTORY + calibration notes) right after BATTERY, Tips stays in BATTERY; UPDATE button always visible: RED 'NO UPDATE' when current, GREEN flashing 'YES UPDATE' when newer, tap checks the cloud at once and YES UPDATE installs on the spot; phone v4.3.32 gets the same NO UPDATE / YES UPDATE button; v4.3.31: TIRE REFRESH button in TIRES under REMIND ME TO GET AIR: fresh pressures via Tessie, read-only, spinner + result; v4.3.30: LAYOUT: small up/down arrows at the top left of every section move it one place; a lock at the top right pins that section and everything above it at the top, the rest scrolls; both saved; Charging locked by default; v4.3.29: SECTIONS: TESLA CONTROLS, BATTERY (with HEALTH HISTORY), HEATED SEATS, TRIPS, CHARGE HISTORY, TIRES, DRIVES, CAMERAS outlined in the CHARGING green with green titles; v4.3.28: Alexa: 'Alexa limit reached' notice, Voice Monkey monthly counter (resets the 26th 7 PM CT), fewer announcements, only when home, no test announcements; ALL OFF never starts charging (no charge commands + stops a charge that starts after it); flash pause = the typed value; v4.3.27: Voice Monkey button next to ALEXA: placeholder, 'coming soon' note only; v4.3.26: ALL OFF in TESLA CONTROLS: windows, trunk, climate, seat + wheel heat, defrost, Sentry, Climate Keeper off, lock; v4.3.25: CHARGING SCHEDULE reaches the car on firmware 2024.26+: charge schedules, checked after each send; v4.3.24: FINISH BY defaults to 6:00 AM; v4.3.23: CHARGING SCHEDULE in START / STOP: START AT + FINISH BY, set on the car through Tessie; v4.3.22: CHARGE column in HEALTH HISTORY: highest charge % per day + Home / AC / Supercharger; v4.3.21: HEALTH HISTORY under START / STOP with CALIBRATION INFO; health history logged by the app itself; v4.3.20: HEALTH HISTORY dropdown, one entry per day, kept indefinitely; v4.3.19: 30% wider; PLUG-IN REMINDER; TRIPS; MORNING READY CHECK; PSO BILL MATCH with on/off; BATTERY HEALTH TREND + TIPS; LEAVING SOON 'Start after' delay; v4.3.18 CHARGING STATUS bar under the big cost with START / STOP, fits 364x990 without scrolling; v4.3.17: TESLA CONTROLS under the big cost, CHARGE HISTORY & TOTALS dropdown; v4.3.16 LEAVING SOON: adjustable 'Windows after' / 'Unlock after' minutes, Stop undoes the steps already done; v4.3.15: climate on, close windows, unlock; rolling 7 / 14 days and 30 / 60 days $ beside the big amount; Restore / Remember at the top right with fade-in, like Paycheck Live; TOTALS pop-up: week / month / year running totals; CAMERAS panel from saved Sentry / Dashcam clips; checks for updates on open / wake; compact-when-OFF via cb_compact_addon.ps1) - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
+# TessDesk v1 (v1: new simple version counter (v1, v2, v3 ...; internal/feed id 100.<n> so 4.3.x copies update); Voice Monkey logo button opens a Voice Monkey panel: status, token/device, monthly count / 200 with reset date, last error, NEW MONKEY / FIX, + ADD ACCOUNT (up to 3 accounts, rollover 1 -> 2 -> 3 at 200), TEST ANNOUNCEMENT only after a confirm; 100% OFF NIGHTS toggle in the charging schedule (TessDesk's own plan caps at 90%, never sends anything); v4.3.42: Leaving Soon never starts charging when the run turns on HEAT or A/C (charge-start, limit, amps and schedule commands are filtered from the plan and refused at send in heat/A/C runs; CLIMATE ON / OFF runs unchanged; the charge schedule is never touched); v4.3.41: Leaving Soon start says 'Starting leaving now sequence' on Alexa the moment the start is accepted (replaces the old start announcement, home-only, monthly counter, limit-reached skip); merges the 4.3.39 desktop changes: battery % + rated range at the top of COST SUMMARY, tall buttons halfway back up (37->42, 31->35, 29->33), VENT/CLOSE/DEFROST tighter padding, labels shrink only if needed; v4.3.40: the window is resizable (drag any edge or corner, min 420x480); REMEMBER / RESTORE sit in the footer next to SHARE; last-used size and place come back on restart and are pulled back on screen; TessDesk fits itself under MONEY LINE (above the taskbar) while MONEY LINE is open and goes back when it closes; built on 4.3.38 (4.3.39 desktop still pending); v4.3.38: Leaving Soon fix - empty comfort step (seat/wheel unchecked) no longer injects a blank step that aborted windows/lock with Tessie 'Not found'; New-LeaveComfortSteps/Get-LeaveStepsFor filter empty steps. Desktop only; everything else 4.3.37 unchanged; v4.3.37: Leaving Soon climate checkboxes CLIMATE ON / CLIMATE OFF / A/C / HEAT plus HEATED DRIVER SEAT + STEERING WHEEL HEATER (persisted, mutually exclusive; default CLIMATE ON preserves prior start_climate). Climate choice runs at Start after: ON=start_climate, OFF=stop_climate, A/C=set_temperatures to Tesla Controls shared SET TEMP then start_climate, HEAT=set_temperatures to heat setpoint then start_climate. Stop/undo respects climate choice (OFF not reversed). Timers and WINDOWS/LOCK choices unchanged; v4.3.36: LEAVING SOON is now its own top-level section (LeaveCard / 'leaving') with the same green outline/title as TESLA CONTROLS, immediately after Tesla Controls by default; it joins the v4.3.30 section order/lock system (arrows top-left, lock top-right, order+pin persisted in config sections; existing saved orders get 'leaving' inserted right after 'controls' by Merge-SecState4330). The whole Leaving Soon UI moved out of TESLA CONTROLS: LEAVING SOON start button (now a full-width 31px button in its own section), Start after / Windows after / Unlock after timers, WINDOWS UP/DOWN + LOCK/UNLOCK persisted mutually-exclusive checkboxes, status/result LeaveRow with STOP/CLOSE and DRY RUN wording in results: ALL kept, same commands/waits/undo/confirm/Alexa behaviour. ALL OFF + SETUP stay at the top of TESLA CONTROLS exactly as v4.3.35; no other Tesla Controls change; v4.3.35: Leaving Soon explicit persisted WINDOWS UP / WINDOWS DOWN and LOCK / UNLOCK checkboxes, mutually exclusive per pair, unchecked stage skipped, defaults WINDOWS UP + UNLOCK preserve prior close_windows+unlock; v4.3.34: tall buttons halfway back up (46->37, 38->31, 36->29) after 4.3.33 made them too smashed; short buttons unchanged; v4.3.33: WHEEL ON rename + climate-gated wheel on phone too, combined CLIMATE block (A/C + HEAT + shared SET TEMP, setpoint-proxy wording), one-owner eased scrolling with signature guards, tall buttons ~40% shorter; STEERING WHEEL matches Tessie: heater flag + level set but climate off = grey SET <level> / OFF, not HEAT ON; BATTERY HEALTH is its own section (health %, as-of, trend sparkline, HEALTH HISTORY + calibration notes) right after BATTERY, Tips stays in BATTERY; UPDATE button always visible: RED 'NO UPDATE' when current, GREEN flashing 'YES UPDATE' when newer, tap checks the cloud at once and YES UPDATE installs on the spot; phone v4.3.32 gets the same NO UPDATE / YES UPDATE button; v4.3.31: TIRE REFRESH button in TIRES under REMIND ME TO GET AIR: fresh pressures via Tessie, read-only, spinner + result; v4.3.30: LAYOUT: small up/down arrows at the top left of every section move it one place; a lock at the top right pins that section and everything above it at the top, the rest scrolls; both saved; Charging locked by default; v4.3.29: SECTIONS: TESLA CONTROLS, BATTERY (with HEALTH HISTORY), HEATED SEATS, TRIPS, CHARGE HISTORY, TIRES, DRIVES, CAMERAS outlined in the CHARGING green with green titles; v4.3.28: Alexa: 'Alexa limit reached' notice, Voice Monkey monthly counter (resets the 26th 7 PM CT), fewer announcements, only when home, no test announcements; ALL OFF never starts charging (no charge commands + stops a charge that starts after it); flash pause = the typed value; v4.3.27: Voice Monkey button next to ALEXA: placeholder, 'coming soon' note only; v4.3.26: ALL OFF in TESLA CONTROLS: windows, trunk, climate, seat + wheel heat, defrost, Sentry, Climate Keeper off, lock; v4.3.25: CHARGING SCHEDULE reaches the car on firmware 2024.26+: charge schedules, checked after each send; v4.3.24: FINISH BY defaults to 6:00 AM; v4.3.23: CHARGING SCHEDULE in START / STOP: START AT + FINISH BY, set on the car through Tessie; v4.3.22: CHARGE column in HEALTH HISTORY: highest charge % per day + Home / AC / Supercharger; v4.3.21: HEALTH HISTORY under START / STOP with CALIBRATION INFO; health history logged by the app itself; v4.3.20: HEALTH HISTORY dropdown, one entry per day, kept indefinitely; v4.3.19: 30% wider; PLUG-IN REMINDER; TRIPS; MORNING READY CHECK; PSO BILL MATCH with on/off; BATTERY HEALTH TREND + TIPS; LEAVING SOON 'Start after' delay; v4.3.18 CHARGING STATUS bar under the big cost with START / STOP, fits 364x990 without scrolling; v4.3.17: TESLA CONTROLS under the big cost, CHARGE HISTORY & TOTALS dropdown; v4.3.16 LEAVING SOON: adjustable 'Windows after' / 'Unlock after' minutes, Stop undoes the steps already done; v4.3.15: climate on, close windows, unlock; rolling 7 / 14 days and 30 / 60 days $ beside the big amount; Restore / Remember at the top right with fade-in, like Paycheck Live; TOTALS pop-up: week / month / year running totals; CAMERAS panel from saved Sentry / Dashcam clips; checks for updates on open / wake; compact-when-OFF via cb_compact_addon.ps1) - live Tesla charging cost desktop widget + Tesla controls (Tessie API).  DESIGN BY VAN.
 param(
     [string]$ConfigPath,
     [string]$Snapshot,    # optional: folder to write PNG snapshots of both themes
@@ -15,8 +15,11 @@ Add-Type -AssemblyName System.Xaml
 
 $ErrorActionPreference = 'Stop'
 $AppName    = 'TessDesk'
-$AppVersion = '4.3.42'
+$AppVersion = '100.1'   # v1+: simple counter; display v<n>, feed/internal id 100.<n> (newer than every 4.3.x, so old copies update)
 $AppDate    = 'Oct 28, 2026'
+$AppNum     = 1
+function ConvertTo-TdVerId { param([string]$V) $V = ([string]$V).Trim().TrimStart('v'); if ($V -match '^\d+$') { return ('100.' + $V) }; return $V }
+function Format-TdVer { param([string]$V) $V = ([string]$V).Trim().TrimStart('v'); if ($V -match '^100\.(\d+)$') { return ('v' + $Matches[1]) }; return ('v' + $V) }
 # ---------------- v4.3.30: section ORDER (up / down arrows, top left) + LOCK (top right) ----------------
 # The lock pins that section and everything above it at the top (PinStack, never scrolls); the rest scrolls (BodyStack).
 # Saved in config.json sections = { order = [...]; pin = key or null }. Default = 4.3.29 order with Charging locked (looks like 4.3.29).
@@ -1131,7 +1134,7 @@ $script:UpdFetchBlock = {
     }
     return , $out
 }
-function Test-VersionNewer { param([string]$A, [string]$B) try { return ([version]($A.TrimStart('v')) -gt [version]($B.TrimStart('v'))) } catch { return $false } }
+function Test-VersionNewer { param([string]$A, [string]$B) try { return ([version](ConvertTo-TdVerId $A) -gt [version](ConvertTo-TdVerId $B)) } catch { return $false } }   # v1: plain counters (1, 2 ...) = 100.<n>
 function Start-UpdJob {
     param([string]$Kind, $Items)
     $ps = [powershell]::Create()
@@ -1248,7 +1251,7 @@ function Set-UpdPulse {
     if ($On) { $a = New-Object System.Windows.Media.Animation.DoubleAnimation; $a.From = 1.0; $a.To = 0.45; $a.Duration = [System.Windows.Duration]::new([TimeSpan]::FromSeconds(0.8)); $a.AutoReverse = $true; $a.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever; $ui.UpdateBtn.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $a) }
 }
 function Render-Update {
-    $s = $script:Upd.state; $v = 'v' + $(if ($script:Upd.latest) { $script:Upd.latest } else { $AppVersion })
+    $s = $script:Upd.state; $v = Format-TdVer $(if ($script:Upd.latest) { $script:Upd.latest } else { $AppVersion })
     Set-Visible $ui.UpdateBtn $true   # v4.3.32: always visible, slim strip (same half height in both states)
     Set-Visible $ui.UpdateSub $false; $ui.UpdateTxt.FontSize = 11   # v4.3.32 small left tab; long wording in tooltip
     try { Set-UpdPulse ($s -eq 'available' -or $s -eq 'failed' -or $s -eq 'ready') } catch {}
@@ -1811,6 +1814,7 @@ function Open-Url433 {
                   <CheckBox x:Name="SchedFinishChk" DockPanel.Dock="Right" Style="{StaticResource SkipCfChk}" VerticalAlignment="Center" Margin="0,0,3,0" ToolTip="FINISH BY: the car finishes charging by this time at the target % (overrides START AT while on)"><TextBlock Text="FINISH BY" FontSize="10" FontWeight="Bold" VerticalAlignment="Center"/></CheckBox>
                 </DockPanel>
                 <DockPanel Margin="1,1,0,0" LastChildFill="True">
+                  <CheckBox x:Name="Off100Chk" Style="{StaticResource SkipCfChk}" DockPanel.Dock="Right" VerticalAlignment="Center" Margin="6,0,0,0" ToolTip="100% OFF NIGHTS: TessDesk's own nightly plan never aims for 100% (FINISH BY target max 90%). TessDesk setting only: nothing is sent to the car."><TextBlock Text="100% OFF NIGHTS" FontSize="9" FontWeight="Bold" VerticalAlignment="Center"/></CheckBox>
                   <TextBlock x:Name="SchedSync" DockPanel.Dock="Right" Text="" FontSize="9.5" FontWeight="SemiBold" Margin="6,0,0,0" MaxWidth="190" TextTrimming="CharacterEllipsis"/>
                   <TextBlock x:Name="SchedEst" Text="" FontSize="9.5" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
                 </DockPanel>
@@ -2724,7 +2728,7 @@ foreach ($n in @($xaml.SelectNodes('//*[@*[local-name()="Name"]]'))) {
 try { if (Test-Path -LiteralPath $iconPath) { $window.Icon = [System.Windows.Media.Imaging.BitmapFrame]::Create([Uri]::new($iconPath)) } } catch {}
 
 $ui.LoggedIn.Text = 'Logged in as ' + $DisplayName
-$ui.FooterVersion.Text = ('v{0} · {1}' -f $AppVersion, $AppDate)
+$ui.FooterVersion.Text = ('{0} · {1}' -f (Format-TdVer $AppVersion), $AppDate)
 function Get-Spaced { param([string]$s) return (($s.ToCharArray() | ForEach-Object { [string]$_ }) -join [string][char]0x2009) }
 try {
     $ui.FooterText.Inlines.Clear()
@@ -5078,7 +5082,7 @@ function Get-AnnGate4328 {
     # returns '' when the announcement may go out, else the reason it is skipped
     param([string]$Why)
     if ($AnnLeanDrop -contains $Why) { return 'skipped: lean mode (control results are shown, not spoken)' }
-    $u = Read-VmUsage
+    $script:VmSel = Select-VmActive; Use-VmAcct ([math]::Max(1, $script:VmSel)); $u = Read-VmUsage; Use-VmAcct 1   # v1: account rollover 1 -> 2 -> 3
     if ($u.blocked) { return ('skipped: Alexa limit reached (Voice Monkey ' + $u.count + '/' + $VmMonthlyLimit + ', resets ' + $u.resetAt + ')') }
     if (-not (Test-AnnHome4328)) { return 'skipped: Van is not home (car not at the home location)' }
     return ''
@@ -5091,6 +5095,169 @@ function Complete-VmUsage4328 {
     Add-VmUsage (@($sends | Where-Object { $_.ok }).Count)
     $q = @($sends | Where-Object { -not $_.ok -and ($_.code -eq 429 -or [string]$_.error -match '(?i)quota|429|too many') })
     if ($q.Count -gt 0) { Set-VmLimitReached ('Voice Monkey refused: ' + $(if ($q[0].code) { 'HTTP ' + $q[0].code } else { 'quota' })) }
+}
+
+# ---------------- v1: Voice Monkey panel (logo button) + up to 3 Voice Monkey accounts ----------------
+# Account 1 = the existing voicemonkey.token.dpapi + vm-usage.json + announce.device (unchanged). Accounts 2/3 = voicemonkey.token<N>.dpapi
+# (DPAPI, this Windows user) + vm-usage<N>.json + config announce.accounts [{n, device, label}]. Each account has its own 200/month count
+# (month = 26th 7 PM CT). Announcements use account 1 until its month is used up (200 or a 429), then 2, then 3. Nothing is ever sent from
+# the panel except: CHECK / FIND SPEAKERS (GET /devices, no announcement) and TEST ANNOUNCEMENT (only after its confirm; dry run logs only).
+$VmMaxAcct = 3
+$script:VmAcct = 1; $script:VmSel = 1; $script:VmMemByAcct = @{}; $script:VmAcctMock = @{}; $script:VmPanel = $null; $script:VmTestLog = @()
+function Get-VmAcctPaths { param([int]$N) if ($N -le 1) { return @((Join-Path $scriptDir 'voicemonkey.token.dpapi'), (Join-Path $scriptDir 'vm-usage.json'), (Join-Path $scriptDir 'vm-lasterr.json')) }; return @((Join-Path $scriptDir ('voicemonkey.token' + $N + '.dpapi')), (Join-Path $scriptDir ('vm-usage' + $N + '.json')), (Join-Path $scriptDir ('vm-lasterr' + $N + '.json'))) }
+function Use-VmAcct {
+    param([int]$N)
+    if ($N -lt 1) { $N = 1 }
+    if ($script:VmAcct -ne $N) { $script:VmMemByAcct[[string]$script:VmAcct] = $script:VmUsageMem; $script:VmUsageMem = $script:VmMemByAcct[[string]$N] }
+    $p = Get-VmAcctPaths $N; $script:VmTokenPath = $p[0]; $script:VmUsagePath = $p[1]; $script:VmAcct = $N
+}
+function Get-VmAcctList { $a = Get-AnnCfg; if ($null -ne $a -and $null -ne $a.PSObject.Properties['accounts'] -and $a.accounts) { return @($a.accounts | Where-Object { $null -ne $_ }) }; return @() }
+function Get-VmAcctCfg {
+    param([int]$N)
+    if ($N -le 1) { return [pscustomobject]@{ n = 1; device = (Get-VmDevice); label = 'Account 1' } }
+    $h = @(Get-VmAcctList | Where-Object { [int]$_.n -eq $N }); if ($h.Count) { return $h[0] }; return $null
+}
+function Test-VmAcctHasToken { param([int]$N) if ($script:VmAcctMock.ContainsKey([string]$N)) { return [bool]$script:VmAcctMock[[string]$N] }; if ($N -eq 1 -and $script:AnnMock) { return $true }; return (Test-Path -LiteralPath (Get-VmAcctPaths $N)[0]) }
+function Test-VmAcctReady { param([int]$N) $c = Get-VmAcctCfg $N; if ($null -eq $c) { return $false }; if (-not (Test-VmAcctHasToken $N)) { return $false }; if ($N -eq 1) { return ([bool]$c.device -or @(Get-SpeakerList).Count -gt 0 -or $script:AnnMock) }; return [bool]$c.device }
+function Get-VmAcctUsage { param([int]$N) $old = $script:VmAcct; Use-VmAcct $N; try { return (Read-VmUsage) } finally { Use-VmAcct $old } }
+function Select-VmActive {
+    # first set-up account whose month is not used up; 0 = all used up (or none set up)
+    for ($n = 1; $n -le $VmMaxAcct; $n++) { if (-not (Test-VmAcctReady $n)) { continue }; if (-not (Get-VmAcctUsage $n).blocked) { return $n } }
+    return 0
+}
+function Get-VmLastErr { param([int]$N) $p = (Get-VmAcctPaths $N)[2]; if ($script:VmMemByAcct.ContainsKey('err' + $N)) { return [string]$script:VmMemByAcct['err' + $N] }; if (Test-Path -LiteralPath $p) { try { $o = Get-Content -LiteralPath $p -Raw | ConvertFrom-Json; return ([string]$o.error + ' (' + [string]$o.at + ')') } catch {} }; return '' }
+function Set-VmLastErr {
+    param([int]$N, [string]$E)
+    $at = (Get-LocalNow).ToString('MMM d h:mm tt', $Inv)
+    if ($SelfTest) { $script:VmMemByAcct['err' + $N] = ($E + ' (' + $at + ')'); return }
+    try { (@{ error = $E; at = $at } | ConvertTo-Json -Compress) | Set-Content -LiteralPath (Get-VmAcctPaths $N)[2] -Encoding UTF8 } catch {}
+}
+function Save-VmTokenFor { param([int]$N, [string]$Tok) if ($SelfTest) { $script:VmAcctMock[[string]$N] = $true; return }; ($Tok.Trim() | ConvertTo-SecureString -AsPlainText -Force | ConvertFrom-SecureString) | Set-Content -LiteralPath (Get-VmAcctPaths $N)[0] -Encoding ASCII }
+function Get-VmTokenFor { param([int]$N) $old = $script:VmAcct; Use-VmAcct $N; try { return (Get-VmToken) } finally { Use-VmAcct $old } }
+function Save-AnnKey1 {
+    param([string]$K, $V)
+    $a = Get-AnnCfg; $o = [ordered]@{}; if ($null -ne $a) { foreach ($p in $a.PSObject.Properties) { $o[$p.Name] = $p.Value } }; $o[$K] = $V
+    if ($SelfTest) { if ($null -eq $script:Cfg) { $script:Cfg = [pscustomobject]@{} }; $script:Cfg | Add-Member -NotePropertyName announce -NotePropertyValue ([pscustomobject]$o) -Force; return }
+    Save-ConfigProp 'announce' $o; $script:Cfg = Read-Config
+}
+function Save-VmAcct {
+    # N=1: token (optional) + device into the existing places; N=2/3: token<N>.dpapi + announce.accounts
+    param([int]$N, [string]$Tok, [string]$Dev, [string]$Label = '')
+    if ($Tok) { if ($N -eq 1) { if ($SelfTest) { $script:VmAcctMock['1'] = $true } else { Save-VmToken $Tok } } else { Save-VmTokenFor $N $Tok } }
+    if ($N -eq 1) { if ($Dev) { Save-AnnKey1 'device' $Dev } }
+    else {
+        $l = @(Get-VmAcctList | Where-Object { [int]$_.n -ne $N }); $l += [pscustomobject]@{ n = $N; device = $Dev; label = $(if ($Label) { $Label } else { 'Account ' + $N }) }
+        Save-AnnKey1 'accounts' @($l | Sort-Object { [int]$_.n })
+    }
+    Write-WidgetLog ('voice monkey: account ' + $N + ' saved (device ' + $Dev + $(if ($Tok) { ', new token' } else { '' }) + ')')
+}
+function Remove-VmAcct {
+    param([int]$N)
+    if ($N -le 1) { return }
+    Save-AnnKey1 'accounts' @(Get-VmAcctList | Where-Object { [int]$_.n -ne $N })
+    if ($SelfTest) { $script:VmAcctMock.Remove([string]$N) } else { Remove-Item -LiteralPath (Get-VmAcctPaths $N)[0] -ErrorAction SilentlyContinue }
+    Write-WidgetLog ('voice monkey: account ' + $N + ' removed')
+}
+function Get-VmNextFree { for ($n = 2; $n -le $VmMaxAcct; $n++) { if ($null -eq (Get-VmAcctCfg $n)) { return $n } }; return 0 }
+function Get-VmAcctInfo {
+    param([int]$N)
+    $c = Get-VmAcctCfg $N; $u = Get-VmAcctUsage $N; $tok = Test-VmAcctHasToken $N; $rdy = Test-VmAcctReady $N
+    $status = $(if (-not $tok) { 'NOT CONNECTED · no token' } elseif (-not $rdy) { 'NEEDS A DEVICE' } elseif ($u.blocked) { 'MONTH USED UP' } else { 'CONNECTED' })
+    return [pscustomobject]@{ n = $N; label = $(if ($c -and $c.label) { [string]$c.label } else { 'Account ' + $N }); device = $(if ($c) { [string]$c.device } else { '' }); token = $tok; ready = $rdy
+        count = [int]$u.count; limit = $VmMonthlyLimit; blocked = [bool]$u.blocked; resetAt = [string]$u.resetAt; reason = [string]$u.reason; status = $status; lastErr = (Get-VmLastErr $N) }
+}
+function Get-VmPanelModel {
+    $sel = Select-VmActive; $l = @(); for ($n = 1; $n -le $VmMaxAcct; $n++) { if ($n -eq 1 -or $null -ne (Get-VmAcctCfg $n)) { $i = Get-VmAcctInfo $n; $i | Add-Member -NotePropertyName active -NotePropertyValue ($n -eq $sel); $l += $i } }
+    return [pscustomobject]@{ accounts = $l; active = $sel; alexa = [bool]$script:AlexaOn; consent = ((Test-AnnConsent) -or $script:AnnMock); canAdd = ((Get-VmNextFree) -gt 0) }
+}
+function Invoke-VmTest {
+    # one test announcement on the active account, ONLY after the confirm; counts 1 of 200; dry run logs only
+    $m = Get-VmPanelModel
+    if ($m.active -eq 0) { $r = 'No account can announce right now (none set up, or every month is used up).'; $script:VmTestLog += $r; return $r }
+    $i = @($m.accounts | Where-Object { $_.n -eq $m.active })[0]
+    if (-not (Confirm-Ctl ('Send a test announcement on ' + $i.label + '?') ('Uses 1 of ' + $i.limit + ' (' + $i.count + ' used, resets ' + $i.resetAt + ') · speaker ' + $i.device) 'Send test')) { $r = 'Test cancelled · nothing sent'; $script:VmTestLog += $r; return $r }
+    $rec = Send-Announcement -Text 'This is a TessDesk test. Voice Monkey is connected.' -Why 'vm-test' -Force
+    $r = ('Test: ' + [string]$rec.result); $script:VmTestLog += $r; return $r
+}
+function Show-VmAcctDialog {
+    # guided connect / reconnect / fix ("NEW MONKEY") for account N; returns $true when saved
+    param([int]$N, [string]$Mode = 'fix')
+    $c = Get-VmAcctCfg $N
+    $dlg = New-Object System.Windows.Window; $dlg.Title = ('TessDesk · Voice Monkey · ' + $(if ($Mode -eq 'add') { 'Add account ' + $N } else { 'New monkey / fix account ' + $N })); $dlg.Width = 470; $dlg.SizeToContent = 'Height'; $dlg.WindowStartupLocation = 'CenterScreen'; $dlg.Background = T 'RootBg'; $dlg.Topmost = $true
+    $root = New-Object System.Windows.Controls.StackPanel; $root.Margin = '16'
+    [void]$root.Children.Add((New-Txt $(if ($Mode -eq 'add') { 'Add a Voice Monkey account (your own). TessDesk uses account 1 until its 200 a month are used, then 2, then 3.' } else { 'Set up or repair this Voice Monkey connection: paste a token, pick the speaker, check, save.' }) 12 'SemiBold' 'Text'))
+    [void]$root.Children.Add((New-Link '1. Sign in / create your account at app.voicemonkey.io' 'https://app.voicemonkey.io'))
+    [void]$root.Children.Add((New-Link '2. Create an API token (Tokens page) and copy it' 'https://app.voicemonkey.io/tokens'))
+    [void]$root.Children.Add((New-Link '3. Add your Echo as a speaker device (Speakers page) and enable the Voice Monkey Alexa skill' 'https://app.voicemonkey.io/speakers'))
+    [void]$root.Children.Add((New-Txt '4. Paste the token here (stored encrypted for your Windows user, never in config.json):' 11.5 'Normal' 'TextSoft'))
+    $pb = New-Object System.Windows.Controls.PasswordBox; $pb.Margin = '0,4,0,6'; $pb.Height = 24; [void]$root.Children.Add($pb)
+    if (Test-VmAcctHasToken $N) { [void]$root.Children.Add((New-Txt 'A token is already saved. Leave the box empty to keep it.' 10.5 'Normal' 'Caption')) }
+    [void]$root.Children.Add((New-Txt '5. Speaker (device id):' 11.5 'Normal' 'TextSoft'))
+    $cb = New-Object System.Windows.Controls.ComboBox; $cb.IsEditable = $true; $cb.Height = 24; $cb.Margin = '0,4,0,6'; $cb.Text = $(if ($c) { [string]$c.device } else { '' }); [void]$root.Children.Add($cb)
+    $res = New-Txt '' 11 'SemiBold' 'TextSoft'
+    $row = New-Object System.Windows.Controls.StackPanel; $row.Orientation = 'Horizontal'; $row.Margin = '0,6,0,6'
+    $bF = New-Object System.Windows.Controls.Button; $bF.Content = 'FIND SPEAKERS + CHECK'; $bF.Padding = '8,3,8,3'; $bF.Margin = '0,0,6,0'
+    $bS = New-Object System.Windows.Controls.Button; $bS.Content = 'SAVE'; $bS.Padding = '14,3,14,3'; $bS.Margin = '0,0,6,0'
+    $bX = New-Object System.Windows.Controls.Button; $bX.Content = 'Cancel'; $bX.Padding = '8,3,8,3'
+    [void]$row.Children.Add($bF); [void]$row.Children.Add($bS); [void]$row.Children.Add($bX); [void]$root.Children.Add($row); [void]$root.Children.Add($res)
+    $st = @{ saved = $false }
+    $bF.Add_Click({ $tok = $pb.Password; if (-not $tok) { $tok = Get-VmTokenFor $N }
+        if (-not $tok) { $res.Text = 'Paste the API token first.'; return }
+        if ($SelfTest) { $res.Text = 'Check skipped in self-test (mocked)'; return }
+        try { $r = Invoke-RestMethod -Uri ($VmApi + '/devices') -Headers @{ Authorization = ('Bearer ' + $tok) } -Method Get -TimeoutSec 15 -UseBasicParsing
+            $sp = @($r.data | Where-Object { $_.capability -eq 'speakers' }); $cb.Items.Clear(); foreach ($s in $sp) { [void]$cb.Items.Add([string]$s.id) }
+            if (-not $cb.Text -and $sp.Count) { $cb.Text = [string]$sp[0].id }
+            $res.Text = $(if ($sp.Count) { 'Token OK · ' + $sp.Count + ' speaker(s): ' + ((@($sp | ForEach-Object { [string]$_.name + ' (' + [string]$_.id + ')' })) -join ', ') } else { 'Token OK, but no speakers yet: add one on the Speakers page (step 3), then check again.' })
+        } catch { $code = $null; try { $code = [int]$_.Exception.Response.StatusCode } catch {}; $res.Text = ('Check failed' + $(if ($code) { ': HTTP ' + $code + $(if ($code -eq 401) { ' (token not valid)' } else { '' }) } else { ': ' + $_.Exception.Message })); Set-VmLastErr $N $res.Text } })
+    $bS.Add_Click({ $tok = $pb.Password; $dev = ([string]$cb.Text).Trim()
+        if (-not $tok -and -not (Test-VmAcctHasToken $N)) { $res.Text = 'Paste the API token first.'; return }
+        if (-not $dev) { $res.Text = 'Pick or type the speaker (device id).'; return }
+        try { Save-VmAcct $N $tok $dev; $st.saved = $true; $dlg.Close() } catch { $res.Text = 'Save failed: ' + $_.Exception.Message } })
+    $bX.Add_Click({ $dlg.Close() })
+    $dlg.Content = $root
+    if ($script:VmDlgHook) { & $script:VmDlgHook $dlg $pb $cb $bS $bF; return $st.saved }
+    [void]$dlg.ShowDialog(); return $st.saved
+}
+function New-VmPanelBtn { param([string]$T, [string]$Tip, [scriptblock]$On, [string]$Col = '#FF22C55E')
+    $b = New-Object System.Windows.Controls.Button; $b.Content = $T; $b.FontSize = 9.5; $b.FontWeight = 'Bold'; $b.Padding = '6,2,6,2'; $b.Margin = '0,0,4,0'; $b.ToolTip = $Tip; $b.Cursor = 'Hand'
+    $b.Foreground = Get-Brush $Col; $b.Background = Get-Brush '#FF1E1E1E'; $b.BorderBrush = Get-Brush $Col; $b.Add_Click($On); return $b }
+function Build-VmPanel {
+    $m = Get-VmPanelModel
+    $sp = New-Object System.Windows.Controls.StackPanel; $sp.Width = 330
+    [void]$sp.Children.Add((New-Txt 'VOICE MONKEY' 12 'Bold' 'Green'))
+    [void]$sp.Children.Add((New-Txt ('Alexa ' + $(if ($m.alexa) { 'ON' } else { 'OFF' }) + ' · ' + $(if ($m.active -gt 0) { 'announcing with account ' + $m.active } else { 'no account can announce now' }) + $(if (-not $m.consent) { ' · disclosure not accepted (Connected apps)' } else { '' })) 10.5 'SemiBold' 'TextSoft'))
+    foreach ($i in $m.accounts) {
+        $bd = New-Object System.Windows.Controls.Border; $bd.BorderThickness = 1; $bd.CornerRadius = 5; $bd.Padding = '7,4,7,5'; $bd.Margin = '0,5,0,0'; $bd.BorderBrush = Get-Brush $(if ($i.active) { '#FF22C55E' } else { '#FF444444' })
+        $s = New-Object System.Windows.Controls.StackPanel
+        $col = $(if ($i.status -eq 'CONNECTED') { 'Green' } elseif ($i.blocked) { 'Amber' } else { 'Red' })
+        [void]$s.Children.Add((New-Txt ($i.label.ToUpperInvariant() + ' · ' + $i.status + $(if ($i.active) { ' · ACTIVE' } else { '' })) 10.5 'Bold' $col))
+        [void]$s.Children.Add((New-Txt ('Token: ' + $(if ($i.token) { 'saved (encrypted)' } else { 'missing' }) + ' · Device: ' + $(if ($i.device) { $i.device } else { '—' })) 10 'Normal' 'TextSoft'))
+        [void]$s.Children.Add((New-Txt ('Used ' + $i.count + ' / ' + $i.limit + ' this month · resets ' + $i.resetAt) 10 'SemiBold' 'Text'))
+        [void]$s.Children.Add((New-Txt ('Last error: ' + $(if ($i.lastErr) { $i.lastErr } elseif ($i.reason) { $i.reason } else { 'none' })) 10 'Normal' 'Caption'))
+        $r = New-Object System.Windows.Controls.WrapPanel; $r.Margin = '0,3,0,0'; $n = [int]$i.n
+        [void]$r.Children.Add((New-VmPanelBtn $(if ($i.token) { 'NEW MONKEY / FIX' } else { 'CONNECT' }) 'Guided setup: token, speaker, check, save (repairs the connection and device)' ([scriptblock]::Create("if (Show-VmAcctDialog $n 'fix') { Update-VmPanel }"))))
+        if ($n -gt 1) { [void]$r.Children.Add((New-VmPanelBtn 'REMOVE' 'Remove this account from TessDesk (your Voice Monkey account is not touched)' ([scriptblock]::Create("if (Confirm-Ctl 'Remove Voice Monkey account $n from TessDesk?' 'Your Voice Monkey account itself is not changed' 'Remove') { Remove-VmAcct $n; Update-VmPanel }")) '#FFFF6B6E')) }
+        $s.Children.Add($r) | Out-Null; $bd.Child = $s; [void]$sp.Children.Add($bd)
+    }
+    $r2 = New-Object System.Windows.Controls.WrapPanel; $r2.Margin = '0,7,0,0'
+    if ($m.canAdd) { [void]$r2.Children.Add((New-VmPanelBtn '+ ADD ACCOUNT' 'Guided: link another Voice Monkey account you created (up to 3)' { $n = Get-VmNextFree; if ($n -gt 0 -and (Show-VmAcctDialog $n 'add')) { Update-VmPanel } })) }
+    [void]$r2.Children.Add((New-VmPanelBtn 'TEST ANNOUNCEMENT…' 'Sends ONE test announcement (asks first, uses 1 of 200)' { $script:VmPanelMsg = Invoke-VmTest; Update-VmPanel } '#FFFFB020'))
+    [void]$sp.Children.Add($r2)
+    if ($script:VmPanelMsg) { [void]$sp.Children.Add((New-Txt $script:VmPanelMsg 10 'SemiBold' 'TextSoft')) }
+    [void]$sp.Children.Add((New-Txt 'Rollover: account 1 until 200, then 2, then 3. Free plan = 200 announcements a month each.' 9.5 'Normal' 'Caption'))
+    return $sp
+}
+function Update-VmPanel { if ($null -ne $script:VmPanel) { $script:VmPanel.Child.Child = (Build-VmPanel) } }
+function Show-VmPanel {
+    if ($null -eq $script:VmPanel) {
+        $bd = New-Object System.Windows.Controls.Border; $bd.Background = Get-Brush '#F7161616'; $bd.BorderBrush = Get-Brush '#FF22C55E'; $bd.BorderThickness = 1; $bd.CornerRadius = 7; $bd.Padding = '10,8,10,9'
+        $p = New-Object System.Windows.Controls.Primitives.Popup; $p.Child = $bd; $p.PlacementTarget = $ui.VmBtn; $p.Placement = 'Bottom'; $p.VerticalOffset = 4; $p.StaysOpen = $false; $p.AllowsTransparency = $true
+        $script:VmPanel = $p
+    }
+    if ($script:VmPanel.IsOpen) { $script:VmPanel.IsOpen = $false; return $script:VmPanel }
+    $script:VmPanelMsg = ''; $script:VmPanel.Child.Child = (Build-VmPanel); $script:VmPanel.IsOpen = $true; $script:VmClicks++
+    Write-WidgetLog 'voice monkey panel opened (nothing sent)'
+    return $script:VmPanel
 }
 
 # ---- ALL OFF never starts charging ----
@@ -5345,12 +5512,15 @@ function Send-Announcement {
     elseif ($devs.Count -eq 0) { $rec.result = 'skipped: no speaker selected (Announce Setup)' }
     elseif (($g4328 = Get-AnnGate4328 $Why)) { $rec.result = $g4328 }   # v4.3.28: lean, limit reached, home-only
     elseif ($rec.dryRun) {
+        $va = [math]::Max(1, [int]$script:VmSel); $rec.acct = $va; if ($va -gt 1) { $ac = Get-VmAcctCfg $va; if ($null -ne $ac -and $ac.device) { $devs = @([string]$ac.device); $rec.devices = $devs; $rec.device = ($devs -join ', ') } }   # v1
         $rec.result = ('DRY RUN: not sent to Voice Monkey (would go to {0} speaker{1}: {2}{3})' -f $devs.Count, $(if ($devs.Count -eq 1) { '' } else { 's' }), ($devs -join ', '), $(if ($Lock) { '; cross-PC lock not used' } else { '' }))
         $n = @($Parts).Count; for ($i = 0; $i -lt $n; $i++) { Write-WidgetLog ('announce [DRY RUN] ' + $Why + ' part ' + ($i + 1) + '/' + $n + ' -> ' + ($devs -join ', ') + ': ' + $Parts[$i]) }
         if ($null -ne $OnDone) { try { & $OnDone ([pscustomobject]@{ ok = $true; dryRun = $true; okCount = 0; total = $devs.Count * $n }) } catch {} }
     }
     else {
-        $tok = Get-VmToken
+        $va = [math]::Max(1, [int]$script:VmSel); $rec.acct = $va   # v1: send with the selected account (its token + device)
+        if ($va -gt 1) { $ac = Get-VmAcctCfg $va; if ($null -ne $ac -and $ac.device) { $devs = @([string]$ac.device); $rec.devices = $devs; $rec.device = ($devs -join ', ') } }
+        $tok = Get-VmTokenFor $va
         if (-not $tok) { $rec.result = 'skipped: Voice Monkey token unreadable' } else {
             $gaps = @(); for ($i = 0; $i -lt @($Parts).Count - 1; $i++) { $gaps += [int]((Get-WordCount $Parts[$i]) / $AnnWps * 1000 + 2500) }
             $ps = [powershell]::Create()
@@ -5370,7 +5540,7 @@ function Complete-AnnJobs {
         try { $j.ps.Dispose() } catch {}
         $j.rec.result = $(if ($null -ne $res -and $res.skipped) { 'skipped: ' + $res.skipped } elseif ($null -ne $res -and $res.ok) { 'announced (' + $res.okCount + ' send' + $(if ($res.okCount -eq 1) { '' } else { 's' }) + ')' } elseif ($null -ne $res -and $res.partial) { 'partly announced: ' + $res.okCount + '/' + $res.total + ' (' + $(if ($res.code) { 'HTTP ' + $res.code } else { $res.error }) + ')' } else { 'failed: ' + $(if ($null -ne $res) { if ($res.code) { 'HTTP ' + $res.code } else { $res.error } } else { 'no response' }) })
         if ($null -ne $res -and @($res.notes).Count -gt 0) { $j.rec.lock = @($res.notes) }
-        try { Complete-VmUsage4328 $res; if (@(@($res.results) | Where-Object { $_.code -eq 429 }).Count) { $j.rec.result = 'failed: Alexa limit reached (Voice Monkey refused, HTTP 429)' } } catch { Write-WidgetLog ('vm usage: ' + $_.Exception.Message) }   # v4.3.28
+        try { $ja = $(if ($j.rec.Contains('acct')) { [int]$j.rec.acct } else { 1 }); Use-VmAcct $ja; $bad = @(@($res.results) | Where-Object { $null -ne $_ -and $_.part -gt 0 -and -not $_.ok }); if ($bad.Count) { Set-VmLastErr $ja ($(if ($bad[0].code) { 'HTTP ' + $bad[0].code } else { '' }) + ' ' + [string]$bad[0].error).Trim() }; Complete-VmUsage4328 $res; Use-VmAcct 1; if (@(@($res.results) | Where-Object { $_.code -eq 429 }).Count) { $j.rec.result = 'failed: Alexa limit reached (Voice Monkey refused, HTTP 429)' } } catch { Write-WidgetLog ('vm usage: ' + $_.Exception.Message) }   # v4.3.28
         Write-WidgetLog ('announce ' + $j.rec.why + ': ' + $j.rec.result)
         if ($null -ne $j.onDone) { try { & $j.onDone $res } catch { Write-WidgetLog ('announce done handler: ' + $_.Exception.Message) } }
         [void]$script:AnnJobs.Remove($j)
@@ -7248,7 +7418,7 @@ function Show-UpdatePrompt {
     if ($ui.ConfirmOverlay.Visibility -eq 'Visible' -or $ui.ShareOverlay.Visibility -eq 'Visible') { $script:UpdPrompt.pending = $true; return }
     $script:UpdPrompt.pending = $false; $script:UpdPrompt.shown = [string]$script:Upd.latest
     $msg = 'Update to v' + $script:Upd.latest + '?'
-    $sub = 'TessDesk v' + $script:Upd.latest + ' is out (you have v' + $AppVersion + '). Update now downloads it, checks every file, backs up this copy and restarts TessDesk right here. Later asks again the next time TessDesk opens.'
+    $sub = 'TessDesk ' + (Format-TdVer $script:Upd.latest) + ' is out (you have ' + (Format-TdVer $AppVersion) + '). Update now downloads it, checks every file, backs up this copy and restarts TessDesk right here. Later asks again the next time TessDesk opens.'
     if ($NoWait) { [void](Show-ConfirmOverlay $msg $sub 'Update now' 'Later' -NoWait); return }
     $a = Show-ConfirmOverlay $msg $sub 'Update now' 'Later'
     $script:UpdPrompt.answer = $(if ($a) { 'update now' } else { 'later' })
@@ -7303,7 +7473,7 @@ foreach ($k in 'FL', 'FR', 'RL', 'RC', 'RR') { $b = $ui['Seat' + $k]; $b.Command
 $script:AlexaOn = $false; try { $a0 = Get-AnnCfg; if ($null -ne $a0 -and [bool]$a0.actions) { $script:AlexaOn = $true } } catch {}
 Set-AlexaToggle $script:AlexaOn $false
 $ui.AlexaToggle.Add_Click({ try { Set-AlexaToggle ([bool]$ui.AlexaToggle.IsChecked) (-not $SelfTest); if ([bool]$script:AlexaOn -and -not (Test-AnnReady)) { Set-CtlResult 'idle' 'Alexa is on, but Voice Monkey is not set up yet: tap the clock button next to it > Connected apps.' }; Write-WidgetStatus } catch {} })
-$ui.VmBtn.Add_Click({ try { [void](Show-VmSoon) } catch { Write-WidgetLog ('voice monkey button: ' + $_.Exception.Message) } })   # v4.3.27: placeholder
+$ui.VmBtn.Add_Click({ try { [void](Show-VmPanel) } catch { Write-WidgetLog ('voice monkey panel: ' + $_.Exception.Message) } })   # v1: Voice Monkey panel
 $ui.AnnBtn.Add_Click({ if (-not $SelfTest) { try { Show-AnnounceWindow } catch { Write-WidgetLog ('announce window failed: ' + $_.Exception.Message); [void][System.Windows.MessageBox]::Show($window, ('Could not open settings: ' + $_.Exception.Message), 'TessDesk', 'OK', 'Warning') } } })
 
 # v4.3 charge-limit slider: vertical, right of the battery. Drag the white thumb (it shows % + miles while dragging and at rest),
@@ -8214,7 +8384,7 @@ function New-CamFsWindow {
         $dbv = New-Object System.Windows.Controls.StackPanel; $dbv.VerticalAlignment = 'Center'; $dbv.Margin = '16,0,0,0'
         $dt = New-Object System.Windows.Controls.TextBlock; $dt.FontFamily = [System.Windows.Media.FontFamily]::new('Bahnschrift, Impact'); $dt.FontWeight = 'Bold'; $dt.FontSize = 13; $dt.Foreground = Get-CamBrush '#FFE6E6E6'
         [void]$dt.Inlines.Add([System.Windows.Documents.Run]::new('DESIGN BY ')); $vr = [System.Windows.Documents.Run]::new('VAN'); $vr.Foreground = Get-CamBrush '#FFE82127'; [void]$dt.Inlines.Add($vr); [void]$dbv.Children.Add($dt)
-        [void]$dbv.Children.Add((New-CamText ('v' + $AppVersion + ' · ' + $AppDate) 9 '#FF6A6A6A' 'Normal'))
+        [void]$dbv.Children.Add((New-CamText ((Format-TdVer $AppVersion) + ' · ' + $AppDate) 9 '#FF6A6A6A' 'Normal'))
         [System.Windows.Controls.DockPanel]::SetDock($dbv, 'Right'); [void]$bg.Children.Add($dbv)
         $cnt = New-CamText '' 11 '#FF8A8A8A' 'SemiBold'; $cnt.VerticalAlignment = 'Center'; $cnt.Margin = '12,0,0,0'; [System.Windows.Controls.DockPanel]::SetDock($cnt, 'Right'); [void]$bg.Children.Add($cnt); Register-CamBar 'count' $cnt $own
         $sl = New-Object System.Windows.Controls.Slider; $sl.Style = $window.FindResource('CamSlider'); $sl.Minimum = 0; $sl.Maximum = [math]::Max(0, $C.n - 1); $sl.IsSnapToTickEnabled = $true; $sl.TickFrequency = 1; $sl.SmallChange = 1; $sl.LargeChange = 1; $sl.Margin = '14,0,0,0'; $sl.VerticalAlignment = 'Center'
@@ -9552,6 +9722,26 @@ function Get-HomeChargeRate {
     if ($null -eq $o.kwhPerPct) { try { $hc = $script:State.health.capacity; if ($null -ne $hc -and [double]$hc -gt 20) { $o.kwhPerPct = [double]$hc / 100 } } catch {} }
     return $o
 }
+# ---------------- v1: 100% OFF NIGHTS (TessDesk setting only; never sends anything to the car) ----------------
+# Toggle in the CHARGING SCHEDULE row. ON = TessDesk's own nightly plan never aims for 100%: the FINISH BY target stepper stops at 90%,
+# picks above 90% are capped to 90% before anything is queued, and the estimate line says so. Turning it on does NOT send anything:
+# if the plan/car is already above 90% the line only warns ("lower it yourself"). Saved in config.json off100Nights (default off).
+$Off100Max = 90
+function Test-Off100 { if ($null -ne $script:Off100Mock) { return [bool]$script:Off100Mock }; return ($null -ne $script:Cfg -and $null -ne $script:Cfg.PSObject.Properties['off100Nights'] -and [bool]$script:Cfg.off100Nights) }
+function Set-Off100 {
+    param([bool]$On)
+    if ($SelfTest -or $null -ne $script:Off100Mock) { $script:Off100Mock = $On } else { try { Save-ConfigProp 'off100Nights' $On; $script:Cfg = Read-Config } catch { Write-WidgetLog ('off100 save failed: ' + $_.Exception.Message) } }
+    Write-WidgetLog ('100% off nights: ' + $(if ($On) { 'ON (TessDesk plans cap at ' + $Off100Max + '%)' } else { 'OFF' }) + ' · nothing sent to the car')
+    try { Render-Sched } catch {}
+}
+function Get-Off100Note {
+    param($W, $C)
+    if (-not (Test-Off100)) { return '' }
+    $t = $(if ($null -ne $W.target) { [int]$W.target } else { $null })
+    if (($null -ne $t -and $t -gt $Off100Max) -or ($null -ne $C.limit -and [int]$C.limit -gt $Off100Max)) { return (' · 100% OFF NIGHTS: target/limit is above ' + $Off100Max + '%, lower it yourself (TessDesk does not change it)') }
+    return (' · 100% off nights (max ' + $Off100Max + '%)')
+}
+function Get-Off100Target { param($T, $Cur) if (-not (Test-Off100) -or $null -eq $T -or [int]$T -le $Off100Max) { return $T }; if ($null -ne $Cur -and [int]$Cur -ge $Off100Max) { return 'skip' }; return $Off100Max }
 function Get-SchedEstimate {
     param($W, $C, $Rate)
     $tg = $(if ($null -ne $W.target) { [int]$W.target } else { $C.limit })
@@ -9613,7 +9803,8 @@ function Render-Sched {
     foreach ($n in 'SchedStartBox', 'SchedFinishBox', 'SchedTgtBox') { $ui[$n].BorderBrush = T 'BtnBorder'; $ui[$n].Background = T 'BtnBg' }
     $rate = Get-HomeChargeRate $(if ($null -ne $script:SchedSessMock) { $script:SchedSessMock } elseif ($null -ne $script:State) { $script:State.recentSessions } else { @() })
     $est = Get-SchedEstimate $W $C $rate; $script:Sched.est = $est; $script:Sched.rate = $rate
-    $ui.SchedEst.Text = $est.text; $ui.SchedEst.Foreground = T 'TextSoft'
+    $ui.SchedEst.Text = $est.text + (Get-Off100Note $W $C); Set-SchedTxtCtl $ui.Off100Chk (Test-Off100); if ((Test-Off100) -and $null -ne $W.target -and [int]$W.target -ge $Off100Max) { $ui.SchedTgtUp.IsEnabled = $false }   # v1
+    $ui.SchedEst.Foreground = T 'TextSoft'
     if (-not $canSend -and $script:Sched.status -ne 'failed') { $ui.SchedSync.Text = $(if (-not $CTL_ENABLED) { 'Controls off' } else { 'Commands off' }); $ui.SchedSync.Foreground = T 'Caption' }
     else { $st = Get-SchedStatusText; $ui.SchedSync.Text = $st[0]; $ui.SchedSync.Foreground = T $st[1] }
     $l = $script:Sched.last
@@ -9640,6 +9831,7 @@ function Set-SchedWant {
     param([hashtable]$Change)
     if ($script:SchedSync) { return }
     $cur = Get-SchedShown; $w = [ordered]@{}; foreach ($k in 'startOn', 'startMin', 'finishOn', 'finishMin', 'target') { $w[$k] = $cur[$k] }
+    if ($Change.ContainsKey('target')) { $t100 = Get-Off100Target $Change.target $cur.target; if ($t100 -eq 'skip') { return }; $Change.target = $t100 }   # v1: 100% OFF NIGHTS cap (TessDesk plan only)
     foreach ($k in $Change.Keys) { $w[$k] = $Change[$k] }
     $C = Get-CarSched (Get-SchedCar)
     $w.startMin = ((([int]$w.startMin) % 1440) + 1440) % 1440; $w.finishMin = ((([int]$w.finishMin) % 1440) + 1440) % 1440
@@ -9755,6 +9947,7 @@ $script:SchedStep = { param([string]$K, [int]$D)
     else { Set-SchedWant @{ finishMin = ([int]$w.finishMin + $D); finishOn = $true } } }
 $ui.SchedStartDn.Add_Click({ try { & $script:SchedStep 'startMin' -15 } catch {} }); $ui.SchedStartUp.Add_Click({ try { & $script:SchedStep 'startMin' 15 } catch {} })
 $ui.SchedFinishDn.Add_Click({ try { & $script:SchedStep 'finishMin' -15 } catch {} }); $ui.SchedFinishUp.Add_Click({ try { & $script:SchedStep 'finishMin' 15 } catch {} })
+$ui.Off100Chk.Add_Click({ try { Set-Off100 ([bool]$ui.Off100Chk.IsChecked) } catch {} })   # v1
 $ui.SchedTgtDn.Add_Click({ try { & $script:SchedStep 'target' -5 } catch {} }); $ui.SchedTgtUp.Add_Click({ try { & $script:SchedStep 'target' 5 } catch {} })
 foreach ($pair in @(@('SchedStartBox', 'startMin', 15), @('SchedFinishBox', 'finishMin', 15), @('SchedTgtBox', 'target', 5))) {
     $ui[$pair[0]].Tag = ($pair[1] + '|' + $pair[2])
@@ -10836,7 +11029,7 @@ function Start-SelfTest {
         if ($null -eq $script:SelfRec.v4332 -or -not $script:SelfRec.v4332.pass) { $fails += 'v4332' }
         $g = $r.guard; $g.pass = ($null -ne $g -and $g.whenWasCharging -eq $null -and $g.stopSent -eq 1 -and $g.dry -eq $true -and $g.stoppedFlag -and $null -eq $g.again)
         if (-not $g.pass) { $fails += 'guard' }
-        $sm = [ordered]@{ ver = ($AppVersion -eq '4.3.42' -and $ui.FooterVersion.Text -like ('*4.3.42*' + $AppDate)); bold = ($ui.FooterText.FontWeight -eq [System.Windows.FontWeights]::Bold -or $ui.FooterText.FontWeight.ToString() -match 'Bold|Black') }
+        $sm = [ordered]@{ ver = ($AppVersion -eq '100.1' -and $ui.FooterVersion.Text -like ('v1 · ' + $AppDate)); bold = ($ui.FooterText.FontWeight -eq [System.Windows.FontWeights]::Bold -or $ui.FooterText.FontWeight.ToString() -match 'Bold|Black') }
         $r.smoke = $sm; if (-not ($sm.ver)) { $fails += 'smoke' }
         $r.netCommandsSent = $script:NetCommandsSent; $r.announcementsSent = $script:AnnSent
         $r.summary = [ordered]@{ fails = $fails; allPass = ($fails.Count -eq 0 -and $script:NetCommandsSent -eq 0 -and $script:AnnSent -eq 0) } }
@@ -11026,8 +11219,44 @@ function Start-SelfTest {
             $r42.pass = ($r42.unchanged -and $r42.noChargeAnyMode -and $r42.heatGuard -and $r42.acGuard -and $r42.onNotGuarded -and $r42.planFilterFn -and $r42.realCommandsSent -eq 0 -and $r42.realAnnouncementsSent -eq 0 -and $CTL_DRYRUN -and $r42.footer -like '*4.3.42*Oct 28, 2026*')
             $script:SelfRec.v4342 = $r42
         } catch { $script:SelfRec.v4342 = [ordered]@{ pass=$false; error=$_.Exception.Message } }
+        # v1: version counter, Voice Monkey panel + 3 accounts rollover, 100% OFF NIGHTS (dry run, nothing real)
+        try {
+            $r1 = [ordered]@{}; $net0 = $script:NetCommandsSent; $sent0 = $script:AnnSent
+            $r1.footer = [string]$ui.FooterVersion.Text
+            $r1.ver = ($r1.footer -eq 'v1 · Oct 28, 2026' -and (Format-TdVer '100.1') -eq 'v1' -and (Test-VersionNewer '100.1' '4.3.42') -and (Test-VersionNewer '2' '100.1') -and -not (Test-VersionNewer '4.3.42' '100.1') -and -not (Test-VersionNewer '1' '100.1'))
+            $script:Ann4328HomeMock = $true; $script:AlexaOn = $true
+            Use-VmAcct 1; $p0 = (Get-VmPeriod)[0].ToString('yyyy-MM-dd')
+            Save-VmAcct 2 'TEST-VM-2' 'echo-two'
+            $r1.acct2Saved = ((Get-VmAcctCfg 2).device -eq 'echo-two' -and (Test-VmAcctReady 2))
+            $script:VmUsageMem = [pscustomobject]@{ period = $p0; count = 199; blocked = $false; reason = '' }
+            $r1.sel199 = Select-VmActive
+            $script:VmUsageMem = [pscustomobject]@{ period = $p0; count = 200; blocked = $false; reason = '' }
+            $r1.sel200 = Select-VmActive
+            $rec = Send-Announcement -Text 'selftest rollover' -Why 'rundown' -Force
+            $r1.rollDevice = [string]$rec.device; $r1.rollAcct = $rec.acct; $r1.rollResult = [string]$rec.result; $r1.restAcct = $script:VmAcct
+            Use-VmAcct 2; $script:VmUsageMem = [pscustomobject]@{ period = $p0; count = 200; blocked = $false; reason = '' }; Use-VmAcct 1
+            $r1.selAllUsed = Select-VmActive; $r1.gateAllUsed = [string](Get-AnnGate4328 'rundown')
+            Use-VmAcct 2; $script:VmUsageMem = [pscustomobject]@{ period = $p0; count = 5; blocked = $false; reason = '' }; Use-VmAcct 1
+            if ($null -ne $script:VmPanel) { $script:VmPanel.IsOpen = $false }; $pp = @(Show-VmPanel) | Where-Object { $_ -is [System.Windows.Controls.Primitives.Popup] } | Select-Object -First 1; $r1.panelOpen = ($null -ne $pp); $m = Get-VmPanelModel; $r1.panelAccts = @($m.accounts).Count; $r1.panelActive = $m.active; $r1.alexaOn = [bool]$script:AlexaOn
+            $pn = Build-VmPanel; $txt = (@($pn.Children | ForEach-Object { if ($_ -is [System.Windows.Controls.TextBlock]) { $_.Text } elseif ($_ -is [System.Windows.Controls.Border]) { @($_.Child.Children | Where-Object { $_ -is [System.Windows.Controls.TextBlock] } | ForEach-Object { $_.Text }) -join ' / ' } }) -join ' | ')
+            $r1.panelText = $txt
+            $r1.panelHas = ($txt -match 'Used 200 / 200' -and $txt -match 'Used 5 / 200' -and $txt -match 'resets' -and $txt -match 'Last error' -and $txt -match 'ACCOUNT 2')
+            $script:ConfirmHook = { param($m) $false }; $r1.testNo = Invoke-VmTest
+            $script:ConfirmHook = { param($m) $true }; $r1.testYes = Invoke-VmTest; $script:ConfirmHook = $null
+            $script:VmDlgHook = { param($dlg, $pb, $cb, $bS, $bF) $pb.Password = 'TEST-VM-3'; $cb.Text = 'echo-three'; $bS.RaiseEvent((New-Object System.Windows.RoutedEventArgs([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent))) }
+            $r1.add3 = Show-VmAcctDialog 3 'add'; $r1.acct3 = [string](Get-VmAcctCfg 3).device; $script:VmDlgHook = $null
+            Remove-VmAcct 3; $r1.removed3 = ($null -eq (Get-VmAcctCfg 3)); if ($pp) { $pp.IsOpen = $false }
+            $r1.tests = (($r1.testNo -like 'Test cancelled*') -and ($r1.testYes -match 'DRY RUN'))
+            $script:Off100Mock = $false; $r1.off100Default = -not (Test-Off100); Set-Off100 $true
+            $r1.off100 = [ordered]@{ on = (Test-Off100); chk = [bool]$ui.Off100Chk.IsChecked; t100 = (Get-Off100Target 100 80); t95at90 = (Get-Off100Target 95 90); t80 = (Get-Off100Target 80 80); note = (Get-Off100Note ([pscustomobject]@{ target = 100 }) ([pscustomobject]@{ limit = 80 })); est = [string]$ui.SchedEst.Text }
+            Set-Off100 $false; $r1.off100.offT100 = (Get-Off100Target 100 80)
+            $o = $r1.off100; $r1.off100ok = ($r1.off100Default -and $o.on -and $o.chk -and $o.t100 -eq 90 -and $o.t95at90 -eq 'skip' -and $o.t80 -eq 80 -and $o.note -match 'lower it yourself' -and $o.offT100 -eq 100)
+            $r1.realCommandsSent = $script:NetCommandsSent - $net0; $r1.realAnnouncementsSent = $script:AnnSent - $sent0
+            $r1.pass = ($r1.ver -and $r1.acct2Saved -and $r1.sel199 -eq 1 -and $r1.sel200 -eq 2 -and $r1.rollDevice -eq 'echo-two' -and $r1.rollAcct -eq 2 -and $r1.rollResult -match 'DRY RUN' -and $r1.restAcct -eq 1 -and $r1.selAllUsed -eq 0 -and $r1.gateAllUsed -match 'limit' -and $r1.panelOpen -and $r1.panelAccts -eq 2 -and $r1.panelHas -and $r1.tests -and $r1.add3 -and $r1.acct3 -eq 'echo-three' -and $r1.removed3 -and $r1.off100ok -and $r1.realCommandsSent -eq 0 -and $r1.realAnnouncementsSent -eq 0 -and $CTL_DRYRUN)
+            $script:SelfRec.v1 = $r1
+        } catch { $script:SelfRec.v1 = [ordered]@{ pass=$false; error=$_.Exception.Message; at=$_.InvocationInfo.PositionMessage } }
         $r.smoke = [ordered]@{ appVersion = $AppVersion; footer = $ui.FooterVersion.Text; brand = $ui.FooterText.Text; bold = [string]$ui.FooterText.FontWeight; hookLines = $hook; hookBeforeShowDialog = $before; width = $window.Width; renderError = $err; dryRun = $CTL_DRYRUN; realCmdLog = $real
-            pass = ($AppVersion -eq '4.3.42' -and $ui.FooterVersion.Text -like ('*4.3.42*' + $AppDate) -and [string]$ui.FooterText.FontWeight -eq 'Bold' -and $hook -eq 1 -and $before -and $null -eq $err -and $CTL_DRYRUN -and [math]::Abs($window.Width - $winW) -lt 1) }
+            pass = ($AppVersion -eq '100.1' -and $ui.FooterVersion.Text -like ('v1 · ' + $AppDate) -and [string]$ui.FooterText.FontWeight -eq 'Bold' -and $hook -eq 1 -and $before -and $null -eq $err -and $CTL_DRYRUN -and [math]::Abs($window.Width - $winW) -lt 1) }
         $fails = @(); foreach ($k in 'pure', 'collapsed', 'place', 'expanded', 'calTags', 'showAll', 'fresh', 'smoke') { if ($null -eq $r[$k] -or -not $r[$k].pass) { $fails += $k } }
         $r.summary = [ordered]@{ fails = $fails; allPass = ($fails.Count -eq 0) } }
     & $add 'v4.3.22 summary' @() {
